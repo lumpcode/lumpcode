@@ -2,9 +2,17 @@
 
 Lumpcode is a **CLI and library for running agent loops** over your codebase. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
 
+Lumpcode is still in **early development**; expect rough edges and **many improvements in the near future**.
+
 > *Named after the **lumpfish**: a small cleaner fish that salmon farmers add to their pens to quietly pick parasites off the salmon. Lumpcode plays the same role in your codebase, steadily working through the long tail of repetitive coding chores (codemods, doc updates, dependency updates, new abstractions, missing tests...) one batch at a time, without overflowing you with PRs, while you stay focused on your code.*
 
-**LUMP** stands for **Loop Using Multiple Prompts**: one or more prompts per context, often across many similar units of work.
+<p align="center"><em>See how cute it is:</em></p>
+
+<p align="center">
+  <img src="assets/lumpfish.png" alt="Juvenile lumpfish" width="240">
+</p>
+
+> Also, **LUMP** can stand for **Loop Using Multiple Prompts**: one or more prompts per context, often across many similar units of work.
 
 AI coding agents (Claude CLI, Codex, Aider, Cursor) work great on a single file or task. Lumpcode orchestrates them: batched **contexts**, git-isolated branches, marker commits for resumable progress, and optional background scheduling.
 
