@@ -33,7 +33,7 @@ const nccFlags = isDev
 try {
     // Run ncc to bundle the application
     console.log('📦 Bundling with @vercel/ncc...');
-    execSync(`npx ncc build src/root.ts -o dist ${nccFlags}`, {
+    execSync(`npx ncc build src/root.ts -o dist -e esbuild ${nccFlags}`, {
         stdio: 'inherit',
         cwd: path.join(__dirname, '..'),
     });

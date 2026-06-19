@@ -56,5 +56,6 @@ export * from './runLumpFromJsConfig';
 export * from './runPreflight';
 export * from './runProjectPreflight';
 export * from './setContextToFinishedStatus';
+export * from './transpileTypeScriptToCachedMjs';
 export * from './updateContextStatusRecord';
 export * from './validateLumpJsonConfig';

@@ -2,6 +2,28 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
+import {
+    copyEsbuildSidecar,
+    esbuildSidecarFileName,
+    resolveEsbuildBinaryPath,
+} from './esbuild-sidecar.mjs';
+
+export { copyEsbuildSidecar, esbuildSidecarFileName };
+
+/**
+ * @param {string} pkgRoot
+ * @param {string} [platform]
+ * @param {string} [arch]
+ * @returns {string | null}
+ */
+export function resolveEsbuildBinaryInNodeModules(
+    pkgRoot,
+    platform = process.platform,
+    arch = process.arch,
+) {
+    return resolveEsbuildBinaryPath({ pkgRoot, platform, arch });
+}
+
 const DEFAULT_INSTALL_REPO = 'YOUR_ORG/Lumpcode';
 
 /**
@@ -168,6 +190,11 @@ export async function installNativeBinary({
 
     copyDirRecursive(schemasSrc, path.join(vendorDir, 'schemas'));
     copyDirRecursive(presetsSrc, path.join(vendorDir, 'presets'));
+
+    const esbuildCopied = copyEsbuildSidecar({ pkgRoot, destDir: vendorDir, platform, arch });
+    if (!esbuildCopied) {
+        return { installed: false, reason: 'missing-esbuild-sidecar', assetBase };
+    }
 
     const marker = {
         version,

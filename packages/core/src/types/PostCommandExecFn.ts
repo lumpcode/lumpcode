@@ -6,6 +6,7 @@ import { StepVariables } from "./StepVariables";
 
 export type PostCommandExecFn = (input: {
     commandResult: string;
+    commandSucceeded: boolean;
     context: Context;
     prompt: string;
     stepIndex: number | number[];

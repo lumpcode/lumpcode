@@ -150,5 +150,54 @@ describe('runPreflight', () => {
             const after = await fs.readFile(sourceMarker, 'utf-8');
             expect(after).toBe('still here\n');
         });
+
+        it('syncs project copy origin URL when source remote changes', async () => {
+            const projectName = 'preflight-origin-sync';
+            const copyPath = path.join(globalConfigFolderPath, 'project-copies', projectName);
+            const remoteDirB = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-preflight-remote-b-'));
+
+            try {
+                const first = await runPreflight({
+                    mode: 'shared',
+                    projectBaseBranch: 'main',
+                    sourceProjectRoot: projectRoot,
+                    globalConfigFolderPath,
+                    projectName,
+                });
+                expect(first.success).toBe(true);
+                if (!first.success) throw new Error('unreachable');
+
+                expect(execSync('git remote get-url origin', { cwd: copyPath, encoding: 'utf-8' }).trim()).toBe(
+                    remoteDir,
+                );
+
+                git('init --bare', remoteDirB);
+                git(`remote set-url origin ${remoteDirB}`, projectRoot);
+                git('push -u origin main', projectRoot);
+                git('branch release/2.0', projectRoot);
+                git('push -u origin release/2.0', projectRoot);
+
+                const second = await runPreflight({
+                    mode: 'shared',
+                    projectBaseBranch: 'main',
+                    sourceProjectRoot: projectRoot,
+                    globalConfigFolderPath,
+                    projectName,
+                });
+                expect(second.success).toBe(true);
+                if (!second.success) throw new Error('unreachable');
+
+                expect(execSync('git remote get-url origin', { cwd: copyPath, encoding: 'utf-8' }).trim()).toBe(
+                    remoteDirB,
+                );
+
+                git('fetch origin release/2.0', copyPath);
+                expect(
+                    execSync('git rev-parse --verify origin/release/2.0', { cwd: copyPath, encoding: 'utf-8' }).trim(),
+                ).toMatch(/^[0-9a-f]{40}$/);
+            } finally {
+                await fs.rm(remoteDirB, { recursive: true, force: true });
+            }
+        });
     });
 });

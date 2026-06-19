@@ -96,7 +96,7 @@ export const command = {
     inputSchema,
     defaultInjections: {
         projectRoot: process.cwd(),
-        localConfigFolderPath: () => localConfigFolderPath,
-        globalConfigFolderPath: globalConfigFolderPath,
+        localConfigFolderPath,
+        globalConfigFolderPath,
     },
 } satisfies Command;

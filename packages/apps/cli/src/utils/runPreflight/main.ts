@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { execAsync, failure, type Failure, success, type Success } from '@lumpcode/core';
+import { execAsync, failure, type Failure, shellSingleQuote, success, type Success } from '@lumpcode/core';
 
 import type { Mode } from '../../types/Mode';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
@@ -27,8 +27,10 @@ export interface RunPreflightOutput {
 
 /**
  * Prepares the execution workspace before a lump is run. In `shared` mode, ensures a
- * project copy exists under `<globalConfigFolderPath>/project-copies/<projectName>`
- * and pulls `projectBaseBranch` inside it; the source clone is never touched.
+ * project copy exists under `<globalConfigFolderPath>/project-copies/<projectName>`,
+ * and when reusing an existing copy, aligns its `origin` URL with the source clone
+ * if they differ; then pulls `projectBaseBranch` inside the copy. The source clone
+ * is never touched.
  * In `dedicated` mode, pulls `projectBaseBranch` in `sourceProjectRoot` in
  * place (destructive: `git reset --hard origin/<projectBaseBranch>` wipes any
  * uncommitted work).
@@ -44,7 +46,15 @@ export async function runPreflight(input: RunPreflightInput): Promise<Success<Ru
     if (mode === 'shared') {
         const copyResult = await ensureProjectCopy({ sourceProjectRoot, globalConfigFolderPath, projectName });
         if (!copyResult.success) return copyResult;
-        executionWorkspacePath = copyResult.data;
+        executionWorkspacePath = copyResult.data.copyPath;
+
+        if (copyResult.data.reused) {
+            const syncOriginResult = await syncReusedCopyOriginRemote({
+                sourceProjectRoot,
+                copyPath: executionWorkspacePath,
+            });
+            if (!syncOriginResult.success) return syncOriginResult;
+        }
     } else {
         executionWorkspacePath = sourceProjectRoot;
     }
@@ -63,7 +73,7 @@ async function ensureProjectCopy({
     sourceProjectRoot: string;
     globalConfigFolderPath: string;
     projectName: string;
-}): Promise<Success<string> | Failure<string>> {
+}): Promise<Success<{ copyPath: string; reused: boolean }> | Failure<string>> {
     const copiesRoot = projectCopiesRootPath({ globalConfigFolderPath });
     const copyPath = getExecutionWorkspacePath({
         mode: 'shared',
@@ -87,14 +97,47 @@ async function ensureProjectCopy({
         } catch (error) {
             return failure(`Failed to create project copy at ${copyPath}: ${String(error)}`);
         }
-        return success(path.resolve(copyPath));
+        return success({ copyPath: path.resolve(copyPath), reused: false });
     }
 
     if (!stat.isDirectory()) {
         return failure(`Project copy path exists but is not a directory: ${copyPath}`);
     }
 
-    return success(path.resolve(copyPath));
+    return success({ copyPath: path.resolve(copyPath), reused: true });
+}
+
+/** Reused copies can retain a stale `origin` if the source remote changed after the copy was created. */
+async function syncReusedCopyOriginRemote({
+    sourceProjectRoot,
+    copyPath,
+}: {
+    sourceProjectRoot: string;
+    copyPath: string;
+}): Promise<Success<void> | Failure<string>> {
+    const readOrigin = (cwd: string) => execAsync('git remote get-url origin', { cwd });
+
+    const sourceUrlResult = await readOrigin(sourceProjectRoot);
+    if (!sourceUrlResult.success) {
+        return failure(`Failed to read origin URL from source project: ${sourceUrlResult.data.message}`);
+    }
+
+    const sourceOriginUrl = sourceUrlResult.data.stdout.trim();
+    const copyUrlResult = await readOrigin(copyPath);
+    if (copyUrlResult.success && copyUrlResult.data.stdout.trim() === sourceOriginUrl) {
+        return success(undefined);
+    }
+
+    const quotedOriginUrl = shellSingleQuote(sourceOriginUrl);
+    const syncCommand = copyUrlResult.success
+        ? `git remote set-url origin ${quotedOriginUrl}`
+        : `git remote add origin ${quotedOriginUrl}`;
+    const syncResult = await execAsync(syncCommand, { cwd: copyPath });
+    if (!syncResult.success) {
+        return failure(`Failed to sync origin URL in project copy: ${syncResult.data.message}`);
+    }
+
+    return success(undefined);
 }
 
 async function pullProjectBaseBranch({

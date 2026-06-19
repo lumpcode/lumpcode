@@ -69,8 +69,13 @@ install_from_dir() {
     echo "Missing schemas/ or presets/ next to binary under $src" >&2
     exit 1
   fi
+  if [[ ! -f "${src}/esbuild" ]]; then
+    echo "Missing esbuild sidecar next to binary under $src (rebuild with build:sea)" >&2
+    exit 1
+  fi
   mkdir -p "$LIB_DIR" "$BIN_DIR"
   install -m 755 "$binary" "${LIB_DIR}/lumpcode"
+  install -m 755 "${src}/esbuild" "${LIB_DIR}/esbuild"
   rm -rf "${LIB_DIR}/schemas" "${LIB_DIR}/presets"
   cp -R "${src}/schemas" "${LIB_DIR}/schemas"
   cp -R "${src}/presets" "${LIB_DIR}/presets"
@@ -97,7 +102,7 @@ install_from_release() {
     (cd "$tmp" && sha256sum -c archive.tar.gz.sha256)
   fi
   tar -xzf "${tmp}/archive.tar.gz" -C "$tmp"
-  # Tarball layout: lumpcode + schemas/ + presets/ at top level
+  # Tarball layout: lumpcode + esbuild + schemas/ + presets/ at top level
   install_from_dir "$tmp"
 }
 main() {

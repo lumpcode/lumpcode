@@ -41,6 +41,12 @@ New-Item -ItemType Directory -Force -Path "$BinDir/presets/commands/utils" | Out
 Copy-Item -Force src/presets/commands/*.js "$BinDir/presets/commands/"
 Copy-Item -Force src/presets/commands/utils/*.js "$BinDir/presets/commands/utils/"
 
+Write-Host "📋 Copying esbuild binary..." -ForegroundColor Yellow
+node "$ScriptDir/esbuild-sidecar.mjs" $BinDir
+if ($LASTEXITCODE -ne 0) {
+    throw "esbuild platform binary not found (run npm i from repo root)"
+}
+
 Write-Host ""
 Write-Host "✅ Binary created: $BinDir/$OutputName.exe" -ForegroundColor Green
 Write-Host "   Run it with: .\$BinDir\$OutputName.exe" -ForegroundColor Gray

@@ -292,6 +292,19 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             return;
         }
 
+        const preflightResult = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig: frozenLocalConfig,
+        });
+        if (!preflightResult.success) {
+            logger.error(`pre-flight failed; skipping tick: ${preflightResult.data}`);
+            return;
+        }
+        const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } =
+            preflightResult.data;
+
         const namesResult = await resolveTargetLumpNames({
             localConfigFolderPath,
             lumpName: lumpNameOpt,
@@ -305,19 +318,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             logger.warn('no lumps found this tick; skipping.');
             return;
         }
-
-        const preflightResult = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            localConfig: frozenLocalConfig,
-        });
-        if (!preflightResult.success) {
-            logger.error(`pre-flight failed; skipping tick: ${preflightResult.data}`);
-            return;
-        }
-        const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } =
-            preflightResult.data;
 
         ticks += 1;
         logger.info(`tick ${ticks} — running ${names.length} lump(s)… [${names.join(', ')}]`);

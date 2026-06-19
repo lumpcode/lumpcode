@@ -70,4 +70,25 @@ describe('resolveTargetLumpNames', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data).toEqual(['alpha']);
     });
+
+    it('returns the requested lump when only config.ts exists', async () => {
+        const lumpDir = path.join(localConfigFolderPath, 'lumps', 'ts-only');
+        await fs.mkdir(lumpDir, { recursive: true });
+        await fs.writeFile(
+            path.join(lumpDir, 'config.ts'),
+            `export default {
+  contextListJson: { NAME: '{NAME}.md' },
+  prompt: { promptTemplate: 'Hi', command: 'claude' as const },
+};`,
+            'utf-8',
+        );
+
+        const result = await resolveTargetLumpNames({
+            localConfigFolderPath,
+            lumpName: 'ts-only',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual(['ts-only']);
+    });
 });

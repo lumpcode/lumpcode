@@ -93,6 +93,12 @@ By default this writes **`.lumpcode/lumps/myFirstLump/config.json`** with a smal
 lumpcode lump-create myFirstLump --config js
 ```
 
+For **`config.ts`**:
+
+```bash
+lumpcode lump-create myFirstLump --config ts
+```
+
 `lump-create` gives you one path template plus `@{FILE}` in the prompt; Step 3 is where you reshape that for your lump.
 
 ---
@@ -186,6 +192,7 @@ Details — cron flags, caps, trade-offs: [concepts.md § When to use run vs sta
 | Per-machine mode + projectBaseBranch | `.lumpcode/local.json` (gitignored) |
 | Context status cache | `.lumpcode/lumps/<lumpName>/contextStatusRecord.json` |
 | Prompt run history (optional, `keepHistory: true`) | `.lumpcode/lumps/<lumpName>/history/<contextName>.json` (gitignored) |
+| TypeScript transpile cache | `.lumpcode/.cache/transpile/` (gitignored) |
 | Default work branch names | `lump/<lumpName>/<context…>` (local + `origin`) |
 | Isolated repo copy (when `local.json.mode` is `shared`) | `~/.lumpcode/project-copies/<projectName>/` |
 | Background daemon PID / logs | `~/.lumpcode/daemons/` |

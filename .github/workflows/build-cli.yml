@@ -32,6 +32,9 @@ jobs:
       - name: Build @lumpcode/core
         run: npm run build -w=@lumpcode/core
 
+      - name: Build @lumpcode/cli-utils
+        run: npm run build -w=@lumpcode/cli-utils
+
       - name: Build @lumpcode/cli-types
         run: npm run build -w=@lumpcode/cli-types
 
@@ -135,7 +138,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lumpcode-${{ matrix.platform }}-${{ matrix.arch }}
-          path: packages/apps/cli/bin/lumpcode-*
+          path: |
+            packages/apps/cli/bin/lumpcode-*
+            packages/apps/cli/bin/esbuild
+            packages/apps/cli/bin/esbuild.exe
           if-no-files-found: error
 
   # Single check name for branch protection (ruleset: require status check "ci").

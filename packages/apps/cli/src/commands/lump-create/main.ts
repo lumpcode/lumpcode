@@ -12,9 +12,9 @@ import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpDirPath } from '../../utils/lumpDirPath';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
-const CONFIG_FILE_NAMES = ['config.json', 'config.js'] as const;
+const CONFIG_FILE_NAMES = ['config.json', 'config.js', 'config.ts'] as const;
 
-type LumpConfigFormat = 'js' | 'json';
+type LumpConfigFormat = 'js' | 'json' | 'ts';
 
 const inputSchema = z
     .object({
@@ -22,7 +22,7 @@ const inputSchema = z
             config: z
                 .string()
                 .optional()
-                .describe('Configuration file format: js or json (default json)'),
+                .describe('Configuration file format: json, js, or ts (default json)'),
         }),
         arguments: z.object({
             lumpName: z.string().describe('The name of the lump to create'),
@@ -30,10 +30,10 @@ const inputSchema = z
     })
     .superRefine((data, ctx) => {
         const raw = data.options.config ?? 'json';
-        if (raw !== 'js' && raw !== 'json') {
+        if (raw !== 'js' && raw !== 'json' && raw !== 'ts') {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
-                message: 'option config must be js or json',
+                message: 'option config must be json, js, or ts',
                 path: ['options', 'config'],
             });
         }
@@ -52,7 +52,7 @@ export interface Injections {
 
 function normalizeConfigFormat(raw: string | undefined): LumpConfigFormat {
     const v = raw ?? 'json';
-    if (v === 'js' || v === 'json') return v;
+    if (v === 'js' || v === 'json' || v === 'ts') return v;
     return 'json';
 }
 
@@ -91,13 +91,17 @@ const defaultStubLinesJs = `export default {
 };
 `;
 
+const defaultStubLinesTs = defaultStubLinesJs;
+
 function fileNameForFormat(format: LumpConfigFormat): string {
     if (format === 'json') return 'config.json';
+    if (format === 'ts') return 'config.ts';
     return 'config.js';
 }
 
 function fileBodyForFormat(format: LumpConfigFormat): string {
     if (format === 'json') return defaultStubLinesJson;
+    if (format === 'ts') return defaultStubLinesTs;
     return defaultStubLinesJs;
 }
 
@@ -119,7 +123,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (hasConfig) {
         return failure({
             messages: [
-                `Lump "${lumpName}" already has a config (config.json or config.js) under ${lumpDir}`,
+                `Lump "${lumpName}" already has a config (config.json, config.js, or config.ts) under ${lumpDir}`,
             ],
         });
     }
