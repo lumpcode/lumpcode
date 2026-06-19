@@ -1,0 +1,72 @@
+{
+  "project-setup": {
+    "done": true,
+    "priority": 1,
+    "dependsOn": []
+  },
+  "login": {
+    "done": true,
+    "priority": 1,
+    "dependsOn": []
+  },
+  "logout": {
+    "done": true,
+    "priority": 2,
+    "dependsOn": ["login"]
+  },
+  "run": {
+    "done": true,
+    "priority": 2,
+    "dependsOn": ["project-setup"]
+  },
+  "lump-create": {
+    "done": true,
+    "priority": 3,
+    "dependsOn": ["project-setup"]
+  },
+  "clean": {
+    "done": true,
+    "priority": 3,
+    "dependsOn": ["project-setup"]
+  },
+  "lump-status": {
+    "done": true,
+    "priority": 4,
+    "dependsOn": ["project-setup", "run"]
+  },
+  "context-status": {
+    "done": true,
+    "priority": 5,
+    "dependsOn": ["lump-status"]
+  },
+  "start": {
+    "done": true,
+    "priority": 6,
+    "dependsOn": ["run"]
+  },
+  "stop": {
+    "done": true,
+    "priority": 7,
+    "dependsOn": ["start"]
+  },
+  "daemon-status": {
+    "done": true,
+    "priority": 7,
+    "dependsOn": ["start"]
+  },
+  "restart": {
+    "done": true,
+    "priority": 8,
+    "dependsOn": ["start", "stop"]
+  },
+  "log": {
+    "done": false,
+    "priority": 8,
+    "dependsOn": ["start", "stop", "restart"]
+  },
+  "update": {
+    "done": false,
+    "priority": 9,
+    "dependsOn": ["restart", "enable", "disable"]
+  }
+}

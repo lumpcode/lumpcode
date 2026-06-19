@@ -1,0 +1,1 @@
+export type ContextRunState = Record<string, unknown>;

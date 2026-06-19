@@ -1,0 +1,64 @@
+{
+  "name": "@lumpcode/cli",
+  "version": "0.0.5",
+  "description": "CLI for running agent loops over your codebase. Run agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
+  "license": "Apache-2.0",
+  "author": "",
+  "type": "commonjs",
+  "main": "dist/index.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "lumpcode": "./bin/lumpcode.js"
+  },
+  "files": [
+    "bin/lumpcode.js",
+    "dist/index.js",
+    "dist/schemas",
+    "dist/presets",
+    "dist/installPresetCommands.mjs",
+    "scripts/native-binary.mjs",
+    "scripts/postinstall.mjs",
+    "README.md",
+    "LICENSE",
+    "DOCS"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "clean": "rm -rf dist && rm -f bin/lumpcode-darwin-* bin/lumpcode-linux-* bin/lumpcode-windows-* && rm -rf bin/schemas bin/presets",
+    "build:bundle": "node scripts/build.js",
+    "build:dev": "node scripts/build.js --dev",
+    "build:npm": "npm run build:bundle",
+    "build:sea": "npm run build:bundle && bash scripts/build-sea.sh",
+    "build:sea:windows": "npm run build:bundle && powershell -ExecutionPolicy Bypass -File scripts/build-sea.ps1",
+    "build": "npm run clean && npm run build:sea",
+    "postinstall": "node scripts/postinstall.mjs",
+    "prepublishOnly": "npm run build:bundle",
+    "check-types": "tsc --noEmit",
+    "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "node scripts/run-e2e.mjs",
+    "test:e2e:node": "node scripts/run-e2e.mjs --node",
+    "test:e2e:ci": "node scripts/run-e2e.mjs --ci",
+    "test:e2e:ci:node": "node scripts/run-e2e.mjs --node --ci",
+    "install-bin:local:beta": "sh scripts/install-local.sh"
+  },
+  "dependencies": {
+    "@lumpcode/core": "^0.0.5",
+    "ajv": "^8.20.0",
+    "commander": "^9.5.0",
+    "croner": "^9.1.0",
+    "dotenv": "^16.6.1",
+    "lodash": "^4.18.1",
+    "node-machine-id": "^1.1.12"
+  },
+  "devDependencies": {
+    "@types/lodash": "^4.17.24",
+    "@vercel/ncc": "^0.38.4",
+    "postject": "^1.0.0-alpha.6",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2"
+  }
+}

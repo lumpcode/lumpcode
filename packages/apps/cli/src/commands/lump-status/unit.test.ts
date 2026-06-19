@@ -1,0 +1,124 @@
+import * as path from 'node:path';
+import * as os from 'node:os';
+import * as fs from 'node:fs/promises';
+import { execSync } from 'node:child_process';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+
+import { command } from './main';
+import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
+
+function git(cmd: string, cwd: string) {
+    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
+}
+
+describe('lump-status command', () => {
+    let projectRoot: string;
+    let bareDir: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-'));
+        bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-bare-'));
+
+        git('init --bare', bareDir);
+        git('init -b main', projectRoot);
+        git('config user.email "test@test.com"', projectRoot);
+        git('config user.name "Test"', projectRoot);
+        git('commit --allow-empty -m "init"', projectRoot);
+        git(`remote add origin ${bareDir}`, projectRoot);
+        git('push -u origin main', projectRoot);
+
+        await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({ mode: 'shared', projectBaseBranch: 'main' }),
+            'utf-8',
+        );
+    }, 60_000);
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(bareDir, { recursive: true, force: true });
+    }, 60_000);
+
+    async function writeLump(lumpName: string) {
+        const lumpDir = path.join(localConfigFolderPath, 'lumps', lumpName);
+        await fs.mkdir(lumpDir, { recursive: true });
+        await fs.writeFile(
+            path.join(lumpDir, 'config.json'),
+            JSON.stringify({
+                baseBranch: 'main',
+                contextListJson: { c1: 'README.md' },
+                prompt: { promptTemplate: 'task', command: 'claude' },
+            }),
+            'utf-8',
+        );
+    }
+
+    function makeHandler() {
+        return command.handlerMaker({ projectRoot, localConfigFolderPath });
+    }
+
+    it(
+        'refreshes status for all lumps and writes contextStatusRecord.json',
+        async () => {
+        await writeLump('alpha');
+        const handle = makeHandler();
+        const result = await handle({
+            options: {},
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.statusByLump.alpha).toEqual({});
+        const csrPath = contextStatusRecordPath({ projectRoot, lumpName: 'alpha' });
+        const onDisk = JSON.parse(await fs.readFile(csrPath, 'utf-8'));
+        expect(onDisk).toEqual({});
+        },
+        60_000,
+    );
+
+    it(
+        'scopes to --lumpName',
+        async () => {
+        await writeLump('a');
+        await writeLump('b');
+        const handle = makeHandler();
+        const result = await handle({
+            options: { lumpName: 'b' },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(Object.keys(result.data.data!.statusByLump)).toEqual(['b']);
+        },
+        60_000,
+    );
+
+    it('fails for unknown lump name', async () => {
+        await writeLump('only');
+        const handle = makeHandler();
+        const result = await handle({
+            options: { lumpName: 'missing' },
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+    }, 60_000);
+
+    it('with silent true (--silent), messages summarize paths instead of dumping JSON',
+        async () => {
+        await writeLump('alpha');
+        const handle = makeHandler();
+        const result = await handle({
+            options: { silent: true },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.messages.some((m) => m.includes('Wrote:'))).toBe(true);
+        expect(result.data.messages.some((m) => m.trim().startsWith('{'))).toBe(false);
+        },
+        60_000,
+    );
+});

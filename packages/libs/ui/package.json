@@ -1,0 +1,35 @@
+{
+  "name": "@lumpcode/ui",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "clean": "rm -rf dist",
+    "gen-theme": "tsx src/styles/genTheme.ts",
+    "build-types": "vue-tsc --emitDeclarationOnly -p tsconfig.app.json",
+    "build": "npm run clean && npm run gen-theme && vue-tsc -b && vite build && npm run build-types",
+    "preview": "vite preview",
+    "storybook": "storybook dev -p 6006 --no-open",
+    "dev": "npm run storybook",
+    "build-storybook": "storybook build"
+  },
+  "dependencies": {
+    "vue": "^3.5.24"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@vitejs/plugin-vue": "^6.0.1",
+    "@vue/tsconfig": "^0.8.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.4",
+    "vue-tsc": "^3.1.4",
+    "storybook": "^10.1.8",
+    "@storybook/vue3-vite": "^10.1.8"
+  }
+}

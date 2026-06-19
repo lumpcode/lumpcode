@@ -1,0 +1,139 @@
+# Brief backlog — PRD agent expands each task; move finished entries to DONE.yml.
+- name: dedicated-dirty-env-guardrail
+  task: When local.json mode is dedicated, fail preflight with a clear message if the working tree is dirty.
+  priority: 1
+- name: bug-context-no-name
+  task: When the context name is not provided, fail with a clear error message.
+  priority: 1
+- name: add-branch-name-to-history
+  task: Add the branch name to the history.
+  priority: 1
+- name: add-empty-commit-automatically-if-context-needs-zero-modification
+  task: If the context ends with zero modification, add an empty marker commit automatically.
+  priority: 1
+- name: bug-error-ugly-if-command-module-is-not-valid
+  task: If a command module is not valid (e.g contains kommand as export instead of command), it fails with a clear error message instead of an ugly trace.
+  priority: 1
+- name: clean-command-family-naming
+  task: Align command naming families (lump-*, project-*, daemon-*) and add potential aliases for convenience (run should be an alias of lump-run).
+  priority: 1
+- name: duplicate-arguments-as-options
+  task: For each command that has arguments, add for convenience an option with the same name and description. The argument become optional, but the argument or the option must be provided.
+  priority: 1
+  dependsOn:
+    - clean-command-family-naming
+- name: graceful-error-handling
+  task: User-facing errors for git auth failures, missing remotes, and common agent exit codes.
+  priority: 1
+- name: project-setup-interactive
+  task: Interactive prompts for project-setup (mode, base branch, project name) when flags omitted.
+  priority: 2
+- name: lump-create-interactive
+  task: Interactive prompts for lump-create (name, agent command) when flags omitted.
+  priority: 2
+- name: project-setup-output-improvement
+  task: Improve project-setup success output with next steps (e.g. run lump-create).
+  priority: 2
+- name: run-context-name-force
+  task: Add run --contextName (single context) and --force (re-run even if finished).
+  priority: 2
+- name: better-cli-output
+  task: >-
+    Cleaner, more informative CLI output across commands — clearer success/progress messages,
+    consistent formatting, actionable next steps where helpful.
+  priority: 2
+  dependsOn:
+    - graceful-error-handling
+- name: clean-location-flag
+  task: Add --location to clean (local, remote, or all; default all). lumpName and contextName already exist.
+  priority: 3
+- name: stop-all-option
+  task: Add --all to stop to stop global and every per-lump daemon in one invocation.
+  priority: 3
+- name: clear-logs-command
+  task: New command to truncate or rotate daemon log file(s) under global config.
+  priority: 3
+- name: reset-presets-command
+  task: CLI command to restore global preset command modules to shipped defaults.
+  priority: 3
+- name: binary-deployment-setup
+  task: macOS signing/notarization and Windows distribution for released CLI binaries.
+  priority: 3
+- name: github-release-binary-artifacts
+  task: >-
+    Store CLI SEA binaries as GitHub Release artifacts — uncomment/fix release job in
+    .github/workflows/build-cli.yml, upload per-platform binaries + checksums on version tags,
+    set DEFAULT_INSTALL_REPO to lumpcode/lumpcode in native-binary.mjs and install.sh, then
+    document optional native-binary install path in README (postinstall already supports it).
+  priority: 3
+  dependsOn:
+    - binary-deployment-setup
+- name: cli-bin-update
+  task: Self-update flow for the installed CLI binary.
+  priority: 3
+  dependsOn:
+    - binary-deployment-setup
+- name: cli-install-release-setup
+  task: >-
+    End-to-end install distribution — polish install.sh (real release URLs, install.ps1 on Windows),
+    CI tarballs and checksums (binary + schemas + presets), hosted curl one-liner, README/DOCS install
+    section; align installed layout (~/.local/lib/lumpcode) with cli-bin-update self-update; smoke-test
+    install (--local and release path) on every build-cli matrix platform (linux x64/arm, darwin x64/arm,
+    windows).
+  priority: 3
+  dependsOn:
+    - github-release-binary-artifacts
+    - cli-bin-update
+- name: lump-cron-interval
+  task: Per-lump cron override (daemon reads from lump config).
+  priority: 3
+- name: extend-lump-config
+  task: >-
+    Support extending another lump config — extends in config.json referencing a base lump/path
+    with local fields overriding; equivalent composition pattern for config.js.
+  priority: 3
+- name: history-yaml-format
+  task: Switch keepHistory files from JSON to YAML for long prompt/agent strings.
+  priority: 3
+- name: prompt-template-file-path
+  task: Support loading prompt text from a file path in lump config.
+  priority: 3
+- name: codebase-paths-dev-friendly
+  task: Richer codeBasePath objects in context hooks (file content helpers, not just path strings).
+  priority: 3
+- name: ts-config-command-files
+  task: Allow .ts lump config and command/hook modules (today runtime is .js / JSON only).
+  priority: 3
+- name: claude-codex-presets
+  task: >-
+    Ship preset command modules for claude and codex (same three-tier resolution as cursor/copilot).
+  priority: 3
+- name: recipe-get-recursive-steps
+  task: Add getRecursiveSteps to the recipe system; additional recipes deferred to later tasks.
+  priority: 3
+- name: command-outputs-docs
+  task: Document stdout/stderr and --json shapes for each CLI command.
+  priority: 4
+- name: commands-md-less-implementation
+  task: Trim implementation internals from commands.md; keep user-facing behavior.
+  priority: 4
+  dependsOn:
+    - command-outputs-docs
+- name: advanced-config-readability
+  task: Rewrite pseudo-code blocks in advanced-config.md for scanability.
+  priority: 4
+- name: contextlistjson-path-clarity
+  task: Document glob semantics for contextListJson paths (src/{FILE}.ts vs trailing /).
+  priority: 4
+- name: agent-chosen-context-example
+  task: Add one abstract example lump where the agent picks the next context.
+  priority: 4
+- name: many-use-case-examples
+  task: Add focused examples under DOCS/examples (refactoring campaign, user-story batch, etc.).
+  priority: 4
+  dependsOn:
+    - agent-chosen-context-example
+- name: upgrade-e2e
+  task: Follow-up E2E coverage — extend scenarios for uncovered commands and platform edge cases.
+  ref: upgrade-e2e.md
+  priority: 4

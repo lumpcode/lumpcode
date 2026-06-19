@@ -1,0 +1,4 @@
+{
+    "FOLDER": "src/components/{COMPONENT_NAME}/",
+    "INDEX": "src/components/{COMPONENT_NAME}/index.ts"
+}

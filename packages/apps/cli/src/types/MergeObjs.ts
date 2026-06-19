@@ -1,0 +1,1 @@
+export type MergeObjs<T, U> = Omit<T, keyof U> & U;

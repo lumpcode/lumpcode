@@ -1,0 +1,195 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "lumpConfig.schema.json",
+  "title": "Lump JSON Configuration",
+  "description": "JSON configuration schema for a Lump — a long-running automated coding campaign managed by Lumpcode. This schema defines the JSON-serializable subset of the full Lump configuration (LumpJsonConfig). Function-valued fields from the JS config are either excluded entirely or replaced by file paths pointing to modules that export the corresponding function.",
+  "type": "object",
+  "additionalProperties": true,
+  "allOf": [
+    {
+      "oneOf": [
+        { "required": ["contextListJson"], "not": { "anyOf": [{ "required": ["getContextListFn"] }, { "required": ["contextMatchFn"] }] } },
+        { "required": ["getContextListFn"], "not": { "anyOf": [{ "required": ["contextListJson"] }, { "required": ["contextMatchFn"] }] } },
+        { "required": ["contextMatchFn"], "not": { "anyOf": [{ "required": ["contextListJson"] }, { "required": ["getContextListFn"] }] } }
+      ],
+      "description": "Exactly one context source must be provided: 'contextListJson' (a static json or path to a json file), 'getContextListFn' (a file path to a dynamic context-fetching function), or 'contextMatchFn' (a file path to a MatchFn that builds contexts by scanning codebase files)."
+    },
+    {
+      "oneOf": [
+        { "required": ["prompt"], "not": { "required": ["steps"] } },
+        { "required": ["steps"], "not": { "required": ["prompt"] } }
+      ],
+      "description": "Exactly one prompt definition must be provided: either 'prompt' (a single prompt item) or 'steps' (an ordered list of prompt steps)."
+    }
+  ],
+  "properties": {
+    "baseBranch": {
+      "type": "string",
+      "description": "Optional override of the project-wide `projectBaseBranch` (from `.lumpcode/local.json`). When set, this lump runs against the given branch instead; the per-lump workspace flow will fetch and pull it before creating the lump branch. Most lumps omit this field.",
+      "examples": ["main", "develop", "release/2.0"]
+    },
+    "branchFn": {
+      "type": "string",
+      "description": "File path to a module that default-exports a BranchFn — a function that determines the branch name for a given set of contexts. In the JS config this can be the function itself; in JSON it must be a file path to the module.",
+      "examples": ["./lump/branchFn.ts", "./lump/branchFn.js"]
+    },
+    "command": {
+      "type": "string",
+      "description": "A top-level command shorthand applied to all prompt items. Can be either:\n  • A registered command string (e.g. 'claude') that will receive the prompt\n  • A file path to a module containing a CommandFn\nWhen set here, individual prompt items inherit this command unless they override it.",
+      "examples": ["claude", "aider", "./command.ts"]
+    },
+    "contextListJson": {
+      "oneOf": [
+        {
+          "type": "string",
+          "description": "File path to a JSON file containing a { [variableName]: pathTemplate } mapping."
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Inline mapping from variable name to path template. Each value is a path template with {PLACEHOLDER} captures (e.g. 'src/{NAME}.ts'); each key is the variable name exposed to the prompt as {KEY} / @{KEY}."
+        }
+      ],
+      "description": "Static context source. The engine scans the tree and, for every path that matches a template, builds a context whose variables map keys (e.g. 'FILE') to the matched path. Path templates support {PLACEHOLDER} captures and $modifier{PLACEHOLDER} (e.g. $upperFirst{NAME}) for naming-convention checks. Prefer paths without a leading './'. Mutually exclusive with getContextListFn / contextMatchFn.",
+      "examples": [
+        "./contextList.json",
+        {
+            "FILE": "src/{NAME}.ts"
+        },
+        {
+            "FOLDER": "src/components/{COMPONENT_NAME}/",
+            "INDEX": "src/components/{COMPONENT_NAME}/index.ts",
+            "TYPES": "src/components/{COMPONENT_NAME}/{COMPONENT_NAME}.types.ts",
+            "COMPONENT": "src/components/{COMPONENT_NAME}/$upperFirst{COMPONENT_NAME}.tsx"
+        }
+      ]
+    },
+    "contextMatchFn": {
+      "type": "string",
+      "description": "File path to a module exporting a MatchFn — a function that builds contexts by scanning codebase files. For each codeBasePath, the function returns an object { contextName, filePathVariableName, moreContextVariables?, contextOptions? } or null if the file doesn't match. Multiple matches with the same contextName merge into one context (variables accumulate; later matches override duplicate keys). This is an alternative to 'contextListJson' and 'getContextListFn' for dynamically grouping files into contexts based on custom matching logic.",
+      "examples": ["./lump/contextMatchFn.ts"]
+    },
+    "contextOptionsFn": {
+      "type": "string",
+      "description": "File path to a module exporting a function that provides additional options or configuration for each context. In the JS config this can be the function itself; in JSON it must be a file path.",
+      "examples": ["./lump/contextOptionsFn.ts"]
+    },
+    "disabled": {
+      "type": "boolean",
+      "description": "When true, this lump configuration is skipped during execution. Useful for temporarily disabling a lump without removing its configuration.",
+      "default": false
+    },
+    "getContextListFn": {
+      "type": "string",
+      "description": "File path to a module exporting a GetContextListFn — a function that dynamically retrieves the list of contexts to process. In the JS config this can be the function itself; in JSON it must be a file path. Use contextListJson instead if your context list is static.",
+      "examples": ["./lump/getContextListFn.ts"]
+    },
+    "maximumNumberOfConcurrentBranches": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of context branches that can be processed concurrently. Limits parallelism to avoid overwhelming the system or hitting rate limits."
+    },
+    "numberOfContextsPerBranch": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Number of contexts to group into a single branch. Defaults to 1, meaning each context gets its own branch.",
+      "default": 1
+    },
+    "lumpVariables": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "An arbitrary key-value object of variables passed through to prompt functions, setup/teardown hooks, and other lifecycle functions. Use this to parameterize your lump without changing code.",
+      "examples": [
+        { "language": "TypeScript", "style": "functional" }
+      ]
+    },
+    "verbose": {
+      "type": "boolean",
+      "description": "When true, enables verbose logging output during lump execution for debugging purposes.",
+      "default": false
+    },
+    "registerCommands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "An array of command names to pre-register before processing prompt items. Required when prompt items are defined dynamically (via functions) and reference commands by name, since dynamic prompt items cannot trigger command registration at build time. Each name is resolved to a command module file (e.g. 'cursor-agent' resolves to 'commands/cursor-agent.js').",
+      "examples": [["claude-code"], ["cursor-agent", "aider"]]
+    },
+    "prompt": {
+      "$ref": "#/$defs/LumpJsonConfigStep",
+      "description": "A single prompt item defining the prompt template or function, the command to run, and optional lifecycle hooks. Use this shorthand for simple lumps that only require one prompt step. For multi-step lumps, use 'steps' instead."
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/LumpJsonConfigStep"
+          },
+          {
+            "type": "string",
+            "description": "A shorthand string interpreted as a prompt template — either inline prompt text or a file path to a template file. Equivalent to a LumpJsonConfigStep with only the 'promptTemplate' field set."
+          }
+        ]
+      },
+      "description": "An ordered list of prompt items executed sequentially for each context. Each element can be:\n  • A full LumpJsonConfigStep object with explicit fields\n  • A string shorthand interpreted as a promptTemplate (inline text or file path)\nUse this for multi-step lumps that need multiple sequential prompt/command cycles per context."
+    }
+  },
+  "$defs": {
+    "LumpJsonConfigStep": {
+      "type": ["object", "string"],
+      "additionalProperties": false,
+      "description": "A single step in a lump's execution pipeline. Defines an optional prompt, which command to execute, and optional post-processing. Prompt fields are optional; when omitted the command receives an empty prompt string. The top-level 'command' is used when this step does not set 'command'.",
+      "oneOf": [
+        { "type": "string", "description": "Shorthand: inline prompt template or file path to a template file." },
+        {
+          "type": "object",
+          "not": { "required": ["promptTemplate", "promptFn"] }
+        }
+      ],
+      "properties": {
+        "promptTemplate": {
+          "type": "string",
+          "description": "The prompt content for this step. Accepts two forms:\n  • Inline template string — the literal prompt text, which may contain braced placeholders from the context's variables: `{VAR}` (literal) and `@{VAR}` (same value with a leading `@` for agents that use `@path` file context). Double-brace forms like {{FILE}} are NOT substituted.\n  • File path — a path to a template file whose contents will be read and used as the prompt (e.g. './prompts/refactor.md')\nFor dynamic prompt generation based on context at runtime, use 'promptFn' instead.",
+          "examples": [
+            "Refactor the following file to use modern syntax",
+            "./prompts/my-template.md",
+            "./prompts/refactor.txt"
+          ]
+        },
+        "promptFn": {
+          "type": "string",
+          "description": "File path to a module exporting a PromptFn — a function that dynamically generates prompt text at runtime. The function signature is:\n  (params: { context, stepIndex, contextRunState, lumpVariables, stepVariables? }) => string | Promise<string>\nUse this instead of 'promptTemplate' when the prompt needs to vary based on context, run state, or other dynamic data.",
+          "examples": ["./lump/promptFn.ts", "./lump/promptFn.js"]
+        },
+        "command": {
+          "type": "string",
+          "description": "The command to execute with the generated prompt. Accepts two forms:\n  • Registered command name — the bare name of a command module (e.g. 'claude', 'aider'). Lumpcode resolves it to '.lumpcode/commands/<name>.js' (project-local) or '~/.lumpcode/commands/<name>.js' (global). Do NOT include flags here; agent-specific flags go inside the command module's CommandFn output.\n  • File path — a path to a module exporting a CommandFn directly\nThe prompt text is passed by the command module as args to the underlying agent.",
+          "examples": ["claude", "aider", "./lump/command.ts"]
+        },
+        "postCommandExecFn": {
+          "type": "string",
+          "description": "File path to a module exporting a PostCommandExecFn — a function called after the command finishes executing. The function receives:\n  { commandResult, context, prompt, stepIndex, contextRunState, lumpVariables }\nUse this for validation, logging, cleanup, or other side effects after each prompt/command cycle.",
+          "examples": ["./lump/postCommandExecFn.ts"]
+        },
+        "stepVariables": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "An arbitrary key-value object of variables specific to this prompt item. Passed to the promptFn alongside the global lumpVariables, enabling per-step parameterization without modifying the top-level lumpVariables.",
+          "examples": [
+            { "maxRetries": 3, "style": "concise" }
+          ]
+        },
+        "timeoutMillis": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Maximum time in milliseconds to wait for the command to complete before it is considered timed out. If omitted or set to 0, no timeout is enforced.",
+          "examples": [60000, 300000]
+        }
+      }
+    }
+  }
+}

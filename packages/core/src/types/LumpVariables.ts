@@ -1,0 +1,1 @@
+export type LumpVariables = Record<string, unknown>;

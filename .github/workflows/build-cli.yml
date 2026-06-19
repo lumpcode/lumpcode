@@ -1,0 +1,166 @@
+name: Build CLI Binaries
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/apps/cli/**'
+      - 'packages/core/**'
+      - '.github/workflows/build-cli.yml'
+  workflow_dispatch:
+
+jobs:
+  unit-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm i
+
+      - name: Build @lumpcode/core
+        run: npm run build -w=@lumpcode/core
+
+      - name: Build @lumpcode/cli-types
+        run: npm run build -w=@lumpcode/cli-types
+
+      - name: Unit tests (@lumpcode/core)
+        run: npm run test -w=@lumpcode/core
+
+      - name: Unit tests (@lumpcode/cli)
+        run: npm run test -w=@lumpcode/cli
+
+  build:
+    needs: unit-test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+          - os: macos-latest
+            platform: darwin
+            arch: arm64
+          - os: macos-15-intel
+            platform: darwin
+            arch: x64
+          - os: windows-latest
+            platform: windows
+            arch: x64
+
+    runs-on: ${{ matrix.os }}
+    
+    defaults:
+      run:
+        working-directory: packages/apps/cli
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm i
+        working-directory: .
+
+      - name: Build workspace dependencies
+        working-directory: .
+        run: |
+          npm run build -w=@lumpcode/core
+
+      - name: Build bundle
+        run: npm run build:bundle
+        env:
+          ENV: ${{ github.ref_type == 'tag' && 'prod' || 'dev' }}
+          API_URL: ${{ vars.API_URL || 'https://api.lumpcode.com' }}
+
+      - name: Build SEA binary (Unix)
+        if: runner.os != 'Windows'
+        run: bash scripts/build-sea.sh
+
+      - name: Build SEA binary (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/build-sea.ps1
+
+      - name: Test binary
+        shell: bash
+        run: |
+          if [[ "${{ matrix.platform }}" == "windows" ]]; then
+            ./bin/lumpcode-${{ matrix.platform }}-${{ matrix.arch }}.exe --help
+          else
+            ./bin/lumpcode-${{ matrix.platform }}-${{ matrix.arch }} --help
+          fi
+
+      - name: E2E scenarios (Linux and macOS)
+        if: matrix.platform != 'windows'
+        shell: bash
+        working-directory: packages/apps/cli
+        env:
+          HOME: ${{ runner.temp }}/lumpcode-e2e-home
+          LUMPCODE_E2E_BINARY: ${{ github.workspace }}/packages/apps/cli/bin/lumpcode-${{ matrix.platform }}-${{ matrix.arch }}
+        run: npm run test:e2e
+
+      - name: E2E scenarios (Windows)
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        working-directory: packages/apps/cli
+        env:
+          USERPROFILE: ${{ runner.temp }}/lumpcode-e2e-home
+          HOME: ${{ runner.temp }}/lumpcode-e2e-home
+          LUMPCODE_E2E_BINARY: ${{ github.workspace }}/packages/apps/cli/bin/lumpcode-windows-x64.exe
+        run: npm run test:e2e
+
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: lumpcode-${{ matrix.platform }}-${{ matrix.arch }}
+      #     path: packages/apps/cli/bin/lumpcode-*
+      #     if-no-files-found: error
+
+  # release:
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: startsWith(github.ref, 'refs/tags/v')
+  #   permissions:
+  #     contents: write
+    
+  #   steps:
+  #     - name: Download all artifacts
+  #       uses: actions/download-artifact@v4
+  #       with:
+  #         path: binaries
+  #         pattern: lumpcode-*
+  #         merge-multiple: true
+
+  #     - name: List binaries
+  #       run: ls -la binaries/
+
+  #     - name: Create Release
+  #       uses: softprops/action-gh-release@v2
+  #       with:
+  #         files: binaries/*
+  #         generate_release_notes: true
+  #         draft: false
+  #         prerelease: ${{ contains(github.ref, '-') }}
+

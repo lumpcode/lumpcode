@@ -1,0 +1,123 @@
+- name: complete-e2e-binary-test
+  task: >-
+    End-to-end scenario tests against the SEA binary (daemon, run, status, clean).
+    Mock agent via generated e2e-agent command module; 13 scenarios; npm run test:e2e; CI on Linux/macOS.
+  priority: 1
+  dependsOn: []
+- name: preset-agent-commands
+  task: >-
+    Ship default command modules for cursor, copilot (codex, opencode, aider and claude will come later).
+    Presets live at ~/.lumpcode/commands/presets/{cursor,copilot}.js with three-tier resolution
+    (project-local → global override → preset).
+  priority: 1
+  dependsOn:
+    - complete-e2e-binary-test
+- name: adding-windows-compat-e2e-tests
+  task: >-
+    Windows-compatible E2E harness: Node mock agent, USERPROFILE isolation, platform-aware
+    run-e2e.mjs, CI E2E on windows-latest.
+  priority: 1
+  dependsOn: []
+- name: unify-lump-variables
+  task: Unify naming — configVariables should always be lumpVariables
+  priority: 1
+  dependsOn: []
+- name: remove-project-root-from-lump-conf
+  task: projectRoot should not exist in lump conf
+  priority: 1
+  dependsOn: []
+- name: no-custom-branchfn-in-cli
+  task: No custom branchFn possible in CLI
+  priority: 1
+  dependsOn: []
+- name: disabled-async-or-bool
+  task: Make the disabled property an async function returning bool or a bool
+  priority: 1
+  dependsOn: []
+- name: remove-safe-project-name
+  task: >-
+    Remove all notion of safeProjectName — verify projectName is always sanitized;
+    force projectName in project.json; when project-setup runs without --projectName,
+    take the name of the git repo
+  priority: 1
+  dependsOn: []
+- name: project-setup-gitignore-context-status
+  task: When project-setup runs, update .gitignore with contextStatusRecord.json
+  priority: 1
+  dependsOn: []
+- name: fix-contextlistjson-dot-slash
+  task: >-
+    BUG — when contextListJson entries begin with './' the context list fn does not
+    return contexts
+  priority: 1
+  dependsOn: []
+- name: branch-fn-multiple-contexts
+  task: The branch fn name should be ok with multiple contexts
+  priority: 1
+  dependsOn: []
+- name: unify-paths-and-ids-formatting
+  task: >-
+    Unify all paths and names formatting with formatting functions for the ones
+    that do not have one yet. (lump path, project path, command path, branch names,
+    marker commit ...)
+  priority: 1
+  dependsOn: []
+- name: fix-in-start-run-no-double-lump-launch
+  task: >-
+    If when the daemon ticks, the previous lump did not end, and we begin a new run on the same branchWorkspacePath, we can have collision.
+    We need to add a log to when it is the case, and wait for the current running lump on branchWorkspacePath to end.
+    If we use the run command and not the start command, just fail with a message saying to wait.
+  priority: 1
+  dependsOn: []
+- name: remove-project-git-remote-url
+  task: >-
+    Remove projectGitRemoteUrl — when we need the URL, get it from a memoized
+    function that executes git
+  priority: 2
+  dependsOn: []
+- name: clean-boolean-command-options
+  task: Clean the boolean command options (--foreground true → --foreground)
+  priority: 2
+  dependsOn: []
+- name: cli-types-package
+  task: Make a package @lumpcode/cli-types (with types and defineX helpers)
+  priority: 3
+  dependsOn: []
+- name: pull-main-before-daemon-run
+  task: >-
+    If lumpcode runs on a distant machine (e.g. daemon mode), pull main before
+    running lumps so lumps are updated — add baseBranch in project conf for this
+  priority: 3
+  dependsOn: []
+- name: project-level-workspace-setup
+  task: Set workspaceSetupFn at project level (in the device-specific non-pushed config)
+  priority: 3
+  dependsOn: []
+- name: keep-history-per-context
+  task: >-
+    Keep history of the chat for each context and prompt; add it to a file next to
+    the lump (option in the lump) and keep contextRunState there
+  priority: 3
+  dependsOn: []
+- name: worktree-cli-support
+  task: Add cleanly the worktree possibility in CLI
+  priority: 3
+  dependsOn: []
+- name: validate-command
+  task: A command to validate a lump/commandModule/any function etc.
+  priority: 3
+  dependsOn: []
+- name: per-lump-daemon-start
+  task: >-
+    Daemon-start for one lump (starts another daemon, not the general one; cannot
+    run with the general in parallel; cannot be launched without worktrees)
+  priority: 3
+  dependsOn: []
+- name: daemon-log-command
+  task: daemon-log command
+  priority: 3
+  dependsOn: []
+- name: first-clean-the-doc
+  task: First clean the doc
+  priority: 4
+  dependsOn: []

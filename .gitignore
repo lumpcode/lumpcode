@@ -1,0 +1,23 @@
+node_modules
+.env
+dist
+
+# IDE-local (skills are tracked under .agent/skills/)
+.cursor/
+# CLI SEA build outputs (keep packages/apps/cli/bin/lumpcode.js tracked)
+packages/apps/cli/bin/lumpcode-*
+packages/apps/cli/bin/schemas/
+packages/apps/cli/bin/presets/
+packages/apps/cli/vendor/
+
+# Auto-generated at build time
+generated-env.ts
+.DS_Store
+.lumpcode/**/contextStatusRecord.json
+.lumpcode/**/history/**
+.lumpcode/local.json
+._gitmodules
+packages/core/._git
+*.tgz
+IDEAS.yaml
+__TODOS__/**

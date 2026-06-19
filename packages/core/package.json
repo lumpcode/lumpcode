@@ -1,0 +1,48 @@
+{
+  "name": "@lumpcode/core",
+  "version": "0.0.5",
+  "description": "Core engine for Lumpcode agent loops — runLump orchestrates prompts across contexts with git-tracked progress",
+  "license": "Apache-2.0",
+  "author": "",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "build": "rollup -c",
+    "build:dev": "rollup -c --environment BUILD_DEV:true",
+    "test": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:watch": "vitest watch",
+    "knip": "knip"
+  },
+  "dependencies": {
+    "ignore": "^7.0.5"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^12.1.0",
+    "@types/node": "^24.8.1",
+    "@vitest/ui": "^3.2.4",
+    "knip": "^5.84.1",
+    "rollup": "^4.52.5",
+    "tslib": "^2.8.1",
+    "type-fest": "^5.1.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  }
+}
