@@ -77,6 +77,13 @@ mkdir -p "$BIN_DIR/presets/commands/utils"
 cp -f src/presets/commands/*.js "$BIN_DIR/presets/commands/"
 cp -f src/presets/commands/utils/*.js "$BIN_DIR/presets/commands/utils/"
 
+# esbuild native binary for TypeScript transpile in SEA
+echo "📋 Copying esbuild binary..."
+if ! node "$SCRIPT_DIR/esbuild-sidecar.mjs" "$BIN_DIR"; then
+    echo "❌ esbuild platform binary not found (run npm i from repo root)" >&2
+    exit 1
+fi
+
 # Make executable
 chmod +x "$BIN_DIR/$OUTPUT_NAME"* 2>/dev/null || true
 

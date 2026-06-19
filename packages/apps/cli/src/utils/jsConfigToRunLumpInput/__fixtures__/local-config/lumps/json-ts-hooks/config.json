@@ -1,0 +1,10 @@
+{
+  "contextListJson": {
+    "NAME": "{NAME}.md"
+  },
+  "setupFn": "../../hooks/setup.ts",
+  "prompt": {
+    "promptTemplate": "Hello",
+    "command": "test-agent"
+  }
+}

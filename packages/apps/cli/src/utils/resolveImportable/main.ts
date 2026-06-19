@@ -3,6 +3,7 @@ import { isSea } from 'node:sea';
 import { pathToFileURL } from 'node:url';
 
 import { Failure, failure, Maybe, success, Success } from "@lumpcode/core";
+import { isTypeScriptModulePath, transpileTypeScriptToCachedMjs } from '../transpileTypeScriptToCachedMjs';
 
 /** ncc bundle: native `import(url)` for arbitrary file URLs often fails; indirect import still works. */
 const dynamicImportForBundle = new Function('p', 'return import(p)') as (specifier: string) => Promise<unknown>;
@@ -28,7 +29,15 @@ export async function resolveImportable<T>(
         const absolutePath = options?.importBasePath
             ? path.resolve(options.importBasePath, value)
             : path.resolve(value);
-        const mod = await importModuleFile(absolutePath);
+
+        let importPath = absolutePath;
+        if (isTypeScriptModulePath(absolutePath)) {
+            const transpileResult = await transpileTypeScriptToCachedMjs(absolutePath);
+            if (!transpileResult.success) return transpileResult;
+            importPath = transpileResult.data;
+        }
+
+        const mod = await importModuleFile(importPath);
         const resolved = key ? mod[key] : mod;
         return success(resolved as T);
     }

@@ -57,6 +57,20 @@ export const teardown = () => {};
 `;
 }
 
+/** Default inline `config.ts` body for E2E lumps using the preset e2e agent command. */
+export function defaultE2eTsLumpConfig(input: {
+    command?: string;
+    extraFields?: string;
+} = {}): string {
+    const command = input.command ?? 'e2e-agent';
+    const extra = input.extraFields ? `\n  ${input.extraFields}` : '';
+    return `export default {
+  contextListJson: { NAME: '{NAME}.md' },
+  prompt: { promptTemplate: 'E2E @{NAME}', command: '${command}' },
+  numberOfContextsPerBranch: 1,${extra}
+};`;
+}
+
 /** Default lump `config.json` body: README contexts, one per branch, wired to the e2e agent command. */
 export function defaultE2eLumpConfigJson(input: { command?: string } = {}): Record<string, unknown> {
     return {

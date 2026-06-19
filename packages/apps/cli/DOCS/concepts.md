@@ -96,7 +96,7 @@ stateDiagram-v2
 ## When to use `run` vs `start` (daemon)
 
 - **`lumpcode run <lumpName>`** — Run **one tick** for one lump, then exit. Best for **sporadic** work: tickets you step through locally, one-off codemods, or anything you start and review in the same session.
-- **`lumpcode start`** — **Scheduler**: on a cron (default every 5 minutes), runs sequentially **every** lump in the project that has a loadable `config.json` or `config.js`, skipping lumps with `"disabled": true`. Best for **sustained agent loop campaigns**: run it on a **machine that stays on** (your dev box or a small remote server with the same git push access). You merge good branches; the next tick picks up the next eligible context.
+- **`lumpcode start`** — **Scheduler**: on a cron (default every 5 minutes), runs sequentially **every** lump in the project that has a loadable `config.json`, `config.js`, or `config.ts`, skipping lumps with `"disabled": true`. Best for **sustained agent loop campaigns**: run it on a **machine that stays on** (your dev box or a small remote server with the same git push access). You merge good branches; the next tick picks up the next eligible context.
 
 Useful pairings on a server:
 
@@ -116,7 +116,7 @@ Useful pairings on a server:
 
 **Common flags:** `lumpcode start --foreground` (blocking), `lumpcode start --cronSetup '*/10 * * * *'`. Inspect: `lumpcode daemon-status`. Stop: `lumpcode stop`. Restart: `lumpcode restart`.
 
-**Tick behavior:** list `.lumpcode/lumps/*`, keep directories with loadable `config.json` or `config.js`, skip disabled lumps, then run the same engine path as `lumpcode run <lumpName>` for each.
+**Tick behavior:** list `.lumpcode/lumps/*`, keep directories with loadable `config.json`, `config.js`, or `config.ts`, skip disabled lumps, then run the same engine path as `lumpcode run <lumpName>` for each.
 
 Full flag reference: [commands.md](./commands.md).
 

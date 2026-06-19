@@ -52,5 +52,5 @@ Keeping both at the repo root lets you **commit** lump definitions with the same
 - [concepts.md](./concepts.md) — Project root, daemon files, workspace copies
 - [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `projectBaseBranch`)
 - [get-started.md](./get-started.md) — First-time setup
-- [lump-config.md](./lump-config.md) — Per-lump `config.json`
+- [lump-config.md](./lump-config.md) — Per-lump `config.json` / `config.js` / `config.ts`
 - [commands.md](./commands.md) — `project-setup` flags

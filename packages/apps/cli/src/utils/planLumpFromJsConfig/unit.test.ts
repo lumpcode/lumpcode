@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+import { LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing/tsLumpFixtures';
 import { planLumpFromJsConfig } from './main';
 
 const FIXTURES_GLOBAL = path.resolve(__dirname, '../jsConfigToRunLumpInput/__fixtures__/global-config');
@@ -97,5 +98,59 @@ describe('planLumpFromJsConfig', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.promptsByContext?.ctx1).toHaveLength(1);
         expect(result.data.promptsByContext?.ctx1?.[0].prompt).toBe('preview prompt');
+    });
+
+    it('P1 validate depth succeeds with config.ts', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.ts'),
+            LUMP_PLAN_UTIL_CONFIG_TS,
+            'utf-8',
+        );
+        await fs.rm(path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'));
+
+        const result = await planLumpFromJsConfig({
+            lumpName: 'preview-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth: 'validate',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.valid).toBe(true);
+    });
+
+    it('P2 contexts depth lists contexts from TS getContextListFn file', async () => {
+        const lumpDir = path.join(localConfigFolderPath, 'lumps', 'preview-lump');
+        await fs.writeFile(
+            path.join(lumpDir, 'getContextList.ts'),
+            `export default function getContextListFn() {
+  return [{ name: 'from-ts-file', variables: { FILE: 'ctx.ts' } }];
+}`,
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(lumpDir, 'config.ts'),
+            `export default {
+  getContextListFn: './getContextList.ts',
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};`,
+            'utf-8',
+        );
+        await fs.rm(path.join(lumpDir, 'config.js'));
+
+        const result = await planLumpFromJsConfig({
+            lumpName: 'preview-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth: 'contexts',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.contexts?.map((c) => c.name)).toEqual(['from-ts-file']);
     });
 });

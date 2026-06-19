@@ -114,7 +114,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 - `.lumpcode/local.json` — `{ "mode": "shared", "projectBaseBranch": "main" }` (per machine, gitignored)
 - `.lumpcode/lumps/` — empty
 - `.lumpcode/commands/` — empty
-- Appends `.lumpcode/**/contextStatusRecord.json`, `.lumpcode/**/history/`, and `.lumpcode/local.json` to `.gitignore`
+- Appends `.lumpcode/**/contextStatusRecord.json`, `.lumpcode/**/history/`, `.lumpcode/.cache/`, and `.lumpcode/local.json` to `.gitignore`
 
 **Fails if:**
 
@@ -141,12 +141,12 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 
 | Option     | Type            | Required | Description                      |
 | ---------- | --------------- | -------- | -------------------------------- |
-| `--config` | `json` \| `js` | No       | Output format (default `json`) |
+| `--config` | `json` \| `js` \| `ts` | No       | Output format (default `json`) |
 
 
-**Creates:** `.lumpcode/lumps/<lumpName>/config.json` or `config.js`.
+**Creates:** `.lumpcode/lumps/<lumpName>/config.json`, `config.js`, or `config.ts`.
 
-**Fails if:** A `config.json` or `config.js` already exists in that lump folder.
+**Fails if:** A `config.json`, `config.js`, or `config.ts` already exists in that lump folder.
 
 **See also:** [lump-config.md](./lump-config.md).
 
@@ -216,7 +216,7 @@ Plus global [`--json`](#ref-json-output).
 **Behavior:**
 
 1. Validates project root (`.lumpcode/` + `.git/`).
-2. Loads lump config (`config.json` is checked against the JSON schema; `config.js` is imported and resolved).
+2. Loads lump config (`config.json` is checked against the JSON schema; `config.js` and `config.ts` are imported and resolved).
 3. Resolves hooks, command modules, and `disabled` the same way as `run` (shared pipeline).
 4. Optionally lists contexts, expands prompts, or simulates one run tick.
 

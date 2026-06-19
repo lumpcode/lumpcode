@@ -75,6 +75,6 @@ After pre-flight, each lump runs its own per-lump git flow on the execution work
 ## Related topics
 
 - [project-config.md](./project-config.md) — `project.json`, project name rules
-- [lump-config.md](./lump-config.md) — Per-lump `config.json` / `config.js`, optional `baseBranch` override
+- [lump-config.md](./lump-config.md) — Per-lump `config.json` / `config.js` / `config.ts`, optional `baseBranch` override
 - [commands.md](./commands.md) — `run` / `start` and other subcommands
 - [concepts.md](./concepts.md) — Pre-flight, lifecycle, daemon overview

@@ -13,6 +13,7 @@
   "workspaces": [
     "packages/core",
     "packages/apps/cli/cli-types",
+    "packages/apps/cli/cli-utils",
     "packages/apps/*",
     "packages/libs/*"
   ],
@@ -20,6 +21,7 @@
     "@rollup/plugin-replace": "^6.0.3",
     "@types/node": "^24.10.13",
     "@vitest/ui": "^3.2.4",
+    "js-yaml": "^5.0.0",
     "rollup": "^4.52.5",
     "type-fest": "^5.1.0",
     "vitest": "^3.2.4",

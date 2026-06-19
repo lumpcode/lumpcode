@@ -4,8 +4,8 @@ This page is the deep-dive companion to [lump-config.md](./lump-config.md): wher
 
 Every `*Fn` field below is a [function reference](./lump-config.md#field-forms-conventions) — either:
 
-- an **inline function** — only in `config.js`, or
-- a **string path** to a `.js` module whose **default export** is the function — works in both `config.json` and `config.js`.
+- an **inline function** — only in `config.js` or `config.ts`, or
+- a **string path** to a `.js` or `.ts` module whose **default export** is the function — works in `config.json`, `config.js`, and `config.ts`.
 
 Relative paths resolve from the lump folder.
 
@@ -98,7 +98,7 @@ Detailed shapes live in [types.md](./types.md); runnable code lives in [examples
 
 ## `promptFn`
 
-Use `promptFn` when `promptTemplate` is not enough — it gives you fine-grained control over how each prompt is built (inject `contextRunState` from a previous step, switch on `stepIndex`, run any custom logic). Inline in `config.js`, or as a [function reference](./lump-config.md#field-forms-conventions) string path from either format.
+Use `promptFn` when `promptTemplate` is not enough — it gives you fine-grained control over how each prompt is built (inject `contextRunState` from a previous step, switch on `stepIndex`, run any custom logic). Inline in `config.js` / `config.ts`, or as a [function reference](./lump-config.md#field-forms-conventions) string path from any config format.
 
 ```js
 export default {
@@ -122,7 +122,7 @@ export default {
 
 ## Dynamic `steps`
 
-In `config.js`, an element of `steps` may be a **function** that receives the same inputs as a `promptFn` and returns **another** `steps` array (possibly empty) to expand inline.
+In `config.js` or `config.ts`, an element of `steps` may be a **function** that receives the same inputs as a `promptFn` and returns **another** `steps` array (possibly empty) to expand inline.
 
 This enables branching workflows:
 
@@ -168,9 +168,9 @@ Otherwise lazy loading may throw when the nested array resolves.
 
 Place modules at:
 
-1. `.lumpcode/commands/<name>.js` — **project-local**
-2. `~/.lumpcode/commands/<name>.js` — **global user override**
-3. `~/.lumpcode/commands/presets/<name>.js` — **shipped preset** (installed automatically on first run)
+1. `.lumpcode/commands/<name>.ts` or `.lumpcode/commands/<name>.js` — **project-local** (`.ts` wins when both exist)
+2. `~/.lumpcode/commands/<name>.ts` or `~/.lumpcode/commands/<name>.js` — **global user override**
+3. `~/.lumpcode/commands/presets/<name>.js` — **shipped preset** (installed automatically on first run; **`.js` only**)
 
 Reference them from `command` fields by **string name** (`"my-agent"`, `"cursor"`, `"copilot"`), same as built-in names. **First existing file wins** in the order above.
 
@@ -185,7 +185,7 @@ Lumpcode ships ready-made modules for common CLI agents. Set `"command": "cursor
 
 On `npm install`, `npm update`, or standalone install via `install.sh`, shipped preset files are reinstalled into `~/.lumpcode/commands/presets/` (overwriting prior copies there). On first `run`, `start`, or `lump-plan`, any still-missing preset files are copied the same way without overwriting files already there. To restore shipped defaults after editing presets manually, run `lumpcode reset-presets`.
 
-Override a preset by placing `~/.lumpcode/commands/<name>.js` (global) or `.lumpcode/commands/<name>.js` (project-local).
+Override a preset by placing `~/.lumpcode/commands/<name>.js` (or `.ts`) (global) or `.lumpcode/commands/<name>.js` (or `.ts`) (project-local).
 
 ### Agent permissions for presets
 
@@ -247,7 +247,7 @@ Each module exports:
 | `teardown` | No       | Composed with the lump's `teardownFn` (see below)                |
 
 
-For editor hints, install [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) and use `defineCommand`, `defineCommandSetup`, `defineCommandTeardown` (or `defineCommandModule` for the whole file):
+For editor hints, install [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) and use `defineCommand`, `defineCommandSetup`, `defineCommandTeardown` (or `defineCommandModule` for the whole file) in **`.ts`** or **`.js`** command modules:
 
 ```js
 import { defineCommand, defineCommandSetup } from '@lumpcode/cli-types';

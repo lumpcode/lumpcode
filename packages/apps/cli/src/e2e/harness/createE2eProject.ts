@@ -7,6 +7,7 @@ import {
     createE2eAgentCommandModule,
     createE2eMockAgentScript,
     defaultE2eLumpConfigJson,
+    defaultE2eTsLumpConfig,
     E2E_MOCK_AGENT_SCRIPT_BASENAME,
 } from './createE2eAgentCommandModule';
 import {
@@ -20,13 +21,16 @@ export type E2eLumpSpec = {
     name: string;
     configJson?: Record<string, unknown>;
     configJs?: string;
+    configTs?: string;
+    hookFiles?: Record<string, string>;
     disabled?: boolean;
     maximumNumberOfConcurrentBranches?: number;
     useE2eAgent?: boolean;
     /** When true (Windows E2E), use a `.cmd` shim on PATH instead of the Node mock agent. */
     useCmdShimAgent?: boolean;
-    /** When set with `configJs`, writes `<name>.js` under `.lumpcode/commands/`. */
+    /** When set with `configJs` or `configTs`, writes `<name>.js` or `.ts` under `.lumpcode/commands/`. */
     e2eCommandModule?: string;
+    e2eCommandModuleExt?: 'ts' | 'js';
     /** When set, the lump's mock-agent script writes `workspace-cwd.txt` (worktree E2E). */
     e2eMockWriteWorkspaceCwd?: boolean;
 };
@@ -46,6 +50,32 @@ function e2eAgentCommandModuleName(lumpName: string, agentLumpNames: string[]): 
     return agentLumpNames.length > 1 && agentLumpNames.includes(lumpName)
         ? `e2e-agent-${lumpName}`
         : 'e2e-agent';
+}
+
+type ResolvedLumpConfig =
+    | { kind: 'ts'; body: string }
+    | { kind: 'js'; body: string }
+    | { kind: 'json'; body: Record<string, unknown> };
+
+function resolveLumpConfig(lump: E2eLumpSpec, cmd: string): ResolvedLumpConfig {
+    if (lump.configTs) return { kind: 'ts', body: lump.configTs };
+    if (lump.configJs) return { kind: 'js', body: lump.configJs };
+    return {
+        kind: 'json',
+        body: {
+            ...defaultE2eLumpConfigJson(lump.useE2eAgent !== false ? { command: cmd } : {}),
+            ...lump.configJson,
+            ...(lump.disabled ? { disabled: true } : {}),
+            ...(lump.maximumNumberOfConcurrentBranches !== undefined
+                ? { maximumNumberOfConcurrentBranches: lump.maximumNumberOfConcurrentBranches }
+                : {}),
+        },
+    };
+}
+
+function commandModuleFilename(moduleName: string, ext: 'ts' | 'js' = 'js'): string {
+    if (moduleName.endsWith('.ts') || moduleName.endsWith('.js')) return moduleName;
+    return `${moduleName}.${ext}`;
 }
 
 /**
@@ -91,14 +121,18 @@ export async function createE2eProject(input: {
     );
 
     const agentLumps = input.lumps
-        .filter((l) => l.useE2eAgent !== false && !l.configJs && !l.useCmdShimAgent)
+        .filter((l) => l.useE2eAgent !== false && !l.useCmdShimAgent && !l.e2eCommandModule)
         .map((l) => l.name);
     const cmdShimLumps = input.lumps
-        .filter((l) => l.useCmdShimAgent && l.useE2eAgent !== false && !l.configJs)
+        .filter((l) => l.useCmdShimAgent && l.useE2eAgent !== false && !l.configJs && !l.configTs)
         .map((l) => l.name);
     const configJsCommandModules = input.lumps
-        .filter((l) => l.configJs && l.e2eCommandModule)
-        .map((l) => ({ lumpName: l.name, moduleName: l.e2eCommandModule! }));
+        .filter((l) => (l.configJs || l.configTs) && l.e2eCommandModule)
+        .map((l) => ({
+            lumpName: l.name,
+            moduleName: l.e2eCommandModule!,
+            ext: l.e2eCommandModuleExt ?? 'js',
+        }));
     if (
         (input.useE2eAgent ?? true) &&
         (agentLumps.length > 0 || configJsCommandModules.length > 0 || cmdShimLumps.length > 0)
@@ -120,19 +154,38 @@ export async function createE2eProject(input: {
                 'utf-8',
             );
         }
-        for (const { lumpName, moduleName } of configJsCommandModules) {
+        for (const { lumpName, moduleName, ext } of configJsCommandModules) {
             await fs.writeFile(
-                path.join(lumpcodeDir, 'commands', `${moduleName}.js`),
+                path.join(lumpcodeDir, 'commands', commandModuleFilename(moduleName, ext)),
                 createE2eAgentCommandModule({ lumpName }),
                 'utf-8',
             );
         }
     }
 
+    async function writeLumpConfigFile(lumpDir: string, config: ResolvedLumpConfig): Promise<void> {
+        switch (config.kind) {
+            case 'ts':
+                await fs.writeFile(path.join(lumpDir, 'config.ts'), config.body, 'utf-8');
+                break;
+            case 'js':
+                await fs.writeFile(path.join(lumpDir, 'config.js'), config.body, 'utf-8');
+                break;
+            case 'json':
+                await fs.writeFile(path.join(lumpDir, 'config.json'), JSON.stringify(config.body, null, 2), 'utf-8');
+                break;
+            default: {
+                const _exhaustive: never = config;
+                return _exhaustive;
+            }
+        }
+    }
+
     async function writeE2eMockAgentScript(lumpDir: string, lump: E2eLumpSpec): Promise<void> {
-        const usesInlineMock = Boolean(lump.configJs);
-        const usesCommandModule = lump.useE2eAgent !== false && !lump.configJs && agentLumps.includes(lump.name);
-        if (!usesInlineMock && !usesCommandModule) return;
+        const usesNamedAgent = lump.useE2eAgent !== false && !lump.useCmdShimAgent && !lump.e2eCommandModule
+            && agentLumps.includes(lump.name);
+        const usesInlineMock = Boolean(lump.configJs || lump.configTs) && !usesNamedAgent;
+        if (!usesInlineMock && !usesNamedAgent) return;
         await fs.writeFile(
             path.join(lumpDir, E2E_MOCK_AGENT_SCRIPT_BASENAME),
             createE2eMockAgentScript({
@@ -150,19 +203,14 @@ export async function createE2eProject(input: {
             ? e2eCmdShimAgentCommandModuleName(lump.name, cmdShimLumps)
             : e2eAgentCommandModuleName(lump.name, agentLumps);
         await writeE2eMockAgentScript(lumpDir, lump);
-        if (lump.configJs) {
-            await fs.writeFile(path.join(lumpDir, 'config.js'), lump.configJs, 'utf-8');
-        } else {
-            const cfg = {
-                ...defaultE2eLumpConfigJson(lump.useE2eAgent !== false ? { command: cmd } : {}),
-                ...lump.configJson,
-                ...(lump.disabled ? { disabled: true } : {}),
-                ...(lump.maximumNumberOfConcurrentBranches !== undefined
-                    ? { maximumNumberOfConcurrentBranches: lump.maximumNumberOfConcurrentBranches }
-                    : {}),
-            };
-            await fs.writeFile(path.join(lumpDir, 'config.json'), JSON.stringify(cfg, null, 2), 'utf-8');
+        if (lump.hookFiles) {
+            for (const [rel, content] of Object.entries(lump.hookFiles)) {
+                const hookPath = path.join(lumpDir, rel);
+                await fs.mkdir(path.dirname(hookPath), { recursive: true });
+                await fs.writeFile(hookPath, content, 'utf-8');
+            }
         }
+        await writeLumpConfigFile(lumpDir, resolveLumpConfig(lump, cmd));
     }
 
     git('add -A', projectRoot);

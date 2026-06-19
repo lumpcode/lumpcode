@@ -65,6 +65,7 @@ describe('project-setup command', () => {
             expect(gitignore).toContain('.lumpcode/**/history/');
             expect(gitignore).toContain('.lumpcode/worktrees/');
             expect(gitignore).toContain('.lumpcode/local.json');
+            expect(gitignore).toContain('.lumpcode/.cache/');
         } finally {
             process.chdir(prev);
         }
@@ -210,6 +211,29 @@ describe('project-setup command', () => {
 
             const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
             expect(gitignore.match(/\.lumpcode\/\*\*\/contextStatusRecord\.json/g)?.length).toBe(1);
+        } finally {
+            process.chdir(prev);
+        }
+    });
+
+    it('does not duplicate .lumpcode/.cache/ when already in gitignore', async () => {
+        await fs.writeFile(
+            path.join(projectRoot, '.gitignore'),
+            '.lumpcode/.cache/\n',
+            'utf-8',
+        );
+        const handle = makeHandler();
+        const prev = process.cwd();
+        process.chdir(projectRoot);
+        try {
+            const first = await handle({
+                options: { projectName: 'cache-dup-test' },
+                arguments: {},
+            });
+            expect(first.success).toBe(true);
+
+            const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
+            expect(gitignore.match(/\.lumpcode\/\.cache\//g)?.length).toBe(1);
         } finally {
             process.chdir(prev);
         }

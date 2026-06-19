@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+import { LUMP_PLAN_COMMAND_CONFIG_TS } from '../../testing/tsLumpFixtures';
 import { command } from './main';
 
 const LUMP_CONFIG_JS = `export default {
@@ -91,5 +92,22 @@ describe('lump-plan command', () => {
             arguments: { lumpName: 'missing-lump' },
         });
         expect(result.success).toBe(false);
+    });
+
+    it('P3 succeeds with config.ts lump and --json', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.ts'),
+            LUMP_PLAN_COMMAND_CONFIG_TS,
+            'utf-8',
+        );
+        await fs.rm(path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'));
+
+        const result = await makeHandler()({
+            options: { json: true },
+            arguments: { lumpName: 'my-lump' },
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data?.valid).toBe(true);
     });
 });

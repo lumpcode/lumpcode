@@ -1,12 +1,12 @@
 # Types for Lumpcode lump configuration
 
-This reference lists the JSON shapes and **JavaScript function signatures** you use in `config.json` / `config.js`. Types are described in TypeScript notation for clarity.
+This reference lists the JSON shapes and **JavaScript / TypeScript function signatures** you use in `config.json`, `config.js`, or `config.ts`. Types are described in TypeScript notation for clarity.
 
 Conventions:
 
 - `Maybe<T>` means `T | null | undefined`
 - `MaybePromise<T>` means `T | Promise<T>`
-- Each function signature below is a [function reference](./lump-config.md#field-forms-conventions): in `config.js` you may pass it inline, and in either format you may pass a string path to a `.js` module whose **default export** matches the signature.
+- Each function signature below is a [function reference](./lump-config.md#field-forms-conventions): in `config.js` or `config.ts` you may pass it inline, and in any config format you may pass a string path to a `.js` or `.ts` module whose **default export** matches the signature.
 
 ---
 
@@ -211,6 +211,7 @@ Lumpcode runs the agent as `executable` + `args`. Agent-specific flags and the p
 ```ts
 type PostCommandExecFn = (input: {
   commandResult: string;
+  commandSucceeded: boolean;
   context: Context;
   prompt: string;
   stepIndex: number | number[];
@@ -221,7 +222,7 @@ type PostCommandExecFn = (input: {
 }) => MaybePromise<void>;
 ```
 
-`commandResult` is the **captured stdout** (string). Parse JSON yourself if your agent returns structured text.
+`commandResult` is the **captured stdout** (string). Parse JSON yourself if your agent returns structured text. `commandSucceeded` is `true` when the subprocess exited successfully or execution was skipped (`commandFn` returned `null`); `false` when the subprocess failed but `continueOnError` allowed the hook to run.
 
 ### `SetupFn`
 
