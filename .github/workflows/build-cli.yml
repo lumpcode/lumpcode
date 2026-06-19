@@ -9,7 +9,7 @@ on:
     paths:
       - 'packages/apps/cli/**'
       - 'packages/core/**'
-      - '.github/workflows/build-cli.yml'
+      - '.github/**'
   workflow_dispatch:
 
 jobs:
@@ -131,36 +131,44 @@ jobs:
           LUMPCODE_E2E_BINARY: ${{ github.workspace }}/packages/apps/cli/bin/lumpcode-windows-x64.exe
         run: npm run test:e2e
 
-      # - name: Upload artifact
-      #   uses: actions/upload-artifact@v4
-      #   with:
-      #     name: lumpcode-${{ matrix.platform }}-${{ matrix.arch }}
-      #     path: packages/apps/cli/bin/lumpcode-*
-      #     if-no-files-found: error
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumpcode-${{ matrix.platform }}-${{ matrix.arch }}
+          path: packages/apps/cli/bin/lumpcode-*
+          if-no-files-found: error
 
-  # release:
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   if: startsWith(github.ref, 'refs/tags/v')
-  #   permissions:
-  #     contents: write
+  # Single check name for branch protection (ruleset: require status check "ci").
+  ci:
+    name: ci
+    runs-on: ubuntu-latest
+    needs: [unit-test, build]
+    steps:
+      - run: echo "unit-test and build matrix passed"
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     
-  #   steps:
-  #     - name: Download all artifacts
-  #       uses: actions/download-artifact@v4
-  #       with:
-  #         path: binaries
-  #         pattern: lumpcode-*
-  #         merge-multiple: true
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: binaries
+          pattern: lumpcode-*
+          merge-multiple: true
 
-  #     - name: List binaries
-  #       run: ls -la binaries/
+      - name: List binaries
+        run: ls -la binaries/
 
-  #     - name: Create Release
-  #       uses: softprops/action-gh-release@v2
-  #       with:
-  #         files: binaries/*
-  #         generate_release_notes: true
-  #         draft: false
-  #         prerelease: ${{ contains(github.ref, '-') }}
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: binaries/*
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(github.ref, '-') }}
 
