@@ -1,0 +1,25 @@
+{
+  "name": "lumpcode",
+  "version": "0.0.6",
+  "description": "Global install alias for the Lumpcode CLI (@lumpcode/cli)",
+  "license": "Apache-2.0",
+  "author": "",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "lumpcode": "./bin/lumpcode.js"
+  },
+  "files": [
+    "bin/lumpcode.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@lumpcode/cli": "^0.0.6"
+  }
+}

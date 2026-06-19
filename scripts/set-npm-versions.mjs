@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Align versions across @lumpcode/core, @lumpcode/cli-types, and @lumpcode/cli.
+ * Align versions across @lumpcode/core, @lumpcode/cli-types, @lumpcode/cli, and lumpcode (cli-meta).
  *
  * Usage:
  *   node scripts/set-npm-versions.mjs              # print current versions
@@ -23,6 +23,7 @@ const PACKAGE_PATHS = [
   "packages/core/package.json",
   "packages/apps/cli/cli-types/package.json",
   "packages/apps/cli/package.json",
+  "packages/apps/cli-meta/package.json",
 ];
 
 function readPackageJson(relativePath) {
@@ -119,6 +120,9 @@ function updatePackages(targetVersion) {
     if (data.dependencies?.["@lumpcode/core"] !== undefined) {
       data.dependencies["@lumpcode/core"] = `^${targetVersion}`;
     }
+    if (data.dependencies?.["@lumpcode/cli"] !== undefined) {
+      data.dependencies["@lumpcode/cli"] = `^${targetVersion}`;
+    }
     writePackageJson(absolutePath, data);
     console.log(`Updated ${data.name} → ${targetVersion}`);
   }
@@ -167,8 +171,8 @@ function main() {
     runNpmInstall();
   }
 
-  console.log(`\nDone. All three packages are at ${targetVersion}.`);
-  console.log("Publish: node scripts/publish-npm.mjs (order: core → cli-types → cli)");
+  console.log(`\nDone. All publishable packages are at ${targetVersion}.`);
+  console.log("Publish: node scripts/publish-npm.mjs (order: core → cli-types → cli → lumpcode)");
 }
 
 main();
