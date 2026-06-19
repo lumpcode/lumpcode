@@ -9,6 +9,7 @@
  *   node scripts/publish-npm.mjs --dry-run # build + npm pack only
  */
 
+import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -18,23 +19,11 @@ const repoRoot = resolve(__dirname, "..");
 const dryRun = process.argv.includes("--dry-run");
 
 const packages = [
-  "@lumpcode/core",
-  "@lumpcode/cli-types",
-  "@lumpcode/cli",
-  "lumpcode",
+  { workspace: "@lumpcode/core", packageJson: "packages/core/package.json" },
+  { workspace: "@lumpcode/cli-types", packageJson: "packages/apps/cli/cli-types/package.json" },
+  { workspace: "@lumpcode/cli", packageJson: "packages/apps/cli/package.json" },
+  { workspace: "lumpcode", packageJson: "packages/apps/cli-meta/package.json" },
 ];
-
-function run(command, args, options = {}) {
-  const result = spawnSync(command, args, {
-    cwd: repoRoot,
-    stdio: "inherit",
-    shell: process.platform === "win32",
-    ...options,
-  });
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
-}
 
 function npm(args, options = {}) {
   return spawnSync("npm", args, {
@@ -53,13 +42,18 @@ function npmRun(args) {
   }
 }
 
-function getLocalVersion(workspace) {
-  const result = npm(["pkg", "get", "version", `-w=${workspace}`]);
-  if (result.status !== 0) {
-    console.error(`Failed to read version for ${workspace}`);
+function getLocalVersion({ packageJson, workspace }) {
+  const data = JSON.parse(readFileSync(resolve(repoRoot, packageJson), "utf8"));
+  if (typeof data.version !== "string" || !data.version) {
+    console.error(`Missing version in ${packageJson} (${workspace})`);
     process.exit(1);
   }
-  return JSON.parse(result.stdout.trim());
+  return data.version;
+}
+
+function getRegistryPackageName({ packageJson, workspace }) {
+  const data = JSON.parse(readFileSync(resolve(repoRoot, packageJson), "utf8"));
+  return typeof data.name === "string" && data.name ? data.name : workspace;
 }
 
 function isVersionPublishedOnRegistry(packageName, version) {
@@ -105,7 +99,7 @@ npmRun(["run", "build:bundle", "-w=@lumpcode/cli"]);
 if (dryRun) {
   console.log("Dry run — packing tarballs (no publish):");
   for (const pkg of packages) {
-    npmRun(["pack", `-w=${pkg}`]);
+    npmRun(["pack", `-w=${pkg.workspace}`]);
   }
   console.log("Done. Inspect *.tgz in the repo root.");
   process.exit(0);
@@ -115,17 +109,18 @@ const published = [];
 const skipped = [];
 
 for (const pkg of packages) {
+  const packageName = getRegistryPackageName(pkg);
   const version = getLocalVersion(pkg);
 
-  if (isVersionPublishedOnRegistry(pkg, version)) {
-    console.log(`Skip ${pkg}@${version} — already on npm`);
-    skipped.push(`${pkg}@${version}`);
+  if (isVersionPublishedOnRegistry(packageName, version)) {
+    console.log(`Skip ${packageName}@${version} — already on npm`);
+    skipped.push(`${packageName}@${version}`);
     continue;
   }
 
-  console.log(`Publishing ${pkg}@${version} (latest)...`);
-  npmRun(["publish", `-w=${pkg}`, "--access", "public"]);
-  published.push(`${pkg}@${version}`);
+  console.log(`Publishing ${packageName}@${version} (latest)...`);
+  npmRun(["publish", `-w=${pkg.workspace}`, "--access", "public"]);
+  published.push(`${packageName}@${version}`);
 }
 
 console.log("");
