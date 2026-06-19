@@ -1,0 +1,25 @@
+# v0.0.7 backlog — see GOALS.md; move finished entries to DONE.yaml.
+- name: lump-ts-config
+  task: Allow a lump to use config.ts in addition to config.js and config.json (load, validate, and run end-to-end).
+  priority: 1
+- name: project-base-branch-fallback
+  task: >-
+    When local.json projectBaseBranch is missing or does not exist on the remote, fall back to
+    project.json projectBaseBranch. Resolution order — lump baseBranch, then local.json
+    projectBaseBranch, then project.json projectBaseBranch.
+  implementWithoutPrd: false
+  priority: 1
+- name: npm-package-keywords
+  task: Add relevant keywords to publishable npm packages (@lumpcode/core, @lumpcode/cli, @lumpcode/cli-types, and related).
+  implementWithoutPrd: true
+  priority: 2
+- name: npm-package-repository
+  task: Add the repository field to publishable npm package.json files (link to lumpcode/lumpcode on GitHub).
+  implementWithoutPrd: true
+  priority: 2
+- name: readme-ease-and-power
+  task: >-
+    Update the root README.md and packages/apps/cli/README.md to highlight that Lumpcode is easy
+    and straightforward to use, while remaining configurable and powerful.
+  implementWithoutPrd: true
+  priority: 2
