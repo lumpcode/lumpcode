@@ -1,0 +1,4 @@
+# Default reviewers for pull requests (used when "Require review from Code Owners" is on).
+# GitHub does not count your own approval on your PR — add a collaborator with Write access
+# or adjust the Main-Protection ruleset (see BRANCH_PROTECTION.md).
+* @Danilouli

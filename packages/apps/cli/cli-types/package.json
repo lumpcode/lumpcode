@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli-types",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Types and defineX helpers for Lumpcode CLI lump config and command modules",
   "license": "Apache-2.0",
   "author": "",
@@ -22,7 +22,7 @@
     "build": "rollup -c"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.5"
+    "@lumpcode/core": "^0.0.6"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.1",
