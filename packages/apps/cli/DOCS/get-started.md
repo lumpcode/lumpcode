@@ -8,7 +8,7 @@ Follow this guide in order to get started with your first `lumpcode run`. Links 
 
 Install and prepare the following:
 
-1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). For installation details: [README.md § Install](../README.md#install).
+1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
 2. **Git** repository with **`origin`** reachable for fetch/push. The **`projectBaseBranch`** you'll declare in `.lumpcode/local.json` (typically `main`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode pulls it during pre-flight and reads it via `origin/<projectBaseBranch>` for status.
 3. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`** and **`copilot`** work out of the box when `cursor-agent` or `copilot` is on `PATH`; other agents (e.g. **`aider`**) need a custom module until more presets ship.
 
