@@ -80,4 +80,64 @@ describe('getCommandPath', () => {
             );
         });
     });
+
+    it('C1 prefers local .ts over local .js', async () => {
+        await withTempDirs(async ({ localConfigFolderPath, globalConfigFolderPath }) => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'commands', 'cursor.js'),
+                'export const command = () => ({ executable: "local-js" });',
+            );
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'commands', 'cursor.ts'),
+                'export const command = () => ({ executable: "local-ts" });',
+            );
+
+            const resolved = await getCommandPath('cursor', { localConfigFolderPath, globalConfigFolderPath });
+            expect(resolved).toBe(path.join(localConfigFolderPath, 'commands', 'cursor.ts'));
+        });
+    });
+
+    it('C2 prefers local .js when no local .ts exists', async () => {
+        await withTempDirs(async ({ localConfigFolderPath, globalConfigFolderPath }) => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'commands', 'cursor.js'),
+                'export const command = () => ({ executable: "local-js" });',
+            );
+
+            const resolved = await getCommandPath('cursor', { localConfigFolderPath, globalConfigFolderPath });
+            expect(resolved).toBe(path.join(localConfigFolderPath, 'commands', 'cursor.js'));
+        });
+    });
+
+    it('C3 prefers global .ts over global .js when local is missing', async () => {
+        await withTempDirs(async ({ localConfigFolderPath, globalConfigFolderPath }) => {
+            await fs.writeFile(
+                path.join(globalConfigFolderPath, 'commands', 'cursor.js'),
+                'export const command = () => ({ executable: "global-js" });',
+            );
+            await fs.writeFile(
+                path.join(globalConfigFolderPath, 'commands', 'cursor.ts'),
+                'export const command = () => ({ executable: "global-ts" });',
+            );
+
+            const resolved = await getCommandPath('cursor', { localConfigFolderPath, globalConfigFolderPath });
+            expect(resolved).toBe(path.join(globalConfigFolderPath, 'commands', 'cursor.ts'));
+        });
+    });
+
+    it('C5 prefers local .js over global .ts', async () => {
+        await withTempDirs(async ({ localConfigFolderPath, globalConfigFolderPath }) => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'commands', 'cursor.js'),
+                'export const command = () => ({ executable: "local-js" });',
+            );
+            await fs.writeFile(
+                path.join(globalConfigFolderPath, 'commands', 'cursor.ts'),
+                'export const command = () => ({ executable: "global-ts" });',
+            );
+
+            const resolved = await getCommandPath('cursor', { localConfigFolderPath, globalConfigFolderPath });
+            expect(resolved).toBe(path.join(localConfigFolderPath, 'commands', 'cursor.js'));
+        });
+    });
 });
