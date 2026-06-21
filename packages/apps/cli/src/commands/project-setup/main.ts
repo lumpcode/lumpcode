@@ -86,6 +86,7 @@ async function resolveProjectName(input: {
 const CONTEXT_STATUS_RECORD_GITIGNORE_LINE = '.lumpcode/**/contextStatusRecord.json';
 const HISTORY_GITIGNORE_LINE = '.lumpcode/**/history/';
 const WORKTREES_GITIGNORE_LINE = '.lumpcode/worktrees/';
+const CACHE_GITIGNORE_LINE = '.lumpcode/.cache/';
 const LOCAL_CONFIG_GITIGNORE_LINE = `.lumpcode/${LOCAL_CONFIG_FILE_NAME}`;
 
 async function ensureGitignoreLines({
@@ -211,6 +212,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
             CONTEXT_STATUS_RECORD_GITIGNORE_LINE,
             HISTORY_GITIGNORE_LINE,
             WORKTREES_GITIGNORE_LINE,
+            CACHE_GITIGNORE_LINE,
             LOCAL_CONFIG_GITIGNORE_LINE,
         ],
     });

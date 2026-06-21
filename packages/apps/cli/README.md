@@ -100,9 +100,9 @@ Lumpcode scans the tree and finds every value `{COMPONENT_NAME}` can take such t
 - `command` — Registered [command name](DOCS/lump-config.md#command-names) only (`"copilot"`, `"cursor"`, …), not shell flags ([DOCS/advanced-config.md#custom-agent-commands](DOCS/advanced-config.md#custom-agent-commands)).
 - `$schema` — Optional but recommended: most editors will then autocomplete and validate every field above.
 
-## TypeScript hints for `config.js` and command modules
+## TypeScript hints for `config.ts`, `config.js`, and command modules
 
-Optional npm package `[@lumpcode/cli-types](https://www.npmjs.com/package/@lumpcode/cli-types)` ships `defineConfig`, `defineCommand`, and other thin helpers plus the same types the CLI uses for lump config and `.lumpcode/commands/*.js`. See [DOCS/lump-config.md — Typed JavaScript config](DOCS/lump-config.md#typed-javascript-config-optional).
+Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`config.json`**, plus **`.js/.ts`** hook and command modules under `.lumpcode/`. Optional npm package [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) ships `defineConfig`, `defineCommand`, and other thin helpers plus the same types the CLI uses. See [DOCS/lump-config.md — Typed config](DOCS/lump-config.md#typed-config-optional) and [DOCS/lump-config.md — TypeScript modules](DOCS/lump-config.md#typescript-modules).
 
 ## Where to next
 
@@ -113,7 +113,7 @@ Optional npm package `[@lumpcode/cli-types](https://www.npmjs.com/package/@lumpc
 | [DOCS/get-started.md](DOCS/get-started.md)         | Zero → first successful `lumpcode run`                                             |
 | [DOCS/commands.md](DOCS/commands.md)               | Every subcommand and flag                                                          |
 | [DOCS/project-config.md](DOCS/project-config.md)   | `.lumpcode/project.json`                                                           |
-| [DOCS/lump-config.md](DOCS/lump-config.md)         | `config.json` / `config.js` fields                                                 |
+| [DOCS/lump-config.md](DOCS/lump-config.md)         | `config.json` / `config.js` / `config.ts` fields                                   |
 | [DOCS/advanced-config.md](DOCS/advanced-config.md) | Hooks, dynamic `steps`, custom commands                                      |
 | [DOCS/examples.md](DOCS/examples.md)               | Ready-made lump shapes (smoke test, migration, tickets, codemods, docs, …)         |
 | [DOCS/types.md](DOCS/types.md)                     | Hook and JSON type shapes                                                          |

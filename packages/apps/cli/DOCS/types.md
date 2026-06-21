@@ -1,12 +1,12 @@
 # Types for Lumpcode lump configuration
 
-This reference lists the JSON shapes and **JavaScript function signatures** you use in `config.json` / `config.js`. Types are described in TypeScript notation for clarity.
+This reference lists the JSON shapes and **JavaScript / TypeScript function signatures** you use in `config.json`, `config.js`, or `config.ts`. Types are described in TypeScript notation for clarity.
 
 Conventions:
 
 - `Maybe<T>` means `T | null | undefined`
 - `MaybePromise<T>` means `T | Promise<T>`
-- Each function signature below is a [function reference](./lump-config.md#field-forms-conventions): in `config.js` you may pass it inline, and in either format you may pass a string path to a `.js` module whose **default export** matches the signature.
+- Each function signature below is a [function reference](./lump-config.md#field-forms-conventions): in `config.js` or `config.ts` you may pass it inline, and in any config format you may pass a string path to a `.js` or `.ts` module whose **default export** matches the signature.
 
 ---
 

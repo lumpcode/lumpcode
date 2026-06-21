@@ -65,6 +65,24 @@ describe('lump-create command', () => {
         expect(result.data.data!.configFormat).toBe('js');
     });
 
+    it('creates config.ts when --config ts', async () => {
+        const handle = makeHandler();
+        const result = await handle({
+            options: { config: 'ts' },
+            arguments: { lumpName: 'typed-lump' },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        const configPath = path.join(projectRoot, '.lumpcode', 'lumps', 'typed-lump', 'config.ts');
+        const raw = await fs.readFile(configPath, 'utf-8');
+        expect(raw).toContain('export default');
+        expect(raw).toContain("'main'");
+        expect(result.data.data!.configFormat).toBe('ts');
+        expect(result.data.data!.configPath).toBe(path.join('.lumpcode', 'lumps', 'typed-lump', 'config.ts'));
+    });
+
     it('fails when lump config already exists', async () => {
         const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'dup');
         await fs.mkdir(lumpDir, { recursive: true });
@@ -74,6 +92,22 @@ describe('lump-create command', () => {
         const result = await handle({
             options: {},
             arguments: { lumpName: 'dup' },
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toContain('already has a config');
+    });
+
+    it('fails when config.ts already exists', async () => {
+        const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'dup-ts');
+        await fs.mkdir(lumpDir, { recursive: true });
+        await fs.writeFile(path.join(lumpDir, 'config.ts'), 'export default {};\n', 'utf-8');
+
+        const handle = makeHandler();
+        const result = await handle({
+            options: { config: 'ts' },
+            arguments: { lumpName: 'dup-ts' },
         });
 
         expect(result.success).toBe(false);

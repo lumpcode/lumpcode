@@ -7,7 +7,9 @@ export async function getCommandPath(
     params: { localConfigFolderPath: string; globalConfigFolderPath: string },
 ) {
     return getFirstExistingPath([
+        path.join(params.localConfigFolderPath, 'commands', command + '.ts'),
         path.join(params.localConfigFolderPath, 'commands', command + '.js'),
+        path.join(params.globalConfigFolderPath, 'commands', command + '.ts'),
         path.join(params.globalConfigFolderPath, 'commands', command + '.js'),
         path.join(params.globalConfigFolderPath, 'commands', 'presets', command + '.js'),
     ]);

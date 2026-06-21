@@ -28,7 +28,7 @@
     "access": "public"
   },
   "scripts": {
-    "clean": "rm -rf dist && rm -f bin/lumpcode-darwin-* bin/lumpcode-linux-* bin/lumpcode-windows-* && rm -rf bin/schemas bin/presets",
+    "clean": "rm -rf dist && rm -f bin/lumpcode-darwin-* bin/lumpcode-linux-* bin/lumpcode-windows-* bin/esbuild bin/esbuild.exe && rm -rf bin/schemas bin/presets",
     "build:bundle": "node scripts/build.js",
     "build:dev": "node scripts/build.js --dev",
     "build:npm": "npm run build:bundle",

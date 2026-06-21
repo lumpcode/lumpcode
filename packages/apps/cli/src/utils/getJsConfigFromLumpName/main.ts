@@ -17,18 +17,27 @@ export async function getJsConfigFromLumpName(input: {
     const lumpDir = lumpDirPath({ localConfigFolderPath, lumpName });
     const lumpConfigJsonPath = path.join(lumpDir, 'config.json');
     const lumpConfigJsPath = path.join(lumpDir, 'config.js');
+    const lumpConfigTsPath = path.join(lumpDir, 'config.ts');
 
-    const [jsonConfigExists, jsConfigExists] = await Promise.all(
-        [lumpConfigJsonPath, lumpConfigJsPath].map((p) =>
+    const [jsonConfigExists, jsConfigExists, tsConfigExists] = await Promise.all(
+        [lumpConfigJsonPath, lumpConfigJsPath, lumpConfigTsPath].map((p) =>
             fs.access(p).then(() => true).catch(() => false),
         ),
     );
 
-    if (!jsonConfigExists && !jsConfigExists) {
+    if (!jsonConfigExists && !jsConfigExists && !tsConfigExists) {
         return failure(`Lump config not found for ${lumpName}`);
     }
 
     const jsConfigResolution = await decision([
+        [
+            () => tsConfigExists,
+            async () => {
+                const tsConfigResult = await resolveImportable<LumpJsConfig>(lumpConfigTsPath, 'default');
+                if (!tsConfigResult.success) return tsConfigResult;
+                return success(tsConfigResult.data);
+            },
+        ],
         [
             () => jsConfigExists,
             async () => {
