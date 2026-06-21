@@ -41,6 +41,21 @@ New-Item -ItemType Directory -Force -Path "$BinDir/presets/commands/utils" | Out
 Copy-Item -Force src/presets/commands/*.js "$BinDir/presets/commands/"
 Copy-Item -Force src/presets/commands/utils/*.js "$BinDir/presets/commands/utils/"
 
+Write-Host "📋 Copying esbuild binary..." -ForegroundColor Yellow
+$EsbuildPkg = "@esbuild/win32-$Arch"
+$EsbuildSrc = $null
+foreach ($NodeModulesRoot in @($ProjectDir, (Resolve-Path "$ProjectDir\..\..\..").Path)) {
+    $Candidate = Join-Path $NodeModulesRoot "node_modules\$EsbuildPkg\bin\esbuild.exe"
+    if (Test-Path $Candidate) {
+        $EsbuildSrc = $Candidate
+        break
+    }
+}
+if (-not $EsbuildSrc) {
+    throw "esbuild platform binary not found for $EsbuildPkg"
+}
+Copy-Item -Force $EsbuildSrc "$BinDir/esbuild.exe"
+
 Write-Host ""
 Write-Host "✅ Binary created: $BinDir/$OutputName.exe" -ForegroundColor Green
 Write-Host "   Run it with: .\$BinDir\$OutputName.exe" -ForegroundColor Gray

@@ -41,7 +41,7 @@ export async function runCli(input: {
                     code,
                     stdout,
                     stderr,
-                    json: parseCliJson({ stdout, stderr }),
+                    json: parseCliJson({ stdout, stderr, exitCode: code }),
                 });
             } catch (err) {
                 reject(err);
@@ -59,7 +59,11 @@ function isCliJsonOutput(value: unknown): value is CliJsonOutput {
 }
 
 /** `--json` emits a single JSON line on stdout (success) or stderr (failure). */
-export function parseCliJson(input: { stdout: string; stderr: string }): CliJsonOutput {
+export function parseCliJson(input: {
+    stdout: string;
+    stderr: string;
+    exitCode?: number | null;
+}): CliJsonOutput {
     const lines = `${input.stdout}\n${input.stderr}`
         .split('\n')
         .map((line) => line.trim())
@@ -74,6 +78,10 @@ export function parseCliJson(input: { stdout: string; stderr: string }): CliJson
         } catch {
             // not a complete envelope on this line
         }
+    }
+
+    if (input.exitCode === 0 && lines.length > 0) {
+        return { messages: lines };
     }
 
     throw new Error(

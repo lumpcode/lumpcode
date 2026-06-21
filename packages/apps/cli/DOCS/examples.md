@@ -1,6 +1,6 @@
 # Example lumps
 
-Eight common shapes for a lump, each a complete, drop-in `.lumpcode/lumps/<name>/config.json` (or `config.js`). Mix and match: a lump can use `contextMatchFn` for discovery and multi-step `steps`; a ticket queue can include `setupFn` to install deps before the agent runs; a sweep can add `branchFn` to follow your team's naming convention.
+Eight common shapes for a lump, each a complete, drop-in `.lumpcode/lumps/<name>/config.json` (or `config.js` / `config.ts`). Mix and match: a lump can use `contextMatchFn` for discovery and multi-step `steps`; a ticket queue can include `setupFn` to install deps before the agent runs; a sweep can add `branchFn` to follow your team's naming convention.
 
 Deep references: [concepts.md](./concepts.md), [lump-config.md](./lump-config.md), [advanced-config.md](./advanced-config.md), [types.md](./types.md).
 

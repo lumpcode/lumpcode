@@ -1,8 +1,8 @@
 # @lumpcode/cli-types
 
-TypeScript types and small `defineX` identity helpers for authoring **Lumpcode** lump configuration (`config.js`) and command modules (`.lumpcode/commands/<name>.js`). Runtime is just identity functions; the value is purely the type hints.
+TypeScript types and small `defineX` identity helpers for authoring **Lumpcode** lump configuration (`config.ts` / `config.js`) and command modules (`.lumpcode/commands/<name>.ts` or `.js`). Runtime is just identity functions; the value is purely the type hints.
 
-> Use **alongside the Lumpcode CLI** for typed `config.js` and command modules. Install the CLI with `npm install -g @lumpcode/cli` (Node 22+).
+> Use **alongside the Lumpcode CLI** for typed lump config and command modules. Install the CLI with `npm install -g @lumpcode/cli` (Node 22+).
 
 ## Install
 
@@ -12,9 +12,9 @@ npm install --save-dev @lumpcode/cli-types
 
 ## Usage
 
-`config.js`:
+`config.ts` (or `config.js`):
 
-```js
+```ts
 import { defineConfig } from '@lumpcode/cli-types';
 
 export default defineConfig({
@@ -24,9 +24,9 @@ export default defineConfig({
 });
 ```
 
-Command module (`.lumpcode/commands/my-agent.js`):
+Command module (`.lumpcode/commands/my-agent.ts` or `.js`):
 
-```js
+```ts
 import { defineCommand, defineCommandSetup } from '@lumpcode/cli-types';
 
 export const command = defineCommand(({ prompt }) => ({
@@ -37,9 +37,11 @@ export const command = defineCommand(({ prompt }) => ({
 export const setup = defineCommandSetup(async () => ({}));
 ```
 
+Lumpcode transpiles project **`.ts`** config, hooks, and command modules at load time. Shipped presets under `~/.lumpcode/commands/presets/` remain **`.js` only**.
+
 ## What's exported
 
-- **Config helpers** — `defineConfig`, `defineStep`, hook `define*` helpers for lump `config.js`.
+- **Config helpers** — `defineConfig`, `defineStep`, hook `define*` helpers for lump `config.ts` / `config.js`.
 - **Command-module helpers** — `defineCommandModule`, `defineCommand`, `defineCommandSetup`, `defineCommandTeardown`.
 - **Types** — lump config and command-module shapes, plus engine types re-exported from `@lumpcode/core`.
 

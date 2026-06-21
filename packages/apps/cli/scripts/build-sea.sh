@@ -77,6 +77,32 @@ mkdir -p "$BIN_DIR/presets/commands/utils"
 cp -f src/presets/commands/*.js "$BIN_DIR/presets/commands/"
 cp -f src/presets/commands/utils/*.js "$BIN_DIR/presets/commands/utils/"
 
+# esbuild native binary for TypeScript transpile in SEA
+ESBUILD_PKG="@esbuild/${PLATFORM}-${ARCH_NAME}"
+if [[ "$PLATFORM" = "windows" ]]; then
+    ESBUILD_PKG="@esbuild/win32-${ARCH_NAME}"
+fi
+ESBUILD_SRC=""
+for NODE_MODULES_ROOT in "$PROJECT_DIR" "$PROJECT_DIR/../../.."; do
+    CAND="$(cd "$NODE_MODULES_ROOT" && pwd)/node_modules/${ESBUILD_PKG}/bin/esbuild"
+    if [[ "$PLATFORM" = "windows" ]]; then
+        CAND="${CAND}.exe"
+    fi
+    if [[ -f "$CAND" ]]; then
+        ESBUILD_SRC="$CAND"
+        break
+    fi
+done
+if [[ -z "$ESBUILD_SRC" ]]; then
+    echo "❌ esbuild platform binary not found for ${ESBUILD_PKG}" >&2
+    exit 1
+fi
+if [[ "$PLATFORM" = "windows" ]]; then
+    cp -f "$ESBUILD_SRC" "$BIN_DIR/esbuild.exe"
+else
+    cp -f "$ESBUILD_SRC" "$BIN_DIR/esbuild"
+fi
+
 # Make executable
 chmod +x "$BIN_DIR/$OUTPUT_NAME"* 2>/dev/null || true
 
