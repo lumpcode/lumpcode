@@ -1,11 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtemp, rm, readFile, access } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, access, writeFile, mkdir } from 'node:fs/promises';
 import { writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
+import { load as loadYaml } from 'js-yaml';
 
-import type { BranchFn, CommandFn, Context, Steps } from '../../types';
+import type { BranchFn, CommandFn, Context, SetupFn, Steps } from '../../types';
 import { executeStepsForContextList } from './main';
 
 const stubBranchFn: BranchFn = async () => 'lump/test/ctx';
@@ -33,28 +34,38 @@ async function runWithHistory({
     projectRoot,
     getKeepHistoryFilePathFn,
     steps,
+    lumpVariables = {},
+    contextList = [{ name: 'ctx', variables: {} }],
+    setupFn = async () => ({ contextRunState: {} }),
 }: {
     projectRoot: string;
     getKeepHistoryFilePathFn: (context: Context) => string | undefined;
     steps: Steps;
+    lumpVariables?: Record<string, string>;
+    contextList?: Context[];
+    setupFn?: SetupFn;
 }) {
     return executeStepsForContextList({
         baseBranch: 'main',
         branchFn: stubBranchFn,
-        lumpVariables: {},
-        contextList: [{ name: 'ctx', variables: {} }],
+        lumpVariables,
+        contextList,
         gitAddCommandFn: stubGitAdd,
         gitCommitCommandFn: stubGitCommit,
         gitPushCommandFn: stubGitPush,
         gitCommitMessageFn: stubGitCommitMessage,
         projectRoot,
         steps,
-        setupFn: async () => ({ contextRunState: {} }),
+        setupFn,
         teardownFn: async () => undefined,
         setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
         teardownWorkspaceFn: async () => '',
         getKeepHistoryFilePathFn,
     });
+}
+
+async function loadHistoryEntries(historyPath: string) {
+    return loadYaml(await readFile(historyPath, 'utf-8')) as Array<Record<string, unknown>>;
 }
 
 describe('executeStepsForContextList keepHistory', () => {
@@ -70,7 +81,7 @@ describe('executeStepsForContextList keepHistory', () => {
     });
 
     it('creates nested parent directories and appends history entries', async () => {
-        const historyPath = join(projectRoot, '.lumpcode', 'lumps', 'myLump', 'history', 'nested', 'ctx.json');
+        const historyPath = join(projectRoot, '.lumpcode', 'lumps', 'myLump', 'history', 'nested', 'ctx.yaml');
         const result = await runWithHistory({
             projectRoot,
             getKeepHistoryFilePathFn: () => historyPath,
@@ -78,7 +89,7 @@ describe('executeStepsForContextList keepHistory', () => {
         });
         expect(result.success).toBe(true);
 
-        const history = JSON.parse(await readFile(historyPath, 'utf-8')) as Array<{ commandResult: string; commandSucceeded: boolean; prompt: string }>;
+        const history = await loadHistoryEntries(historyPath) as Array<{ commandResult: string; commandSucceeded: boolean; prompt: string }>;
         expect(history).toHaveLength(1);
         expect(history[0].prompt).toBe('first prompt');
         expect(history[0].commandResult).toContain('ok');
@@ -86,7 +97,7 @@ describe('executeStepsForContextList keepHistory', () => {
     });
 
     it('appends a second entry for a second step', async () => {
-        const historyPath = join(projectRoot, 'history', 'ctx.json');
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
         const result = await runWithHistory({
             projectRoot,
             getKeepHistoryFilePathFn: () => historyPath,
@@ -94,7 +105,7 @@ describe('executeStepsForContextList keepHistory', () => {
         });
         expect(result.success).toBe(true);
 
-        const history = JSON.parse(await readFile(historyPath, 'utf-8')) as Array<{ prompt: string; stepIndex: number }>;
+        const history = await loadHistoryEntries(historyPath) as Array<{ prompt: string; stepIndex: number }>;
         expect(history).toHaveLength(2);
         expect(history[0].prompt).toBe('step one');
         expect(history[0].stepIndex).toBe(0);
@@ -103,7 +114,7 @@ describe('executeStepsForContextList keepHistory', () => {
     });
 
     it('does not create a history file when getKeepHistoryFilePathFn returns undefined', async () => {
-        const historyPath = join(projectRoot, 'history', 'ctx.json');
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
         const result = await runWithHistory({
             projectRoot,
             getKeepHistoryFilePathFn: () => undefined,
@@ -112,6 +123,182 @@ describe('executeStepsForContextList keepHistory', () => {
         expect(result.success).toBe(true);
 
         await expect(access(historyPath)).rejects.toThrow();
+    });
+
+    it('does not append keepHistory when commandFn returns null', async () => {
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
+        const result = await runWithHistory({
+            projectRoot,
+            getKeepHistoryFilePathFn: () => historyPath,
+            steps: [{
+                commandFn: () => null,
+            }],
+        });
+        expect(result.success).toBe(true);
+        await expect(access(historyPath)).rejects.toThrow();
+    });
+
+    it('persists the full PostCommandExecFn input shape on each history entry', async () => {
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
+        const lumpVariables = { LUMP: 'v' };
+        const contextList = [{ name: 'ctx', variables: { FILE: 'x.ts' }, options: { priority: 1 } }];
+        const result = await runWithHistory({
+            projectRoot,
+            getKeepHistoryFilePathFn: () => historyPath,
+            lumpVariables,
+            contextList,
+            setupFn: async () => ({ contextRunState: { copilotSetup: { setupChatId: 'test-id' } } }),
+            steps: [{
+                stepVariables: { S: 'step' },
+                promptFn: () => 'single',
+                commandFn: () => ({ executable: 'echo', args: ['ok'] }),
+            }],
+        });
+        expect(result.success).toBe(true);
+
+        const history = await loadHistoryEntries(historyPath);
+        expect(history).toHaveLength(1);
+        const entry = history[0] as Record<string, unknown>;
+        expect(entry.commandSucceeded).toBe(true);
+        expect(entry.prompt).toBe('single');
+        expect(entry.commandResult).toContain('ok');
+        expect(entry.context).toEqual({ name: 'ctx', variables: { FILE: 'x.ts' }, options: { priority: 1 } });
+        expect(entry.stepIndex).toBe(0);
+        expect(entry.contextRunState).toEqual({ copilotSetup: { setupChatId: 'test-id' } });
+        expect(entry.lumpVariables).toEqual({ LUMP: 'v' });
+        expect(entry.stepVariables).toEqual({ S: 'step' });
+        expect(entry.projectRoot).toBe(projectRoot);
+        expect(Object.keys(entry).sort()).toEqual([
+            'commandResult',
+            'commandSucceeded',
+            'context',
+            'contextRunState',
+            'lumpVariables',
+            'projectRoot',
+            'prompt',
+            'stepIndex',
+            'stepVariables',
+        ].sort());
+    });
+
+    it('stores multiline prompt and commandResult as YAML block scalars', async () => {
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
+        const multilinePrompt = 'Refactor src/Button.tsx…\nFocus on keyboard navigation.';
+        const multilineOutput = 'Updated Button.tsx\nAdded tabIndex.';
+        const result = await runWithHistory({
+            projectRoot,
+            getKeepHistoryFilePathFn: () => historyPath,
+            steps: [{
+                promptFn: () => multilinePrompt,
+                commandFn: () => ({
+                    executable: 'node',
+                    args: ['-e', `console.log(${JSON.stringify(multilineOutput)})`],
+                }),
+            }],
+        });
+        expect(result.success).toBe(true);
+
+        const history = await loadHistoryEntries(historyPath) as Array<{ prompt: string; commandResult: string }>;
+        expect(history).toHaveLength(1);
+        expect(history[0].prompt).toBe(multilinePrompt);
+        expect(history[0].commandResult.trim()).toBe(multilineOutput);
+
+        const raw = await readFile(historyPath, 'utf-8');
+        expect(raw).toMatch(/prompt: \|/);
+        expect(raw).toMatch(/commandResult: \|/);
+        expect(raw).not.toMatch(/Focus on keyboard navigation\\n/);
+    });
+
+    it('writes history before postCommandExecFn runs', async () => {
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
+        const result = await runWithHistory({
+            projectRoot,
+            getKeepHistoryFilePathFn: () => historyPath,
+            setupFn: async () => ({ contextRunState: { beforeHook: true } }),
+            steps: [{
+                promptFn: () => 'single',
+                commandFn: echoCommandFn,
+                postCommandExecFn: ({ contextRunState }) => {
+                    contextRunState.afterHook = true;
+                },
+            }],
+        });
+        expect(result.success).toBe(true);
+
+        const history = await loadHistoryEntries(historyPath) as Array<{ contextRunState: Record<string, unknown> }>;
+        expect(history).toHaveLength(1);
+        expect(history[0].contextRunState).toEqual({ beforeHook: true });
+        expect(history[0].contextRunState.afterHook).toBeUndefined();
+    });
+
+    it('records commandSucceeded false when continueOnError allows the walk to continue', async () => {
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
+        const result = await runWithHistory({
+            projectRoot,
+            getKeepHistoryFilePathFn: () => historyPath,
+            steps: [{
+                continueOnError: true,
+                commandFn: () => ({
+                    executable: 'sh',
+                    args: ['-c', 'echo verification failed; exit 1'],
+                }),
+            }, {
+                promptFn: () => 'second step',
+                commandFn: echoCommandFn,
+            }],
+        });
+        expect(result.success).toBe(true);
+
+        const history = await loadHistoryEntries(historyPath) as Array<{
+            commandSucceeded: boolean;
+            commandResult: string;
+            prompt: string;
+        }>;
+        expect(history).toHaveLength(2);
+        expect(history[0].commandSucceeded).toBe(false);
+        expect(history[0].commandResult).toContain('verification failed');
+        expect(history[1].prompt).toBe('second step');
+    });
+
+    it('records nested stepIndex arrays for recursive dynamic steps', async () => {
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
+        const result = await runWithHistory({
+            projectRoot,
+            getKeepHistoryFilePathFn: () => historyPath,
+            steps: [
+                {
+                    promptFn: () => 'root step',
+                    commandFn: echoCommandFn,
+                },
+                async () => [{
+                    promptFn: () => 'nested step',
+                    commandFn: echoCommandFn,
+                }],
+            ],
+        });
+        expect(result.success).toBe(true);
+
+        const history = await loadHistoryEntries(historyPath) as Array<{ stepIndex: number | number[]; prompt: string }>;
+        expect(history).toHaveLength(2);
+        expect(history[0].stepIndex).toBe(0);
+        expect(history[1].stepIndex).toEqual([1, 0]);
+        expect(history[1].prompt).toBe('nested step');
+    });
+
+    it('fails the step walk when appending to invalid YAML', async () => {
+        const historyPath = join(projectRoot, 'history', 'ctx.yaml');
+        await mkdir(dirname(historyPath), { recursive: true });
+        await writeFile(historyPath, '{{invalid', 'utf-8');
+
+        const result = await runWithHistory({
+            projectRoot,
+            getKeepHistoryFilePathFn: () => historyPath,
+            steps: makeSteps(['only step']),
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.message).toContain(historyPath);
     });
 });
 
@@ -357,19 +544,6 @@ describe('executeStepsForContextList dynamic steps', () => {
         });
 
         expect(result.success).toBe(false);
-    });
-
-    it('does not append keepHistory when commandFn returns null', async () => {
-        const historyPath = join(projectRoot, 'history', 'ctx.json');
-        const result = await runWithHistory({
-            projectRoot,
-            getKeepHistoryFilePathFn: () => historyPath,
-            steps: [{
-                commandFn: () => null,
-            }],
-        });
-        expect(result.success).toBe(true);
-        await expect(access(historyPath)).rejects.toThrow();
     });
 
     it('does nothing when a dynamic steps function returns an empty array', async () => {
