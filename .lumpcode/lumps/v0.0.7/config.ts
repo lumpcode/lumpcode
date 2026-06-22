@@ -8,6 +8,7 @@ export default defineConfig({
     getContextListFn,
     numberOfContextsPerBranch: 1,
     maximumNumberOfConcurrentBranches: 2,
+    baseBranch: 'ver/0.0.7',
     steps: [
         ({
             context
