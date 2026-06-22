@@ -85,8 +85,8 @@ async function loadPendingTodoContexts({ lumpDir, lumpName }) {
         };
 
         if (itemType === 'feature') {
-            const prdFilePath = path.join(lumpDir, 'prds', `${item.name}.prd.md`);
-            const testPlanFilePath = path.join(lumpDir, 'tests', `${item.name}.test.md`);
+            const prdFilePath = path.join('.lumpcode', 'lumps', 'v0.0.7', 'prds', `${item.name}.prd.md`);
+            const testPlanFilePath = path.join('.lumpcode', 'lumps', 'v0.0.7', 'testPlans', `${item.name}.test.md`);
             const nextFlow = await getFeatureNextFlow(item);
             
             if (!nextFlow) continue;
@@ -129,7 +129,7 @@ async function getFeatureNextFlow(item: TodoYamlItem) {
 
     if (!hasPrd) return 'prd';
 
-    const testPlanFilePath = path.join(lumpDir, 'tests', `${item.name}.test.md`);
+    const testPlanFilePath = path.join(lumpDir, 'testPlans', `${item.name}.test.md`);
     const hasTestPlan = await fileExists(testPlanFilePath);
 
     if (!hasTestPlan) return 'testPlan';
