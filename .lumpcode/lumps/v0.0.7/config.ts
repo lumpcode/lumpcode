@@ -166,7 +166,7 @@ export default defineConfig({
                                         }
                                         else {
                                             return `
-                                                Test tests failed. Fix the implementation and make the tests pass.
+                                                The unit tests \`npm run test -w @lumpcode/cli\` failed. Fix the implementation and make the tests pass.
                                                 Here is the error of the tests: 
 
                                                 ${prevValidateCommandResult}
