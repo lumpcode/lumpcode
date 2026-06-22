@@ -124,6 +124,77 @@ describe('transpileTypeScriptToCachedMjs', () => {
         });
     });
 
+    it('T5b invalidates bundled cache when a relative dependency changes without touching the entry file', async () => {
+        await withTsLumpProject(async ({ lumpDir }) => {
+            const helperPath = path.join(lumpDir, 'helper.ts');
+            await fs.writeFile(helperPath, 'export default "v1";', 'utf-8');
+            const sourcePath = path.join(lumpDir, 'config.ts');
+            await fs.writeFile(
+                sourcePath,
+                'import helper from "./helper";\nexport default helper;',
+                'utf-8',
+            );
+
+            const buildSpy = vi.spyOn(esbuild, 'build');
+            try {
+                const firstPath = assertSuccess(await transpileTypeScriptToCachedMjs(sourcePath));
+                expect(await importDefault(firstPath)).toBe('v1');
+
+                await fs.writeFile(helperPath, 'export default "v2";', 'utf-8');
+                const secondPath = assertSuccess(await transpileTypeScriptToCachedMjs(sourcePath));
+                expect(await importDefault(secondPath)).toBe('v2');
+                expect(buildSpy).toHaveBeenCalledTimes(2);
+            } finally {
+                buildSpy.mockRestore();
+            }
+        });
+    });
+
+    it('T5c reuses bundled cache when entry and dependencies are unchanged', async () => {
+        await withTsLumpProject(async ({ lumpDir }) => {
+            const helperPath = path.join(lumpDir, 'helper.ts');
+            await fs.writeFile(helperPath, 'export default "stable";', 'utf-8');
+            const sourcePath = path.join(lumpDir, 'config.ts');
+            await fs.writeFile(
+                sourcePath,
+                'import helper from "./helper";\nexport default helper;',
+                'utf-8',
+            );
+
+            const buildSpy = vi.spyOn(esbuild, 'build');
+            try {
+                const firstPath = assertSuccess(await transpileTypeScriptToCachedMjs(sourcePath));
+                const secondPath = assertSuccess(await transpileTypeScriptToCachedMjs(sourcePath));
+
+                expect(secondPath).toBe(firstPath);
+                expect(buildSpy).toHaveBeenCalledTimes(1);
+            } finally {
+                buildSpy.mockRestore();
+            }
+        });
+    });
+
+    it('T5d stores dependency mtimes in cache meta for bundled entries', async () => {
+        await withTsLumpProject(async ({ lumpDir, projectRoot }) => {
+            const helperPath = path.join(lumpDir, 'helper.ts');
+            await fs.writeFile(helperPath, 'export default "meta";', 'utf-8');
+            const sourcePath = path.join(lumpDir, 'config.ts');
+            await fs.writeFile(
+                sourcePath,
+                'import helper from "./helper";\nexport default helper;',
+                'utf-8',
+            );
+
+            assertSuccess(await transpileTypeScriptToCachedMjs(sourcePath));
+            const metas = await readCacheMeta(projectRoot);
+            const configMeta = metas.find((entry) => entry.meta.sourcePath === sourcePath);
+            expect(configMeta).toBeDefined();
+            expect(configMeta?.meta.dependencyMtimes).toEqual({
+                [helperPath]: (await fs.stat(helperPath)).mtimeMs,
+            });
+        });
+    });
+
     it('T6 writes cache under project .lumpcode/.cache/transpile/', async () => {
         await withTsLumpProject(async ({ lumpDir, projectRoot }) => {
             const sourcePath = path.join(lumpDir, 'cached.ts');

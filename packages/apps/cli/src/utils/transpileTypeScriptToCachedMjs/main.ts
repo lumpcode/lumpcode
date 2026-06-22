@@ -85,6 +85,15 @@ function outPathForMtime(cacheDir: string, sourceMtimeMs: number): string {
     return path.join(cacheDir, String(Math.trunc(sourceMtimeMs)), 'out.mjs');
 }
 
+function cacheKeyMs(sourceMtimeMs: number, dependencyMtimes: Record<string, number> | undefined): number {
+    if (!dependencyMtimes || Object.keys(dependencyMtimes).length === 0) {
+        return sourceMtimeMs;
+    }
+
+    const maxDependencyMtimeMs = Math.max(...Object.values(dependencyMtimes));
+    return Math.max(sourceMtimeMs, maxDependencyMtimeMs);
+}
+
 function cachePathsForSource(cacheRoot: string, sourceAbsolutePath: string): CachePaths {
     const cacheDir = path.join(cacheRoot, hashSourcePath(sourceAbsolutePath));
     return {
@@ -97,6 +106,8 @@ type CacheMeta = {
     sourcePath: string;
     sourceMtimeMs: number;
     outPath: string;
+    /** Absolute paths and mtimes of bundled relative `.ts` dependencies (entry excluded). */
+    dependencyMtimes?: Record<string, number>;
 };
 
 async function readStoredMeta(metaPath: string): Promise<CacheMeta | null> {
@@ -108,13 +119,128 @@ async function readStoredMeta(metaPath: string): Promise<CacheMeta | null> {
     }
 }
 
+function extractRelativeImportSpecifiers(sourceContent: string): string[] {
+    const specifiers: string[] = [];
+    const patterns = [
+        /\b(?:import|export)\s+(?:type\s+)?(?:[\w*{}\s,\n/$]*\sfrom\s+)?['"](\.[^'"]+)['"]/g,
+        /\bimport\s+['"](\.[^'"]+)['"]/g,
+    ];
+
+    for (const pattern of patterns) {
+        for (const match of sourceContent.matchAll(pattern)) {
+            const specifier = match[1];
+            if (specifier) specifiers.push(specifier);
+        }
+    }
+
+    return specifiers;
+}
+
+async function resolveRelativeModule(fromFile: string, specifier: string): Promise<string | null> {
+    const base = path.resolve(path.dirname(fromFile), specifier);
+    const candidates = [base, `${base}.ts`, path.join(base, 'index.ts')];
+
+    for (const candidate of candidates) {
+        try {
+            const stat = await fs.stat(candidate);
+            if (stat.isFile()) {
+                return path.resolve(candidate);
+            }
+        } catch {
+            // try next candidate
+        }
+    }
+
+    return null;
+}
+
+async function collectBundledDependencyPaths(entryAbsolutePath: string): Promise<string[]> {
+    const visited = new Set<string>();
+    const dependencyPaths: string[] = [];
+    const queue = [entryAbsolutePath];
+
+    while (queue.length > 0) {
+        const current = queue.pop();
+        if (!current || visited.has(current)) continue;
+        visited.add(current);
+
+        let sourceContent: string;
+        try {
+            sourceContent = await fs.readFile(current, 'utf-8');
+        } catch {
+            continue;
+        }
+
+        for (const specifier of extractRelativeImportSpecifiers(sourceContent)) {
+            const resolved = await resolveRelativeModule(current, specifier);
+            if (!resolved || !isTypeScriptModulePath(resolved) || visited.has(resolved)) continue;
+            dependencyPaths.push(resolved);
+            queue.push(resolved);
+        }
+    }
+
+    return dependencyPaths.sort();
+}
+
+async function dependencyMtimesForBundledEntry(
+    entryAbsolutePath: string,
+    sourceContent: string,
+): Promise<Record<string, number> | undefined> {
+    if (!shouldBundleSource(sourceContent)) return undefined;
+
+    const dependencyPaths = await collectBundledDependencyPaths(entryAbsolutePath);
+    const dependencyMtimes: Record<string, number> = {};
+
+    for (const dependencyPath of dependencyPaths) {
+        const stat = await fs.stat(dependencyPath);
+        dependencyMtimes[dependencyPath] = stat.mtimeMs;
+    }
+
+    return dependencyMtimes;
+}
+
+async function areStoredDependencyMtimesValid(
+    entryAbsolutePath: string,
+    sourceContent: string,
+    storedDependencyMtimes: Record<string, number> | undefined,
+): Promise<boolean> {
+    if (!shouldBundleSource(sourceContent)) return true;
+    if (!storedDependencyMtimes) return false;
+
+    const currentDependencyPaths = await collectBundledDependencyPaths(entryAbsolutePath);
+    const storedPaths = Object.keys(storedDependencyMtimes).sort();
+    if (
+        currentDependencyPaths.length !== storedPaths.length
+        || !currentDependencyPaths.every((dependencyPath, index) => dependencyPath === storedPaths[index])
+    ) {
+        return false;
+    }
+
+    for (const dependencyPath of currentDependencyPaths) {
+        try {
+            const stat = await fs.stat(dependencyPath);
+            if (stat.mtimeMs !== storedDependencyMtimes[dependencyPath]) {
+                return false;
+            }
+        } catch {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 async function isCacheValid(
     sourceAbsolutePath: string,
     sourceMtimeMs: number,
+    sourceContent: string,
     paths: CachePaths,
 ): Promise<CacheMeta | null> {
     const stored = await readStoredMeta(paths.metaPath);
     if (!stored || stored.sourcePath !== sourceAbsolutePath || stored.sourceMtimeMs !== sourceMtimeMs) {
+        return null;
+    }
+    if (!(await areStoredDependencyMtimesValid(sourceAbsolutePath, sourceContent, stored.dependencyMtimes))) {
         return null;
     }
     try {
@@ -218,8 +344,10 @@ export async function transpileTypeScriptToCachedMjs(
     const absolutePath = path.resolve(sourceAbsolutePath);
 
     let sourceStat;
+    let sourceContent: string;
     try {
         sourceStat = await fs.stat(absolutePath);
+        sourceContent = await fs.readFile(absolutePath, 'utf-8');
     } catch (error) {
         return failure(`Failed to transpile ${absolutePath}: ${String(error)}`);
     }
@@ -227,12 +355,13 @@ export async function transpileTypeScriptToCachedMjs(
     const cacheRoot = await resolveCacheRoot(absolutePath);
     const paths = cachePathsForSource(cacheRoot, absolutePath);
 
-    const cached = await isCacheValid(absolutePath, sourceStat.mtimeMs, paths);
+    const cached = await isCacheValid(absolutePath, sourceStat.mtimeMs, sourceContent, paths);
     if (cached) {
         return success(cached.outPath);
     }
 
-    const outPath = outPathForMtime(paths.cacheDir, sourceStat.mtimeMs);
+    const dependencyMtimes = await dependencyMtimesForBundledEntry(absolutePath, sourceContent);
+    const outPath = outPathForMtime(paths.cacheDir, cacheKeyMs(sourceStat.mtimeMs, dependencyMtimes));
 
     try {
         await fs.mkdir(paths.cacheDir, { recursive: true });
@@ -243,6 +372,7 @@ export async function transpileTypeScriptToCachedMjs(
             sourcePath: absolutePath,
             sourceMtimeMs: sourceStat.mtimeMs,
             outPath,
+            dependencyMtimes,
         };
         await fs.writeFile(paths.metaPath, JSON.stringify(meta), 'utf-8');
 
