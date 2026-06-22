@@ -4,6 +4,9 @@ import { CommandDescriptor } from '@lumpcode/core';
 
 export default defineConfig({
     command: 'cursor',
+    lumpVariables: {
+        model: 'composer-2.5',
+    },
     registerCommands: ['cursor',],
     getContextListFn,
     numberOfContextsPerBranch: 1,
