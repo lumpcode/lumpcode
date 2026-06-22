@@ -42,19 +42,10 @@ Copy-Item -Force src/presets/commands/*.js "$BinDir/presets/commands/"
 Copy-Item -Force src/presets/commands/utils/*.js "$BinDir/presets/commands/utils/"
 
 Write-Host "📋 Copying esbuild binary..." -ForegroundColor Yellow
-$EsbuildPkg = "@esbuild/win32-$Arch"
-$EsbuildSrc = $null
-foreach ($NodeModulesRoot in @($ProjectDir, (Resolve-Path "$ProjectDir\..\..\..").Path)) {
-    $Candidate = Join-Path $NodeModulesRoot "node_modules\$EsbuildPkg\bin\esbuild.exe"
-    if (Test-Path $Candidate) {
-        $EsbuildSrc = $Candidate
-        break
-    }
+node "$ScriptDir/esbuild-sidecar.mjs" $BinDir
+if ($LASTEXITCODE -ne 0) {
+    throw "esbuild platform binary not found (run npm i from repo root)"
 }
-if (-not $EsbuildSrc) {
-    throw "esbuild platform binary not found for $EsbuildPkg"
-}
-Copy-Item -Force $EsbuildSrc "$BinDir/esbuild.exe"
 
 Write-Host ""
 Write-Host "✅ Binary created: $BinDir/$OutputName.exe" -ForegroundColor Green
