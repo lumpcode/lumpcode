@@ -9,6 +9,8 @@ export default defineConfig({
     numberOfContextsPerBranch: 1,
     maximumNumberOfConcurrentBranches: 2,
     baseBranch: 'ver/0.0.7',
+    verbose: true,
+    keepHistory: true,
     steps: [
         ({
             context
