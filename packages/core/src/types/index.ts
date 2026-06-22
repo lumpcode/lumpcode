@@ -8,6 +8,7 @@ export * from './ContextRunState';
 export * from './ContextStatus';
 export * from './Failure';
 export * from './GetContextListFn';
+export * from './HistoryEntry';
 export * from './GitAddCommandFn';
 export * from './GitCommitCommandFn';
 export * from './GitCommitMessageFn';
