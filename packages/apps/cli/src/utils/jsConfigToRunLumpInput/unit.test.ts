@@ -7,6 +7,7 @@ import { execSync } from 'node:child_process';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import type { CommandFn, GetContextListFn, PromptFn, Step, SetupFn, TeardownFn } from '@lumpcode/core';
+import { load as loadYaml } from 'js-yaml';
 import { runLump, shellBestEffort, shellSingleQuote } from '@lumpcode/core';
 
 import type { ContextMatchFn, LumpJsConfig, LumpJsConfigStep, LumpJsConfigSteps } from '../../types';
@@ -235,7 +236,7 @@ describe('jsConfigToRunLumpInput', () => {
             const lumpName = 'my-lump';
             const data = assertSuccess(await resolveJsConf({ keepHistory: true }, { lumpName }));
             expect(data.getKeepHistoryFilePathFn!(ctx)).toBe(
-                path.join('/tmp/project', '.lumpcode', 'lumps', lumpName, 'history', 'ctx.json'),
+                path.join('/tmp/project', '.lumpcode', 'lumps', lumpName, 'history', 'ctx.yaml'),
             );
         });
     });
@@ -836,10 +837,10 @@ describe('jsConfigToRunLumpInput', () => {
                     'lumps',
                     lumpName,
                     'history',
-                    'component.json',
+                    'component.yaml',
                 );
                 const historyRaw = await fs.readFile(historyPath, 'utf-8');
-                const history = JSON.parse(historyRaw) as Array<{
+                const history = loadYaml(historyRaw) as Array<{
                     commandResult: string;
                     context: { name: string };
                     prompt: string;

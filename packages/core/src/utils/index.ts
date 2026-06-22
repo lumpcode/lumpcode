@@ -8,3 +8,4 @@ export * from './resolveSpawnExecutable';
 export * from './createConsoleLogger';
 export * from './noopLogger';
 export * from './formatExecFailureMessage';
+export * from './historyFile';
