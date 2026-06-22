@@ -65,6 +65,30 @@ describe('transpileTypeScriptToCachedMjs', () => {
         });
     });
 
+    it('T3b keeps @lumpcode/* npm imports external when bundling relative imports', async () => {
+        await withTsLumpProject(async ({ lumpDir }) => {
+            await fs.writeFile(
+                path.join(lumpDir, 'helper.ts'),
+                'import { success } from "@lumpcode/core";\nexport default success("bundled-helper");',
+                'utf-8',
+            );
+            const sourcePath = path.join(lumpDir, 'config.ts');
+            await fs.writeFile(
+                sourcePath,
+                'import helper from "./helper";\nexport default { helper };',
+                'utf-8',
+            );
+
+            const outPath = assertSuccess(await transpileTypeScriptToCachedMjs(sourcePath));
+            const source = await fs.readFile(outPath, 'utf-8');
+            expect(source).not.toContain('Dynamic require of');
+            expect(source).toContain('@lumpcode/core');
+
+            const value = await importDefault(outPath);
+            expect(value).toEqual({ helper: { success: true, data: 'bundled-helper' } });
+        });
+    });
+
     it('T4 reuses cache when source mtime is unchanged', async () => {
         await withTsLumpProject(async ({ lumpDir, projectRoot }) => {
             const sourcePath = path.join(lumpDir, 'stable.ts');

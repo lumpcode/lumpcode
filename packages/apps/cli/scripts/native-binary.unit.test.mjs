@@ -5,11 +5,14 @@ import * as path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
+    copyEsbuildSidecar,
     detectPlatformArch,
+    esbuildSidecarFileName,
     getReleaseDownloadUrl,
     getVendorBinaryPath,
     installNativeBinary,
     isNativeBinaryInstalled,
+    resolveEsbuildBinaryInNodeModules,
 } from './native-binary.mjs';
 
 describe('detectPlatformArch', () => {
@@ -79,13 +82,28 @@ describe('installNativeBinary', () => {
         vi.unstubAllGlobals();
     });
 
-    function makePkgRoot() {
+    function makePkgRoot({ platform = 'linux', arch = 'x64' } = {}) {
         const pkgRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lumpcode-npm-install-'));
         tempDirs.push(pkgRoot);
         fs.mkdirSync(path.join(pkgRoot, 'dist', 'schemas'), { recursive: true });
         fs.mkdirSync(path.join(pkgRoot, 'dist', 'presets', 'commands'), { recursive: true });
         fs.writeFileSync(path.join(pkgRoot, 'dist', 'schemas', 'lumpConfig.schema.json'), '{}');
         fs.writeFileSync(path.join(pkgRoot, 'dist', 'presets', 'commands', 'copilot.js'), 'export const command = () => null;');
+
+        const detected = detectPlatformArch(platform, arch);
+        if (detected) {
+            const esbuildPkg =
+                detected.platform === 'windows'
+                    ? `@esbuild/win32-${detected.arch}`
+                    : `@esbuild/${detected.platform}-${detected.arch}`;
+            const esbuildBinDir = path.join(pkgRoot, 'node_modules', esbuildPkg, 'bin');
+            fs.mkdirSync(esbuildBinDir, { recursive: true });
+            fs.writeFileSync(
+                path.join(esbuildBinDir, esbuildSidecarFileName(platform)),
+                'mock-esbuild-binary',
+            );
+        }
+
         return pkgRoot;
     }
 
@@ -141,7 +159,55 @@ describe('installNativeBinary', () => {
         expect(fs.readFileSync(getVendorBinaryPath(pkgRoot))).toEqual(binaryBody);
         expect(fs.existsSync(path.join(pkgRoot, 'vendor', 'schemas', 'lumpConfig.schema.json'))).toBe(true);
         expect(fs.existsSync(path.join(pkgRoot, 'vendor', 'presets', 'commands', 'copilot.js'))).toBe(true);
+        expect(fs.existsSync(path.join(pkgRoot, 'vendor', esbuildSidecarFileName('linux')))).toBe(true);
         expect(fs.readFileSync(path.join(pkgRoot, 'vendor', '.installed'), 'utf-8')).toContain('lumpcode-linux-x64');
+    });
+
+    it('returns missing-esbuild-sidecar when platform esbuild binary is unavailable', async () => {
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async (url) => {
+                if (String(url).endsWith('.sha256')) {
+                    return { ok: false, status: 404 };
+                }
+                return {
+                    ok: true,
+                    async arrayBuffer() {
+                        return Buffer.from('mock-sea-binary').buffer;
+                    },
+                };
+            }),
+        );
+
+        const pkgRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'lumpcode-npm-install-'));
+        tempDirs.push(pkgRoot);
+        fs.mkdirSync(path.join(pkgRoot, 'dist', 'schemas'), { recursive: true });
+        fs.mkdirSync(path.join(pkgRoot, 'dist', 'presets', 'commands'), { recursive: true });
+        fs.writeFileSync(path.join(pkgRoot, 'dist', 'schemas', 'lumpConfig.schema.json'), '{}');
+        fs.writeFileSync(path.join(pkgRoot, 'dist', 'presets', 'commands', 'copilot.js'), 'export const command = () => null;');
+
+        const result = await installNativeBinary({
+            pkgRoot,
+            version: '1.0.0',
+            platform: 'linux',
+            arch: 'x64',
+        });
+
+        expect(result).toEqual({
+            installed: false,
+            reason: 'missing-esbuild-sidecar',
+            assetBase: 'lumpcode-linux-x64',
+        });
+    });
+
+    it('copyEsbuildSidecar copies from node_modules into destDir', () => {
+        const pkgRoot = makePkgRoot({ platform: 'linux', arch: 'x64' });
+        const destDir = path.join(pkgRoot, 'vendor');
+        fs.mkdirSync(destDir, { recursive: true });
+
+        expect(resolveEsbuildBinaryInNodeModules(pkgRoot, 'linux', 'x64')).toContain('@esbuild/linux-x64');
+        expect(copyEsbuildSidecar({ pkgRoot, destDir, platform: 'linux', arch: 'x64' })).toBe(true);
+        expect(fs.readFileSync(path.join(destDir, 'esbuild'), 'utf-8')).toBe('mock-esbuild-binary');
     });
 
     it('returns unsupported-platform without fetching', async () => {

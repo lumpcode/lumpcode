@@ -5,7 +5,7 @@ import { StepVariables } from "./StepVariables";
 
 export type Step = {
     promptFn?: PromptFn;
-    commandFn: CommandFn;
+    commandFn?: CommandFn;
     stepVariables?: StepVariables;
     postCommandExecFn?: PostCommandExecFn;
     continueOnError?: boolean;

@@ -81,6 +81,77 @@ function copyDirRecursive(src, dest) {
 }
 
 /**
+ * @param {string} platform
+ * @returns {string}
+ */
+export function esbuildSidecarFileName(platform = process.platform) {
+    return platform === 'win32' ? 'esbuild.exe' : 'esbuild';
+}
+
+/**
+ * @param {string} pkgRoot
+ * @param {string} platform
+ * @param {string} arch
+ * @returns {string | null}
+ */
+export function resolveEsbuildBinaryInNodeModules(
+    pkgRoot,
+    platform = process.platform,
+    arch = process.arch,
+) {
+    const detected = detectPlatformArch(platform, arch);
+    if (!detected) {
+        return null;
+    }
+
+    const { platform: platformName, arch: archName } = detected;
+    const esbuildPkg =
+        platformName === 'windows'
+            ? `@esbuild/win32-${archName}`
+            : `@esbuild/${platformName}-${archName}`;
+    const binaryName = esbuildSidecarFileName(platform);
+
+    const searchRoots = [
+        pkgRoot,
+        path.join(pkgRoot, '..', '..'),
+        path.join(pkgRoot, '..', '..', '..'),
+    ];
+
+    for (const root of searchRoots) {
+        const candidate = path.join(root, 'node_modules', esbuildPkg, 'bin', binaryName);
+        if (fs.existsSync(candidate)) {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @param {{ pkgRoot: string; destDir: string; platform?: string; arch?: string }} input
+ * @returns {boolean}
+ */
+export function copyEsbuildSidecar({
+    pkgRoot,
+    destDir,
+    platform = process.platform,
+    arch = process.arch,
+}) {
+    const sourcePath = resolveEsbuildBinaryInNodeModules(pkgRoot, platform, arch);
+    if (!sourcePath) {
+        return false;
+    }
+
+    const destPath = path.join(destDir, esbuildSidecarFileName(platform));
+    fs.copyFileSync(sourcePath, destPath);
+    if (platform !== 'win32') {
+        fs.chmodSync(destPath, 0o755);
+    }
+
+    return true;
+}
+
+/**
  * @param {string} data
  * @param {string} expectedHex
  * @returns {boolean}
@@ -168,6 +239,11 @@ export async function installNativeBinary({
 
     copyDirRecursive(schemasSrc, path.join(vendorDir, 'schemas'));
     copyDirRecursive(presetsSrc, path.join(vendorDir, 'presets'));
+
+    const esbuildCopied = copyEsbuildSidecar({ pkgRoot, destDir: vendorDir, platform, arch });
+    if (!esbuildCopied) {
+        return { installed: false, reason: 'missing-esbuild-sidecar', assetBase };
+    }
 
     const marker = {
         version,

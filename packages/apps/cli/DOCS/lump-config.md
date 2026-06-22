@@ -237,6 +237,7 @@ Each array element matches the input passed to **`postCommandExecFn`** (see [typ
 | Field | Description |
 |-------|-------------|
 | `commandResult` | Agent stdout/stderr combined (can be large; may contain secrets) |
+| `commandSucceeded` | `true` when the subprocess succeeded or was skipped; `false` when it failed but `continueOnError` allowed the hook to run |
 | `context` | The context object (`name`, `variables`, optional `options`) |
 | `prompt` | Resolved prompt string sent to the agent |
 | `stepIndex` | Step index at the root, or a path like `[1, 0]` for nested dynamic items |

@@ -13,7 +13,7 @@ export function makePromptFnFromTemplate(
         for (const variableKey in variables) {
             const variableVal = variables[variableKey];
             const placeholder = `{${variableKey}}`;
-            ret = ret.split(placeholder).join(variableVal);
+            ret = ret.split(placeholder).join(variableVal.toString());
         }
 
         return ret;

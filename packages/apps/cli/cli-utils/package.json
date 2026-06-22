@@ -1,0 +1,28 @@
+{
+  "name": "@lumpcode/cli-utils",
+  "version": "0.0.6",
+  "private": true,
+  "description": "Internal runtime helpers re-exported from CLI sources (not published yet)",
+  "license": "Apache-2.0",
+  "author": "",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "clean": "rm -rf dist",
+    "build": "rollup -c"
+  },
+  "dependencies": {
+    "@lumpcode/core": "^0.0.6"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^12.1.0",
+    "rollup": "^4.52.5",
+    "rollup-plugin-dts": "^6.1.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2"
+  }
+}
