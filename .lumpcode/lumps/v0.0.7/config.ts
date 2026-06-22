@@ -4,6 +4,7 @@ import { CommandDescriptor } from '@lumpcode/core';
 
 export default defineConfig({
     command: 'cursor',
+    registerCommands: ['cursor'],
     getContextListFn,
     numberOfContextsPerBranch: 1,
     maximumNumberOfConcurrentBranches: 2,
