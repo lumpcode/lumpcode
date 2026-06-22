@@ -59,7 +59,8 @@ function* iterateTodoItems(doc: TodoYamlItem[]) {
 }
 
 async function loadPendingTodoContexts({ lumpDir, lumpName }) {
-    const todoPath = path.join(lumpDir, 'TODO.yaml');
+    const todoPath = path.join('.lumpcode', 'lumps', 'v0.0.7', 'TODO.yaml');
+    console.log('todoPath', todoPath);
     const raw = await fs.readFile(todoPath, 'utf-8');
     const doc = loadYaml(raw) as TodoYamlItem[];
 
