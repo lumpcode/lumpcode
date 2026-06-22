@@ -89,6 +89,10 @@ describe('installNativeBinary', () => {
         fs.mkdirSync(path.join(pkgRoot, 'dist', 'presets', 'commands'), { recursive: true });
         fs.writeFileSync(path.join(pkgRoot, 'dist', 'schemas', 'lumpConfig.schema.json'), '{}');
         fs.writeFileSync(path.join(pkgRoot, 'dist', 'presets', 'commands', 'copilot.js'), 'export const command = () => null;');
+        fs.writeFileSync(
+            path.join(pkgRoot, 'package.json'),
+            JSON.stringify({ name: 'lumpcode-test-root', version: '0.0.0' }),
+        );
 
         const detected = detectPlatformArch(platform, arch);
         if (detected) {
@@ -96,8 +100,13 @@ describe('installNativeBinary', () => {
                 detected.platform === 'windows'
                     ? `@esbuild/win32-${detected.arch}`
                     : `@esbuild/${detected.platform}-${detected.arch}`;
-            const esbuildBinDir = path.join(pkgRoot, 'node_modules', esbuildPkg, 'bin');
+            const esbuildPkgDir = path.join(pkgRoot, 'node_modules', esbuildPkg);
+            const esbuildBinDir = path.join(esbuildPkgDir, 'bin');
             fs.mkdirSync(esbuildBinDir, { recursive: true });
+            fs.writeFileSync(
+                path.join(esbuildPkgDir, 'package.json'),
+                JSON.stringify({ name: esbuildPkg, version: '0.0.0' }),
+            );
             fs.writeFileSync(
                 path.join(esbuildBinDir, esbuildSidecarFileName(platform)),
                 'mock-esbuild-binary',
