@@ -78,10 +78,11 @@ describe('executeStepsForContextList keepHistory', () => {
         });
         expect(result.success).toBe(true);
 
-        const history = JSON.parse(await readFile(historyPath, 'utf-8')) as Array<{ commandResult: string; prompt: string }>;
+        const history = JSON.parse(await readFile(historyPath, 'utf-8')) as Array<{ commandResult: string; commandSucceeded: boolean; prompt: string }>;
         expect(history).toHaveLength(1);
         expect(history[0].prompt).toBe('first prompt');
         expect(history[0].commandResult).toContain('ok');
+        expect(history[0].commandSucceeded).toBe(true);
     });
 
     it('appends a second entry for a second step', async () => {
@@ -270,8 +271,9 @@ describe('executeStepsForContextList dynamic steps', () => {
             projectRoot,
             steps: [{
                 commandFn: () => null,
-                postCommandExecFn: ({ commandResult, contextRunState }) => {
+                postCommandExecFn: ({ commandResult, commandSucceeded, contextRunState }) => {
                     executionOrder.push(`post:${commandResult}`);
+                    executionOrder.push(`succeeded:${commandSucceeded}`);
                     contextRunState.ran = true;
                 },
             }],
@@ -285,7 +287,7 @@ describe('executeStepsForContextList dynamic steps', () => {
         });
 
         expect(result.success).toBe(true);
-        expect(executionOrder).toEqual(['post:', 'teardown:true']);
+        expect(executionOrder).toEqual(['post:', 'succeeded:true', 'teardown:true']);
     });
 
     it('continues the step walk when continueOnError is true and the command fails', async () => {
@@ -307,8 +309,9 @@ describe('executeStepsForContextList dynamic steps', () => {
                     executable: 'sh',
                     args: ['-c', 'echo verification failed; exit 1'],
                 }),
-                postCommandExecFn: ({ commandResult, contextRunState }) => {
+                postCommandExecFn: ({ commandResult, commandSucceeded, contextRunState }) => {
                     executionOrder.push(`post:${commandResult.includes('verification failed')}`);
+                    executionOrder.push(`succeeded:${commandSucceeded}`);
                     contextRunState.valid = false;
                 },
             }, ({ contextRunState }) => {
@@ -323,7 +326,7 @@ describe('executeStepsForContextList dynamic steps', () => {
         });
 
         expect(result.success).toBe(true);
-        expect(executionOrder).toEqual(['post:true', 'dynamic:true']);
+        expect(executionOrder).toEqual(['post:true', 'succeeded:false', 'dynamic:true']);
     });
 
     it('stops the step walk when the command fails and continueOnError is not set', async () => {

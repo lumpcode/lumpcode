@@ -172,7 +172,7 @@
         },
         "postCommandExecFn": {
           "type": "string",
-          "description": "File path to a module exporting a PostCommandExecFn — a function called after the command finishes executing. The function receives:\n  { commandResult, context, prompt, stepIndex, contextRunState, lumpVariables }\nUse this for validation, logging, cleanup, or other side effects after each prompt/command cycle.",
+          "description": "File path to a module exporting a PostCommandExecFn — a function called after the command finishes executing. The function receives:\n  { commandResult, commandSucceeded, context, prompt, stepIndex, contextRunState, lumpVariables, stepVariables?, projectRoot }\nUse this for validation, logging, cleanup, or other side effects after each prompt/command cycle.",
           "examples": ["./lump/postCommandExecFn.ts"]
         },
         "stepVariables": {

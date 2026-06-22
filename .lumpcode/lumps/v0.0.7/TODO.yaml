@@ -1,25 +1,29 @@
 # v0.0.7 backlog — see GOALS.md; move finished entries to DONE.yaml.
 - name: lump-ts-config
   task: Allow a lump to use config.ts in addition to config.js and config.json (load, validate, and run end-to-end).
+  done: true
   priority: 1
-- name: project-base-branch-fallback
+
+- name: history-as-yaml
   task: >-
-    When local.json projectBaseBranch is missing or does not exist on the remote, fall back to
-    project.json projectBaseBranch. Resolution order — lump baseBranch, then local.json
-    projectBaseBranch, then project.json projectBaseBranch.
-  implementWithoutPrd: false
+    Switch keepHistory files from JSON to YAML for long prompt/agent strings.
   priority: 1
+  type: feature
+
 - name: npm-package-keywords
   task: Add relevant keywords to publishable npm packages (@lumpcode/core, @lumpcode/cli, @lumpcode/cli-types, and related).
-  implementWithoutPrd: true
-  priority: 2
+  isDocumentation: true
+  type: documentation
+  priority: 1
+
 - name: npm-package-repository
   task: Add the repository field to publishable npm package.json files (link to lumpcode/lumpcode on GitHub).
-  implementWithoutPrd: true
-  priority: 2
+  type: misc
+  priority: 1
+  
 - name: readme-ease-and-power
   task: >-
     Update the root README.md and packages/apps/cli/README.md to highlight that Lumpcode is easy
     and straightforward to use, while remaining configurable and powerful.
-  implementWithoutPrd: true
-  priority: 2
+  type: documentation
+  priority: 1

@@ -78,7 +78,7 @@ export async function collectStepsForContext(
             }
 
             const {
-                commandFn,
+                commandFn = () => null,
                 stepVariables,
                 promptFn,
                 postCommandExecFn,

@@ -6,10 +6,7 @@
 
 ## QOL
 
-- **`projectBaseBranch` fallback** — When `local.json` `projectBaseBranch` is missing or does not exist, allow a default in `project.json` via `projectBaseBranch`. Resolution order:
-  1. Lump `baseBranch`
-  2. `local.json` `projectBaseBranch`
-  3. `project.json` `projectBaseBranch`
+- **History files as YAML** — Switch `keepHistory` files from JSON to YAML for long prompt/agent strings.
 
 ## Docs
 

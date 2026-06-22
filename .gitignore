@@ -21,3 +21,4 @@ packages/core/._git
 *.tgz
 IDEAS.yaml
 __TODOS__/**
+.lumpcode/.cache/

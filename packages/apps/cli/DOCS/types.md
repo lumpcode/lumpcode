@@ -211,6 +211,7 @@ Lumpcode runs the agent as `executable` + `args`. Agent-specific flags and the p
 ```ts
 type PostCommandExecFn = (input: {
   commandResult: string;
+  commandSucceeded: boolean;
   context: Context;
   prompt: string;
   stepIndex: number | number[];
@@ -221,7 +222,7 @@ type PostCommandExecFn = (input: {
 }) => MaybePromise<void>;
 ```
 
-`commandResult` is the **captured stdout** (string). Parse JSON yourself if your agent returns structured text.
+`commandResult` is the **captured stdout** (string). Parse JSON yourself if your agent returns structured text. `commandSucceeded` is `true` when the subprocess exited successfully or execution was skipped (`commandFn` returned `null`); `false` when the subprocess failed but `continueOnError` allowed the hook to run.
 
 ### `SetupFn`
 

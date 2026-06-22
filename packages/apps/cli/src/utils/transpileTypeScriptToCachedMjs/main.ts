@@ -146,6 +146,9 @@ function shouldBundleSource(sourceContent: string): boolean {
     return /from\s+['"]\.{1,2}\//.test(sourceContent);
 }
 
+/** Keep npm deps (e.g. `@lumpcode/*`) external when bundling relative lump-local modules. */
+const ESBUILD_PACKAGES_EXTERNAL = 'external' as const;
+
 async function patchImportMetaUrlInOutput(outPath: string, sourceAbsolutePath: string): Promise<void> {
     const source = await fs.readFile(outPath, 'utf-8');
     if (!source.includes('import.meta.url')) return;
@@ -181,7 +184,7 @@ async function runEsbuildTranspile(absolutePath: string, outPath: string): Promi
             `--outfile=${outPath}`,
         ];
         if (bundle) {
-            args.splice(1, 0, '--bundle');
+            args.splice(1, 0, '--bundle', `--packages=${ESBUILD_PACKAGES_EXTERNAL}`);
         }
         await execFileAsync(
             binaryPath,
@@ -201,6 +204,7 @@ async function runEsbuildTranspile(absolutePath: string, outPath: string): Promi
         bundle,
         entryPoints: [absolutePath],
         format: 'esm',
+        packages: bundle ? ESBUILD_PACKAGES_EXTERNAL : undefined,
         platform: 'node',
         target: 'node22',
         write: true,

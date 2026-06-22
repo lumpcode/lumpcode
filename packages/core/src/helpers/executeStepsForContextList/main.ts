@@ -152,7 +152,7 @@ export async function executeStepsForContextList({
                 logger.verbose(`step ${JSON.stringify(step)}`);
 
                 const {
-                    commandFn,
+                    commandFn = () => null,
                     stepVariables,
                     promptFn,
                     postCommandExecFn,
@@ -236,6 +236,7 @@ export async function executeStepsForContextList({
 
                 const postCommandExecFnInput = {
                     commandResult,
+                    commandSucceeded,
                     context,
                     prompt,
                     stepIndex: compositeStepIndex,
