@@ -15,14 +15,12 @@
     lumpcode/lumpcode on GitHub).
   type: misc
   priority: 1
-  done: false
 - name: npm-package-keywords
   task: >-
     Add relevant keywords to publishable npm packages (@lumpcode/core,
     @lumpcode/cli, @lumpcode/cli-types, and related).
   type: documentation
-  done: true
-  priority: 2
+  priority: 1
 - name: readme-ease-and-power
   task: >-
     Update the root README.md and packages/apps/cli/README.md to highlight that
