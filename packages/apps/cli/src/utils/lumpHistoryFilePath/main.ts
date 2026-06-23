@@ -1,7 +1,20 @@
-export function lumpHistoryFilePath(_input: {
+import { join } from 'node:path';
+
+export function lumpHistoryFilePath({
+    projectRoot,
+    lumpName,
+    contextName,
+}: {
     projectRoot: string;
     lumpName: string;
     contextName: string;
 }): string {
-    throw new Error('not implemented');
+    return join(
+        projectRoot,
+        '.lumpcode',
+        'lumps',
+        lumpName,
+        'history',
+        `${contextName}.yaml`,
+    );
 }
