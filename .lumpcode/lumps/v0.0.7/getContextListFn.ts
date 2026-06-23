@@ -122,7 +122,6 @@ const lumpName = path.basename(lumpDir);
 
 
 async function getFeatureNextFlow(item: TodoYamlItem) {
-    console.log('getFeatureNextFlow item', item);
     if (item.type !== 'feature') return null;
 
     const prdFilePath = path.join(lumpDir, 'prds', `${item.name}.prd.md`);
@@ -139,10 +138,8 @@ async function getFeatureNextFlow(item: TodoYamlItem) {
         projectRoot,
         contextName: `${item.name}_tests_impl`,
         lumpName,
-        baseBranch: 'v0.0.7',
+        baseBranch: 'ver/0.0.7',
     });
-
-    console.log('testsImplContextStatus', testsImplContextStatus);
 
     if (testsImplContextStatus === 'toDo') return 'tests_impl';
 
