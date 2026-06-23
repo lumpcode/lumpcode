@@ -16,6 +16,11 @@
   ],
   "license": "Apache-2.0",
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lumpcode/lumpcode.git",
+    "directory": "packages/apps/cli"
+  },
   "type": "commonjs",
   "main": "dist/index.js",
   "engines": {

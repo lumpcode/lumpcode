@@ -15,6 +15,7 @@
     lumpcode/lumpcode on GitHub).
   type: misc
   priority: 1
+  done: true
 - name: npm-package-keywords
   task: >-
     Add relevant keywords to publishable npm packages (@lumpcode/core,
