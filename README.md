@@ -1,16 +1,16 @@
 # Lumpcode
 
-Lumpcode is a **CLI and library for running agent loops** over your codebase. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
+Describe your agent loop workflow once and let it work through your codebase in the background.
+
+**Straightforward and easy to adopt**, yet **fully configurable**, Lumpcode drives any CLI agent (Claude, Codex, Aider, Cursor) through large coding jobs (migrations, codemods, tests, or a whole roadmap of features) as long-running campaigns called **lumps**. Run a **lump** on demand, or run it as a daemon on any machine and it ticks through your backlog on a schedule. Every change arrives on its own git branch for normal PR review, and progress is resumable, so it always picks up where it left off.
 
 Lumpcode is still in **early development**; expect rough edges and **many improvements in the near future**.
 
 > *Named after the **lumpfish**: a small cleaner fish that salmon farmers add to their pens to quietly pick parasites off the salmon. Lumpcode plays the same role in your codebase, steadily working through the long tail of repetitive coding chores (codemods, doc updates, dependency updates, new abstractions, missing tests...) one batch at a time, without overflowing you with PRs, while you stay focused on your code.*
 
-<p align="center"><em>See how cute it is:</em></p>
+*See how cute it is:*
 
-<p align="center">
-  <img src="assets/lumpfish.png" alt="Juvenile lumpfish" width="240">
-</p>
+
 
 > Also, **LUMP** can stand for **Loop Using Multiple Prompts**: one or more prompts per context, often across many similar units of work.
 
@@ -32,7 +32,7 @@ Verify: `lumpcode --version`
 
 ## Quick start
 
-From the root of a git repository you can push to **`origin`**.
+From the root of a git repository you can push to `**origin**`.
 
 **Prerequisites:** git `origin` push access, a CLI agent on `PATH`, and awareness that `run` invokes your agent (LLM cost). Details: [Getting started § Prerequisites](packages/apps/cli/DOCS/get-started.md#prerequisites).
 
@@ -53,19 +53,23 @@ This runs your agent on **one** context, commits a `LUMP: myFirstLump - …` mar
 
 ## Documentation
 
-| Doc | Contents |
-|---|---|
+
+| Doc                                                      | Contents                               |
+| -------------------------------------------------------- | -------------------------------------- |
 | [Getting started](packages/apps/cli/DOCS/get-started.md) | Zero → first successful `lumpcode run` |
-| [CLI README](packages/apps/cli/README.md) | Config examples, daemon, doc index |
-| [Command reference](packages/apps/cli/DOCS/commands.md) | Every subcommand and flag |
-| [Core README](packages/core/README.md) | `@lumpcode/core` engine API |
+| [CLI README](packages/apps/cli/README.md)                | Config examples, daemon, doc index     |
+| [Command reference](packages/apps/cli/DOCS/commands.md)  | Every subcommand and flag              |
+| [Core README](packages/core/README.md)                   | `@lumpcode/core` engine API            |
+
 
 ## Monorepo packages
 
-| Package | npm | Role |
-|---|---|---|
-| `packages/core` | [`@lumpcode/core`](https://www.npmjs.com/package/@lumpcode/core) | Engine API (`runLump`): Not intended for direct use; install `@lumpcode/cli` |
-| `packages/apps/cli` | [`@lumpcode/cli`](https://www.npmjs.com/package/@lumpcode/cli) | CLI: project setup, run, daemon, status |
-| `packages/apps/cli/cli-types` | [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) | Typed `config.js` and command-module helpers |
+
+| Package                       | npm                                                                        | Role                                                                         |
+| ----------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `packages/core`               | `[@lumpcode/core](https://www.npmjs.com/package/@lumpcode/core)`           | Engine API (`runLump`): Not intended for direct use; install `@lumpcode/cli` |
+| `packages/apps/cli`           | `[@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli)`             | CLI: project setup, run, daemon, status                                      |
+| `packages/apps/cli/cli-types` | `[@lumpcode/cli-types](https://www.npmjs.com/package/@lumpcode/cli-types)` | Typed `config.js` and command-module helpers                                 |
+
 
 All three are open source under [Apache 2.0](LICENSE).
