@@ -115,7 +115,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `registerCommands` | string[] | Pre-load command modules (`.lumpcode/commands/<name>.ts` or `.js`) before resolving dynamic `steps` |
 | `setupFn` / `teardownFn` | [Function reference](#field-forms-conventions) | Per-context lifecycle hooks |
 | `contextOptionsFn` | [Function reference](#field-forms-conventions) | **Only with `contextListJson`:** set per-context `options` (`priority`, `dependsOnContexts`) after template expansion. See [contextOptionsFn](#contextoptionsfn-only-with-contextlistjson) and [Context ordering](#context-ordering-and-cross-lump-dependencies) |
-| `keepHistory` | boolean | When `true`, append one JSON object per prompt step (after the agent command) to `.lumpcode/lumps/<lumpName>/history/<contextName>.json` |
+| `keepHistory` | boolean | When `true`, append one YAML mapping per prompt step (after the agent command) to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` |
 
 Workspace preparation (fetch/pull/branch) is generated for you from `local.json` and the resolved `baseBranch`—there are no `workspaceSetup`, `setupWorkspaceFn`, or `teardownWorkspaceFn` knobs.
 
@@ -225,14 +225,14 @@ By default, Lumpcode does **not** write prompt or agent output to disk. Set **`"
 When enabled, after each successful agent command the engine appends one entry to:
 
 ```text
-.lumpcode/lumps/<lumpName>/history/<contextName>.json
+.lumpcode/lumps/<lumpName>/history/<contextName>.yaml
 ```
 
-There is **One file per context** — all prompt steps for that context are in the same JSON array.
+There is **one file per context** — all prompt steps for that context are in the same YAML sequence (array).
 
 ### Entry shape
 
-Each array element matches the input passed to **`postCommandExecFn`** (see [types.md](./types.md) and the [core README](https://github.com/lumpcode/lumpcode/blob/main/packages/core/README.md)):
+Each sequence item matches the input passed to **`postCommandExecFn`** (see [types.md](./types.md) and the [core README](https://github.com/lumpcode/lumpcode/blob/main/packages/core/README.md)):
 
 | Field | Description |
 |-------|-------------|
@@ -263,6 +263,27 @@ History is written **before** an optional `postCommandExecFn` on the same prompt
     "command": "copilot"
   }
 }
+```
+
+A history file for context `button` might look like:
+
+```yaml
+- commandSucceeded: true
+  prompt: |
+    Refactor src/Button.tsx for accessibility.
+    Focus on keyboard navigation and ARIA labels.
+  commandResult: |
+    Updated Button.tsx: added role="button", tabIndex, and onKeyDown handler.
+  context:
+    name: button
+    variables:
+      FILE: src/Button.tsx
+  stepIndex: 0
+  contextRunState:
+    copilotSetup:
+      setupChatId: a1b2c3d4-...
+  lumpVariables: {}
+  projectRoot: /Users/me/my-app
 ```
 
 ## `contextStatusRecord.json`

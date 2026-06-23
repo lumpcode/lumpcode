@@ -191,7 +191,7 @@ Details — cron flags, caps, trade-offs: [concepts.md § When to use run vs sta
 | Lump configs | `.lumpcode/lumps/<lumpName>/` |
 | Per-machine mode + projectBaseBranch | `.lumpcode/local.json` (gitignored) |
 | Context status cache | `.lumpcode/lumps/<lumpName>/contextStatusRecord.json` |
-| Prompt run history (optional, `keepHistory: true`) | `.lumpcode/lumps/<lumpName>/history/<contextName>.json` (gitignored) |
+| Prompt run history (optional, `keepHistory: true`) | `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored) |
 | TypeScript transpile cache | `.lumpcode/.cache/transpile/` (gitignored) |
 | Default work branch names | `lump/<lumpName>/<context…>` (local + `origin`) |
 | Isolated repo copy (when `local.json.mode` is `shared`) | `~/.lumpcode/project-copies/<projectName>/` |
