@@ -3,6 +3,7 @@ import { load as loadYaml, dump as dumpYaml } from 'js-yaml';
 import { defineConfig, Context } from '@lumpcode/cli-types';
 import { getContextListFn, getRecursiveSteps, TodoYamlItem, type ContextVariables } from './getContextListFn';
 import { CommandDescriptor, Step } from '@lumpcode/core';
+import path from 'path';
 
 export default defineConfig({
     command: 'cursor',
@@ -210,18 +211,18 @@ export default defineConfig({
             }
             else if (ctxType === 'misc') {
                 return [
-                    {
-                        promptFn({
-                            context,
-                        }) {
-                            const variables = context.variables as ContextVariables;
+                    // {
+                    //     promptFn({
+                    //         context,
+                    //     }) {
+                    //         const variables = context.variables as ContextVariables;
                             
-                            return `
-                                Follow these instructions:
-                                ${variables.TASK}
-                            `.trim();
-                        }
-                    },
+                    //         return `
+                    //             Follow these instructions:
+                    //             ${variables.TASK}
+                    //         `.trim();
+                    //     }
+                    // },
                     setTaskDoneStep
                 ]
             }
@@ -233,18 +234,24 @@ export default defineConfig({
 const setTaskDoneStep: Step = {
     async commandFn({
         context,
+        workspacePath
     }) {
         const variables = context.variables as ContextVariables;
         const {
             TODOS_FILE,
         } = variables;
 
-        const opnedTodosFile = await fs.readFile(TODOS_FILE, 'utf-8');
-        const todos = loadYaml(opnedTodosFile) as TodoYamlItem[];
+        const openedTodosFile = await fs.readFile(path.join(workspacePath, TODOS_FILE), 'utf-8');
+        const todos = loadYaml(openedTodosFile) as TodoYamlItem[];
         const todo = todos.find((todo: TodoYamlItem) => todo.name === context.name);
         if (todo) {
             todo.done = true;
             await fs.writeFile(TODOS_FILE, dumpYaml(todos));
+        }
+
+        return {
+            executable: 'cat',
+            args: [TODOS_FILE],
         }
     }
 }
