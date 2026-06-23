@@ -8,6 +8,7 @@
   task: >-
     Switch keepHistory files from JSON to YAML for long prompt/agent strings.
   priority: 1
+  done: true
   type: feature
 
 - name: npm-package-keywords
