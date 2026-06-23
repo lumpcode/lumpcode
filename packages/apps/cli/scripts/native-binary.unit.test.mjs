@@ -6,6 +6,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
     copyEsbuildSidecar,
+    esbuildPlatformBinaryRelativePath,
+} from './esbuild-sidecar.mjs';
+import {
     detectPlatformArch,
     esbuildSidecarFileName,
     getReleaseDownloadUrl,
@@ -101,16 +104,17 @@ describe('installNativeBinary', () => {
                     ? `@esbuild/win32-${detected.arch}`
                     : `@esbuild/${detected.platform}-${detected.arch}`;
             const esbuildPkgDir = path.join(pkgRoot, 'node_modules', esbuildPkg);
-            const esbuildBinDir = path.join(esbuildPkgDir, 'bin');
-            fs.mkdirSync(esbuildBinDir, { recursive: true });
+            fs.mkdirSync(esbuildPkgDir, { recursive: true });
             fs.writeFileSync(
                 path.join(esbuildPkgDir, 'package.json'),
                 JSON.stringify({ name: esbuildPkg, version: '0.0.0' }),
             );
-            fs.writeFileSync(
-                path.join(esbuildBinDir, esbuildSidecarFileName(platform)),
-                'mock-esbuild-binary',
+            const esbuildBinaryPath = path.join(
+                esbuildPkgDir,
+                esbuildPlatformBinaryRelativePath(platform),
             );
+            fs.mkdirSync(path.dirname(esbuildBinaryPath), { recursive: true });
+            fs.writeFileSync(esbuildBinaryPath, 'mock-esbuild-binary');
         }
 
         return pkgRoot;

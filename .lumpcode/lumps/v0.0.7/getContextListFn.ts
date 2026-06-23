@@ -6,7 +6,7 @@ import { getContextStatus } from '@lumpcode/cli-utils';
 import { fileURLToPath } from 'url';
 import { CommandDescriptor } from '@lumpcode/core';
 
-type TodoYamlItem = {
+export type TodoYamlItem = {
     name: string;
     type: 'feature' | 'documentation' | 'misc';
     task: string;

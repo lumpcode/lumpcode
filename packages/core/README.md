@@ -183,9 +183,9 @@ See [Logging](#logging) below.
 
 **Type:** `(context: Context) => string | undefined` -- **Default:** `() => undefined`
 
-When this function returns a non-empty path for a context, the engine appends one JSON object per prompt step (after each successful agent command) to that file. The file is a JSON array; each element has the same shape as `postCommandExecFn` input (`commandResult`, `commandSucceeded`, `context`, `prompt`, `stepIndex`, `contextRunState`, `lumpVariables`, optional `stepVariables`, `projectRoot`). Parent directories are created with `mkdir(..., { recursive: true })` before the initial `[]` write.
+When this function returns a non-empty path for a context, the engine appends one YAML mapping per prompt step (after each successful agent command) to that file. The file is a YAML sequence (array); each element has the same shape as `postCommandExecFn` input (`commandResult`, `commandSucceeded`, `context`, `prompt`, `stepIndex`, `contextRunState`, `lumpVariables`, optional `stepVariables`, `projectRoot`). Multi-line `prompt` and `commandResult` values are stored as literal block scalars. Parent directories are created with `mkdir(..., { recursive: true })` before the initial `[]` write. Paths must use a `.yaml` or `.yml` extension.
 
-The Lumpcode CLI sets this from lump config `**keepHistory: true`**, writing to `.lumpcode/lumps/<lumpName>/history/<contextName>.json`. Library callers can supply a custom function for other paths or naming.
+The Lumpcode CLI sets this from lump config **`keepHistory: true`**, writing to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`. Library callers can supply a custom function for other paths or naming.
 
 ## Advanced Parameters
 

@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
     copyEsbuildSidecar,
+    esbuildPlatformBinaryRelativePath,
     esbuildPlatformPackageName,
     esbuildSidecarFileName,
     resolveEsbuildBinaryPath,
@@ -28,6 +29,11 @@ describe('esbuild-sidecar', () => {
         expect(esbuildPlatformPackageName('win32', 'x64')).toBe('@esbuild/win32-x64');
         expect(esbuildPlatformPackageName('linux', 'arm64')).toBe('@esbuild/linux-arm64');
         expect(esbuildPlatformPackageName('darwin', 'x64')).toBe('@esbuild/darwin-x64');
+    });
+
+    it('maps platform binary paths inside @esbuild packages', () => {
+        expect(esbuildPlatformBinaryRelativePath('win32')).toBe('esbuild.exe');
+        expect(esbuildPlatformBinaryRelativePath('linux')).toBe(path.join('bin', 'esbuild'));
     });
 
     it('resolves the installed platform binary from the CLI package root', () => {

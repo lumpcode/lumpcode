@@ -1,6 +1,6 @@
 {
   "name": "lumpcode",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Global install alias for the Lumpcode CLI (@lumpcode/cli)",
   "license": "Apache-2.0",
   "author": "",
@@ -20,6 +20,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@lumpcode/cli": "^0.0.6"
+    "@lumpcode/cli": "^0.0.7"
   }
 }
