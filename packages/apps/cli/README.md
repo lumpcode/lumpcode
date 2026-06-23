@@ -1,6 +1,6 @@
 # Lumpcode CLI
 
-Lumpcode is a **CLI for running agent loops** over your codebase. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
+Lumpcode is a **CLI for running agent loops** over your codebase. **Straightforward to adopt, fully configurable:** scaffold with two commands, point a JSON file at your files and prompt, and run. When you need more, switch to `config.ts`, wire setup/teardown hooks, nest dynamic `steps`, or ship a custom agent command module. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
 
 > *Named after the **lumpfish**: a small cleaner fish that salmon farmers add to their pens to quietly pick parasites off the salmon. Lumpcode plays the same role in your codebase, steadily working through the long tail of repetitive coding chores (codemods, doc updates, dependency updates, new abstractions, missing tests...) one batch at a time, without overflowing you with PRs, while you stay focused on your code.*
 
@@ -21,6 +21,8 @@ npm install -g @lumpcode/cli
 Verify: `lumpcode --version`
 
 ## Quick start
+
+Four steps from zero to a pushed branch: install, `project-setup`, `lump-create`, `run`. Your first lump can be a single `config.json`; no TypeScript or custom modules required.
 
 From the root of a git repository you can push to **`origin`**.
 
@@ -54,6 +56,18 @@ lumpcode stop           # SIGTERM + cleanup
 Because the daemon keeps invoking your agent on every tick, **cap parallel work** with `maximumNumberOfConcurrentBranches` (per lump or in `project.json`) and set `"disabled": true` on a lump to take it out of the rotation without stopping the scheduler.
 
 Sporadic `run` vs sustained `start`: [DOCS/concepts.md#when-to-use-run-vs-start-daemon](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#when-to-use-run-vs-start-daemon).
+
+## Simple by default, powerful when you need it
+
+Most lumps stay in one JSON file. The example below is enough for real work: path templates discover contexts, a prompt template drives the agent, and a preset `command` handles invocation. Add complexity only where it pays off.
+
+| Layer | What you get |
+|---|---|
+| **Defaults** | Marker commits, branch naming, git push, Copilot/Cursor presets |
+| **Config** | `contextListJson`, `getContextListFn`, or `contextMatchFn`; static or templated prompts |
+| **Power** | `config.ts`, `setupFn` / `teardownFn`, recursive `steps`, custom commands, `dependsOnContexts`, daemon scheduling |
+
+See [DOCS/lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md) for every field and [DOCS/advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md) for hooks and custom agents.
 
 ## `config.json` example: one branch per React component
 

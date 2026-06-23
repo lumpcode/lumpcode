@@ -1,6 +1,6 @@
 # Lumpcode
 
-Lumpcode is a **CLI and library for running agent loops** over your codebase. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
+Lumpcode is a **CLI and library for running agent loops** over your codebase. **Simple to start, powerful when you need it:** a few CLI commands and one config file get your first lump running; TypeScript configs, hooks, dynamic steps, and custom agent commands are there when your campaigns grow. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
 
 Lumpcode is still in **early development**; expect rough edges and **many improvements in the near future**.
 
@@ -14,7 +14,7 @@ Lumpcode is still in **early development**; expect rough edges and **many improv
 
 > Also, **LUMP** can stand for **Loop Using Multiple Prompts**: one or more prompts per context, often across many similar units of work.
 
-AI coding agents (Claude CLI, Codex, Aider, Cursor) work great on a single file or task. Lumpcode orchestrates them: batched **contexts**, git-isolated branches, marker commits for resumable progress, and optional background scheduling.
+AI coding agents (Claude CLI, Codex, Aider, Cursor) work great on a single file or task. Lumpcode orchestrates them with a straightforward workflow: batched **contexts**, git-isolated branches, marker commits for resumable progress, shipped presets for common agents, and optional background scheduling. You stay in control of how much complexity you add.
 
 A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every component to Vue"): context discovery, prompt(s), and an agent command under `.lumpcode/lumps/<lumpName>/`. It spans many **contexts**, not a single chat session. Each finished context gets a **marker commit** subject `LUMP: <lumpName> - <contextName>`, so repeated runs are **resumable** from remote git history after you merge PRs.
 
@@ -31,6 +31,8 @@ npm install -g @lumpcode/cli
 Verify: `lumpcode --version`
 
 ## Quick start
+
+Four steps: install, scaffold the project, create a lump, run it. No custom code required for your first campaign.
 
 From the root of a git repository you can push to **`origin`**.
 
@@ -50,6 +52,16 @@ lumpcode run myFirstLump
 This runs your agent on **one** context, commits a `LUMP: myFirstLump - …` marker, and pushes a `lump/myFirstLump/…` branch to `origin` for you to open as a PR.
 
 **Full walkthrough:** [Getting started](packages/apps/cli/DOCS/get-started.md) · **Concepts:** [concepts.md](packages/apps/cli/DOCS/concepts.md) · **Config examples & daemon:** [CLI README](packages/apps/cli/README.md)
+
+## Simple by default, powerful when you need it
+
+| Start here | Grow into |
+|---|---|
+| `project-setup`, `lump-create`, `run` | Background daemon (`start`) on a cron |
+| One `config.json` with `contextListJson` and `prompt` | `config.ts`, hooks, recursive `steps` |
+| Shipped agent presets (`copilot`, `cursor`, …) | Custom command modules and `agentPermissions` |
+
+The same lump config scales from a one-off migration to a long-running queue without changing how you invoke the CLI.
 
 ## Documentation
 
