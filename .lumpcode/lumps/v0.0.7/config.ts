@@ -1,6 +1,8 @@
+import fs from 'fs/promises';
+import { load as loadYaml, dump as dumpYaml } from 'js-yaml';
 import { defineConfig, Context } from '@lumpcode/cli-types';
-import { getContextListFn, getRecursiveSteps, type ContextVariables } from './getContextListFn';
-import { CommandDescriptor } from '@lumpcode/core';
+import { getContextListFn, getRecursiveSteps, TodoYamlItem, type ContextVariables } from './getContextListFn';
+import { CommandDescriptor, Step } from '@lumpcode/core';
 
 export default defineConfig({
     command: 'cursor',
@@ -22,10 +24,10 @@ export default defineConfig({
                 variables,
                 name,
             } = context as Context<ContextVariables>;
-
+            
             const ctxType = variables.TYPE;
             const nextFlow = variables.NEXT_FLOW;
-
+            
             if (ctxType === 'feature' && nextFlow) {
                 if (nextFlow === 'prd') {
                     return [
@@ -41,21 +43,21 @@ export default defineConfig({
                                     REF,
                                     PRD_FILE,
                                 } = variables;
-
+                                
                                 const refSection = REF
-                                    ? `\n\nAdditional reference: @${REF}`
-                                    : '';
-
+                                ? `\n\nAdditional reference: @${REF}`
+                                : '';
+                                
                                 return `
                                     Write a product requirements document (PRD) for the following Lumpcode backlog item from @${TODOS_FILE}.
-
+                                
                                     Task name: ${TASK_NAME}
-
+                                
                                     Task:
                                     ${TASK}${refSection}
-
+                                
                                     Save the PRD to @${PRD_FILE}. Do not edit @${TODOS_FILE}.
-
+                                
                                     The PRD should be self-contained and implementation-ready for the Lumpcode monorepo. Include:
                                     - Problem statement and motivation
                                     - Goals and non-goals
@@ -65,7 +67,7 @@ export default defineConfig({
                                     - Technical approach and affected packages or docs
                                     - Acceptance criteria
                                     - Open questions and risks
-
+                                
                                     Do not implement the feature — only create the PRD markdown file.
                                     The PRD should not contain any testing strategy details.
                                 `.trim();
@@ -87,18 +89,18 @@ export default defineConfig({
                                     PRD_FILE,
                                     TEST_PLAN_FILE
                                 } = variables;
-
+                                
                                 return `
                                     Write a test plan for the following Lumpcode backlog item from @${TODOS_FILE}.
-
+                                
                                     Task name: ${TASK_NAME}
                                     Task:
                                     ${TASK}
-
+                                
                                     The PRD for this task is @${PRD_FILE}. The test plan should match the requirements of the PRD.
-
+                                
                                     Save the test plan to @${TEST_PLAN_FILE}. Do not edit @${TODOS_FILE} nor @${PRD_FILE}.
-
+                                
                                     The test plan should be self-contained and implementation-ready for the Lumpcode monorepo. Include:
                                     - Test cases
                                     - Test data
@@ -116,7 +118,7 @@ export default defineConfig({
                                 context,
                             }) {
                                 const variables = context.variables as ContextVariables;
-
+                                
                                 const {
                                     TODOS_FILE,
                                     TASK_NAME,
@@ -124,14 +126,14 @@ export default defineConfig({
                                     PRD_FILE,
                                     TEST_PLAN_FILE
                                 } = variables;
-
+                                
                                 return `
                                     Write a test implementation for the following Lumpcode backlog item from @${TODOS_FILE}.
-
+                                
                                     Task name: ${TASK_NAME}
                                     Task:
                                     ${TASK}
-
+                                
                                     Follow the test plan in @${TEST_PLAN_FILE}.
                                     The PRD for this task is @${PRD_FILE}.
                                 `.trim();
@@ -140,49 +142,52 @@ export default defineConfig({
                     ]
                 }
                 else if (nextFlow === 'impl') {
-                    return getRecursiveSteps({
-                        getFirstSteps({
-                            currentIteration,
-                            prevValidateCommandResult,
-                        }) {
-                            return [
-                                {
-                                    promptFn({
-                                        context
-                                    }) {
-                                        const variables = context.variables as ContextVariables;
-
-                                        const {
-                                            PRD_FILE,
-                                            TEST_PLAN_FILE,
-                                        } = variables;
-
-                                        if (currentIteration === 0) {
-                                            return `
+                    return [
+                        ...getRecursiveSteps({
+                            getFirstSteps({
+                                currentIteration,
+                                prevValidateCommandResult,
+                            }) {
+                                return [
+                                    {
+                                        promptFn({
+                                            context
+                                        }) {
+                                            const variables = context.variables as ContextVariables;
+                                            
+                                            const {
+                                                PRD_FILE,
+                                                TEST_PLAN_FILE,
+                                            } = variables;
+                                            
+                                            if (currentIteration === 0) {
+                                                return `
                                                 Implement the feature described in @${PRD_FILE}.
                                                 The tests have already been implemented according to the test plan in @${TEST_PLAN_FILE}.
                                                 The implementation should make the tests pass. Do not edit any test file.
                                             `.trim();
-                                        }
-                                        else {
-                                            return `
+                                            }
+                                            else {
+                                                return `
                                                 The unit tests \`npm run test -w @lumpcode/cli\` failed. Fix the implementation and make the tests pass.
                                                 Here is the error of the tests: 
-
+                                                
                                                 ${prevValidateCommandResult}
                                             `.trim();
+                                            }
                                         }
                                     }
+                                ]
+                            },
+                            validationCommandFn(): CommandDescriptor | null {
+                                return {
+                                    executable: 'npm',
+                                    args: ['run', 'test', '-w', '@lumpcode/cli'],
                                 }
-                            ]
-                        },
-                        validationCommandFn(): CommandDescriptor | null {
-                            return {
-                                executable: 'npm',
-                                args: ['run', 'test', '-w', '@lumpcode/cli'],
                             }
-                        }
-                    })
+                        }),
+                        setTaskDoneStep,
+                    ]
                 }
                 return [];
             }
@@ -193,13 +198,14 @@ export default defineConfig({
                             context,
                         }) {
                             const variables = context.variables as ContextVariables;
-
+                            
                             return `
                                 Update the documentation of the project following these instructions:
                                 ${variables.TASK}
                             `.trim();
                         }
-                    }
+                    },
+                    setTaskDoneStep
                 ]
             }
             else if (ctxType === 'misc') {
@@ -209,16 +215,36 @@ export default defineConfig({
                             context,
                         }) {
                             const variables = context.variables as ContextVariables;
-
+                            
                             return `
                                 Follow these instructions:
                                 ${variables.TASK}
                             `.trim();
                         }
-                    }
+                    },
+                    setTaskDoneStep
                 ]
             }
             return [];
         }
     ],
 });
+
+const setTaskDoneStep: Step = {
+    async commandFn({
+        context,
+    }) {
+        const variables = context.variables as ContextVariables;
+        const {
+            TODOS_FILE,
+        } = variables;
+
+        const opnedTodosFile = await fs.readFile(TODOS_FILE, 'utf-8');
+        const todos = loadYaml(opnedTodosFile) as TodoYamlItem[];
+        const todo = todos.find((todo: TodoYamlItem) => todo.name === context.name);
+        if (todo) {
+            todo.done = true;
+            await fs.writeFile(TODOS_FILE, dumpYaml(todos));
+        }
+    }
+}
