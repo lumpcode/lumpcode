@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/core",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "Core engine for Lumpcode agent loops — runLump orchestrates prompts across contexts with git-tracked progress",
   "license": "Apache-2.0",
   "author": "",
