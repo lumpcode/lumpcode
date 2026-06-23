@@ -2,6 +2,18 @@
   "name": "@lumpcode/cli",
   "version": "0.0.7",
   "description": "CLI for running agent loops over your codebase. Run agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
+  "keywords": [
+    "lumpcode",
+    "cli",
+    "agent-loop",
+    "coding-agent",
+    "ai-agent",
+    "automation",
+    "git",
+    "codemod",
+    "daemon",
+    "devtools"
+  ],
   "license": "Apache-2.0",
   "author": "",
   "type": "commonjs",

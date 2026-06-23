@@ -2,6 +2,16 @@
   "name": "lumpcode",
   "version": "0.0.7",
   "description": "Global install alias for the Lumpcode CLI (@lumpcode/cli)",
+  "keywords": [
+    "lumpcode",
+    "cli",
+    "agent-loop",
+    "coding-agent",
+    "ai-agent",
+    "automation",
+    "git",
+    "codemod"
+  ],
   "license": "Apache-2.0",
   "author": "",
   "type": "commonjs",
