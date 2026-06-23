@@ -2,6 +2,15 @@
   "name": "@lumpcode/cli-types",
   "version": "0.0.7",
   "description": "Types and defineX helpers for Lumpcode CLI lump config and command modules",
+  "keywords": [
+    "lumpcode",
+    "typescript",
+    "types",
+    "cli",
+    "agent-loop",
+    "coding-agent",
+    "lump-config"
+  ],
   "license": "Apache-2.0",
   "author": "",
   "type": "module",

@@ -93,6 +93,7 @@ npm dist-tag rm lumpcode beta
 
 ## Notes
 
+- Each publishable `package.json` includes a `keywords` array for npm registry discoverability (agent loops, coding agents, git-tracked automation, and related terms). Keep keywords lowercase; align shared terms across `@lumpcode/core`, `@lumpcode/cli`, `@lumpcode/cli-types`, and `lumpcode` when you add new ones.
 - `repository` in `package.json` is omitted (not required for publish).
 - CLI `postinstall` binary download uses `native-binary.mjs` / `LUMPCODE_INSTALL_REPO`, separate from npm metadata.
 - `prepublishOnly` runs builds: `core` and `cli-types` → `npm run build`; `cli` → `npm run build:bundle`; `lumpcode` has no build step.
