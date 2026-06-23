@@ -13,7 +13,7 @@ export default defineConfig({
     registerCommands: ['cursor',],
     getContextListFn,
     numberOfContextsPerBranch: 1,
-    maximumNumberOfConcurrentBranches: 2,
+    maximumNumberOfConcurrentBranches: 5,
     baseBranch: 'ver/0.0.7',
     verbose: true,
     keepHistory: true,
