@@ -211,18 +211,18 @@ export default defineConfig({
             }
             else if (ctxType === 'misc') {
                 return [
-                    // {
-                    //     promptFn({
-                    //         context,
-                    //     }) {
-                    //         const variables = context.variables as ContextVariables;
+                    {
+                        promptFn({
+                            context,
+                        }) {
+                            const variables = context.variables as ContextVariables;
                             
-                    //         return `
-                    //             Follow these instructions:
-                    //             ${variables.TASK}
-                    //         `.trim();
-                    //     }
-                    // },
+                            return `
+                                Follow these instructions:
+                                ${variables.TASK}
+                            `.trim();
+                        }
+                    },
                     setTaskDoneStep
                 ]
             }
@@ -241,17 +241,19 @@ const setTaskDoneStep: Step = {
             TODOS_FILE,
         } = variables;
 
-        const openedTodosFile = await fs.readFile(path.join(workspacePath, TODOS_FILE), 'utf-8');
+        const todosFilePath = path.join(workspacePath, TODOS_FILE);
+
+        const openedTodosFile = await fs.readFile(todosFilePath, 'utf-8');
         const todos = loadYaml(openedTodosFile) as TodoYamlItem[];
         const todo = todos.find((todo: TodoYamlItem) => todo.name === context.name);
         if (todo) {
             todo.done = true;
-            await fs.writeFile(TODOS_FILE, dumpYaml(todos));
+            await fs.writeFile(todosFilePath, dumpYaml(todos));
         }
 
         return {
             executable: 'cat',
-            args: [TODOS_FILE],
+            args: [todosFilePath],
         }
     }
 }
