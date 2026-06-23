@@ -12,6 +12,15 @@ export function esbuildSidecarFileName(platform = process.platform) {
 }
 
 /**
+ * Relative path to the platform binary inside an @esbuild/* package (matches esbuild install.js).
+ * @param {string} platform
+ * @returns {string}
+ */
+export function esbuildPlatformBinaryRelativePath(platform = process.platform) {
+    return platform === 'win32' || platform === 'windows' ? 'esbuild.exe' : path.join('bin', 'esbuild');
+}
+
+/**
  * @param {string} platform
  * @param {string} arch
  * @returns {string | null}
@@ -52,7 +61,6 @@ export function resolveEsbuildBinaryPath({
         return null;
     }
 
-    const binaryName = esbuildSidecarFileName(platform);
     const pkgJsonPath = path.join(pkgRoot, 'package.json');
     if (!fs.existsSync(pkgJsonPath)) {
         return null;
@@ -61,7 +69,10 @@ export function resolveEsbuildBinaryPath({
     try {
         const require = createRequire(pkgJsonPath);
         const resolvedPkg = require.resolve(`${esbuildPkg}/package.json`);
-        const candidate = path.join(path.dirname(resolvedPkg), 'bin', binaryName);
+        const candidate = path.join(
+            path.dirname(resolvedPkg),
+            esbuildPlatformBinaryRelativePath(platform),
+        );
         return fs.existsSync(candidate) ? candidate : null;
     } catch {
         return null;

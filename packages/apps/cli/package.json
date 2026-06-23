@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "description": "CLI for running agent loops over your codebase. Run agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
   "license": "Apache-2.0",
   "author": "",
@@ -46,7 +46,7 @@
     "install-bin:local:beta": "sh scripts/install-local.sh"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.6",
+    "@lumpcode/core": "^0.0.7",
     "ajv": "^8.20.0",
     "esbuild": "^0.25.5",
     "commander": "^9.5.0",

@@ -9,11 +9,16 @@ import {
     Step,
     Steps,
 } from "../../types";
-import { createConsoleLogger, formatExecFailureMessage, set, success } from '../../utils';
+import {
+    appendHistoryEntry,
+    createConsoleLogger,
+    failure,
+    formatExecFailureMessage,
+    set,
+    success,
+} from '../../utils';
 import { GitAndWorkspaceFnsInput } from '../../types/GitAndWorkspaceFnsInput';
 import type { RunLumpInput } from '../../usages';
-import fs from 'fs/promises';
-import { dirname } from 'path';
 
 export type ExecuteStepsForContextListParams = Required<Pick<
     RunLumpInput,
@@ -249,21 +254,14 @@ export async function executeStepsForContextList({
                 const keepHistoryFilePath = getKeepHistoryFilePathFn(context) || '';
                 logger.verbose(`keepHistoryFilePath ${keepHistoryFilePath}`);
                 if (!!command && keepHistoryFilePath.length > 0) {
-                    const makeHistoryFileIfNotExists = async () => {
-                        if (await fs.stat(keepHistoryFilePath).then(() => true).catch(() => false)) return;
-                        await fs.mkdir(dirname(keepHistoryFilePath), { recursive: true });
-                        await fs.writeFile(keepHistoryFilePath, "[]", 'utf-8');
-                    }
-                    await makeHistoryFileIfNotExists();
-                    const historyFileContent = await fs.readFile(keepHistoryFilePath, 'utf-8');
-                    logger.verbose(`historyFileContent ${historyFileContent}`);
-                    const history = JSON.parse(historyFileContent);
-                    logger.verbose(`history ${JSON.stringify(history)}`);
-                    history.push({
-                        ...postCommandExecFnInput,
+                    const appendResult = await appendHistoryEntry({
+                        filePath: keepHistoryFilePath,
+                        entry: postCommandExecFnInput,
                     });
-                    logger.verbose(`history after push ${JSON.stringify(history)}`);
-                    await fs.writeFile(keepHistoryFilePath, JSON.stringify(history, null, 2), 'utf-8');
+                    if (!appendResult.success) {
+                        stepWalkFailure = failure({ message: appendResult.data });
+                        return;
+                    }
                 }
 
                 if (postCommandExecFn) {

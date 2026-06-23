@@ -67,7 +67,7 @@ flowchart LR
   discover["Discover contexts<br/>contextListJson / fn / matchFn"]
   checkout["Pull lump baseBranch<br/>work branch lump/myLump/..."]
   agent["Run agent with prompt"]
-  history["Optional: append to history/<context>.json<br/>when keepHistory is true"]
+  history["Optional: append to history/<context>.yaml<br/>when keepHistory is true"]
   commit["git commit<br/>LUMP: myLump - ctx"]
   push["git push origin"]
   refresh["Refresh contextStatusRecord.json"]
@@ -79,7 +79,7 @@ flowchart LR
 
 Pre-flight resolves the **execution workspace** from `local.json.mode`: the checkout itself in `dedicated` mode, or a copy under `~/.lumpcode/project-copies/<projectName>/` in `shared` mode—see [Pre-flight and modes](#pre-flight-and-modes) and [Three workspaces](#three-workspaces).
 
-When a lump sets **`keepHistory: true`**, each prompt step appends prompt text and agent output to `.lumpcode/lumps/<lumpName>/history/<contextName>.json` on disk (gitignored by `project-setup`). See [lump-config.md § Prompt run history](./lump-config.md#prompt-run-history-keephistory).
+When a lump sets **`keepHistory: true`**, each prompt step appends prompt text and agent output to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` on disk (gitignored by `project-setup`). See [lump-config.md § Prompt run history](./lump-config.md#prompt-run-history-keephistory).
 
 ## Status lifecycle
 
