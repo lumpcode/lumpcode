@@ -15,6 +15,11 @@
   ],
   "license": "Apache-2.0",
   "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lumpcode/lumpcode.git",
+    "directory": "packages/core"
+  },
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
