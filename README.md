@@ -8,9 +8,10 @@ Lumpcode is still in **early development**; expect rough edges and **many improv
 
 > *Named after the **lumpfish**: a small cleaner fish that salmon farmers add to their pens to quietly pick parasites off the salmon. Lumpcode plays the same role in your codebase, steadily working through the long tail of repetitive coding chores (codemods, doc updates, dependency updates, new abstractions, missing tests...) one batch at a time, without overflowing you with PRs, while you stay focused on your code.*
 
-![Lumpfish](assets/lumpfish.png)
-
-See how cute it is
+<p align="center">
+  <img src="assets/lumpfish.png" alt="Lumpfish" width="280"><br>
+  <em>See how cute it is</em>
+</p>
 
 > Also, **LUMP** can stand for **Loop Using Multiple Prompts**: one or more prompts per context, often across many similar units of work.
 
