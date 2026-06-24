@@ -1,16 +1,16 @@
 # Lumpcode
 
-Describe your agent loop workflow once and let it work through your codebase in the background.
+Lumpcode is a **straightforward and easy to adopt**, yet **fully configurable** CLI and library to write *agent loops* as full-fledged coding campaigns on your codebase.
 
-**Straightforward and easy to adopt**, yet **fully configurable**, Lumpcode drives any CLI agent (Claude, Codex, Aider, Cursor) through large coding jobs (migrations, codemods, tests, or a whole roadmap of features) as long-running campaigns called **lumps**. Run a **lump** on demand, or run it as a daemon on any machine and it ticks through your backlog on a schedule. Every change arrives on its own git branch for normal PR review, and progress is resumable, so it always picks up where it left off.
+Lumpcode drives any CLI agent (Claude, Codex, Aider, Cursor) through large coding jobs (migrations, codemods, tests, or a whole roadmap of features) as long-running campaigns called **lumps**. Run a **lump** on demand, or run it as a daemon and it ticks through your backlog on a schedule. Every change arrives on its own git branch for normal PR review, and progress is resumable, so it always picks up where it left off.
 
 Lumpcode is still in **early development**; expect rough edges and **many improvements in the near future**.
 
 > *Named after the **lumpfish**: a small cleaner fish that salmon farmers add to their pens to quietly pick parasites off the salmon. Lumpcode plays the same role in your codebase, steadily working through the long tail of repetitive coding chores (codemods, doc updates, dependency updates, new abstractions, missing tests...) one batch at a time, without overflowing you with PRs, while you stay focused on your code.*
 
-*See how cute it is:*
+![Lumpfish](assets/lumpfish.png)
 
-
+See how cute it is
 
 > Also, **LUMP** can stand for **Loop Using Multiple Prompts**: one or more prompts per context, often across many similar units of work.
 
