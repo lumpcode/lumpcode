@@ -2,6 +2,10 @@
 # Delete local branches that have no matching branch on a remote (default: origin).
 set -euo pipefail
 
+if [ -n "${POSIXLY_CORRECT:-}" ] || [ -z "${BASH_VERSION:-}" ]; then
+  exec bash "$0" "$@"
+fi
+
 REMOTE="origin"
 DRY_RUN=0
 
@@ -70,7 +74,9 @@ while IFS= read -r branch; do
     continue
   fi
   to_delete+=("$branch")
-done < <(git for-each-ref --format='%(refname:short)' refs/heads/)
+done <<EOF
+$(git for-each-ref --format='%(refname:short)' refs/heads/)
+EOF
 
 if [[ ${#to_delete[@]} -eq 0 ]]; then
   echo "No local branches to delete (excluding current branch: ${current_branch:-detached HEAD})."

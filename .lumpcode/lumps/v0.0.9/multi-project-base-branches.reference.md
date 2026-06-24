@@ -1,6 +1,6 @@
-# Multi `projectBaseBranches` — problem statement and adopted design (v0.0.8)
+# Multi `projectBaseBranches` — problem statement and adopted design (v0.0.9)
 
-Reference for implementing integration-branch-aware lump discovery, daemon scheduling, and dependency rules. Captures decisions from design discussion (2026); target release planning lives under `.lumpcode/lumps/v0.0.8/`.
+Reference for implementing integration-branch-aware lump discovery, daemon scheduling, and dependency rules. Captures decisions from design discussion (2026); target release planning lives under `.lumpcode/lumps/v0.0.9/`.
 
 ---
 
@@ -26,7 +26,7 @@ If lump A on `ver/0.0.7` depends on lump B, resolving B's `baseBranch` for statu
 
 ---
 
-## Adopted solution (v0.0.8 scope)
+## Adopted solution (v0.0.9 scope)
 
 ### `projectBaseBranch` and `projectBaseBranches` in `local.json`
 
@@ -130,7 +130,7 @@ Context on lump A depends on `otherLump/ctx` → look for marker `LUMP:otherLump
 
 **Optional follow-up (not v1):** at config load, when both lumps are visible on the same branch during discovery, warn or fail if `otherLump.baseBranch !== thisLump.baseBranch` for a cross-lump dep.
 
-This matches current engine behavior (single `baseBranch` passed to all `getContextStatus` calls in `getToDoContextList`); v0.0.8 mainly **documents and preserves** it while adding multi-branch discovery elsewhere.
+This matches current engine behavior (single `baseBranch` passed to all `getContextStatus` calls in `getToDoContextList`); v0.0.9 mainly **documents and preserves** it while adding multi-branch discovery elsewhere.
 
 ---
 
@@ -139,7 +139,7 @@ This matches current engine behavior (single `baseBranch` passed to all `getCont
 | Topic | Note |
 |-------|------|
 | Double `getToDoContextList` per run | Lock resolution + `runLump` each call discovery; consider caching todo list between phases in a separate change |
-| `GetContextListFnInput` | Still `{ codeBasePaths, lumpVariables }` only; no `baseBranch` in v0.0.8 |
+| `GetContextListFnInput` | Still `{ codeBasePaths, lumpVariables }` only; no `baseBranch` in v0.0.9 |
 | Cross-mode parity | Shared relies on user pull; dedicated relies on per-tick branch scan |
 | Docs / schema | Update `LocalConfig` (keep `projectBaseBranch`; add optional `projectBaseBranches`; document precedence), `lump-config.md`, `local-config.md`, daemon behavior; CLI validation for effective list + lump flag |
 
