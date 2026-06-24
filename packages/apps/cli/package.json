@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "CLI for running agent loops over your codebase. Run agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
   "keywords": [
     "lumpcode",
@@ -35,6 +35,7 @@
     "dist/schemas",
     "dist/presets",
     "dist/installPresetCommands.mjs",
+    "scripts/esbuild-sidecar.mjs",
     "scripts/native-binary.mjs",
     "scripts/postinstall.mjs",
     "README.md",
@@ -63,7 +64,7 @@
     "install-bin:local:beta": "sh scripts/install-local.sh"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.7",
+    "@lumpcode/core": "^0.0.8",
     "ajv": "^8.20.0",
     "esbuild": "^0.25.5",
     "commander": "^9.5.0",

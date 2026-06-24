@@ -15,7 +15,7 @@
 - Prefer single destructured object argument for functions with 3+ parameters for readability
 - Resolve costly dynamic imports (`import()`) eagerly at configuration time, not lazily during execution
 - Return `Success<T>` / `Failure<string>` result types instead of throwing for expected failures; use `success()` and `failure()` wrappers from `@lumpcode/core`
-- Publishable npm `package.json` files should include `repository` (link to `lumpcode/lumpcode`) and relevant `keywords` for discoverability; postinstall native-binary download URLs (`native-binary.mjs` / `LUMPCODE_INSTALL_REPO`) are configured separately
+- Publishable npm `package.json` files should include `repository` (link to `lumpcode/lumpcode`) and relevant `keywords` for discoverability; postinstall native-binary download URLs (`native-binary.mjs` / `LUMPCODE_INSTALL_REPO`) are configured separately; `@lumpcode/cli` `files` must ship the full postinstall import chain (`scripts/esbuild-sidecar.mjs`, `scripts/native-binary.mjs`, `scripts/postinstall.mjs`)—a missing sidecar breaks global install at module load before skip logic runs; before publish smoke-test the packed tarball (`npm pack --dry-run | rg scripts/`, then extract and `import './scripts/native-binary.mjs'` plus `LUMPCODE_SKIP_BINARY=1 node scripts/postinstall.mjs`)
 
 ## Learned Workspace Facts
 
