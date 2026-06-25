@@ -13,6 +13,8 @@ export interface RunProjectPreflightInput {
     globalConfigFolderPath: string;
     /** When set, skips reading `.lumpcode/local.json` (e.g. daemon frozen config at startup). */
     localConfig?: LocalConfig;
+    /** Integration branch to pre-flight; defaults to primary project base branch. */
+    targetBranch?: string;
 }
 
 export interface RunProjectPreflightOutput {

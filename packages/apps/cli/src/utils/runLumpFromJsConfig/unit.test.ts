@@ -223,4 +223,55 @@ describe('runLumpFromJsConfig', () => {
         const locksDir = path.join(globalConfigFolderPath, 'branch-workspace-locks');
         await expect(fs.access(locksDir)).rejects.toMatchObject({ code: 'ENOENT' });
     });
+
+    it('fails before runLump when baseBranch is not in effective allowlist', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'dedicated',
+                projectBaseBranch: 'main',
+                projectBaseBranches: ['main', 'ver/0.0.9'],
+            }),
+            'utf-8',
+        );
+
+        const result = await runLumpFromJsConfig({
+            jsConfig: makeJsConfig({ baseBranch: 'ver/0.0.7' }),
+            lumpName: 'my-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectBaseBranch: 'main',
+            executionWorkspacePath: projectRoot,
+            workspaceStrategy: 'checkout',
+            logger: core.noopLogger,
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data).toMatch(/allowlist|ver\/0\.0\.7/i);
+        expect(core.runLump).not.toHaveBeenCalled();
+    });
+
+    it('proceeds to runLump when allowUnlistedBaseBranch is true', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+            'utf-8',
+        );
+        vi.mocked(core.runLump).mockResolvedValue({ success: true, data: { contextNames: [] } });
+
+        const result = await runLumpFromJsConfig({
+            jsConfig: makeJsConfig({ baseBranch: 'ver/0.0.7', allowUnlistedBaseBranch: true }),
+            lumpName: 'my-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectBaseBranch: 'main',
+            executionWorkspacePath: projectRoot,
+            workspaceStrategy: 'checkout',
+            logger: core.noopLogger,
+        });
+
+        expect(result.success).toBe(true);
+        expect(core.runLump).toHaveBeenCalled();
+    });
 });

@@ -6,20 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { LOCAL_CONFIG_FILE_NAME } from '../readLocalConfig';
 import { runProjectPreflight } from './main';
-
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
-
-function initRepoWithRemote(projectRoot: string, remoteDir: string) {
-    git('init --bare', remoteDir);
-    git('init -b main', projectRoot);
-    git('config user.email "test@test.com"', projectRoot);
-    git('config user.name "Test"', projectRoot);
-    git('commit --allow-empty -m "init"', projectRoot);
-    git(`remote add origin ${remoteDir}`, projectRoot);
-    git('push -u origin main', projectRoot);
-}
+import { createIntegrationBranch, gitCurrentBranch, initBareRemoteAndCheckout, writeLocalJson } from '../../testing';
 
 describe('runProjectPreflight', () => {
     let projectRoot: string;
@@ -32,7 +19,7 @@ describe('runProjectPreflight', () => {
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-project-preflight-remote-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-project-preflight-global-'));
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        initRepoWithRemote(projectRoot, remoteDir);
+        initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(localConfigFolderPath, { recursive: true });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'project.json'),
@@ -47,12 +34,8 @@ describe('runProjectPreflight', () => {
         await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
     });
 
-    async function writeLocalJson(mode: 'shared' | 'dedicated', projectBaseBranch = 'main') {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode, projectBaseBranch }),
-            'utf-8',
-        );
+    async function writeLocalJsonDedicated(projectBaseBranch = 'main') {
+        await writeLocalJson(localConfigFolderPath, { mode: 'dedicated', projectBaseBranch });
     }
 
     it('hard-fails when local.json is missing', async () => {
@@ -67,7 +50,7 @@ describe('runProjectPreflight', () => {
     });
 
     it('returns the resolved workspace + projectBaseBranch + mode in dedicated mode', async () => {
-        await writeLocalJson('dedicated');
+        await writeLocalJsonDedicated();
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
             localConfigFolderPath,
@@ -82,7 +65,7 @@ describe('runProjectPreflight', () => {
     });
 
     it('returns the project copy as executionWorkspacePath in shared mode', async () => {
-        await writeLocalJson('shared');
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', projectBaseBranch: 'main' });
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
             localConfigFolderPath,
@@ -96,7 +79,7 @@ describe('runProjectPreflight', () => {
     });
 
     it('uses frozen localConfig instead of re-reading local.json from disk', async () => {
-        await writeLocalJson('dedicated');
+        await writeLocalJsonDedicated();
         await fs.writeFile(
             path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
@@ -122,4 +105,93 @@ describe('runProjectPreflight', () => {
         expect(result.data.workspaceStrategy).toBe('checkout');
     });
 
+    it('defaults to primary integration branch when targetBranch is omitted', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            projectBaseBranches: ['main', 'ver/0.0.9'],
+        });
+        git('checkout -b ver/0.0.9', projectRoot);
+        git('commit --allow-empty -m "ver"', projectRoot);
+        git('push -u origin ver/0.0.9', projectRoot);
+        git('checkout main', projectRoot);
+
+        const result = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(gitCurrentBranch(result.data.executionWorkspacePath)).toBe('main');
+    });
+
+    it('pre-flights to targetBranch ver/0.0.9 when specified', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['main', 'ver/0.0.9'],
+        });
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            extraFiles: { 'RELEASE_ONLY.txt': 'release\n' },
+        });
+
+        const result = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            targetBranch: 'ver/0.0.9',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(gitCurrentBranch(result.data.executionWorkspacePath)).toBe('ver/0.0.9');
+        expect(result.data.projectBaseBranch).toBe('ver/0.0.9');
+    });
+
+    it('fails when targetBranch is missing on origin', async () => {
+        await writeLocalJsonDedicated();
+        const result = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            targetBranch: 'ver/0.0.9',
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data).toMatch(/ver\/0\.0\.9/i);
+    });
+
+    it('shared mode + targetBranch leaves source checkout untouched and syncs copy', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'shared',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['main', 'ver/0.0.9'],
+        });
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+        });
+
+        const result = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            targetBranch: 'ver/0.0.9',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(gitCurrentBranch(projectRoot)).toBe('main');
+        expect(gitCurrentBranch(result.data.executionWorkspacePath)).toBe('ver/0.0.9');
+        expect(result.data.executionWorkspacePath).toBe(
+            path.resolve(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
+        );
+    });
+
 });
+
+function git(cmd: string, cwd: string) {
+    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
+}

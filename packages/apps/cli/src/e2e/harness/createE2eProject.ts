@@ -25,6 +25,8 @@ export type E2eLumpSpec = {
     hookFiles?: Record<string, string>;
     disabled?: boolean;
     maximumNumberOfConcurrentBranches?: number;
+    baseBranch?: string;
+    allowUnlistedBaseBranch?: boolean;
     useE2eAgent?: boolean;
     /** When true (Windows E2E), use a `.cmd` shim on PATH instead of the Node mock agent. */
     useCmdShimAgent?: boolean;
@@ -66,6 +68,8 @@ function resolveLumpConfig(lump: E2eLumpSpec, cmd: string): ResolvedLumpConfig {
             ...defaultE2eLumpConfigJson(lump.useE2eAgent !== false ? { command: cmd } : {}),
             ...lump.configJson,
             ...(lump.disabled ? { disabled: true } : {}),
+            ...(lump.baseBranch ? { baseBranch: lump.baseBranch } : {}),
+            ...(lump.allowUnlistedBaseBranch ? { allowUnlistedBaseBranch: true } : {}),
             ...(lump.maximumNumberOfConcurrentBranches !== undefined
                 ? { maximumNumberOfConcurrentBranches: lump.maximumNumberOfConcurrentBranches }
                 : {}),
@@ -272,4 +276,22 @@ export function e2eMarkerPath(root: string, lumpName: string, contextName: strin
 /** Execution workspace path for a project running in `shared` mode (`~/.lumpcode/project-copies/<projectName>`). */
 export function sharedModeCopyPath(globalConfigFolderPath: string, projectName: string): string {
     return path.join(globalConfigFolderPath, 'project-copies', projectName);
+}
+
+/**
+ * Creates and pushes an integration branch from `main`, runs `mutateFn` to add
+ * branch-only lumps or files, then returns the checkout to `main`.
+ */
+export async function pushIntegrationBranch(
+    project: E2eProject,
+    branchName: string,
+    mutateFn: (projectRoot: string) => Promise<void>,
+): Promise<void> {
+    git(`fetch origin main`, project.projectRoot);
+    git(`checkout -b ${branchName} origin/main`, project.projectRoot);
+    await mutateFn(project.projectRoot);
+    git('add -A', project.projectRoot);
+    git(`commit -m "integration ${branchName}"`, project.projectRoot);
+    git(`push -u origin ${branchName}`, project.projectRoot);
+    git('checkout main', project.projectRoot);
 }

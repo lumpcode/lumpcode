@@ -147,7 +147,7 @@ describe('jsConfigToRunLumpInput', () => {
             expect(setupOut.command).toContain(`git switch -c ${shellSingleQuote('lump/foo/ctx')}`);
         });
 
-        it('teardown always returns to projectBaseBranch (not the lump-level baseBranch)', async () => {
+        it('teardown switches to lump resolved baseBranch (not projectBaseBranch)', async () => {
             const data = assertSuccess(
                 await resolveJsConf(
                     { baseBranch: 'release/2.0' },
@@ -161,7 +161,8 @@ describe('jsConfigToRunLumpInput', () => {
                 workspacePath: '/wkspace',
             });
             expect(teardownCmd).toContain(`cd '/wkspace'`);
-            expect(teardownCmd).toContain('git switch main');
+            expect(teardownCmd).toContain('git switch release/2.0');
+            expect(teardownCmd).not.toContain('git switch main');
         });
 
         it('setup uses the lump-level baseBranch in its git commands', async () => {

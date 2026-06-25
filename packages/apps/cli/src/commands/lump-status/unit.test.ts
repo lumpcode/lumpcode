@@ -2,10 +2,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { command } from './main';
 import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
+import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
+import { gitCurrentBranch } from '../../testing';
 
 function git(cmd: string, cwd: string) {
     execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
@@ -121,4 +123,24 @@ describe('lump-status command', () => {
         },
         60_000,
     );
+
+    it('does not call runProjectPreflight', async () => {
+        await writeLump('alpha');
+        const spy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        await makeHandler()({
+            options: {},
+            arguments: {},
+        });
+        expect(spy).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('leaves checkout branch unchanged', async () => {
+        await writeLump('alpha');
+        const before = gitCurrentBranch(projectRoot);
+        await makeHandler()({
+            options: {},
+            arguments: {},
+        });
+        expect(gitCurrentBranch(projectRoot)).toBe(before);
+    }, 60_000);
 });

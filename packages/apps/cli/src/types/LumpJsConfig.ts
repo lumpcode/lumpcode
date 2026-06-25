@@ -32,4 +32,6 @@ export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Om
     registerCommands?: string[];
     keepHistory?: boolean;
     verbose?: boolean;
+    /** When `true`, skip validation against `projectBaseBranches` / `projectBaseBranch` allowlist. */
+    allowUnlistedBaseBranch?: boolean;
 }>;

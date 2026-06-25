@@ -11,3 +11,14 @@ export {
     writeLumpHookTs,
 } from './tsLumpFixtures';
 export type { TranspileCacheMeta, TsLumpProjectContext } from './tsLumpFixtures';
+export {
+    assertCheckoutBranch,
+    createIntegrationBranch,
+    gitCurrentBranch,
+    initBareRemoteAndCheckout,
+    MINIMAL_RUNNABLE_LUMP_JSON,
+    scaffoldMultiBranchProject,
+    writeLocalJson,
+    writeMinimalLump,
+} from './multiBranchFixtures';
+export type { MultiBranchLumpSpec } from './multiBranchFixtures';

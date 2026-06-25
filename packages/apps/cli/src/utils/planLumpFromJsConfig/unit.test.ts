@@ -153,4 +153,84 @@ describe('planLumpFromJsConfig', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.contexts?.map((c) => c.name)).toEqual(['from-ts-file']);
     });
+
+    it('fails with allowlist message when baseBranch is unlisted', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'dedicated',
+                projectBaseBranch: 'main',
+                projectBaseBranches: ['main', 'ver/0.0.9'],
+            }),
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+            `export default {
+  baseBranch: 'ver/0.0.7',
+  getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};`,
+            'utf-8',
+        );
+
+        const result = await planLumpFromJsConfig({
+            lumpName: 'preview-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth: 'validate',
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data).toMatch(/allowlist|ver\/0\.0\.7/i);
+    });
+
+    it('succeeds plan preview when baseBranch is listed (no pre-flight)', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'dedicated',
+                projectBaseBranch: 'main',
+                projectBaseBranches: ['main', 'ver/0.0.9'],
+            }),
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+            `export default {
+  baseBranch: 'ver/0.0.9',
+  getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};`,
+            'utf-8',
+        );
+
+        const branchBefore = execSync('git rev-parse --abbrev-ref HEAD', {
+            cwd: projectRoot,
+            encoding: 'utf-8',
+        }).trim();
+
+        const result = await planLumpFromJsConfig({
+            lumpName: 'preview-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth: 'contexts',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        const branchAfter = execSync('git rev-parse --abbrev-ref HEAD', {
+            cwd: projectRoot,
+            encoding: 'utf-8',
+        }).trim();
+        expect(branchAfter).toBe(branchBefore);
+    });
 });
