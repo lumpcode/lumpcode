@@ -20,14 +20,14 @@ v0.0.9 adds an optional **`projectBaseBranches`** allowlist, validates lump `bas
 
 ## Goals
 
-1. **`projectBaseBranches` in `local.json`** — Optional non-empty `string[]`; when present it wins over singular `projectBaseBranch` for the effective integration-branch list; reject empty array and duplicates at parse.
-2. **`resolveProjectBaseBranches(localConfig)`** — Single helper: array wins, else `[projectBaseBranch]`; never merge the two fields.
+1. **`projectBaseBranches` in `local.json`** — Optional non-empty `string[]`; when present it wins over singular `projectBaseBranch` for the effective integration-branch list; reject empty array and duplicates at parse. **`projectBaseBranch` is optional when `projectBaseBranches` is non-empty**; at least one of the two must be set.
+2. **`resolveProjectBaseBranches(localConfig)`** — Single helper: array wins, else `[projectBaseBranch]`; never merge the two fields. **`resolvePrimaryProjectBaseBranch(localConfig)`** — `projectBaseBranch ?? resolveProjectBaseBranches(localConfig)[0]` for callers that need one branch (default pre-flight target, lump `baseBranch` fallback).
 3. **Lump allowlist** — Resolved `baseBranch` must be in the effective list unless `allowUnlistedBaseBranch: true` on the lump config.
 4. **Manual `run`** — Config from current checkout only; validate allowlist; pre-flight execution workspace to lump's `baseBranch`.
 5. **Dedicated daemon** — Launch-time fail-fast registry scan; each tick loops effective branches in **array order**, pre-flights each, runs **all** eligible lumps on that branch sequentially; tick-time skip bad lumps without crashing.
 6. **`start --lumpName`** — Verify lump `baseBranch` in list at launch; each tick pre-flight to that branch only.
 7. **Shared mode contract** — Execute on copy at lump `baseBranch`; discover from source (intentional — local edit without push). Document; do not read discovery from copy.
-8. **`makeLumpWorkspaceFns`** — Teardown / worktree switch-back uses lump resolved `baseBranch`, not singular `local.json` `projectBaseBranch` when they differ.
+8. **`makeLumpWorkspaceFns`** — Teardown / worktree switch-back uses lump resolved `baseBranch`, not the primary integration branch from `local.json` when they differ.
 9. **`clean`** — No pre-flight; delete lump branches on remote, local checkout, and shared copy.
 10. **Cross-lump dep warning** — At daemon launch, warn when `dependsOnContexts` references `otherLump/ctx` and `otherLump.baseBranch !== thisLump.baseBranch` (both lumps visible on same branch).
 11. **User docs** — Update CLI DOCS for new fields, daemon behavior, shared vs dedicated discovery, cross-lump dep rule, and clean behavior.
@@ -46,10 +46,11 @@ v0.0.9 adds an optional **`projectBaseBranches`** allowlist, validates lump `bas
 ## User stories / use cases
 
 1. **Release-line daemon** — I list `["main", "ver/0.0.9"]` in `local.json`; dedicated daemon discovers lumps on both lines and runs them each tick in branch order.
-2. **Single-branch unchanged** — I only set `projectBaseBranch: main`; behavior matches today (effective list `["main"]`).
-3. **Shared-mode local edit** — I edit a lump on source without pushing; `run` discovers from source while execution uses the synced copy at the lump's integration branch.
-4. **Allowlist guard** — A lump with `baseBranch: ver/0.0.7` fails `run` when that branch is not listed; `allowUnlistedBaseBranch: true` restores legacy behavior.
-5. **Clean all workspaces** — `lumpcode clean` removes lump branches from origin, my checkout, and the shared copy without switching branches first.
+2. **Array-only config** — I set only `projectBaseBranches: ["main", "ver/0.0.9"]` without `projectBaseBranch`; parse succeeds and primary branch defaults to the first array element.
+3. **Single-branch unchanged** — I only set `projectBaseBranch: main`; behavior matches today (effective list `["main"]`).
+4. **Shared-mode local edit** — I edit a lump on source without pushing; `run` discovers from source while execution uses the synced copy at the lump's integration branch.
+5. **Allowlist guard** — A lump with `baseBranch: ver/0.0.7` fails `run` when that branch is not listed; `allowUnlistedBaseBranch: true` restores legacy behavior.
+6. **Clean all workspaces** — `lumpcode clean` removes lump branches from origin, my checkout, and the shared copy without switching branches first.
 
 ## Docs updates
 
@@ -67,7 +68,19 @@ Update JSON schemas: `localConfig.schema.json`, `lumpConfig.schema.json`. No mig
 
 ### `local.json`
 
-Keep **`projectBaseBranch`** (required). Add optional **`projectBaseBranches`**: non-empty `string[]`, no duplicates.
+**`projectBaseBranch`** remains the single-branch field (required when `projectBaseBranches` is omitted). Add optional **`projectBaseBranches`**: non-empty `string[]`, no duplicates. **When `projectBaseBranches` is present and non-empty, `projectBaseBranch` may be omitted.** At parse, require at least one of the two.
+
+Multi-branch example (singular optional):
+
+```json
+{
+  "mode": "dedicated",
+  "projectBaseBranches": ["main", "ver/0.0.9"],
+  "workspaceStrategy": "checkout"
+}
+```
+
+Both fields may still be set for backward compatibility:
 
 ```json
 {
@@ -78,18 +91,20 @@ Keep **`projectBaseBranch`** (required). Add optional **`projectBaseBranches`**:
 }
 ```
 
-When both are set, **`projectBaseBranches` wins**; do not merge arrays. Branch existence on `origin` is validated lazily at pre-flight.
+When both are set, **`projectBaseBranches` wins** for the effective list; do not merge arrays. Branch existence on `origin` is validated lazily at pre-flight.
+
+**Primary branch** (single value for defaults): `projectBaseBranch` when set, else the **first element** of `projectBaseBranches`.
 
 ### Lump config
 
-- Resolved `baseBranch` = `config.baseBranch ?? localConfig.projectBaseBranch` (existing fallback chain for lump config may also consider `project.json` per v0.0.7 rules — preserve existing resolution, then allowlist check).
+- Resolved `baseBranch` = `config.baseBranch ?? resolvePrimaryProjectBaseBranch(localConfig)` (existing fallback chain for lump config may also consider `project.json` per v0.0.7 rules — preserve existing resolution, then allowlist check).
 - **`allowUnlistedBaseBranch?: boolean`** — When `true`, skip allowlist validation for that lump.
 
 ### Pre-flight primitive (unchanged)
 
 `pullProjectBaseBranch` / `runPreflight`: `git fetch --all`, `git switch <branch>`, `git reset --hard origin/<branch>`, `git pull origin <branch>`.
 
-**New:** callers pass **which branch** via optional `targetBranch` on `runProjectPreflight` (default `localConfig.projectBaseBranch` for backward-compatible paths).
+**New:** callers pass **which branch** via optional `targetBranch` on `runProjectPreflight` (default `resolvePrimaryProjectBaseBranch(localConfig)` for backward-compatible paths).
 
 ### Manual `lumpcode run`
 
@@ -135,7 +150,7 @@ Intentional — enables editing lumps locally without pushing. Document clearly.
 
 ### `makeLumpWorkspaceFns`
 
-Pass **lump resolved `baseBranch`** into workspace fns for checkout teardown (`git switch …`) and worktree setup switch-back — not singular `local.json` `projectBaseBranch` when they differ.
+Pass **lump resolved `baseBranch`** into workspace fns for checkout teardown (`git switch …`) and worktree setup switch-back — not the primary integration branch from `local.json` when they differ.
 
 Wire from `jsConfigToRunLumpInput` after resolving lump `baseBranch`.
 
@@ -162,9 +177,9 @@ Implement in this order (each step should leave the repo in a committable state)
 
 | Item | Location |
 | --- | --- |
-| `projectBaseBranches?: string[]` | `packages/apps/cli/src/types/LocalConfig.ts`, `schemas/localConfig.schema.json` |
-| Zod: reject empty array, duplicates | `packages/apps/cli/src/utils/readLocalConfig/main.ts` |
-| `resolveProjectBaseBranches` | new util under `packages/apps/cli/src/utils/resolveProjectBaseBranches/` + barrel export |
+| `projectBaseBranch?: string`, `projectBaseBranches?: string[]` | `packages/apps/cli/src/types/LocalConfig.ts`, `schemas/localConfig.schema.json` |
+| Zod: reject empty array, duplicates; require at least one of `projectBaseBranch` or non-empty `projectBaseBranches` | `packages/apps/cli/src/utils/readLocalConfig/main.ts` |
+| `resolveProjectBaseBranches`, `resolvePrimaryProjectBaseBranch` | new util under `packages/apps/cli/src/utils/resolveProjectBaseBranches/` + barrel export |
 | `resolveLumpBaseBranch` | new util (or inline in validation helper) |
 | `validateLumpBaseBranchAllowlist` | new util; uses `Success`/`Failure` from core |
 | `allowUnlistedBaseBranch` | `LumpJsConfig`, `lumpConfig.schema.json`, cli-types if needed |
@@ -206,8 +221,8 @@ Apply [Docs updates](#docs-updates) after behavior is implemented.
 
 ## Acceptance criteria
 
-1. **Effective list** — `projectBaseBranches` when set wins; singular-only installs behave as today.
-2. **Parse validation** — Empty `projectBaseBranches` and duplicates rejected with clear errors.
+1. **Effective list** — `projectBaseBranches` when set wins; singular-only installs behave as today; array-only installs use the array as the effective list.
+2. **Parse validation** — Empty `projectBaseBranches`, duplicates, and configs with neither field rejected with clear errors; non-empty `projectBaseBranches` without `projectBaseBranch` accepted.
 3. **Allowlist** — `run` and daemon launch fail when lump `baseBranch` not listed; opt-out works.
 4. **Manual `run`** — Pre-flight targets lump `baseBranch`; fails if lump config absent on current checkout.
 5. **Dedicated daemon** — Launch fails on duplicate lump name across branches; tick runs all lumps per branch in list order; bad lump at tick time does not stop daemon.
