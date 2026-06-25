@@ -32,22 +32,35 @@ If lump A on `ver/0.0.7` depends on lump B, resolving B's `baseBranch` for statu
 
 ### `projectBaseBranch` and `projectBaseBranches` in `local.json`
 
-Keep **both** fields. Many projects only have one integration branch and should keep using the existing singular field.
+Single-branch installs keep using **`projectBaseBranch`**. Multi-branch installs may set **`projectBaseBranches`** alone or together with the singular field.
 
 **Resolution (effective allowlist):**
 
 1. If `projectBaseBranches` is present → use it (non-empty `string[]`).
-2. Else → use `[projectBaseBranch]` from the existing singular field.
+2. Else → use `[projectBaseBranch]` from the singular field.
+
+**Primary branch** (single value for defaults such as lump `baseBranch` fallback and default pre-flight target): `projectBaseBranch` when set, else the **first element** of `projectBaseBranches`.
 
 Do not require projects to migrate to the array form. Single-branch installs continue to scaffold and edit only `projectBaseBranch`.
 
 **Validation at parse:**
 
+- Require **at least one** of `projectBaseBranch` or non-empty `projectBaseBranches`.
 - Reject an empty `projectBaseBranches` array.
 - Reject duplicate branch names in `projectBaseBranches`.
 - Branch existence on `origin` is **not** checked at parse — pre-flight fails lazily with a clear error if a listed branch is missing.
 
-Multi-branch example:
+Multi-branch example (array only):
+
+```json
+{
+  "mode": "dedicated",
+  "projectBaseBranches": ["main", "ver/0.0.7"],
+  "workspaceStrategy": "checkout"
+}
+```
+
+Multi-branch example (both fields):
 
 ```json
 {
@@ -58,7 +71,7 @@ Multi-branch example:
 }
 ```
 
-When both are set, **`projectBaseBranches` wins** for the effective list; `projectBaseBranch` may remain for backward compatibility or as a default hint in tooling, but runtime logic must not merge the two arrays.
+When both are set, **`projectBaseBranches` wins** for the effective list; `projectBaseBranch` may remain for backward compatibility or as an explicit primary override when set, but runtime logic must not merge the two arrays.
 
 Single-branch example (unchanged from today):
 
@@ -75,7 +88,7 @@ Effective list: `["main"]`.
 
 ### Lump `baseBranch` must be listed (with legacy opt-out)
 
-- Every lump's resolved `baseBranch` (`config.baseBranch ?? projectBaseBranch` fallback) must be **included in** the effective integration-branch list (from `projectBaseBranches` if set, else `[projectBaseBranch]`).
+- Every lump's resolved `baseBranch` (`config.baseBranch ?? primary integration branch` — `projectBaseBranch` when set, else first `projectBaseBranches` element) must be **included in** the effective integration-branch list (from `projectBaseBranches` if set, else `[projectBaseBranch]`).
 - If not listed → **fail at run start** (manual `run`, `lump-plan` validate) or **fail at daemon launch** (see below) with a clear error.
 - **Opt-out:** `allowUnlistedBaseBranch: true` on the lump config restores **legacy behavior**: no validation against the effective integration-branch list.
 
@@ -97,7 +110,7 @@ Keep `pullProjectBaseBranch` / `runPreflight` as they are: `git fetch --all`, `g
 
 In **dedicated** mode, once the checkout is on the lump's `baseBranch`, `projectRoot` equals the execution workspace — filesystem discovery and `getContextListFn` align with the integration branch without changing `getToDoContextList` internals.
 
-Workspace teardown (`makeLumpWorkspaceFns`) must switch back to the **lump's resolved `baseBranch`** (the branch pre-flighted for this run), not necessarily the singular `projectBaseBranch` field in `local.json` when they differ.
+Workspace teardown (`makeLumpWorkspaceFns`) must switch back to the **lump's resolved `baseBranch`** (the branch pre-flighted for this run), not the primary integration branch from `local.json` when they differ.
 
 ---
 
@@ -157,7 +170,7 @@ Before the scheduler starts (detached or foreground), validate configuration and
 
 **Shared mode daemon:**
 
-- No multi-branch scan. One pre-flight per tick (to `projectBaseBranch` or lump branch as resolved for the run path); discover lumps from source; run all eligible lumps sequentially — same inner loop, effective list length 1 for discovery purposes.
+- No multi-branch scan. One pre-flight per tick (to primary integration branch or lump branch as resolved for the run path); discover lumps from source; run all eligible lumps sequentially — same inner loop, effective list length 1 for discovery purposes.
 
 **Throughput note:** one tick runs all lumps on branch 1, then all on branch 2, etc. A 5-minute cron with 3 branches and 2 lumps each may run up to 6 lump executions per tick (plus 3 pre-flights). Document wall-time implications; refine later (parallel worktrees, todo-weighted ordering, etc.) if needed.
 
@@ -226,7 +239,7 @@ This matches current engine behavior (single `baseBranch` passed to all `getCont
 
 ## Implementation checklist (high level)
 
-- [ ] `LocalConfig`: keep `projectBaseBranch`; add optional `projectBaseBranches`; helper `resolveProjectBaseBranches(localConfig)` — array wins when present, else `[projectBaseBranch]`; reject empty array and duplicates
+- [ ] `LocalConfig`: optional `projectBaseBranch` when non-empty `projectBaseBranches` is set; add optional `projectBaseBranches`; helpers `resolveProjectBaseBranches(localConfig)` — array wins when present, else `[projectBaseBranch]` — and `resolvePrimaryProjectBaseBranch(localConfig)` — singular when set, else first array element; reject empty array, duplicates, and configs with neither field
 - [ ] `allowUnlistedBaseBranch` on lump config + schema
 - [ ] Validate lump `baseBranch` is in the effective list unless opt-out
 - [ ] Dedicated daemon launch: full branch scan + fail fast on duplicate lump names, unlisted base branches, unloadable configs
