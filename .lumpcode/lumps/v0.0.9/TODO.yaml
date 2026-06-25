@@ -1,17 +1,17 @@
-# v0.0.9 backlog — see GOALS.md
 - name: multi-project-base-branches
   task: >-
-    Multi integration-branch support — optional projectBaseBranches in local.json,
-    lump baseBranch allowlist, dedicated daemon branch-ordered discovery and ticks,
-    run/clean/pre-flight behavior.
+    Multi integration-branch support — optional projectBaseBranches in
+    local.json, lump baseBranch allowlist, dedicated daemon branch-ordered
+    discovery and ticks, run/clean/pre-flight behavior.
   ref: multi-project-base-branches.reference.md
   type: feature
   priority: 1
+  done: true
 - name: npm-package-cross-links
   task: >-
-    On npm package README pages, add links to sibling Lumpcode packages — @lumpcode/cli,
-    @lumpcode/core, @lumpcode/cli-types, and optional lumpcode meta package. Use
-    absolute npmjs.com or GitHub URLs so links work on npmjs.com (same rule as CLI DOCS
-    absolute GitHub links).
+    On npm package README pages, add links to sibling Lumpcode packages —
+    @lumpcode/cli, @lumpcode/core, @lumpcode/cli-types, and optional lumpcode
+    meta package. Use absolute npmjs.com or GitHub URLs so links work on
+    npmjs.com (same rule as CLI DOCS absolute GitHub links).
   type: documentation
   priority: 2

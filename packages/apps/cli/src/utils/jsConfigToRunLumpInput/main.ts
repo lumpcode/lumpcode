@@ -84,6 +84,7 @@ export async function jsConfigToRunLumpInput({
     const { setupWorkspaceFn, teardownWorkspaceFn } = makeLumpWorkspaceFns({
         executionWorkspacePath: path.resolve(executionWorkspacePath), // TODO : why need path.resolve ?
         projectBaseBranch,
+        lumpBaseBranch: baseBranch,
         workspaceStrategy,
     });
 

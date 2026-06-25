@@ -61,3 +61,4 @@ export * from './transpileTypeScriptToCachedMjs';
 export * from './updateContextStatusRecord';
 export * from './validateLumpBaseBranchAllowlist';
 export * from './validateLumpJsonConfig';
+export * from './validateDaemonLaunch';

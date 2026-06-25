@@ -11,8 +11,11 @@ import {
 } from "../branchWorkspaceLock";
 import { countOpenLumpBranches } from "../countOpenLumpBranches";
 import { jsConfigToRunLumpInput } from "../jsConfigToRunLumpInput";
+import { readLocalConfig } from "../readLocalConfig";
 import { resolveBranchWorkspacePathForLumpRun } from "../resolveBranchWorkspacePathForLumpRun";
+import { resolvePrimaryProjectBaseBranch, resolveProjectBaseBranches } from "../resolveProjectBaseBranches";
 import { updateContextStatusRecord } from "../updateContextStatusRecord";
+import { validateLumpBaseBranchAllowlist } from "../validateLumpBaseBranchAllowlist";
 
 export type { BranchWorkspaceBusyError } from '../branchWorkspaceLock';
 export { isBranchWorkspaceBusyError } from '../branchWorkspaceLock';
@@ -57,7 +60,28 @@ export async function runLumpFromJsConfig(input: {
     } = input;
 
     const projectRoot = path.dirname(localConfigFolderPath);
-    const effectiveBaseBranch = jsConfig.baseBranch ?? projectBaseBranch;
+
+    let effectiveBranches: string[];
+    let resolvedBaseBranch: string;
+    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
+    if (localConfigResult.success) {
+        const localConfig = localConfigResult.data;
+        effectiveBranches = resolveProjectBaseBranches(localConfig);
+        resolvedBaseBranch = jsConfig.baseBranch ?? resolvePrimaryProjectBaseBranch(localConfig);
+    } else {
+        effectiveBranches = [projectBaseBranch];
+        resolvedBaseBranch = jsConfig.baseBranch ?? projectBaseBranch;
+    }
+
+    const allowlistResult = validateLumpBaseBranchAllowlist({
+        lumpName,
+        resolvedBaseBranch,
+        effectiveBranches,
+        allowUnlistedBaseBranch: jsConfig.allowUnlistedBaseBranch,
+    });
+    if (!allowlistResult.success) return failure(allowlistResult.data);
+
+    const effectiveBaseBranch = resolvedBaseBranch;
 
     const runLumpInputResult = await jsConfigToRunLumpInput({
         config: jsConfig,

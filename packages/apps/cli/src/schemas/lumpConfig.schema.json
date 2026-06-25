@@ -28,6 +28,10 @@
       "description": "Optional override of the project-wide `projectBaseBranch` (from `.lumpcode/local.json`). When set, this lump runs against the given branch instead; the per-lump workspace flow will fetch and pull it before creating the lump branch. Most lumps omit this field.",
       "examples": ["main", "develop", "release/2.0"]
     },
+    "allowUnlistedBaseBranch": {
+      "type": "boolean",
+      "description": "When true, skip validation against the effective integration-branch allowlist (`projectBaseBranches` or `projectBaseBranch` in `.lumpcode/local.json`)."
+    },
     "branchFn": {
       "type": "string",
       "description": "File path to a module that default-exports a BranchFn — a function that determines the branch name for a given set of contexts. In the JS config this can be the function itself; in JSON it must be a file path to the module.",

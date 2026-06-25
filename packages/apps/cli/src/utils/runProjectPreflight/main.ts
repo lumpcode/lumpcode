@@ -5,6 +5,7 @@ import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { getProjectName } from '../getProjectName';
 import { readLocalConfig } from '../readLocalConfig';
+import { resolvePrimaryProjectBaseBranch } from '../resolveProjectBaseBranches';
 import { runPreflight } from '../runPreflight';
 
 export interface RunProjectPreflightInput {
@@ -40,7 +41,6 @@ export async function runProjectPreflight(
     let effectiveMode: Mode;
     let workspaceStrategy: WorkspaceStrategy;
 
-
     let finalLocalConfig: LocalConfig;
 
     if (providedLocalConfig) {
@@ -51,7 +51,8 @@ export async function runProjectPreflight(
         finalLocalConfig = localConfigResult.data;
     }
 
-    projectBaseBranch = finalLocalConfig.projectBaseBranch;
+    const targetBranch = input.targetBranch ?? resolvePrimaryProjectBaseBranch(finalLocalConfig);
+    projectBaseBranch = targetBranch;
     effectiveMode = finalLocalConfig.mode;
     workspaceStrategy = finalLocalConfig.workspaceStrategy ?? 'checkout';
 

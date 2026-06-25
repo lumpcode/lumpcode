@@ -4,26 +4,40 @@
   "title": "Lumpcode local configuration",
   "description": "Schema for .lumpcode/local.json — a gitignored, per-machine file that controls where and how Lumpcode runs lumps from this checkout. Created by `lumpcode project-setup`; edit it on a daemon machine (e.g. switch `mode` to \"dedicated\").",
   "type": "object",
-  "required": ["mode", "projectBaseBranch"],
+  "required": ["mode"],
   "additionalProperties": false,
   "properties": {
     "mode": {
       "type": "string",
       "enum": ["shared", "dedicated"],
-      "description": "How Lumpcode handles the current checkout. `shared`: this is your day-to-day clone; Lumpcode never touches it and runs in a separate copy under ~/.lumpcode/project-copies/<projectName>/. `dedicated`: this clone is owned by Lumpcode (typical daemon machine); Lumpcode pulls and runs in place, including a destructive `git reset --hard` on `projectBaseBranch` before each tick."
+      "description": "How Lumpcode handles the current checkout. `shared`: this is your day-to-day clone; Lumpcode never touches it and runs in a separate copy under ~/.lumpcode/project-copies/<projectName>/. `dedicated`: this clone is owned by Lumpcode (typical daemon machine); Lumpcode pulls and runs in place, including a destructive `git reset --hard` on the active integration branch before each tick."
     },
     "projectBaseBranch": {
       "type": "string",
-      "description": "Branch Lumpcode pulls (and resets to) before running any lump. Also the default `baseBranch` for lumps that don't override it. Status checks (`finished`) compare against `origin/<projectBaseBranch>`."
+      "description": "Single integration branch. Required when `projectBaseBranches` is omitted. When both are set, `projectBaseBranches` wins for the effective allowlist. Also used as the primary branch default when set (lump `baseBranch` fallback and default pre-flight target)."
+    },
+    "projectBaseBranches": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "minItems": 1,
+      "uniqueItems": true,
+      "description": "Optional non-empty integration-branch allowlist. When present, wins over singular `projectBaseBranch` for the effective list (array order is daemon tick order in dedicated mode). `projectBaseBranch` may be omitted when this array is non-empty."
     },
     "workspaceStrategy": {
       "type": "string",
       "enum": ["checkout", "worktree"],
-      "description": "How each lump run prepares git inside the preflight workspace. `checkout` (default): switch the main worktree to a fresh lump branch. `worktree`: run in a linked worktree under `.lumpcode/worktrees/<branch>/` so the main worktree stays on `projectBaseBranch`."
+      "description": "How each lump run prepares git inside the preflight workspace. `checkout` (default): switch the main worktree to a fresh lump branch. `worktree`: run in a linked worktree under `.lumpcode/worktrees/<branch>/` so the main worktree stays on the lump integration branch."
     },
     "disabled": {
       "type": "boolean",
       "description": "When true, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected."
     }
-  }
+  },
+  "anyOf": [
+    { "required": ["projectBaseBranch"] },
+    { "required": ["projectBaseBranches"] }
+  ]
 }

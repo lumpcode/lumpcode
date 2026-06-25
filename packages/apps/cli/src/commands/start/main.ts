@@ -14,12 +14,16 @@ import {
     assertDaemonStartAllowed,
     commandFailure,
     createCliLogger,
+    discoverLoadableLumpNames,
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
+    resolvePrimaryProjectBaseBranch,
+    resolveProjectBaseBranches,
     resolveTargetLumpNames,
     runProjectPreflight,
     runLumpFromJsConfig,
+    validateDaemonLaunch,
 } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
@@ -179,6 +183,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         return failure({ messages: [startAllowed.data] });
     }
 
+    const launchValidation = await validateDaemonLaunch({
+        localConfig: frozenLocalConfig,
+        projectRoot,
+        localConfigFolderPath,
+        globalConfigFolderPath,
+        lumpName: lumpNameOpt,
+        logger,
+    });
+    if (!launchValidation.success) {
+        return failure({ messages: [launchValidation.data] });
+    }
+
     if (!foreground) {
         await fs.mkdir(daemonsDir, { recursive: true });
 
@@ -292,51 +308,29 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             return;
         }
 
-        const preflightResult = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            localConfig: frozenLocalConfig,
-        });
-        if (!preflightResult.success) {
-            logger.error(`pre-flight failed; skipping tick: ${preflightResult.data}`);
-            return;
-        }
-        const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } =
-            preflightResult.data;
-
-        const namesResult = await resolveTargetLumpNames({
-            localConfigFolderPath,
-            lumpName: lumpNameOpt,
-        });
-        if (!namesResult.success) {
-            logger.warn(`${namesResult.data}; skipping.`);
-            return;
-        }
-        const names = namesResult.data;
-        if (names.length === 0) {
-            logger.warn('no lumps found this tick; skipping.');
-            return;
-        }
-
         ticks += 1;
-        logger.info(`tick ${ticks} — running ${names.length} lump(s)… [${names.join(', ')}]`);
-        for (const lumpName of names) {
+
+        const runOneLump = async (input: {
+            lumpName: string;
+            executionWorkspacePath: string;
+            projectBaseBranch: string;
+        }) => {
+            const { lumpName, executionWorkspacePath, projectBaseBranch } = input;
             const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
             if (!jsConfResult.success) {
                 logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
-                continue;
+                return;
             }
             const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
                 importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
             });
             if (!disabledResult.success) {
                 logger.error(`lump "${lumpName}": ${disabledResult.data}`);
-                continue;
+                return;
             }
             if (disabledResult.data.disabled) {
                 logger.info(`lump "${lumpName}": skipped (disabled)`);
-                continue;
+                return;
             }
             const lumpLogger = createCliLogger({
                 verbose: !!cliVerbose || !!jsConfResult.data.verbose,
@@ -369,6 +363,95 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     `lump "${lumpName}": ok (contexts: ${contextNames.join(', ') || 'none'})`,
                 );
             }
+        };
+
+        const effectiveBranches = resolveProjectBaseBranches(frozenLocalConfig);
+        const isMultiBranchDedicated =
+            frozenLocalConfig.mode === 'dedicated' && !lumpNameOpt && effectiveBranches.length > 1;
+
+        if (isMultiBranchDedicated) {
+            let tickLumpCount = 0;
+
+            for (const integrationBranch of effectiveBranches) {
+                const preflightResult = await runProjectPreflight({
+                    sourceProjectRoot: projectRoot,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                    localConfig: frozenLocalConfig,
+                    targetBranch: integrationBranch,
+                });
+                if (!preflightResult.success) {
+                    logger.error(`pre-flight for "${integrationBranch}" failed; skipping branch: ${preflightResult.data}`);
+                    continue;
+                }
+                const { executionWorkspacePath, projectBaseBranch } = preflightResult.data;
+
+                const lumpNames = await discoverLoadableLumpNames(localConfigFolderPath, {
+                    trackedOnHeadOnly: true,
+                });
+                if (lumpNames.length === 0) {
+                    logger.warn(`no lumps on branch "${integrationBranch}"; skipping.`);
+                    continue;
+                }
+
+                logger.info(
+                    `tick ${ticks} — branch "${integrationBranch}" — running ${lumpNames.length} lump(s)… [${lumpNames.join(', ')}]`,
+                );
+                for (const lumpName of lumpNames) {
+                    tickLumpCount += 1;
+                    await runOneLump({ lumpName, executionWorkspacePath, projectBaseBranch });
+                }
+            }
+
+            if (tickLumpCount === 0) {
+                logger.warn('no lumps found this tick; skipping.');
+            }
+            return;
+        }
+
+        const targetBranch = lumpNameOpt
+            ? undefined
+            : resolvePrimaryProjectBaseBranch(frozenLocalConfig);
+
+        let lumpBaseBranchForPreflight = targetBranch;
+        if (lumpNameOpt) {
+            const lumpCfg = await getJsConfigFromLumpName({ lumpName: lumpNameOpt, localConfigFolderPath });
+            if (lumpCfg.success) {
+                lumpBaseBranchForPreflight =
+                    lumpCfg.data.baseBranch ?? resolvePrimaryProjectBaseBranch(frozenLocalConfig);
+            }
+        }
+
+        const preflightResult = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig: frozenLocalConfig,
+            ...(lumpBaseBranchForPreflight !== undefined ? { targetBranch: lumpBaseBranchForPreflight } : {}),
+        });
+        if (!preflightResult.success) {
+            logger.error(`pre-flight failed; skipping tick: ${preflightResult.data}`);
+            return;
+        }
+        const { executionWorkspacePath, projectBaseBranch } = preflightResult.data;
+
+        const namesResult = await resolveTargetLumpNames({
+            localConfigFolderPath,
+            lumpName: lumpNameOpt,
+        });
+        if (!namesResult.success) {
+            logger.warn(`${namesResult.data}; skipping.`);
+            return;
+        }
+        const names = namesResult.data;
+        if (names.length === 0) {
+            logger.warn('no lumps found this tick; skipping.');
+            return;
+        }
+
+        logger.info(`tick ${ticks} — running ${names.length} lump(s)… [${names.join(', ')}]`);
+        for (const lumpName of names) {
+            await runOneLump({ lumpName, executionWorkspacePath, projectBaseBranch });
         }
     };
 

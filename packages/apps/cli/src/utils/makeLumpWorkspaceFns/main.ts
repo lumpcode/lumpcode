@@ -39,22 +39,30 @@ export interface MakeLumpWorkspaceFnsOutput {
  * runs the shell string at source `projectRoot`.
  */
 export function makeLumpWorkspaceFns(input: MakeLumpWorkspaceFnsInput): MakeLumpWorkspaceFnsOutput {
-    const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } = input;
+    const { executionWorkspacePath, projectBaseBranch, lumpBaseBranch, workspaceStrategy } = input;
     const resolvedExecutionWorkspace = path.resolve(executionWorkspacePath); // TODO : why need path.resolve ?
+    const switchBackBranch = lumpBaseBranch ?? projectBaseBranch;
 
     if (workspaceStrategy === 'worktree') {
-        return makeWorktreeWorkspaceFns({ executionWorkspacePath: resolvedExecutionWorkspace, projectBaseBranch });
+        return makeWorktreeWorkspaceFns({
+            executionWorkspacePath: resolvedExecutionWorkspace,
+            projectBaseBranch,
+            switchBackBranch,
+        });
     }
 
-    return makeCheckoutWorkspaceFns({ executionWorkspacePath: resolvedExecutionWorkspace, projectBaseBranch });
+    return makeCheckoutWorkspaceFns({
+        executionWorkspacePath: resolvedExecutionWorkspace,
+        switchBackBranch,
+    });
 }
 
 function makeCheckoutWorkspaceFns({
     executionWorkspacePath,
-    projectBaseBranch,
+    switchBackBranch,
 }: {
     executionWorkspacePath: string;
-    projectBaseBranch: string;
+    switchBackBranch: string;
 }): MakeLumpWorkspaceFnsOutput {
     const setupWorkspaceFn: SetupWorkspaceFn = async ({ baseBranch, branchName }) => {
         const quotedBranch = shellSingleQuote(branchName);
@@ -76,7 +84,7 @@ function makeCheckoutWorkspaceFns({
     };
 
     const teardownWorkspaceFn: TeardownWorkspaceFn = async () => {
-        return atDirectory(executionWorkspacePath, `git switch ${projectBaseBranch}`);
+        return atDirectory(executionWorkspacePath, `git switch ${switchBackBranch}`);
     };
 
     return { setupWorkspaceFn, teardownWorkspaceFn };
@@ -85,9 +93,11 @@ function makeCheckoutWorkspaceFns({
 function makeWorktreeWorkspaceFns({
     executionWorkspacePath,
     projectBaseBranch,
+    switchBackBranch,
 }: {
     executionWorkspacePath: string;
     projectBaseBranch: string;
+    switchBackBranch: string;
 }): MakeLumpWorkspaceFnsOutput {
     const setupWorkspaceFn: SetupWorkspaceFn = async ({ baseBranch, branchName }) => {
         const branchWorkspacePath = lumpWorktreePath({ executionWorkspacePath, branchName });
@@ -115,10 +125,13 @@ function makeWorktreeWorkspaceFns({
         const quotedWorktree = shellSingleQuote(
             lumpWorktreePath({ executionWorkspacePath, branchName }),
         );
-        return atDirectory(
-            executionWorkspacePath,
+        const teardownParts = [
             shellBestEffort(`git worktree remove --force ${quotedWorktree}`),
-        );
+        ];
+        if (switchBackBranch !== projectBaseBranch) {
+            teardownParts.push(`git switch ${switchBackBranch}`);
+        }
+        return atDirectory(executionWorkspacePath, teardownParts.join(' && '));
     };
 
     return { setupWorkspaceFn, teardownWorkspaceFn };

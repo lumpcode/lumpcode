@@ -6,12 +6,53 @@ import { failure, type Failure, success, type Success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 
-const localConfigSchema = z.object({
-    mode: z.enum(['shared', 'dedicated']),
-    projectBaseBranch: z.string().min(1, 'projectBaseBranch must be a non-empty string'),
-    workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
-    disabled: z.boolean().optional(),
-});
+const localConfigSchema = z
+    .object({
+        mode: z.enum(['shared', 'dedicated']),
+        projectBaseBranch: z.string().min(1, 'projectBaseBranch must be a non-empty string').optional(),
+        projectBaseBranches: z
+            .array(z.string().min(1, 'projectBaseBranches entries must be non-empty strings'))
+            .optional(),
+        workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
+        disabled: z.boolean().optional(),
+    })
+    .superRefine((data, ctx) => {
+        const branches = data.projectBaseBranches;
+        const hasSingular = data.projectBaseBranch !== undefined;
+        const hasArray = branches !== undefined && branches.length > 0;
+
+        if (!hasSingular && !hasArray) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message:
+                    'At least one of projectBaseBranch or a non-empty projectBaseBranches array is required',
+                path: ['projectBaseBranch'],
+            });
+            return;
+        }
+
+        if (branches !== undefined) {
+            if (branches.length === 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'projectBaseBranches must not be an empty array',
+                    path: ['projectBaseBranches'],
+                });
+            }
+            const seen = new Set<string>();
+            for (let i = 0; i < branches.length; i++) {
+                const branch = branches[i]!;
+                if (seen.has(branch)) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        message: `Duplicate branch name in projectBaseBranches: ${branch}`,
+                        path: ['projectBaseBranches', i],
+                    });
+                }
+                seen.add(branch);
+            }
+        }
+    });
 
 const MISSING_HINT =
     'Missing .lumpcode/local.json. Run `lumpcode project-setup` to scaffold it, or create it with { "mode": "shared" | "dedicated", "projectBaseBranch": "main" }.';

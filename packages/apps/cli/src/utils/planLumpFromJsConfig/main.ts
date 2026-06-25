@@ -19,8 +19,11 @@ import { countOpenLumpBranches } from '../countOpenLumpBranches';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
 import { lumpImportBasePath } from '../lumpDirPath';
+import { readLocalConfig } from '../readLocalConfig';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
+import { resolvePrimaryProjectBaseBranch, resolveProjectBaseBranches } from '../resolveProjectBaseBranches';
 import { resolveProjectExecutionContext } from '../resolveProjectExecutionContext';
+import { validateLumpBaseBranchAllowlist } from '../validateLumpBaseBranchAllowlist';
 
 export type LumpPlanDepth = 'validate' | 'contexts' | 'prompts' | 'plan';
 
@@ -80,6 +83,19 @@ export async function planLumpFromJsConfig(input: {
     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
     if (!jsConfResult.success) return jsConfResult;
     const jsConfig = jsConfResult.data;
+
+    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
+    if (!localConfigResult.success) return localConfigResult;
+
+    const resolvedLumpBaseBranch =
+        jsConfig.baseBranch ?? resolvePrimaryProjectBaseBranch(localConfigResult.data);
+    const allowlistResult = validateLumpBaseBranchAllowlist({
+        lumpName,
+        resolvedBaseBranch: resolvedLumpBaseBranch,
+        effectiveBranches: resolveProjectBaseBranches(localConfigResult.data),
+        allowUnlistedBaseBranch: jsConfig.allowUnlistedBaseBranch,
+    });
+    if (!allowlistResult.success) return allowlistResult;
 
     const disabledResult = await resolveLumpDisabled(jsConfig.disabled, {
         importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),

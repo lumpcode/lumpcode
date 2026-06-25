@@ -55,6 +55,7 @@
     "build": "npm run clean && npm run build:sea",
     "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build:bundle",
+    "pretest": "node scripts/ensure-unit-test-build.mjs",
     "check-types": "tsc --noEmit",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "node scripts/run-e2e.mjs",

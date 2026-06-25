@@ -1,3 +1,5 @@
+import { execSync } from 'node:child_process';
+
 import * as z from 'zod';
 
 import { Command, CommandHandlerMaker } from '../../types';
@@ -7,11 +9,15 @@ import {
     createCliLogger,
     getJsConfigFromLumpName,
     isBranchWorkspaceBusyError,
+    readLocalConfig,
+    resolvePrimaryProjectBaseBranch,
+    resolveProjectBaseBranches,
     runProjectPreflight,
     runLumpFromJsConfig,
     RunLumpFromJsConfigSuccess,
+    validateLumpBaseBranchAllowlist,
 } from '../../utils';
-import { failure, success } from '@lumpcode/core';
+import { execAsync, failure, shellSingleQuote, success } from '@lumpcode/core';
 import { globalConfigFolderPath, localConfigFolderPath } from '../../constants';
 
 const inputSchema = z.object({
@@ -38,33 +44,83 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const lumpName = input.arguments.lumpName;
     const { json, verbose: cliVerbose } = input.options;
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
-    const preflightResult = await runProjectPreflight({
-        sourceProjectRoot: projectRoot,
-        localConfigFolderPath,
-        globalConfigFolderPath,
-    });
-    if (!preflightResult.success) return commandFailure(preflightResult.data);
-    const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } = preflightResult.data;
-
     const jsConfResult = await getJsConfigFromLumpName({
         lumpName,
         localConfigFolderPath,
     });
     if (!jsConfResult.success) return commandFailure(jsConfResult.data);
 
+    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
+    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+    const localConfig = localConfigResult.data;
+
+    const resolvedBaseBranch =
+        jsConfResult.data.baseBranch ?? resolvePrimaryProjectBaseBranch(localConfig);
+    const allowlistResult = validateLumpBaseBranchAllowlist({
+        lumpName,
+        resolvedBaseBranch,
+        effectiveBranches: resolveProjectBaseBranches(localConfig),
+        allowUnlistedBaseBranch: jsConfResult.data.allowUnlistedBaseBranch,
+    });
+    if (!allowlistResult.success) return commandFailure(allowlistResult.data);
+
+    let checkoutBranchBeforePreflight: string | undefined;
+    if (localConfig.mode === 'dedicated') {
+        try {
+            checkoutBranchBeforePreflight = execSync('git rev-parse --abbrev-ref HEAD', {
+                cwd: projectRoot,
+                encoding: 'utf-8',
+            }).trim();
+        } catch {
+            checkoutBranchBeforePreflight = undefined;
+        }
+    }
+
+    const preflightResult = await runProjectPreflight({
+        sourceProjectRoot: projectRoot,
+        localConfigFolderPath,
+        globalConfigFolderPath,
+        targetBranch: resolvedBaseBranch,
+    });
+    if (!preflightResult.success) return commandFailure(preflightResult.data);
+    const { executionWorkspacePath, projectBaseBranch, workspaceStrategy, mode } = preflightResult.data;
+
     const effectiveVerbose = !!cliVerbose || !!jsConfResult.data.verbose;
     const logger = createCliLogger({ verbose: effectiveVerbose, json: !!json });
 
-    const runLumpRes = await runLumpFromJsConfig({
-        jsConfig: jsConfResult.data,
-        lumpName,
-        localConfigFolderPath,
-        globalConfigFolderPath,
-        projectBaseBranch,
-        executionWorkspacePath,
-        workspaceStrategy,
-        logger,
-    });
+    let runResult;
+    try {
+        const runLumpRes = await runLumpFromJsConfig({
+            jsConfig: jsConfResult.data,
+            lumpName,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectBaseBranch,
+            executionWorkspacePath,
+            workspaceStrategy,
+            logger,
+        });
+        runResult = runLumpRes;
+    } finally {
+        if (
+            mode === 'dedicated' &&
+            checkoutBranchBeforePreflight !== undefined &&
+            checkoutBranchBeforePreflight.length > 0
+        ) {
+            const quotedBranch = shellSingleQuote(checkoutBranchBeforePreflight);
+            const switchResult = await execAsync(`git switch -f ${quotedBranch}`, { cwd: projectRoot });
+            if (!switchResult.success) {
+                logger.error(
+                    `Could not restore checkout branch "${checkoutBranchBeforePreflight}": ${switchResult.data.message}`,
+                );
+            }
+        }
+    }
+
+    const runLumpRes = runResult;
+    if (!runLumpRes) {
+        return commandFailure('Lump run did not complete');
+    }
     if (!runLumpRes.success) {
         const errData = runLumpRes.data;
         if (isBranchWorkspaceBusyError(errData)) {

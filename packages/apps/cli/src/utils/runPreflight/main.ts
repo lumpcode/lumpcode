@@ -7,6 +7,27 @@ import type { Mode } from '../../types/Mode';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { projectCopiesRootPath } from '../projectCopiesRootPath';
 
+const sharedCopyPathByProjectKey = new Map<string, string>();
+
+function sharedCopyRegistryKey(input: { projectName: string; sourceProjectRoot: string }): string {
+    return `${path.resolve(input.sourceProjectRoot)}\0${input.projectName}`;
+}
+
+export function registerSharedCopyPath(input: {
+    projectName: string;
+    sourceProjectRoot: string;
+    copyPath: string;
+}): void {
+    sharedCopyPathByProjectKey.set(sharedCopyRegistryKey(input), path.resolve(input.copyPath));
+}
+
+export function resolveSharedCopyPath(input: {
+    projectName: string;
+    sourceProjectRoot: string;
+}): string | undefined {
+    return sharedCopyPathByProjectKey.get(sharedCopyRegistryKey(input));
+}
+
 export interface RunPreflightInput {
     mode: Mode;
     projectBaseBranch: string;
@@ -47,6 +68,11 @@ export async function runPreflight(input: RunPreflightInput): Promise<Success<Ru
         const copyResult = await ensureProjectCopy({ sourceProjectRoot, globalConfigFolderPath, projectName });
         if (!copyResult.success) return copyResult;
         executionWorkspacePath = copyResult.data.copyPath;
+        registerSharedCopyPath({
+            projectName,
+            sourceProjectRoot,
+            copyPath: executionWorkspacePath,
+        });
 
         if (copyResult.data.reused) {
             const syncOriginResult = await syncReusedCopyOriginRemote({
@@ -147,11 +173,13 @@ async function pullProjectBaseBranch({
     executionWorkspacePath: string;
     projectBaseBranch: string;
 }): Promise<Success<void> | Failure<string>> {
+    const quotedBranch = shellSingleQuote(projectBaseBranch);
+    const quotedOriginRef = shellSingleQuote(`origin/${projectBaseBranch}`);
     const commands = [
         'git fetch --all',
-        `git switch ${projectBaseBranch}`,
-        `git reset --hard origin/${projectBaseBranch}`,
-        `git pull origin ${projectBaseBranch}`,
+        `git switch -f ${quotedBranch} || git switch -f -c ${quotedBranch} --track ${quotedOriginRef}`,
+        `git reset --hard ${quotedOriginRef}`,
+        `git pull origin ${quotedBranch}`,
     ];
 
     for (const command of commands) {

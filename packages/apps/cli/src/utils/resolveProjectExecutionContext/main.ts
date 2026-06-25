@@ -5,6 +5,7 @@ import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { getProjectName } from '../getProjectName';
 import { readLocalConfig } from '../readLocalConfig';
+import { resolvePrimaryProjectBaseBranch } from '../resolveProjectBaseBranches';
 
 export interface ResolveProjectExecutionContextInput {
     sourceProjectRoot: string;
@@ -30,7 +31,9 @@ export async function resolveProjectExecutionContext(
 
     const localConfigResult = await readLocalConfig({ localConfigFolderPath });
     if (!localConfigResult.success) return localConfigResult;
-    const { projectBaseBranch, mode, workspaceStrategy = 'checkout' } = localConfigResult.data;
+    const localConfig = localConfigResult.data;
+    const projectBaseBranch = resolvePrimaryProjectBaseBranch(localConfig);
+    const { mode, workspaceStrategy = 'checkout' } = localConfig;
 
     const projectNameResult = await getProjectName({
         localConfigFolderPath,
