@@ -11,11 +11,15 @@ export interface MakeLumpWorkspaceFnsInput {
     /** Execution workspace (absolute): git repo root — project copy in shared mode, checkout in dedicated. */
     executionWorkspacePath: string;
     /**
-     * Project-wide base branch declared in `.lumpcode/local.json`. The teardown
-     * always returns to this branch so that subsequent lumps and ticks start
-     * from a known state (regardless of any per-lump `baseBranch` override).
+     * Project-wide base branch declared in `.lumpcode/local.json`. Used for setup
+     * switch-back when no per-lump override is provided.
      */
     projectBaseBranch: string;
+    /**
+     * Lump resolved integration branch. Teardown switches back to this branch
+     * when set (may differ from `projectBaseBranch`).
+     */
+    lumpBaseBranch?: string;
     workspaceStrategy: WorkspaceStrategy;
 }
 

@@ -37,3 +37,18 @@ export function expectCliOk(result: RunCliResult, step: string): void {
         throw new Error(`${step}: ${msg}\n${detail}`);
     }
 }
+
+/** Asserts a `--json` invocation failed with a parseable failure envelope. */
+export function expectCliFailureEnvelope(result: RunCliResult): void {
+    if (result.code === 0) {
+        throw new Error(`expected non-zero exit, got 0\n${tail(result.stderr || result.stdout)}`);
+    }
+    const line = result.stdout.trim().split('\n').find((l) => l.startsWith('{'));
+    if (!line) {
+        throw new Error(`expected JSON envelope line in stdout\n${tail(result.stderr || result.stdout)}`);
+    }
+    const envelope = JSON.parse(line) as { success?: boolean };
+    if (envelope.success !== false) {
+        throw new Error(`expected success: false envelope, got ${JSON.stringify(envelope)}`);
+    }
+}
