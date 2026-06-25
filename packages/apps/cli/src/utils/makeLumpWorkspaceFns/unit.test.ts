@@ -53,6 +53,23 @@ describe('makeLumpWorkspaceFns', () => {
             expect(cmd).toContain(`cd '${executionWorkspacePath}'`);
             expect(cmd).toContain('git switch main');
         });
+
+        it('teardown uses lump resolved baseBranch when lumpBaseBranch differs from projectBaseBranch', async () => {
+            const { teardownWorkspaceFn } = makeLumpWorkspaceFns({
+                executionWorkspacePath,
+                projectBaseBranch: 'main',
+                lumpBaseBranch: 'ver/0.0.9',
+                workspaceStrategy: 'checkout',
+            });
+            const cmd = await teardownWorkspaceFn({
+                baseBranch: 'ver/0.0.9',
+                branchName: 'lump/foo/ctx',
+                contextList: [{ name: 'ctx', variables: {} }],
+                workspacePath: executionWorkspacePath,
+            });
+            expect(cmd).toContain('git switch ver/0.0.9');
+            expect(cmd).not.toContain('git switch main');
+        });
     });
 
     describe('worktree strategy', () => {
@@ -109,6 +126,28 @@ describe('makeLumpWorkspaceFns', () => {
             expect(cmd).toContain('worktree remove --force');
             expect(cmd).toContain(`'${branchWorkspacePath}'`);
             expect(cmd).not.toContain('git -C');
+        });
+
+        it('teardown uses lump resolved baseBranch for worktree switch-back', async () => {
+            const { teardownWorkspaceFn } = makeLumpWorkspaceFns({
+                executionWorkspacePath,
+                projectBaseBranch: 'main',
+                lumpBaseBranch: 'ver/0.0.9',
+                workspaceStrategy: 'worktree',
+            });
+            const branchName = 'lump/foo/ctx';
+            const branchWorkspacePath = lumpWorktreePath({
+                executionWorkspacePath: path.resolve(executionWorkspacePath),
+                branchName,
+            });
+            const cmd = await teardownWorkspaceFn({
+                baseBranch: 'ver/0.0.9',
+                branchName,
+                contextList: [{ name: 'ctx', variables: {} }],
+                workspacePath: branchWorkspacePath,
+            });
+            expect(cmd).toContain('git switch ver/0.0.9');
+            expect(cmd).not.toContain('git switch main');
         });
     });
 

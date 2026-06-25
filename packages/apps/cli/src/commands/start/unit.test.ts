@@ -6,10 +6,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import {
     aliveDaemonSpawnFn,
+    createIntegrationBranch,
     setDaemonTestGlobalConfigFolder,
     waitForDaemonPidFile,
+    writeLocalJson,
+    writeMinimalLump,
 } from '../../testing';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
+import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { command as stopCommand } from '../stop/main';
 import { command } from './main';
 
@@ -610,6 +614,241 @@ describe('start command', () => {
         } finally {
             await stopDaemon({ lumpName: 'alpha' });
         }
+    });
+});
+
+describe('start command — multi project base branches', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-mbb-'));
+        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-mbb-remote-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-mbb-global-'));
+        setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
+        git('init --bare', remoteDir);
+        git('init -b main', projectRoot);
+        git('config user.email "test@test.com"', projectRoot);
+        git('config user.name "Test"', projectRoot);
+        git('commit --allow-empty -m "init"', projectRoot);
+        git(`remote add origin ${remoteDir}`, projectRoot);
+        git('push -u origin main', projectRoot);
+        await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
+        await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
+        await writeDefaultProjectJson(projectRoot, 'mbb-daemon-project');
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(remoteDir, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        vi.restoreAllMocks();
+    });
+
+    const localConfigFolderPath = () => path.join(projectRoot, '.lumpcode');
+
+    function makeStartHandler(overrides: Partial<Parameters<typeof command.handlerMaker>[0]> = {}) {
+        return command.handlerMaker({
+            projectRoot,
+            localConfigFolderPath: localConfigFolderPath(),
+            globalConfigFolderPath,
+            ...overrides,
+        });
+    }
+
+    async function writeMultiLocal(overrides: Record<string, unknown> = {}) {
+        await writeLocalJson(localConfigFolderPath(), {
+            mode: 'dedicated',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['main', 'ver/0.0.9'],
+            ...overrides,
+        });
+    }
+
+    async function seedMainAndReleaseLumps() {
+        await writeMinimalLump(projectRoot, 'mainLine');
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            lumpSpecs: [{ name: 'releaseLine', configOverrides: { baseBranch: 'ver/0.0.9' } }],
+        });
+    }
+
+    it('succeeds launch with lumps on main and ver/0.0.9 (LC-MULTI)', async () => {
+        await writeMultiLocal();
+        await seedMainAndReleaseLumps();
+
+        const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+            options: { foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it('fails launch when the same lumpName exists on two branches', async () => {
+        await writeMultiLocal();
+        await writeMinimalLump(projectRoot, 'sameName');
+        git('add -A', projectRoot);
+        git('commit -m "same on main"', projectRoot);
+        git('push origin main', projectRoot);
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            lumpSpecs: [{ name: 'sameName' }],
+        });
+
+        const pathsResult = await resolveDaemonPaths({
+            projectRoot,
+            localConfigFolderPath: localConfigFolderPath(),
+            globalConfigFolderPath,
+        });
+        if (!pathsResult.success) throw new Error(pathsResult.data);
+
+        const result = await makeStartHandler()({
+            options: { foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/duplicate|sameName/i);
+        await expect(fs.access(pathsResult.data.pidFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('fails launch for unlisted lump baseBranch without opt-out', async () => {
+        await writeMultiLocal({ projectBaseBranches: ['main'] });
+        await writeMinimalLump(projectRoot, 'legacyLine', { baseBranch: 'ver/0.0.7' });
+
+        const result = await makeStartHandler()({
+            options: { foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/allowlist|ver\/0\.0\.7/i);
+    });
+
+    it('fails launch when a branch has unloadable lump config', async () => {
+        await writeMultiLocal();
+        await writeMinimalLump(projectRoot, 'mainLine');
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            lumpSpecs: [{ name: 'badLine', configJson: { notValid: true } }],
+        });
+
+        const result = await makeStartHandler()({
+            options: { foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/config|badLine/i);
+    });
+
+    it('warns on cross-lump baseBranch mismatch but still launches', async () => {
+        await writeMultiLocal();
+        await writeMinimalLump(projectRoot, 'consumer', {
+            contextListJson: { ctx: 'README' },
+            dependsOnContexts: ['provider/ctx'],
+        });
+        await writeMinimalLump(projectRoot, 'provider', { baseBranch: 'ver/0.0.9' });
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+        });
+
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
+            expect(logged).toMatch(/provider/i);
+            expect(logged).toMatch(/baseBranch|branch/i);
+        } finally {
+            logSpy.mockRestore();
+            warnSpy.mockRestore();
+        }
+    });
+
+    it('fails start --lumpName when lump baseBranch is not in effective list', async () => {
+        await writeLocalJson(localConfigFolderPath(), {
+            mode: 'dedicated',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['main'],
+        });
+        await writeMinimalLump(projectRoot, 'releaseLine', { baseBranch: 'ver/0.0.9' });
+
+        const result = await makeStartHandler()({
+            options: { lumpName: 'releaseLine', foreground: true },
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|allowlist|list/i);
+    });
+
+    it('succeeds start --lumpName when lump baseBranch is listed', async () => {
+        await writeMultiLocal();
+        await writeMinimalLump(projectRoot, 'releaseLine', { baseBranch: 'ver/0.0.9' });
+        await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'ver/0.0.9' });
+
+        const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+            options: { lumpName: 'releaseLine', foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it('shared mode launch succeeds without multi-branch discovery loop', async () => {
+        await writeLocalJson(localConfigFolderPath(), {
+            mode: 'shared',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['main', 'ver/0.0.9'],
+        });
+        await writeMinimalLump(projectRoot, 'mainLine');
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+
+        const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+            options: { foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        const targetBranches = preflightSpy.mock.calls.map((c) => c[0].targetBranch);
+        expect(targetBranches.filter((b) => b === 'ver/0.0.9')).toHaveLength(0);
+    });
+
+    it('tick pre-flights branches in LC-MULTI-ORDER array order', async () => {
+        await writeLocalJson(localConfigFolderPath(), {
+            mode: 'dedicated',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['ver/0.0.9', 'main'],
+        });
+        await writeMinimalLump(projectRoot, 'mainLine');
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            lumpSpecs: [{ name: 'releaseLine', configOverrides: { baseBranch: 'ver/0.0.9' } }],
+        });
+
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+            options: { foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+
+        const branches = preflightSpy.mock.calls.map((c) => c[0].targetBranch ?? c[0].localConfig?.projectBaseBranch);
+        const ordered = branches.filter((b): b is string => b === 'ver/0.0.9' || b === 'main');
+        expect(ordered.indexOf('ver/0.0.9')).toBeLessThan(ordered.indexOf('main'));
     });
 });
 

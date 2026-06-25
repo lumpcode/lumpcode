@@ -35,4 +35,22 @@ describe('validateLumpJsonConfig', () => {
         });
         expect(result.success).toBe(true);
     });
+
+    it('accepts optional allowUnlistedBaseBranch boolean', () => {
+        const result = validateLumpJsonConfig({
+            contextListJson: { FILE: 'src/{FILE}' },
+            prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
+            allowUnlistedBaseBranch: true,
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it('rejects non-boolean allowUnlistedBaseBranch', () => {
+        const result = validateLumpJsonConfig({
+            contextListJson: { FILE: 'src/{FILE}' },
+            prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
+            allowUnlistedBaseBranch: 'yes',
+        });
+        expect(result.success).toBe(false);
+    });
 });

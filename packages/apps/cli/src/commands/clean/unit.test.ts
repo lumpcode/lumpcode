@@ -2,10 +2,13 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { command } from './main';
 import { LUMP_BRANCH_PREFIX, REFS_HEADS_PREFIX } from '../../consts';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
+import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
+import { gitCurrentBranch, writeLocalJson } from '../../testing';
+import { runProjectPreflight } from '../../utils/runProjectPreflight';
 
 function git(cmd: string, cwd: string) {
     execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
@@ -18,10 +21,12 @@ function gitOutput(cmd: string, cwd: string): string {
 describe('clean command', () => {
     let projectRoot: string;
     let bareDir: string;
+    let globalConfigFolderPath: string;
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-'));
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-bare-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-global-'));
 
         git('init --bare', bareDir);
         git('init -b main', projectRoot);
@@ -50,6 +55,8 @@ describe('clean command', () => {
     afterEach(async () => {
         await fs.rm(projectRoot, { recursive: true, force: true });
         await fs.rm(bareDir, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        vi.restoreAllMocks();
     });
 
     function makeHandler() {
@@ -180,5 +187,70 @@ describe('clean command', () => {
         } finally {
             await fs.rm(nonProjectDir, { recursive: true, force: true });
         }
+    });
+
+    it('does not call runProjectPreflight', async () => {
+        setupLumpBranch('myLump', 'button');
+        const spy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        const handle = makeHandler();
+        await handle({ options: {}, arguments: {} });
+        expect(spy).not.toHaveBeenCalled();
+    });
+
+    it('does not switch integration branch during clean', async () => {
+        setupLumpBranch('myLump', 'button');
+        const branchBefore = gitCurrentBranch(projectRoot);
+        const handle = makeHandler();
+        await handle({ options: {}, arguments: {} });
+        expect(gitCurrentBranch(projectRoot)).toBe(branchBefore);
+    });
+
+    it('cleans shared copy lump branches when copy exists (LC-SHARED)', async () => {
+        const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'shared',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['main', 'ver/0.0.9'],
+        });
+        const preflight = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+        expect(preflight.success).toBe(true);
+        if (!preflight.success) throw new Error('unreachable');
+
+        const copyRoot = preflight.data.executionWorkspacePath;
+        const branch = `${LUMP_BRANCH_PREFIX}myLump/shared-copy`;
+        const message = getGitCommitMessage({ contextName: 'shared-copy', lumpName: 'myLump' });
+        git(`checkout -b ${branch}`, copyRoot);
+        git(`commit --allow-empty -m "${message}"`, copyRoot);
+        git(`push origin ${branch}`, copyRoot);
+        git('checkout main', copyRoot);
+        git('checkout main', projectRoot);
+
+        const handle = makeHandler();
+        const result = await handle({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.deletedBranches).toContain(branch);
+
+        const copyBranches = gitOutput(`branch --list "${LUMP_BRANCH_PREFIX}*"`, copyRoot);
+        expect(copyBranches).toBe('');
+    });
+
+    it('works with LC-MULTI without parsing effective list for branch switch', async () => {
+        const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            projectBaseBranch: 'main',
+            projectBaseBranches: ['main', 'ver/0.0.9'],
+        });
+        setupLumpBranch('myLump', 'ctx');
+        const branchBefore = gitCurrentBranch(projectRoot);
+        const handle = makeHandler();
+        const result = await handle({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        expect(gitCurrentBranch(projectRoot)).toBe(branchBefore);
     });
 });
