@@ -2,7 +2,7 @@
 
 TypeScript types and small `defineX` identity helpers for authoring **Lumpcode** lump configuration (`config.ts` / `config.js`) and command modules (`.lumpcode/commands/<name>.ts` or `.js`). Runtime is just identity functions; the value is purely the type hints.
 
-> Use **alongside the Lumpcode CLI** for typed lump config and command modules. Install the CLI with `npm install -g @lumpcode/cli` (Node 22+).
+> Use **alongside [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli)** for typed lump config and command modules. Install the CLI with `npm install -g @lumpcode/cli` (Node 22+).
 
 ## Install
 
@@ -43,10 +43,18 @@ Lumpcode transpiles project **`.ts`** config, hooks, and command modules at load
 
 - **Config helpers** — `defineConfig`, `defineStep`, hook `define*` helpers for lump `config.ts` / `config.js`.
 - **Command-module helpers** — `defineCommandModule`, `defineCommand`, `defineCommandSetup`, `defineCommandTeardown`.
-- **Types** — lump config and command-module shapes, plus engine types re-exported from `@lumpcode/core`.
+- **Types** — lump config and command-module shapes, plus engine types re-exported from [@lumpcode/core](https://www.npmjs.com/package/@lumpcode/core).
 
-Full list: [types.md](../DOCS/types.md).
+Full list: [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md).
 
 ## Docs
 
-Field reference and hook signatures live in the CLI docs — see [lump-config.md](../DOCS/lump-config.md) and [commands.md](../DOCS/commands.md).
+Field reference and hook signatures live in the CLI docs — see [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md) and [commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md).
+
+## Related packages
+
+| Package | npm | Role |
+| ------- | --- | ---- |
+| `@lumpcode/cli` | [npm](https://www.npmjs.com/package/@lumpcode/cli) | CLI: project setup, run, daemon, status |
+| `@lumpcode/core` | [npm](https://www.npmjs.com/package/@lumpcode/core) | Engine API (`runLump`) |
+| `lumpcode` | [npm](https://www.npmjs.com/package/lumpcode) | Unscoped npm alias for `@lumpcode/cli` |
