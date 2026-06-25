@@ -118,6 +118,14 @@ Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`con
 | [DOCS/examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md)               | Ready-made lump shapes (smoke test, migration, tickets, codemods, docs, …)         |
 | [DOCS/types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md)                     | Hook and JSON type shapes                                                          |
 
+## Related packages
+
+| Package | npm | Role |
+| ------- | --- | ---- |
+| `@lumpcode/core` | [npm](https://www.npmjs.com/package/@lumpcode/core) | Engine API (`runLump`) |
+| `@lumpcode/cli-types` | [npm](https://www.npmjs.com/package/@lumpcode/cli-types) | Typed `config.ts` / `config.js` and command-module helpers |
+| `lumpcode` | [npm](https://www.npmjs.com/package/lumpcode) | Unscoped npm alias for `@lumpcode/cli` |
+
 ## Development
 
 From `packages/apps/cli`: `npm test` (unit), `npm run test:e2e` / `test:e2e:node` (scenarios). See `scripts/run-e2e.mjs` and `src/e2e/` for CI/Windows overrides.
