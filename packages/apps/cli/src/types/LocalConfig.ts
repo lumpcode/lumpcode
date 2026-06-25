@@ -7,7 +7,10 @@ import type { WorkspaceStrategy } from './WorkspaceStrategy';
  */
 export interface LocalConfig {
     mode: Mode;
-    projectBaseBranch: string;
+    /** Required when `projectBaseBranches` is omitted or empty. */
+    projectBaseBranch?: string;
+    /** When non-empty, wins over singular `projectBaseBranch` for the effective integration-branch list. */
+    projectBaseBranches?: string[];
     workspaceStrategy?: WorkspaceStrategy;
     /** When `true`, the background daemon skips every lump on this machine (`lumpcode start`). */
     disabled?: boolean;
