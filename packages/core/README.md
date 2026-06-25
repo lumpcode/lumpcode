@@ -8,7 +8,7 @@ The core engine of Lumpcode, mainly exporting the `runLump` function.
 
 `runLump` is very configurable but comes with sensible default behaviors.
 
-> **Important:** `@lumpcode/core` is the engine only. For **agent loop campaign** management (project bootstrap, `.lumpcode/lumps/` configs, background daemon, status, and cleanup), use the [Lumpcode CLI](../apps/cli/README.md) (`npm install -g @lumpcode/cli`).
+> **Important:** `@lumpcode/core` is the engine only. For **agent loop campaign** management (project bootstrap, `.lumpcode/lumps/` configs, background daemon, status, and cleanup), use the [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli) package (`npm install -g @lumpcode/cli`).
 
 ## Installation
 
@@ -79,7 +79,7 @@ interface Context {
 ```
 
 - `**priority**` — Lower values are processed first. Defaults to `0`.
-- `**dependsOnContexts**` — Context names that must be `finished` before this context is eligible. If any dependency is still `toDo` or `branchPushed`, the context is excluded from the current batch. Core resolves each entry marker commit with your `gitCommitMessageFn`. The [Lumpcode CLI](../apps/cli/README.md) can wire **cross-lump** dependencies between lumps in the same project — see [CLI lump config](../apps/cli/DOCS/lump-config.md#context-ordering-and-cross-lump-dependencies).
+- `**dependsOnContexts**` — Context names that must be `finished` before this context is eligible. If any dependency is still `toDo` or `branchPushed`, the context is excluded from the current batch. Core resolves each entry marker commit with your `gitCommitMessageFn`. [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli) can wire **cross-lump** dependencies between lumps in the same project — see [CLI lump config](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#context-ordering-and-cross-lump-dependencies).
 
 ### CodeBasePath
 
@@ -122,7 +122,7 @@ Elements in the array can also be **functions** that return more `Steps` at runt
 
 Absolute path to the root of the project Lumpcode will operate on. This directory is scanned to build the list of `CodeBasePath` entries.
 
-We recommend pointing `projectRoot` to a **separate copy** of your project rather than the directory you are manually working in, so that Lumpcode's git operations don't interfere with your own work. Where prompts and git commands actually run is determined by `[setupWorkspaceFn](#setupworkspacefn)` (see `workspacePath` there). The [Lumpcode CLI](../apps/cli/README.md) handles this isolated copy for you.
+We recommend pointing `projectRoot` to a **separate copy** of your project rather than the directory you are manually working in, so that Lumpcode's git operations don't interfere with your own work. Where prompts and git commands actually run is determined by `[setupWorkspaceFn](#setupworkspacefn)` (see `workspacePath` there). [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli) handles this isolated copy for you.
 
 #### `baseBranch`
 
@@ -418,7 +418,7 @@ const steps: Steps = [
 
 Lumpcode uses normalized git commit messages to record which contexts have already been processed. Each completed context contributes **exactly one commit** whose subject equals `gitCommitMessageFn({ context, ... })`. On every subsequent call to `runLump`, contexts whose normalized commit message is already present on a remote branch are skipped so the run only works on what remains. This lets you call `runLump` repeatedly (e.g. in a cron job) and each invocation picks up where the previous one left off, progressively working through the full context list without ever re-processing a context.
 
-> If you'd rather not wire up your own scheduler, the [Lumpcode CLI](../apps/cli/README.md) ships a built-in daemon (`lumpcode start`) that calls `runLump` on a tick, with concurrent-branch limits and per-lump enable/disable already wired in.
+> If you'd rather not wire up your own scheduler, [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli) ships a built-in daemon (`lumpcode start`) that calls `runLump` on a tick, with concurrent-branch limits and per-lump enable/disable already wired in.
 
 ### Commit message naming
 
@@ -432,7 +432,7 @@ You can customize this via the `[gitCommitMessageFn](#gitcommitmessagefn)` param
 
 ### Context statuses
 
-CLI users: marker format is `LUMP: <lumpName> - <contextName>` — see [concepts.md](../apps/cli/DOCS/concepts.md).
+CLI users: marker format is `LUMP: <lumpName> - <contextName>` — see [concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md).
 
 When filtering contexts, Lumpcode resolves each context's normalized commit message to one of three statuses:
 
@@ -488,6 +488,15 @@ To genuinely re-process a context, delete the work branch holding its commit (af
 ```bash
 git push --delete origin <branch-containing-the-commit>
 ```
+
+## Related packages
+
+| Package | npm | Role |
+| --- | --- | --- |
+| `@lumpcode/cli` | [npm](https://www.npmjs.com/package/@lumpcode/cli) | Agent loop campaigns — primary install (`npm install -g @lumpcode/cli`) |
+| `@lumpcode/core` | [npm](https://www.npmjs.com/package/@lumpcode/core) | Engine API (`runLump`) — this package |
+| `@lumpcode/cli-types` | [npm](https://www.npmjs.com/package/@lumpcode/cli-types) | TypeScript helpers for lump `config.ts` and command modules |
+| `lumpcode` | [npm](https://www.npmjs.com/package/lumpcode) | Optional unscoped alias for `@lumpcode/cli` |
 
 ## How It Works
 

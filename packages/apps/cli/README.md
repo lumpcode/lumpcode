@@ -104,6 +104,15 @@ Lumpcode scans the tree and finds every value `{COMPONENT_NAME}` can take such t
 
 Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`config.json`**, plus **`.js/.ts`** hook and command modules under `.lumpcode/`. Optional npm package [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) ships `defineConfig`, `defineCommand`, and other thin helpers plus the same types the CLI uses. See [DOCS/lump-config.md — Typed config](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#typed-config-optional) and [DOCS/lump-config.md — TypeScript modules](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#typescript-modules).
 
+## Related packages
+
+| Package | npm | Role |
+| --- | --- | --- |
+| `@lumpcode/cli` | [npm](https://www.npmjs.com/package/@lumpcode/cli) | Agent loop campaigns — this package (`npm install -g @lumpcode/cli`) |
+| `@lumpcode/core` | [npm](https://www.npmjs.com/package/@lumpcode/core) | Engine API (`runLump`) — library use or advanced integration |
+| `@lumpcode/cli-types` | [npm](https://www.npmjs.com/package/@lumpcode/cli-types) | TypeScript helpers for lump `config.ts` and command modules |
+| `lumpcode` | [npm](https://www.npmjs.com/package/lumpcode) | Optional unscoped alias for `@lumpcode/cli` |
+
 ## Where to next
 
 
