@@ -6,6 +6,7 @@
   ref: multi-project-base-branches.reference.md
   type: feature
   priority: 1
+  done: true
 - name: execution-workspace-setup-lock
   task: >-
     Serialize git mutations on the execution workspace from per-lump pre-flight
