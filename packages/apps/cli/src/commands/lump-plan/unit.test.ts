@@ -34,7 +34,7 @@ describe('lump-plan command', () => {
         await fs.mkdir(globalConfigFolderPath, { recursive: true });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main' }),
             'utf-8',
         );
         await fs.writeFile(
@@ -122,20 +122,20 @@ describe('lump-plan command', () => {
         expect(spy).not.toHaveBeenCalled();
     });
 
-    it('fails allowlist validation for unlisted baseBranch', async () => {
+    it('fails allowlist validation for unlisted discoveryBranch (dedicated)', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: ['main'],
+                discoveryBranch: 'main',
+                discoveryBranches: ['main'],
             }),
             'utf-8',
         );
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),
             `export default {
-  baseBranch: 'ver/0.0.9',
+  discoveryBranch: 'ver/0.0.9',
   getContextListFn: () => [{ name: 'alpha', variables: {} }],
   prompt: {
     promptFn: () => 'hello',
@@ -151,7 +151,37 @@ describe('lump-plan command', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/allowlist|ver\/0\.0\.9/i);
+        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.9/i);
+    });
+
+    it('succeeds in shared mode when discoveryBranch is unlisted (no allowlist)', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'shared',
+                discoveryBranch: 'main',
+                discoveryBranches: ['main'],
+            }),
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),
+            `export default {
+  discoveryBranch: 'ver/0.0.9',
+  getContextListFn: () => [{ name: 'alpha', variables: {} }],
+  prompt: {
+    promptFn: () => 'hello',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};`,
+            'utf-8',
+        );
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'my-lump' },
+        });
+        expect(result.success).toBe(true);
     });
 
     it('leaves checkout branch unchanged', async () => {

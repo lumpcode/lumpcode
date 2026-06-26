@@ -224,19 +224,19 @@ describe('runLumpFromJsConfig', () => {
         await expect(fs.access(locksDir)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
-    it('fails before runLump when baseBranch is not in effective allowlist', async () => {
+    it('fails before runLump when discoveryBranch is not in effective allowlist (dedicated)', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranch: 'main',
+                discoveryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );
 
         const result = await runLumpFromJsConfig({
-            jsConfig: makeJsConfig({ baseBranch: 'ver/0.0.7' }),
+            jsConfig: makeJsConfig({ discoveryBranch: 'ver/0.0.7' }),
             lumpName: 'my-lump',
             localConfigFolderPath,
             globalConfigFolderPath,
@@ -248,20 +248,20 @@ describe('runLumpFromJsConfig', () => {
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/allowlist|ver\/0\.0\.7/i);
+        expect(result.data).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
         expect(core.runLump).not.toHaveBeenCalled();
     });
 
-    it('proceeds to runLump when allowUnlistedBaseBranch is true', async () => {
+    it('proceeds to runLump in shared mode when discoveryBranch is unlisted', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'shared', discoveryBranch: 'main' }),
             'utf-8',
         );
         vi.mocked(core.runLump).mockResolvedValue({ success: true, data: { contextNames: [] } });
 
         const result = await runLumpFromJsConfig({
-            jsConfig: makeJsConfig({ baseBranch: 'ver/0.0.7', allowUnlistedBaseBranch: true }),
+            jsConfig: makeJsConfig({ discoveryBranch: 'ver/0.0.7' }),
             lumpName: 'my-lump',
             localConfigFolderPath,
             globalConfigFolderPath,

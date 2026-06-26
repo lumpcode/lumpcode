@@ -46,7 +46,7 @@ describe('clean command', () => {
             ),
             fs.writeFile(
                 path.join(lumpcodeDir, 'local.json'),
-                JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+                JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main' }),
                 'utf-8',
             ),
         ]);
@@ -209,8 +209,8 @@ describe('clean command', () => {
         const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         const preflight = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
@@ -243,8 +243,8 @@ describe('clean command', () => {
         const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         setupLumpBranch('myLump', 'ctx');
         const branchBefore = gitCurrentBranch(projectRoot);
