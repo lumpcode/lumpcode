@@ -26,7 +26,7 @@ vi.mock('@lumpcode/core', async () => {
     };
 });
 
-describe('run command — multi project base branches', () => {
+describe('run command — multi discovery branches', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;
@@ -45,8 +45,15 @@ describe('run command — multi project base branches', () => {
             JSON.stringify({ projectName: 'run-cmd-test' }),
             'utf-8',
         );
-        vi.mocked(core.runLump).mockReset();
-        vi.mocked(core.runLump).mockResolvedValue({ success: true, data: { contextNames: ['README'] } });
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.success({
+                result: {
+                    branchName: 'lump/run-cmd-test/README',
+                    contextNames: ['README'],
+                    contextRunStateList: [],
+                },
+            } as unknown as core.RunLumpOutput),
+        );
     });
 
     afterEach(async () => {
@@ -67,10 +74,13 @@ describe('run command — multi project base branches', () => {
     async function setupMultiBranchLocal() {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
-        await writeMinimalLump(projectRoot, 'releaseLine', { baseBranch: 'ver/0.0.9' });
+        await writeMinimalLump(projectRoot, 'releaseLine', {
+            discoveryBranch: 'ver/0.0.9',
+            baseBranch: 'ver/0.0.9',
+        });
         execSync('git add -A', { cwd: projectRoot });
         execSync('git commit -m "main lump"', { cwd: projectRoot });
         execSync('git push origin main', { cwd: projectRoot });
@@ -85,14 +95,17 @@ describe('run command — multi project base branches', () => {
     it('fails before pre-flight when lump config is missing on current checkout', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
-            lumpSpecs: [{ name: 'releaseLine', configOverrides: { baseBranch: 'ver/0.0.9' } }],
+            lumpSpecs: [{
+                name: 'releaseLine',
+                configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+            }],
         });
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
 
@@ -107,13 +120,13 @@ describe('run command — multi project base branches', () => {
         expect(preflightSpy).not.toHaveBeenCalled();
     });
 
-    it('fails before pre-flight when baseBranch is unlisted', async () => {
+    it('fails before pre-flight when discoveryBranch is unlisted in dedicated mode', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main'],
         });
-        await writeMinimalLump(projectRoot, 'legacyLine', { baseBranch: 'ver/0.0.7' });
+        await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
 
         const result = await makeHandler()({
@@ -123,11 +136,11 @@ describe('run command — multi project base branches', () => {
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/allowlist|ver\/0\.0\.7/i);
+        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
         expect(preflightSpy).not.toHaveBeenCalled();
     });
 
-    it('pre-flights to lump baseBranch and succeeds when lump declares ver/0.0.9', async () => {
+    it('pre-flights to lump resolvedBaseBranch and succeeds when lump declares ver/0.0.9', async () => {
         await setupMultiBranchLocal();
         assertCheckoutBranch(projectRoot, 'main');
 
@@ -162,15 +175,36 @@ describe('run command — multi project base branches', () => {
         );
     });
 
-    it('proceeds when allowUnlistedBaseBranch is true', async () => {
+    it('pre-flights to resolvedBaseBranch for LUMP-SPLIT (discovery on main, execution on ver/0.0.9)', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
-        await writeMinimalLump(projectRoot, 'legacyLine', {
-            baseBranch: 'ver/0.0.7',
-            allowUnlistedBaseBranch: true,
+        await writeMinimalLump(projectRoot, 'splitLine', {
+            discoveryBranch: 'main',
+            baseBranch: 'ver/0.0.9',
         });
+        await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'ver/0.0.9' });
+
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'splitLine' },
+        });
+
+        expect(preflightSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ targetBranch: 'ver/0.0.9' }),
+        );
+    });
+
+    it('shared mode proceeds when discoveryBranch is unlisted (no allowlist)', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'shared',
+            discoveryBranch: 'main',
+            discoveryBranches: ['main'],
+        });
+        await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
 
         const result = await makeHandler()({
             options: {},
@@ -183,19 +217,29 @@ describe('run command — multi project base branches', () => {
     it('shared mode pre-flights copy to lump baseBranch while source stays on main', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
         });
-        await writeMinimalLump(projectRoot, 'releaseLine', { baseBranch: 'ver/0.0.9' });
+        await writeMinimalLump(projectRoot, 'releaseLine', {
+            discoveryBranch: 'ver/0.0.9',
+            baseBranch: 'ver/0.0.9',
+        });
 
         const runSpy = vi.spyOn(runLumpFromJsConfigModule, 'runLumpFromJsConfig').mockResolvedValue({
             success: true,
-            data: { skipped: false, contextNames: [] },
+            data: {
+                skipped: false,
+                result: {
+                    branchName: 'lump/releaseLine/README',
+                    contextNames: ['README'],
+                    contextRunStateList: [],
+                },
+            },
         });
 
         await makeHandler()({

@@ -26,7 +26,7 @@ export type E2eLumpSpec = {
     disabled?: boolean;
     maximumNumberOfConcurrentBranches?: number;
     baseBranch?: string;
-    allowUnlistedBaseBranch?: boolean;
+    discoveryBranch?: string;
     useE2eAgent?: boolean;
     /** When true (Windows E2E), use a `.cmd` shim on PATH instead of the Node mock agent. */
     useCmdShimAgent?: boolean;
@@ -69,7 +69,7 @@ function resolveLumpConfig(lump: E2eLumpSpec, cmd: string): ResolvedLumpConfig {
             ...lump.configJson,
             ...(lump.disabled ? { disabled: true } : {}),
             ...(lump.baseBranch ? { baseBranch: lump.baseBranch } : {}),
-            ...(lump.allowUnlistedBaseBranch ? { allowUnlistedBaseBranch: true } : {}),
+            ...(lump.discoveryBranch ? { discoveryBranch: lump.discoveryBranch } : {}),
             ...(lump.maximumNumberOfConcurrentBranches !== undefined
                 ? { maximumNumberOfConcurrentBranches: lump.maximumNumberOfConcurrentBranches }
                 : {}),
@@ -117,7 +117,7 @@ export async function createE2eProject(input: {
     await fs.writeFile(
         path.join(lumpcodeDir, 'local.json'),
         JSON.stringify(
-            { mode: 'dedicated', projectBaseBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
+            { mode: 'dedicated', discoveryBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
             null,
             2,
         ),

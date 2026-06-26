@@ -34,7 +34,7 @@ describe('planLumpFromJsConfig', () => {
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'preview-lump'), { recursive: true });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main' }),
             'utf-8',
         );
         await fs.writeFile(
@@ -154,20 +154,20 @@ describe('planLumpFromJsConfig', () => {
         expect(result.data.contexts?.map((c) => c.name)).toEqual(['from-ts-file']);
     });
 
-    it('fails with allowlist message when baseBranch is unlisted', async () => {
+    it('fails with allowlist message when discoveryBranch is unlisted (dedicated)', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranch: 'main',
+                discoveryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
             `export default {
-  baseBranch: 'ver/0.0.7',
+  discoveryBranch: 'ver/0.0.7',
   getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
   prompt: {
     promptFn: () => 'preview prompt',
@@ -186,22 +186,23 @@ describe('planLumpFromJsConfig', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/allowlist|ver\/0\.0\.7/i);
+        expect(result.data).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
     });
 
-    it('succeeds plan preview when baseBranch is listed (no pre-flight)', async () => {
+    it('succeeds plan preview when discoveryBranch is listed (no pre-flight)', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranch: 'main',
+                discoveryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
             `export default {
+  discoveryBranch: 'ver/0.0.9',
   baseBranch: 'ver/0.0.9',
   getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
   prompt: {

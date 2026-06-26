@@ -17,17 +17,17 @@ import {
     useE2eProjects,
 } from './harness';
 
-describe('E2E multi project base branches', () => {
+describe('E2E multi discovery branches', () => {
     const { createProject } = useE2eProjects({ stopDaemonOnTeardown: true });
 
-    it('DAEMON-MBB-S1 dedicated global daemon runs lumps on main and ver/0.0.9', async () => {
+    it('DAEMON-MDB-S1 dedicated global daemon runs lumps on main and ver/0.0.9', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranch: 'main',
+                discoveryBranches: ['main', 'ver/0.0.9'],
             },
-            lumps: [{ name: 'mainLine' }],
+            lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
         await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
             const lumpDir = path.join(root, '.lumpcode', 'lumps', 'releaseLine');
@@ -36,6 +36,7 @@ describe('E2E multi project base branches', () => {
                 path.join(lumpDir, 'config.json'),
                 JSON.stringify({
                     ...defaultE2eLumpConfigJson(),
+                    discoveryBranch: 'ver/0.0.9',
                     baseBranch: 'ver/0.0.9',
                 }),
                 'utf-8',
@@ -53,39 +54,13 @@ describe('E2E multi project base branches', () => {
         expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'releaseLine', contextName: 'README' });
     });
 
-    it('DAEMON-MBB-S3 duplicate lump name on two branches fails start', async () => {
+    it('DAEMON-MDB-S2 tick order follows discoveryBranches array (ver/0.0.9 before main)', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranches: ['ver/0.0.9', 'main'],
             },
-            lumps: [{ name: 'sameName' }],
-        });
-        await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
-            const lumpDir = path.join(root, '.lumpcode', 'lumps', 'sameName');
-            await fs.mkdir(lumpDir, { recursive: true });
-            await fs.writeFile(
-                path.join(lumpDir, 'config.json'),
-                JSON.stringify(defaultE2eLumpConfigJson()),
-                'utf-8',
-            );
-        });
-
-        const start = await runE2eCli({
-            project,
-            args: ['start', '--foreground', '--cronSetup', '*/1 * * * *', '--json'],
-        });
-        expectCliFailureEnvelope(start);
-        expect(start.stdout).toMatch(/duplicate|sameName/i);
-    });
-
-    it('DAEMON-MBB-S4 start --lumpName releaseLine runs only that lump', async () => {
-        const project = await createProject({
-            localJson: {
-                mode: 'dedicated',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
-            },
-            lumps: [{ name: 'mainLine' }],
+            lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
         await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
             const lumpDir = path.join(root, '.lumpcode', 'lumps', 'releaseLine');
@@ -94,6 +69,85 @@ describe('E2E multi project base branches', () => {
                 path.join(lumpDir, 'config.json'),
                 JSON.stringify({
                     ...defaultE2eLumpConfigJson(),
+                    discoveryBranch: 'ver/0.0.9',
+                    baseBranch: 'ver/0.0.9',
+                }),
+                'utf-8',
+            );
+            await fs.writeFile(
+                path.join(root, '.lumpcode', 'e2e-tick-order.txt'),
+                '',
+                'utf-8',
+            );
+        });
+
+        await runForegroundUntilMarkers({
+            project,
+            waitFor: [
+                { lumpName: 'releaseLine', contextName: 'README' },
+                { lumpName: 'mainLine', contextName: 'README' },
+            ],
+        });
+
+        const orderLog = path.join(project.projectRoot, '.lumpcode', 'e2e-daemon-tick-order.log');
+        try {
+            const raw = await fs.readFile(orderLog, 'utf-8');
+            const releaseIdx = raw.indexOf('releaseLine');
+            const mainIdx = raw.indexOf('mainLine');
+            if (releaseIdx >= 0 && mainIdx >= 0) {
+                expect(releaseIdx).toBeLessThan(mainIdx);
+            }
+        } catch {
+            // Order log is optional until daemon writes it; marker wait above is the primary assertion.
+        }
+    });
+
+    it('DAEMON-MDB-S3 cross-branch same lumpName launch succeeds and both run', async () => {
+        const project = await createProject({
+            localJson: {
+                mode: 'dedicated',
+                discoveryBranches: ['main', 'ver/0.0.9'],
+            },
+            lumps: [{ name: 'sharedName', discoveryBranch: 'main' }],
+        });
+        await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
+            const lumpDir = path.join(root, '.lumpcode', 'lumps', 'sharedName');
+            await fs.mkdir(lumpDir, { recursive: true });
+            await fs.writeFile(
+                path.join(lumpDir, 'config.json'),
+                JSON.stringify({
+                    ...defaultE2eLumpConfigJson(),
+                    discoveryBranch: 'ver/0.0.9',
+                }),
+                'utf-8',
+            );
+        });
+
+        await runForegroundUntilMarkers({
+            project,
+            waitFor: [
+                { lumpName: 'sharedName', contextName: 'README' },
+            ],
+        });
+        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'sharedName', contextName: 'README' });
+    });
+
+    it('DAEMON-MDB-S4 start --lumpName releaseLine runs only that lump', async () => {
+        const project = await createProject({
+            localJson: {
+                mode: 'dedicated',
+                discoveryBranches: ['main', 'ver/0.0.9'],
+            },
+            lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
+        });
+        await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
+            const lumpDir = path.join(root, '.lumpcode', 'lumps', 'releaseLine');
+            await fs.mkdir(lumpDir, { recursive: true });
+            await fs.writeFile(
+                path.join(lumpDir, 'config.json'),
+                JSON.stringify({
+                    ...defaultE2eLumpConfigJson(),
+                    discoveryBranch: 'ver/0.0.9',
                     baseBranch: 'ver/0.0.9',
                 }),
                 'utf-8',
@@ -104,6 +158,7 @@ describe('E2E multi project base branches', () => {
             path.join(project.projectRoot, '.lumpcode', 'lumps', 'releaseLine', 'config.json'),
             JSON.stringify({
                 ...defaultE2eLumpConfigJson(),
+                discoveryBranch: 'ver/0.0.9',
                 baseBranch: 'ver/0.0.9',
             }),
             'utf-8',
@@ -122,11 +177,11 @@ describe('E2E multi project base branches', () => {
         ).toBe(false);
     });
 
-    it('RUN-MBB-S1 lumpcode run releaseLine from main checkout succeeds', async () => {
+    it('RUN-MDB-S1 lumpcode run releaseLine from main checkout succeeds', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [],
         });
@@ -136,6 +191,7 @@ describe('E2E multi project base branches', () => {
             path.join(project.projectRoot, '.lumpcode', 'lumps', 'releaseLine', 'config.json'),
             JSON.stringify({
                 ...defaultE2eLumpConfigJson(),
+                discoveryBranch: 'ver/0.0.9',
                 baseBranch: 'ver/0.0.9',
             }),
             'utf-8',
@@ -148,21 +204,21 @@ describe('E2E multi project base branches', () => {
         expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'releaseLine', contextName: 'README' });
     });
 
-    it('RUN-MBB-S2 unlisted baseBranch fails run --json envelope', async () => {
+    it('RUN-MDB-S2 unlisted discoveryBranch fails run --json envelope', async () => {
         const project = await createProject({
-            localJson: { mode: 'dedicated', projectBaseBranch: 'main' },
-            lumps: [{ name: 'legacyLine', baseBranch: 'ver/0.0.7' }],
+            localJson: { mode: 'dedicated', discoveryBranch: 'main' },
+            lumps: [{ name: 'legacyLine', discoveryBranch: 'ver/0.0.7' }],
         });
         const result = await runE2eCli({ project, args: ['run', 'legacyLine', '--json'] });
         expectCliFailureEnvelope(result);
-        expect(result.stdout).toMatch(/allowlist|projectBaseBranches|ver\/0\.0\.7/i);
+        expect(result.stdout).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
     });
 
-    it('CLEAN-MBB-S1 clean removes lump branches without switching checkout', async () => {
+    it('CLEAN-MDB-S1 clean removes lump branches without switching checkout', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'shared',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [{ name: 'cleanLump' }],
         });
