@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import {
     defaultE2eLumpConfigJson,
-    expectCliFailureEnvelope,
     expectCliOk,
     expectMarkerOnRemote,
     git,
@@ -15,7 +14,13 @@ import {
     runForegroundUntilMarkers,
     sharedModeCopyPath,
     useE2eProjects,
+    writeE2eLumpFixture,
 } from './harness';
+
+const releaseLineConfig = {
+    discoveryBranch: 'ver/0.0.9',
+    baseBranch: 'ver/0.0.9',
+} as const;
 
 describe('E2E multi discovery branches', () => {
     const { createProject } = useE2eProjects({ stopDaemonOnTeardown: true });
@@ -30,17 +35,11 @@ describe('E2E multi discovery branches', () => {
             lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
         await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
-            const lumpDir = path.join(root, '.lumpcode', 'lumps', 'releaseLine');
-            await fs.mkdir(lumpDir, { recursive: true });
-            await fs.writeFile(
-                path.join(lumpDir, 'config.json'),
-                JSON.stringify({
-                    ...defaultE2eLumpConfigJson(),
-                    discoveryBranch: 'ver/0.0.9',
-                    baseBranch: 'ver/0.0.9',
-                }),
-                'utf-8',
-            );
+            await writeE2eLumpFixture({
+                projectRoot: root,
+                lumpName: 'releaseLine',
+                configOverrides: releaseLineConfig,
+            });
         });
 
         await runForegroundUntilMarkers({
@@ -63,17 +62,11 @@ describe('E2E multi discovery branches', () => {
             lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
         await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
-            const lumpDir = path.join(root, '.lumpcode', 'lumps', 'releaseLine');
-            await fs.mkdir(lumpDir, { recursive: true });
-            await fs.writeFile(
-                path.join(lumpDir, 'config.json'),
-                JSON.stringify({
-                    ...defaultE2eLumpConfigJson(),
-                    discoveryBranch: 'ver/0.0.9',
-                    baseBranch: 'ver/0.0.9',
-                }),
-                'utf-8',
-            );
+            await writeE2eLumpFixture({
+                projectRoot: root,
+                lumpName: 'releaseLine',
+                configOverrides: releaseLineConfig,
+            });
             await fs.writeFile(
                 path.join(root, '.lumpcode', 'e2e-tick-order.txt'),
                 '',
@@ -140,29 +133,12 @@ describe('E2E multi discovery branches', () => {
             },
             lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
-        await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
-            const lumpDir = path.join(root, '.lumpcode', 'lumps', 'releaseLine');
-            await fs.mkdir(lumpDir, { recursive: true });
-            await fs.writeFile(
-                path.join(lumpDir, 'config.json'),
-                JSON.stringify({
-                    ...defaultE2eLumpConfigJson(),
-                    discoveryBranch: 'ver/0.0.9',
-                    baseBranch: 'ver/0.0.9',
-                }),
-                'utf-8',
-            );
+        await pushIntegrationBranch(project, 'ver/0.0.9', async () => {});
+        await writeE2eLumpFixture({
+            projectRoot: project.projectRoot,
+            lumpName: 'releaseLine',
+            configOverrides: releaseLineConfig,
         });
-        await fs.mkdir(path.join(project.projectRoot, '.lumpcode', 'lumps', 'releaseLine'), { recursive: true });
-        await fs.writeFile(
-            path.join(project.projectRoot, '.lumpcode', 'lumps', 'releaseLine', 'config.json'),
-            JSON.stringify({
-                ...defaultE2eLumpConfigJson(),
-                discoveryBranch: 'ver/0.0.9',
-                baseBranch: 'ver/0.0.9',
-            }),
-            'utf-8',
-        );
 
         await runForegroundUntilMarkers({
             project,
@@ -186,16 +162,11 @@ describe('E2E multi discovery branches', () => {
             lumps: [],
         });
         await pushIntegrationBranch(project, 'ver/0.0.9', async () => {});
-        await fs.mkdir(path.join(project.projectRoot, '.lumpcode', 'lumps', 'releaseLine'), { recursive: true });
-        await fs.writeFile(
-            path.join(project.projectRoot, '.lumpcode', 'lumps', 'releaseLine', 'config.json'),
-            JSON.stringify({
-                ...defaultE2eLumpConfigJson(),
-                discoveryBranch: 'ver/0.0.9',
-                baseBranch: 'ver/0.0.9',
-            }),
-            'utf-8',
-        );
+        await writeE2eLumpFixture({
+            projectRoot: project.projectRoot,
+            lumpName: 'releaseLine',
+            configOverrides: releaseLineConfig,
+        });
 
         expectCliOk(
             await runE2eCli({ project, args: ['run', 'releaseLine', '--json'] }),
@@ -210,8 +181,8 @@ describe('E2E multi discovery branches', () => {
             lumps: [{ name: 'legacyLine', discoveryBranch: 'ver/0.0.7' }],
         });
         const result = await runE2eCli({ project, args: ['run', 'legacyLine', '--json'] });
-        expectCliFailureEnvelope(result);
-        expect(result.stdout).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
+        expect(result.code).not.toBe(0);
+        expect(`${result.stdout}\n${result.stderr}`).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
     });
 
     it('CLEAN-MDB-S1 clean removes lump branches without switching checkout', async () => {

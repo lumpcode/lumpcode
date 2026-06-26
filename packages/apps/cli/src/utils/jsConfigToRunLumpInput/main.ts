@@ -30,6 +30,9 @@ import { resolveImportable } from '../resolveImportable';
 import { resolveFnOrDefaultImport } from '../resolveFnOrDefaultImport';
 import { makeLumpWorkspaceFns } from '../makeLumpWorkspaceFns';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
+import type { LocalConfig } from '../../types/LocalConfig';
+import { resolveLumpBaseBranch } from '../resolveLumpBranches';
+import { resolvePrimaryDiscoveryBranch } from '../resolveDiscoveryBranches';
 import { lumpBranchName } from '../lumpBranchName';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { lumpHistoryFilePath } from '../lumpHistoryFilePath';
@@ -43,17 +46,22 @@ export async function jsConfigToRunLumpInput({
     executionWorkspacePath,
     workspaceStrategy = 'checkout',
     logger = noopLogger,
+    localConfig,
+    projectJsonBaseBranch,
 }: {
     config: LumpJsConfig;
     lumpName: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
-    /** Project-wide base branch (from `.lumpcode/local.json`). */
+    /** Resolved lump execution branch (from pre-flight) or primary discovery branch. */
     projectBaseBranch: string;
     /** Execution workspace (git repo root) resolved by pre-flight. */
     executionWorkspacePath: string;
     workspaceStrategy?: WorkspaceStrategy;
     logger?: Logger;
+    /** When set, resolves lump baseBranch via the full discovery/base fallback chain. */
+    localConfig?: LocalConfig;
+    projectJsonBaseBranch?: string;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
         baseBranch: lumpBaseBranchOverride,
@@ -78,12 +86,20 @@ export async function jsConfigToRunLumpInput({
     if (!presetInstallResult.success) return presetInstallResult;
 
     const projectRoot = path.dirname(localConfigFolderPath);
-    const baseBranch = lumpBaseBranchOverride ?? projectBaseBranch;
+    const baseBranch = localConfig
+        ? resolveLumpBaseBranch({
+            lumpConfig: config,
+            primaryDiscoveryBranch: resolvePrimaryDiscoveryBranch(localConfig),
+            projectJsonBaseBranch,
+            mode: localConfig.mode,
+        })
+        : (lumpBaseBranchOverride ?? config.discoveryBranch ?? projectBaseBranch);
     const fnImportOptions = { importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }) };
 
     const { setupWorkspaceFn, teardownWorkspaceFn } = makeLumpWorkspaceFns({
         executionWorkspacePath: path.resolve(executionWorkspacePath), // TODO : why need path.resolve ?
         projectBaseBranch,
+        lumpBaseBranch: baseBranch,
         workspaceStrategy,
     });
 
