@@ -19,7 +19,7 @@ describe('readLocalConfig', () => {
     it('returns the parsed config when local.json is valid', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode: 'shared', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'shared', discoveryBranch: 'main' }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
@@ -27,7 +27,7 @@ describe('readLocalConfig', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data).toEqual({
             mode: 'shared',
-            projectBaseBranch: 'main',
+            discoveryBranch: 'main',
             workspaceStrategy: 'checkout',
         });
     });
@@ -50,7 +50,7 @@ describe('readLocalConfig', () => {
     it('fails when mode is not in the enum', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode: 'in-place', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'in-place', discoveryBranch: 'main' }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
@@ -59,7 +59,7 @@ describe('readLocalConfig', () => {
         expect(result.data).toContain('mode');
     });
 
-    it('fails when projectBaseBranch is missing and projectBaseBranches is absent', async () => {
+    it('fails when discoveryBranch is missing and discoveryBranches is absent', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({ mode: 'shared' }),
@@ -68,23 +68,23 @@ describe('readLocalConfig', () => {
         const result = await readLocalConfig({ localConfigFolderPath: dir });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/projectBaseBranch|projectBaseBranches/i);
+        expect(result.data).toMatch(/discoveryBranch|discoveryBranches/i);
     });
 
-    it('accepts valid projectBaseBranches', async () => {
+    it('accepts valid discoveryBranches', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranch: 'main',
+                discoveryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.projectBaseBranches).toEqual(['main', 'ver/0.0.9']);
+        expect(result.data.discoveryBranches).toEqual(['main', 'ver/0.0.9']);
     });
 
     it('accepts array-only config (LC-MULTI-ARRAY-ONLY)', async () => {
@@ -92,40 +92,40 @@ describe('readLocalConfig', () => {
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranches: ['main', 'ver/0.0.9'],
+                discoveryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.projectBaseBranches).toEqual(['main', 'ver/0.0.9']);
-        expect(result.data.projectBaseBranch).toBeUndefined();
+        expect(result.data.discoveryBranches).toEqual(['main', 'ver/0.0.9']);
+        expect(result.data.discoveryBranch).toBeUndefined();
     });
 
-    it('rejects empty projectBaseBranches array (LC-EMPTY-ARRAY)', async () => {
+    it('rejects empty discoveryBranches array (LC-EMPTY-ARRAY)', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: [],
+                discoveryBranch: 'main',
+                discoveryBranches: [],
             }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/empty|projectBaseBranches/i);
+        expect(result.data).toMatch(/empty|discoveryBranches/i);
     });
 
-    it('rejects duplicate branch names in projectBaseBranches (LC-DUPES)', async () => {
+    it('rejects duplicate branch names in discoveryBranches (LC-DUPES)', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
-                projectBaseBranches: ['main', 'main'],
+                discoveryBranch: 'main',
+                discoveryBranches: ['main', 'main'],
             }),
             'utf-8',
         );
@@ -135,25 +135,25 @@ describe('readLocalConfig', () => {
         expect(result.data).toMatch(/duplicate/i);
     });
 
-    it('rejects non-string array elements in projectBaseBranches', async () => {
+    it('rejects non-string array elements in discoveryBranches', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranches: ['main', 42],
+                discoveryBranches: ['main', 42],
             }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/projectBaseBranches/i);
+        expect(result.data).toMatch(/discoveryBranches/i);
     });
 
     it('defaults workspaceStrategy to checkout when omitted', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main' }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
@@ -167,7 +167,7 @@ describe('readLocalConfig', () => {
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'shared',
-                projectBaseBranch: 'main',
+                discoveryBranch: 'main',
                 workspaceStrategy: 'worktree',
             }),
             'utf-8',
@@ -183,7 +183,7 @@ describe('readLocalConfig', () => {
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'shared',
-                projectBaseBranch: 'main',
+                discoveryBranch: 'main',
                 disabled: true,
             }),
             'utf-8',
@@ -197,7 +197,7 @@ describe('readLocalConfig', () => {
     it('fails when disabled is not a boolean', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode: 'shared', projectBaseBranch: 'main', disabled: 'yes' }),
+            JSON.stringify({ mode: 'shared', discoveryBranch: 'main', disabled: 'yes' }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });
@@ -206,10 +206,10 @@ describe('readLocalConfig', () => {
         expect(result.data).toContain('disabled');
     });
 
-    it('fails when projectBaseBranch is an empty string', async () => {
+    it('fails when discoveryBranch is an empty string', async () => {
         await fs.writeFile(
             path.join(dir, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode: 'dedicated', projectBaseBranch: '' }),
+            JSON.stringify({ mode: 'dedicated', discoveryBranch: '' }),
             'utf-8',
         );
         const result = await readLocalConfig({ localConfigFolderPath: dir });

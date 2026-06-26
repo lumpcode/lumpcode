@@ -36,20 +36,20 @@ describe('validateLumpJsonConfig', () => {
         expect(result.success).toBe(true);
     });
 
-    it('accepts optional allowUnlistedBaseBranch boolean', () => {
+    it('accepts optional discoveryBranch string', () => {
         const result = validateLumpJsonConfig({
             contextListJson: { FILE: 'src/{FILE}' },
             prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
-            allowUnlistedBaseBranch: true,
+            discoveryBranch: 'ver/0.0.9',
         });
         expect(result.success).toBe(true);
     });
 
-    it('rejects non-boolean allowUnlistedBaseBranch', () => {
+    it('rejects non-string discoveryBranch', () => {
         const result = validateLumpJsonConfig({
             contextListJson: { FILE: 'src/{FILE}' },
             prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
-            allowUnlistedBaseBranch: 'yes',
+            discoveryBranch: 42,
         });
         expect(result.success).toBe(false);
     });

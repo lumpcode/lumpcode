@@ -34,8 +34,8 @@ describe('runProjectPreflight', () => {
         await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
     });
 
-    async function writeLocalJsonDedicated(projectBaseBranch = 'main') {
-        await writeLocalJson(localConfigFolderPath, { mode: 'dedicated', projectBaseBranch });
+    async function writeLocalJsonDedicated(discoveryBranch = 'main') {
+        await writeLocalJson(localConfigFolderPath, { mode: 'dedicated', discoveryBranch });
     }
 
     it('hard-fails when local.json is missing', async () => {
@@ -49,7 +49,7 @@ describe('runProjectPreflight', () => {
         expect(result.data).toContain('Missing .lumpcode/local.json');
     });
 
-    it('returns the resolved workspace + projectBaseBranch + mode in dedicated mode', async () => {
+    it('returns the resolved workspace + primary discovery branch + mode in dedicated mode', async () => {
         await writeLocalJsonDedicated();
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
@@ -65,7 +65,7 @@ describe('runProjectPreflight', () => {
     });
 
     it('returns the project copy as executionWorkspacePath in shared mode', async () => {
-        await writeLocalJson(localConfigFolderPath, { mode: 'shared', projectBaseBranch: 'main' });
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', discoveryBranch: 'main' });
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
             localConfigFolderPath,
@@ -84,7 +84,7 @@ describe('runProjectPreflight', () => {
             path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
             JSON.stringify({
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
+                discoveryBranch: 'main',
                 workspaceStrategy: 'worktree',
             }),
             'utf-8',
@@ -96,7 +96,7 @@ describe('runProjectPreflight', () => {
             globalConfigFolderPath,
             localConfig: {
                 mode: 'dedicated',
-                projectBaseBranch: 'main',
+                discoveryBranch: 'main',
                 workspaceStrategy: 'checkout',
             },
         });
@@ -105,10 +105,10 @@ describe('runProjectPreflight', () => {
         expect(result.data.workspaceStrategy).toBe('checkout');
     });
 
-    it('defaults to primary integration branch when targetBranch is omitted', async () => {
+    it('defaults to primary discovery branch when targetBranch is omitted', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         git('checkout -b ver/0.0.9', projectRoot);
         git('commit --allow-empty -m "ver"', projectRoot);
@@ -128,8 +128,8 @@ describe('runProjectPreflight', () => {
     it('pre-flights to targetBranch ver/0.0.9 when specified', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         await createIntegrationBranch({
             projectRoot,
@@ -166,8 +166,8 @@ describe('runProjectPreflight', () => {
     it('shared mode + targetBranch leaves source checkout untouched and syncs copy', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         await createIntegrationBranch({
             projectRoot,
