@@ -10,7 +10,10 @@ import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import { discoverLoadableLumpNames } from '../../utils/discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import { readLocalConfig } from '../../utils/readLocalConfig';
-import { resolvePrimaryDiscoveryBranch } from '../../utils/resolveDiscoveryBranches';
+import { readProjectJsonBaseBranch } from '../../utils/readProjectJsonBaseBranch';
+import { resolveDiscoveryBranches } from '../../utils/resolveDiscoveryBranches';
+import { resolveLumpBranches } from '../../utils/resolveLumpBranches';
+import { validateLumpDiscoveryBranchAllowlist } from '../../utils/validateLumpDiscoveryBranchAllowlist';
 import { updateContextStatusRecord } from '../../utils/updateContextStatusRecord';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
@@ -49,7 +52,9 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
     const localConfigResult = await readLocalConfig({ localConfigFolderPath });
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
-    const { projectBaseBranch } = { projectBaseBranch: resolvePrimaryDiscoveryBranch(localConfigResult.data) };
+    const localConfig = localConfigResult.data;
+    const effectiveDiscoveryBranches = resolveDiscoveryBranches(localConfig);
+    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
 
     const lumpNameOpt = rawLumpName?.trim() ? rawLumpName.trim() : undefined;
 
@@ -73,10 +78,26 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 messages: [`Lump "${lumpName}": ${jsConfResult.data}`],
             });
         }
+
+        const { resolvedDiscoveryBranch, resolvedBaseBranch } = resolveLumpBranches({
+            lumpConfig: jsConfResult.data,
+            localConfig,
+            projectJsonBaseBranch,
+        });
+        const allowlistResult = validateLumpDiscoveryBranchAllowlist({
+            mode: localConfig.mode,
+            lumpName,
+            resolvedDiscoveryBranch,
+            effectiveDiscoveryBranches,
+        });
+        if (!allowlistResult.success) {
+            return failure({ messages: [allowlistResult.data] });
+        }
+
         const updateResult = await updateContextStatusRecord({
             projectRoot,
             lumpName,
-            baseBranch: jsConfResult.data.baseBranch ?? projectBaseBranch,
+            baseBranch: resolvedBaseBranch,
         });
         if (!updateResult.success) {
             const err = updateResult.data;

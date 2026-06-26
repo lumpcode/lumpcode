@@ -279,6 +279,53 @@ export function sharedModeCopyPath(globalConfigFolderPath: string, projectName: 
 }
 
 /**
+ * Scaffolds a lump with e2e mock agent (`config.json`, `e2e-mock-agent.cjs`, and
+ * `commands/e2e-agent-<lumpName>.js`) under an existing project checkout.
+ */
+export async function writeE2eLumpFixture(input: {
+    projectRoot: string;
+    lumpName: string;
+    configOverrides?: Record<string, unknown>;
+}): Promise<void> {
+    const { projectRoot, lumpName, configOverrides = {} } = input;
+    const commandName = `e2e-agent-${lumpName}`;
+    const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', lumpName);
+    const commandsDir = path.join(projectRoot, '.lumpcode', 'commands');
+    await fs.mkdir(lumpDir, { recursive: true });
+    await fs.mkdir(commandsDir, { recursive: true });
+    await fs.writeFile(
+        path.join(lumpDir, 'config.json'),
+        JSON.stringify(
+            {
+                ...defaultE2eLumpConfigJson({ command: commandName }),
+                ...configOverrides,
+            },
+            null,
+            2,
+        ),
+        'utf-8',
+    );
+    await fs.writeFile(
+        path.join(lumpDir, E2E_MOCK_AGENT_SCRIPT_BASENAME),
+        createE2eMockAgentScript({ lumpName }),
+        'utf-8',
+    );
+    await fs.writeFile(
+        path.join(commandsDir, `${commandName}.js`),
+        createE2eAgentCommandModule({ lumpName }),
+        'utf-8',
+    );
+}
+
+function gitCommitIntegrationBranch(projectRoot: string, branchName: string): void {
+    try {
+        git(`commit -m "integration ${branchName}"`, projectRoot);
+    } catch {
+        git(`commit --allow-empty -m "integration ${branchName}"`, projectRoot);
+    }
+}
+
+/**
  * Creates and pushes an integration branch from `main`, runs `mutateFn` to add
  * branch-only lumps or files, then returns the checkout to `main`.
  */
@@ -291,7 +338,7 @@ export async function pushIntegrationBranch(
     git(`checkout -b ${branchName} origin/main`, project.projectRoot);
     await mutateFn(project.projectRoot);
     git('add -A', project.projectRoot);
-    git(`commit -m "integration ${branchName}"`, project.projectRoot);
+    gitCommitIntegrationBranch(project.projectRoot, branchName);
     git(`push -u origin ${branchName}`, project.projectRoot);
     git('checkout main', project.projectRoot);
 }

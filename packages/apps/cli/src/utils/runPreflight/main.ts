@@ -6,6 +6,7 @@ import { execAsync, failure, type Failure, shellSingleQuote, success, type Succe
 import type { Mode } from '../../types/Mode';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { projectCopiesRootPath } from '../projectCopiesRootPath';
+import { rememberSharedExecutionWorkspace } from '../recallSharedExecutionWorkspace';
 
 export interface RunPreflightInput {
     mode: Mode;
@@ -61,6 +62,10 @@ export async function runPreflight(input: RunPreflightInput): Promise<Success<Ru
 
     const pullResult = await pullProjectBaseBranch({ executionWorkspacePath, projectBaseBranch });
     if (!pullResult.success) return pullResult;
+
+    if (mode === 'shared') {
+        rememberSharedExecutionWorkspace(sourceProjectRoot, executionWorkspacePath);
+    }
 
     return success({ executionWorkspacePath });
 }
@@ -147,11 +152,13 @@ async function pullProjectBaseBranch({
     executionWorkspacePath: string;
     projectBaseBranch: string;
 }): Promise<Success<void> | Failure<string>> {
+    const quotedOriginRef = shellSingleQuote(`origin/${projectBaseBranch}`);
+    const quotedBranch = shellSingleQuote(projectBaseBranch);
     const commands = [
         'git fetch --all',
-        `git switch ${projectBaseBranch}`,
-        `git reset --hard origin/${projectBaseBranch}`,
-        `git pull origin ${projectBaseBranch}`,
+        `git switch ${quotedBranch}`,
+        `git reset --hard ${quotedOriginRef}`,
+        `git pull origin ${quotedBranch}`,
     ];
 
     for (const command of commands) {

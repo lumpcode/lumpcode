@@ -27,12 +27,15 @@ const localConfigSchema = z
     .object({
         mode: z.enum(['shared', 'dedicated']),
         discoveryBranch: z.string().min(1, 'discoveryBranch must be a non-empty string').optional(),
+        /** @deprecated Use `discoveryBranch`. Accepted for legacy local.json files. */
+        projectBaseBranch: z.string().min(1, 'projectBaseBranch must be a non-empty string').optional(),
         discoveryBranches: discoveryBranchesSchema.optional(),
         workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
         disabled: z.boolean().optional(),
     })
     .superRefine((value, ctx) => {
-        const hasSingular = value.discoveryBranch !== undefined;
+        const hasSingular =
+            value.discoveryBranch !== undefined || value.projectBaseBranch !== undefined;
         const hasArray = value.discoveryBranches !== undefined;
         if (!hasSingular && !hasArray) {
             ctx.addIssue({
@@ -41,6 +44,15 @@ const localConfigSchema = z
                 path: ['discoveryBranch'],
             });
         }
+    })
+    .transform((value) => {
+        const { projectBaseBranch, ...rest } = value;
+        return {
+            ...rest,
+            ...(rest.discoveryBranch === undefined && projectBaseBranch !== undefined
+                ? { discoveryBranch: projectBaseBranch }
+                : {}),
+        };
     });
 
 const MISSING_HINT =
