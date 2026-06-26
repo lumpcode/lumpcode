@@ -3,6 +3,7 @@ import path from "node:path";
 import { failure, Failure, runLump, RunLumpOutput, success, Success, type Logger } from "@lumpcode/core";
 
 import { LumpJsConfig } from "../../types";
+import type { LocalConfig } from "../../types/LocalConfig";
 import type { WorkspaceStrategy } from "../../types/WorkspaceStrategy";
 import {
     acquireBranchWorkspaceLock,
@@ -11,7 +12,12 @@ import {
 } from "../branchWorkspaceLock";
 import { countOpenLumpBranches } from "../countOpenLumpBranches";
 import { jsConfigToRunLumpInput } from "../jsConfigToRunLumpInput";
+import { readLocalConfig } from "../readLocalConfig";
+import { readProjectJsonBaseBranch } from "../readProjectJsonBaseBranch";
 import { resolveBranchWorkspacePathForLumpRun } from "../resolveBranchWorkspacePathForLumpRun";
+import { resolveDiscoveryBranches } from "../resolveDiscoveryBranches";
+import { resolveLumpBranches } from "../resolveLumpBranches";
+import { validateLumpDiscoveryBranchAllowlist } from "../validateLumpDiscoveryBranchAllowlist";
 import { updateContextStatusRecord } from "../updateContextStatusRecord";
 
 export type { BranchWorkspaceBusyError } from '../branchWorkspaceLock';
@@ -57,7 +63,28 @@ export async function runLumpFromJsConfig(input: {
     } = input;
 
     const projectRoot = path.dirname(localConfigFolderPath);
-    const effectiveBaseBranch = jsConfig.baseBranch ?? projectBaseBranch;
+
+    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
+    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
+    let resolvedBaseBranch = jsConfig.baseBranch ?? jsConfig.discoveryBranch ?? projectBaseBranch;
+
+    if (localConfigResult.success) {
+        const localConfig = localConfigResult.data;
+        const branches = resolveLumpBranches({
+            lumpConfig: jsConfig,
+            localConfig,
+            projectJsonBaseBranch,
+        });
+        resolvedBaseBranch = branches.resolvedBaseBranch;
+
+        const allowlistResult = validateLumpDiscoveryBranchAllowlist({
+            mode: localConfig.mode,
+            lumpName,
+            resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
+            effectiveDiscoveryBranches: resolveDiscoveryBranches(localConfig),
+        });
+        if (!allowlistResult.success) return failure(allowlistResult.data);
+    }
 
     const runLumpInputResult = await jsConfigToRunLumpInput({
         config: jsConfig,
@@ -68,6 +95,8 @@ export async function runLumpFromJsConfig(input: {
         executionWorkspacePath,
         workspaceStrategy,
         logger,
+        localConfig: localConfigResult.success ? localConfigResult.data : undefined,
+        projectJsonBaseBranch,
     });
 
     if (!runLumpInputResult.success) return failure(runLumpInputResult.data);
@@ -126,7 +155,7 @@ export async function runLumpFromJsConfig(input: {
         const updateContextStatusRecordResult = await updateContextStatusRecord({
             projectRoot,
             lumpName,
-            baseBranch: effectiveBaseBranch,
+            baseBranch: resolvedBaseBranch,
         });
 
         if (!updateContextStatusRecordResult.success) {
