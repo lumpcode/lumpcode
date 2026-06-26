@@ -6,6 +6,15 @@
   ref: multi-project-base-branches.reference.md
   type: feature
   priority: 1
+- name: execution-workspace-setup-lock
+  task: >-
+    Serialize git mutations on the execution workspace from per-lump pre-flight
+    through branch workspace setup; release before agent loop. Complements
+    branch workspace lock.
+  type: feature
+  priority: 1
+  dependsOn:
+    - multi-project-base-branches
 - name: npm-package-cross-links
   task: >-
     On npm package README pages, add links to sibling Lumpcode packages —
