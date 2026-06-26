@@ -15,6 +15,13 @@
   priority: 1
   dependsOn:
     - multi-project-base-branches
+- name: daemon-stop-mid-run
+  task: >-
+    stop --force SIGKILLs daemon plus all descendants (ps/pgrep tree walk, no
+    pid collection); default stop reads meta.busy and prints info instead of
+    timing out when a lump run is active.
+  type: bugfix
+  priority: 2
 - name: npm-package-cross-links
   task: >-
     On npm package README pages, add links to sibling Lumpcode packages —
