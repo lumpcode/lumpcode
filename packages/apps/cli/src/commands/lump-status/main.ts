@@ -10,6 +10,7 @@ import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import { discoverLoadableLumpNames } from '../../utils/discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import { readLocalConfig } from '../../utils/readLocalConfig';
+import { resolvePrimaryDiscoveryBranch } from '../../utils/resolveDiscoveryBranches';
 import { updateContextStatusRecord } from '../../utils/updateContextStatusRecord';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
@@ -48,7 +49,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
     const localConfigResult = await readLocalConfig({ localConfigFolderPath });
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
-    const { projectBaseBranch } = localConfigResult.data;
+    const { projectBaseBranch } = { projectBaseBranch: resolvePrimaryDiscoveryBranch(localConfigResult.data) };
 
     const lumpNameOpt = rawLumpName?.trim() ? rawLumpName.trim() : undefined;
 

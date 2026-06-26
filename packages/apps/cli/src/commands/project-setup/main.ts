@@ -179,7 +179,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
 
     const localConfig: LocalConfig = {
         mode: input.options.mode ?? DEFAULT_MODE,
-        projectBaseBranch: input.options.projectBaseBranch?.trim() || DEFAULT_PROJECT_BASE_BRANCH,
+        discoveryBranch: input.options.projectBaseBranch?.trim() || DEFAULT_PROJECT_BASE_BRANCH,
         workspaceStrategy: 'checkout',
     };
 

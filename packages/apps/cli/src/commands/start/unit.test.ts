@@ -45,7 +45,7 @@ async function writeDefaultLocalJson(
 ) {
     await fs.writeFile(
         path.join(projectRoot, '.lumpcode', 'local.json'),
-        JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main', ...overrides }),
+        JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main', ...overrides }),
         'utf-8',
     );
 }
@@ -617,7 +617,7 @@ describe('start command', () => {
     });
 });
 
-describe('start command — multi project base branches', () => {
+describe('start command — multi discovery branches', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;
@@ -660,19 +660,22 @@ describe('start command — multi project base branches', () => {
     async function writeMultiLocal(overrides: Record<string, unknown> = {}) {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
             ...overrides,
         });
     }
 
     async function seedMainAndReleaseLumps() {
-        await writeMinimalLump(projectRoot, 'mainLine');
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
-            lumpSpecs: [{ name: 'releaseLine', configOverrides: { baseBranch: 'ver/0.0.9' } }],
+            lumpSpecs: [{
+                name: 'releaseLine',
+                configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+            }],
         });
     }
 
@@ -687,9 +690,9 @@ describe('start command — multi project base branches', () => {
         expect(result.success).toBe(true);
     });
 
-    it('fails launch when the same lumpName exists on two branches', async () => {
+    it('succeeds launch when the same lumpName exists on two discovery branches (sharedName)', async () => {
         await writeMultiLocal();
-        await writeMinimalLump(projectRoot, 'sameName');
+        await writeMinimalLump(projectRoot, 'sharedName', { discoveryBranch: 'main' });
         git('add -A', projectRoot);
         git('commit -m "same on main"', projectRoot);
         git('push origin main', projectRoot);
@@ -697,29 +700,19 @@ describe('start command — multi project base branches', () => {
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
-            lumpSpecs: [{ name: 'sameName' }],
+            lumpSpecs: [{ name: 'sharedName', configOverrides: { discoveryBranch: 'ver/0.0.9' } }],
         });
 
-        const pathsResult = await resolveDaemonPaths({
-            projectRoot,
-            localConfigFolderPath: localConfigFolderPath(),
-            globalConfigFolderPath,
-        });
-        if (!pathsResult.success) throw new Error(pathsResult.data);
-
-        const result = await makeStartHandler()({
+        const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
             options: { foreground: true, cronSetup: '*/5 * * * *' },
             arguments: {},
         });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/duplicate|sameName/i);
-        await expect(fs.access(pathsResult.data.pidFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect(result.success).toBe(true);
     });
 
-    it('fails launch for unlisted lump baseBranch without opt-out', async () => {
-        await writeMultiLocal({ projectBaseBranches: ['main'] });
-        await writeMinimalLump(projectRoot, 'legacyLine', { baseBranch: 'ver/0.0.7' });
+    it('fails launch for unlisted lump discoveryBranch', async () => {
+        await writeMultiLocal({ discoveryBranches: ['main'] });
+        await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
 
         const result = await makeStartHandler()({
             options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -727,7 +720,7 @@ describe('start command — multi project base branches', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/allowlist|ver\/0\.0\.7/i);
+        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
     });
 
     it('fails launch when a branch has unloadable lump config', async () => {
@@ -779,13 +772,16 @@ describe('start command — multi project base branches', () => {
         }
     });
 
-    it('fails start --lumpName when lump baseBranch is not in effective list', async () => {
+    it('fails start --lumpName when lump discoveryBranch is not in effective list', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main'],
         });
-        await writeMinimalLump(projectRoot, 'releaseLine', { baseBranch: 'ver/0.0.9' });
+        await writeMinimalLump(projectRoot, 'releaseLine', {
+            discoveryBranch: 'ver/0.0.9',
+            baseBranch: 'ver/0.0.9',
+        });
 
         const result = await makeStartHandler()({
             options: { lumpName: 'releaseLine', foreground: true },
@@ -793,12 +789,15 @@ describe('start command — multi project base branches', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|allowlist|list/i);
+        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|discoveryBranch|discoveryBranches/i);
     });
 
-    it('succeeds start --lumpName when lump baseBranch is listed', async () => {
+    it('succeeds start --lumpName when lump discoveryBranch is listed', async () => {
         await writeMultiLocal();
-        await writeMinimalLump(projectRoot, 'releaseLine', { baseBranch: 'ver/0.0.9' });
+        await writeMinimalLump(projectRoot, 'releaseLine', {
+            discoveryBranch: 'ver/0.0.9',
+            baseBranch: 'ver/0.0.9',
+        });
         await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'ver/0.0.9' });
 
         const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
@@ -808,36 +807,48 @@ describe('start command — multi project base branches', () => {
         expect(result.success).toBe(true);
     });
 
-    it('shared mode launch succeeds without multi-branch discovery loop', async () => {
+    it('shared mode launch succeeds without multi-discovery branch loop', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'shared',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['main', 'ver/0.0.9'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['main', 'ver/0.0.9'],
         });
         await writeMinimalLump(projectRoot, 'mainLine');
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-        const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
-        expect(result.success).toBe(true);
-        const targetBranches = preflightSpy.mock.calls.map((c) => c[0].targetBranch);
-        expect(targetBranches.filter((b) => b === 'ver/0.0.9')).toHaveLength(0);
+        try {
+            const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            const targetBranches = preflightSpy.mock.calls.map((c) => c[0].targetBranch);
+            expect(targetBranches.filter((b) => b === 'ver/0.0.9')).toHaveLength(0);
+            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
+            expect(logged).toMatch(/multi.*discovery|dedicated/i);
+        } finally {
+            logSpy.mockRestore();
+            warnSpy.mockRestore();
+        }
     });
 
-    it('tick pre-flights branches in LC-MULTI-ORDER array order', async () => {
+    it('tick pre-flights discovery branches in LC-MULTI-ORDER array order', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            projectBaseBranch: 'main',
-            projectBaseBranches: ['ver/0.0.9', 'main'],
+            discoveryBranch: 'main',
+            discoveryBranches: ['ver/0.0.9', 'main'],
         });
-        await writeMinimalLump(projectRoot, 'mainLine');
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
-            lumpSpecs: [{ name: 'releaseLine', configOverrides: { baseBranch: 'ver/0.0.9' } }],
+            lumpSpecs: [{
+                name: 'releaseLine',
+                configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+            }],
         });
 
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
@@ -846,7 +857,7 @@ describe('start command — multi project base branches', () => {
             arguments: {},
         });
 
-        const branches = preflightSpy.mock.calls.map((c) => c[0].targetBranch ?? c[0].localConfig?.projectBaseBranch);
+        const branches = preflightSpy.mock.calls.map((c) => c[0].targetBranch);
         const ordered = branches.filter((b): b is string => b === 'ver/0.0.9' || b === 'main');
         expect(ordered.indexOf('ver/0.0.9')).toBeLessThan(ordered.indexOf('main'));
     });

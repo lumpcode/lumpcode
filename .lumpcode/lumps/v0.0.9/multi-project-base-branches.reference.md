@@ -1,260 +1,259 @@
-# Multi `projectBaseBranches` — problem statement and adopted design (v0.0.9)
+# Multi discovery branches — problem statement and adopted design (v0.0.9)
 
-Reference for implementing integration-branch-aware lump discovery, daemon scheduling, and dependency rules. Captures decisions from design discussion (2026); target release planning lives under `.lumpcode/lumps/v0.0.9/`.
+Reference for implementing discovery-branch-aware lump inventory, daemon scheduling, and dependency rules. Captures decisions from design discussion (2026); target release planning lives under `.lumpcode/lumps/v0.0.9/`.
 
 ---
 
 ## Problems
 
-### 1. Context discovery does not run on the lump integration branch (dedicated mode)
+### 1. Context discovery does not run on the lump's discovery line (dedicated mode)
 
 Today, before a lump executes:
 
-- Pre-flight resets the **execution workspace** to a single `projectBaseBranch` from `.lumpcode/local.json`.
-- `getToDoContextList` (and thus `getContextListFn`) reads the **source** `projectRoot` filesystem and runs `getContextStatus` with `cwd: projectRoot`.
-- There is **no** `git switch` to the lump's `baseBranch` until `setupWorkspaceFn` inside `executeStepsForContextList` — after context discovery has already run twice (`resolveBranchWorkspacePathForLumpRun` and `runLump`).
-
-For lumps with `baseBranch` different from `local.json` `projectBaseBranch` (e.g. `v0.0.7` on `ver/0.0.7`), discovery can read the wrong tree on a **dedicated** machine: `TODO.yaml`, PRD/test-plan existence checks, and file scans reflect whatever branch the checkout was on before pre-flight targeted the wrong branch.
+- Pre-flight resets the **execution workspace** to a single branch from `.lumpcode/local.json`.
+- `getToDoContextList` reads the **source** `projectRoot` filesystem before `setupWorkspaceFn` switches to the lump's integration branch.
+- Lump config and `TODO.yaml` on a release line (`ver/0.0.9`) are invisible when the checkout stayed on `main`.
 
 **Shared mode is different by design** — see [Shared mode: execution vs discovery](#shared-mode-execution-vs-discovery).
 
 ### 2. Dedicated continuous runners cannot discover branch-local lumps
 
-Lump inventory is `readdir` under `.lumpcode/lumps/` on the **current checkout** (`discoverLoadableLumpNames`). A machine pinned to `main` never sees lumps that exist only on `ver/0.0.7`. Release-line lumps added on integration branches stay invisible until someone manually switches branch and pulls.
+Lump inventory is `readdir` under `.lumpcode/lumps/` on the **current checkout**. A machine pinned to `main` never sees lumps that exist only on `ver/0.0.9`.
 
-### 3. Cross-lump dependencies across different integration branches (deferred)
+### 3. `baseBranch` mixed execution and discovery
 
-If lump A on `ver/0.0.7` depends on lump B, resolving B's `baseBranch` for status checks requires B's config. On A's branch, `.lumpcode/lumps/B/` may not exist. General cross-`baseBranch` cross-lump dependency resolution needs cross-branch lump metadata (registry, `git show`, etc.) — out of scope for v1.
+Lump **`baseBranch`** was used both for git integration (markers, pre-flight, worktrees) and implicitly for "which line this lump belongs to." Operators need two concepts:
+
+| Concept | Lump field | Purpose |
+| --- | --- | --- |
+| **Execution / git integration** | `baseBranch` | Pre-flight target for run, marker commits, `finished` on `origin/<baseBranch>`, worktree base |
+| **Discovery / inventory** | `discoveryBranch` | Which integration line holds this lump's folder for daemon scan and dedicated discovery |
 
 ---
 
 ## Adopted solution (v0.0.9 scope)
 
-### `projectBaseBranch` and `projectBaseBranches` in `local.json`
+### `discoveryBranch` and `discoveryBranches` in `local.json`
 
-Single-branch installs keep using **`projectBaseBranch`**. Multi-branch installs may set **`projectBaseBranches`** alone or together with the singular field.
+Replaces **`projectBaseBranch` / `projectBaseBranches`** in **`local.json`** only. **`project.json` keeps `projectBaseBranch`** as the legacy tail of lump **`baseBranch`** fallback (last priority).
 
-**Resolution (effective allowlist):**
+**Effective discovery list:**
 
-1. If `projectBaseBranches` is present → use it (non-empty `string[]`).
-2. Else → use `[projectBaseBranch]` from the singular field.
+```text
+effectiveDiscoveryBranches =
+  discoveryBranches non-empty ? discoveryBranches : [discoveryBranch]
 
-**Primary branch** (single value for defaults such as lump `baseBranch` fallback and default pre-flight target): `projectBaseBranch` when set, else the **first element** of `projectBaseBranches`.
+primaryDiscoveryBranch = effectiveDiscoveryBranches[0]
+```
 
-Do not require projects to migrate to the array form. Single-branch installs continue to scaffold and edit only `projectBaseBranch`.
+When **`discoveryBranches` is non-empty**, it **wins** over singular `discoveryBranch` (do not merge arrays).
 
-**Validation at parse:**
+**Parse validation:**
 
-- Require **at least one** of `projectBaseBranch` or non-empty `projectBaseBranches`.
-- Reject an empty `projectBaseBranches` array.
-- Reject duplicate branch names in `projectBaseBranches`.
-- Branch existence on `origin` is **not** checked at parse — pre-flight fails lazily with a clear error if a listed branch is missing.
+- Require at least one of `discoveryBranch` or non-empty `discoveryBranches`.
+- Reject empty `discoveryBranches` array and duplicate branch names.
+- Branch existence on `origin` is **not** checked at parse — pre-flight fails lazily.
 
-Multi-branch example (array only):
+Multi-branch example:
 
 ```json
 {
   "mode": "dedicated",
-  "projectBaseBranches": ["main", "ver/0.0.7"],
+  "discoveryBranches": ["main", "ver/0.0.9"],
   "workspaceStrategy": "checkout"
 }
 ```
 
-Multi-branch example (both fields):
+Single-branch example:
 
 ```json
 {
   "mode": "dedicated",
-  "projectBaseBranch": "main",
-  "projectBaseBranches": ["main", "ver/0.0.7"],
-  "workspaceStrategy": "checkout"
-}
-```
-
-When both are set, **`projectBaseBranches` wins** for the effective list; `projectBaseBranch` may remain for backward compatibility or as an explicit primary override when set, but runtime logic must not merge the two arrays.
-
-Single-branch example (unchanged from today):
-
-```json
-{
-  "mode": "dedicated",
-  "projectBaseBranch": "main"
+  "discoveryBranch": "main"
 }
 ```
 
 Effective list: `["main"]`.
 
-**Meaning:** the resolved list is the official integration branches this project installation may operate on — allowlist and (in dedicated mode) discovery scope for lumps.
+**Meaning:** `effectiveDiscoveryBranches` is the allowlist for lump **`discoveryBranch`** in dedicated mode and the discovery-branch loop for dedicated daemons.
 
-### Lump `baseBranch` must be listed (with legacy opt-out)
+### Lump config: `baseBranch` and `discoveryBranch`
 
-- Every lump's resolved `baseBranch` (`config.baseBranch ?? primary integration branch` — `projectBaseBranch` when set, else first `projectBaseBranches` element) must be **included in** the effective integration-branch list (from `projectBaseBranches` if set, else `[projectBaseBranch]`).
-- If not listed → **fail at run start** (manual `run`, `lump-plan` validate) or **fail at daemon launch** (see below) with a clear error.
-- **Opt-out:** `allowUnlistedBaseBranch: true` on the lump config restores **legacy behavior**: no validation against the effective integration-branch list.
+**Resolution:**
 
-Apply this rule in **both** `shared` and `dedicated` mode.
+```text
+resolvedDiscoveryBranch = lump.discoveryBranch ?? primaryDiscoveryBranch
+
+resolvedBaseBranch =
+  lump.baseBranch
+  ?? lump.discoveryBranch
+  ?? primaryDiscoveryBranch
+  ?? project.json projectBaseBranch
+```
+
+- Omitted **`baseBranch`** → execution defaults to discovery line (then primary, then legacy `project.json`).
+- **`discoveryBranch`** optional; defaults to `primaryDiscoveryBranch`.
+- **`baseBranch` is not allowlisted** — may differ from `discoveryBranch` (e.g. discover on `main`, execute on `ver/0.0.9`).
+
+### Dedicated allowlist
+
+When `mode` is **`dedicated`**, **`resolvedDiscoveryBranch` must be in `effectiveDiscoveryBranches`** for:
+
+- `lumpcode run`
+- `lump-plan`
+- `lump-status`
+- Daemon launch and tick (skip or fail with clear message)
+
+**Shared mode:** no allowlist on any command; lump **`discoveryBranch` is ignored** for validation and scheduling.
 
 ### Pre-flight: no change to the core primitive
 
-Keep `pullProjectBaseBranch` / `runPreflight` as they are: `git fetch --all`, `git switch <branch>`, `git reset --hard origin/<branch>`, `git pull origin <branch>` at the execution workspace.
-
-**What changes:** **who calls it, with which branch, and when** — not the pre-flight implementation itself.
+Keep `pullProjectBaseBranch` / `runPreflight` as they are. **What changes:** callers, target branch, and when.
 
 | Caller | Behavior |
-|--------|----------|
-| Manual `lumpcode run` | Load lump config from **current checkout** (fail if not found); validate allowlist; pre-flight execution workspace to the **lump's** `baseBranch`; then discovery + run |
-| Dedicated daemon tick | Branch-ordered loop — see [Dedicated daemon](#dedicated-daemon-branch-ordered-tick) |
-| Shared mode | Pre-flight on the **copy** targets the lump's `baseBranch` for execution; discovery reads **source** — see below |
-| `lump-plan` / `lump-status` | **Non-destructive** — no pre-flight; discovery reads current checkout |
-| `lumpcode clean` | **No pre-flight** — delete lump branches on remote, local checkout, and shared copies |
+| --- | --- |
+| Manual `lumpcode run` | Config from current checkout; dedicated allowlist; pre-flight to **`resolvedBaseBranch`** |
+| Dedicated daemon tick | Loop discovery branches → pre-flight to discovery branch → discover → pre-flight each lump to **`resolvedBaseBranch`** → run |
+| Shared mode | Copy pre-flight to lump **`resolvedBaseBranch`**; discovery reads **source** |
+| `lump-plan` / `lump-status` | Non-destructive; dedicated allowlist only; no pre-flight |
+| `lumpcode clean` | No pre-flight |
 
-In **dedicated** mode, once the checkout is on the lump's `baseBranch`, `projectRoot` equals the execution workspace — filesystem discovery and `getContextListFn` align with the integration branch without changing `getToDoContextList` internals.
+In **dedicated** mode, after pre-flight to the discovery branch, filesystem discovery aligns with that line. Each lump run pre-flights again to **`resolvedBaseBranch`** when it differs.
 
-Workspace teardown (`makeLumpWorkspaceFns`) must switch back to the **lump's resolved `baseBranch`** (the branch pre-flighted for this run), not the primary integration branch from `local.json` when they differ.
+Workspace teardown (`makeLumpWorkspaceFns`) switches back to lump **`resolvedBaseBranch`**, not `primaryDiscoveryBranch` when they differ.
 
 ---
 
 ## Shared mode: execution vs discovery
 
-In **shared** mode, Lumpcode deliberately splits where work happens:
+Lumpcode does **not** perform branch-aware discovery in shared mode:
 
 | Concern | Workspace | Branch |
-|---------|-----------|--------|
-| **Execution** (agent, git commits, lump branches) | Copy under `~/.lumpcode/project-copies/<projectName>/` | Pre-flight resets copy to lump's `baseBranch` |
-| **Discovery** (`getContextListFn`, file scans, `TODO.yaml`, PRD checks) | **Source** `projectRoot` (day-to-day clone) | Whatever **you** have checked out locally |
+| --- | --- | --- |
+| **Execution** | Copy under `~/.lumpcode/project-copies/<projectName>/` | Pre-flight to lump **`resolvedBaseBranch`** |
+| **Discovery** | **Source** `projectRoot` | Whatever **you** have checked out |
 
-This is **intentional**, not a bug to fix in v0.0.9:
+- **You manage discovery** on source (e.g. `git switch ver/0.0.9` before running a release-line lump).
+- **Edit locally, run without pushing** — discovery sees source; execution uses the copy at the lump's integration branch.
+- **`discoveryBranch` on lump config is ignored** in shared mode.
+- **No allowlist** in shared mode.
+- If `effectiveDiscoveryBranches.length > 1`: log **info/warning** at daemon start that multi-discovery is **dedicated-only**; use **`primaryDiscoveryBranch`** where a single primary is needed.
 
-- **You manage discovery.** Keep your source checkout aligned with the lump you intend to run, or accept that context lists and file scans reflect your local tree.
-- **Edit locally, run without pushing.** You can modify a lump config or context sources on source and run immediately — discovery sees your uncommitted changes while execution happens on the synced copy at the lump's integration branch. This is a primary shared-mode workflow.
-
-Operational expectations to document in user-facing DOCS:
-
-- Match source branch to the lump's integration line when you care about branch-accurate discovery (e.g. `git switch ver/0.0.7` before running a lump on that line).
-- `getContextStatus` still uses remote refs (`origin/<lump baseBranch>`); local checkout does not gate `finished` / `branchPushed`.
-- Multi-branch daemon discovery is **dedicated-only**; shared-mode daemons discover lumps from whatever is on source at tick time.
+Multi-branch daemon discovery loop is **dedicated-only**.
 
 ---
 
-## Dedicated daemon: branch-ordered tick
+## Dedicated daemon: discovery-branch-ordered tick
 
-No LRU or per-branch scheduling meta in v0.0.9. Single-branch and multi-branch projects use the **same tick shape**.
+No LRU or per-branch scheduling meta in v0.0.9.
 
 ### Launch-time validation (fail immediately)
 
-Before the scheduler starts (detached or foreground), validate configuration and **do not start** the daemon on failure:
-
-1. Resolve effective branch list; fail if empty or invalid.
-2. **Global daemon (dedicated):** for each branch in list order, pre-flight once and build registry of `(lumpName, baseBranch)` pairs.
+1. Resolve effective discovery list.
+2. **Global daemon:** for each branch in list order, pre-flight once, discover lumps, resolve `discoveryBranch` / `baseBranch`.
 3. Fail launch if:
-   - The same `lumpName` appears on more than one integration branch (ambiguous; cannot safely ignore).
-   - Any lump's resolved `baseBranch` is not in the effective list (without `allowUnlistedBaseBranch`).
-   - Required lump config cannot be loaded during this scan.
-4. Surface all errors in one response so the operator can fix config before retrying.
-
-**Per-lump daemon (`start --lumpName`):** load that lump's config from the current checkout; verify its `baseBranch` is in the effective list; fail launch if not. No multi-branch discovery scan at launch.
-
-### Each daemon tick
-
-**Global daemon (dedicated mode):**
-
-1. For each branch in the effective list, **in array order**:
-   - Pre-flight execution workspace to that branch.
-   - `discoverLoadableLumpNames`; for each lump, resolve `baseBranch`.
-   - Run **every** eligible lump on that branch, one after another (same sequential loop as today within a branch).
-2. Skip individual lumps at tick time when possible (log, continue): disabled, config load error, run failure. Do not crash the daemon for one bad lump.
+   - **Same discovery-branch scan:** duplicate `lumpName` (two lumps same name visible on one checkout after pre-flight to that branch).
+   - Unlisted **`discoveryBranch`**.
+   - Unloadable config.
+4. **Do not fail** for the same `lumpName` on **different** discovery branches (e.g. lump `A` on `main` with `discoveryBranch: main` and lump `A` on `ver/0.0.9` with `discoveryBranch: ver/0.0.9`).
+5. Optional **warning** when a lump's `discoveryBranch` ≠ the branch currently being scanned.
+6. **Warnings** for cross-lump **`baseBranch`** mismatch on `dependsOnContexts`.
 
 **Per-lump daemon (`start --lumpName`):**
 
-- Each tick: pre-flight to the lump's `baseBranch` (already validated at launch); run that one lump only.
+- Load that lump's config from the **current checkout** (document: operator must be on the intended line).
+- Dedicated: verify `resolvedDiscoveryBranch` in effective list.
+- No requirement to scan all discovery branches at launch for a single lump.
+
+### Each daemon tick
+
+**Global daemon (dedicated):**
+
+For each branch in **`effectiveDiscoveryBranches`**, **in array order**:
+
+1. Pre-flight execution workspace to that **discovery** branch (reset before discover).
+2. `discoverLoadableLumpNames`; for each lump where **`resolvedDiscoveryBranch ===`** current branch.
+3. For each eligible lump (not disabled): pre-flight to **`resolvedBaseBranch`**, then `runLumpFromJsConfig` with `lockMode: 'wait'`.
+4. On lump failure: log, continue.
+
+**Per-lump daemon (`start --lumpName`):**
+
+- Each tick: pre-flight to lump **`resolvedBaseBranch`**; run that lump only.
 
 **Shared mode daemon:**
 
-- No multi-branch scan. One pre-flight per tick (to primary integration branch or lump branch as resolved for the run path); discover lumps from source; run all eligible lumps sequentially — same inner loop, effective list length 1 for discovery purposes.
+- Log once if multi-`discoveryBranches` configured.
+- Discover from source; run all eligible lumps; pre-flight copy per **`resolvedBaseBranch`**.
 
-**Throughput note:** one tick runs all lumps on branch 1, then all on branch 2, etc. A 5-minute cron with 3 branches and 2 lumps each may run up to 6 lump executions per tick (plus 3 pre-flights). Document wall-time implications; refine later (parallel worktrees, todo-weighted ordering, etc.) if needed.
+**Throughput note:** each discovery branch may pre-flight once per tick, plus one pre-flight per lump to `resolvedBaseBranch` when it differs. Document wall-time implications.
 
 ---
 
 ## Manual `lumpcode run`
 
-1. `getJsConfigFromLumpName` from **current checkout** — **fail** with a clear message if the lump folder/config is not present locally (no cross-branch config scan).
-2. Validate resolved `baseBranch` against effective list (unless `allowUnlistedBaseBranch`).
-3. Pre-flight execution workspace to lump's `baseBranch`.
-4. Discovery + run (dedicated: discovery aligns with integration branch; shared: discovery reads source — see above).
+1. `getJsConfigFromLumpName` from **current checkout** — fail if lump folder/config not present locally.
+2. Dedicated: validate **`resolvedDiscoveryBranch`** against effective list.
+3. Pre-flight execution workspace to **`resolvedBaseBranch`**.
+4. Discovery + run (dedicated: discovery aligns after pre-flight to discovery line when checkout matches; shared: discovery reads source).
+
+---
+
+## `lump-plan` and `lump-status`
+
+- **Non-destructive** — no pre-flight.
+- **Dedicated:** validate **`discoveryBranch`** allowlist (same rule as `run`).
+- **Shared:** no allowlist.
 
 ---
 
 ## `lumpcode clean`
 
-No pre-flight (no fetch/switch/reset/pull).
-
-Delete lump branches (`lump/<lumpName>/*` pattern, respecting `--lumpName` / `--contextName` scope):
-
-- On **remote** (`git push --delete origin …`).
-- On **local** source checkout (and worktrees under `.lumpcode/worktrees/`).
-- On **shared copy** at `~/.lumpcode/project-copies/<projectName>/` when it exists.
-
-Use `git fetch --all` where needed before remote delete only; do not switch branches.
+No pre-flight. Delete lump branches on remote, local checkout, shared copy, and worktrees. Do not switch branches.
 
 ---
 
 ## `dependsOnContexts` (v1 rules)
 
-Remote is the source of truth (`git fetch`, remote log, `merge-base` against `origin/<branch>`). Local checkout state does not gate dependency satisfaction.
+Remote is the source of truth. Checks use demanding lump's **`baseBranch`** on `origin/<that branch>`. Marker must be **`finished`**.
 
-### Same-lump dependency
-
-Context X depends on context Y in the same lump → look for Y's marker commit on **`origin/<this lump's baseBranch>`**. Must be **`finished`** (marker is ancestor of that ref). `branchPushed` does **not** satisfy.
-
-### Cross-lump dependency (`otherLump/contextName`)
-
-Context on lump A depends on `otherLump/ctx` → look for marker `LUMP:otherLump - ctx` on **`origin/<lump A's baseBranch>`** (the **demanding** lump's integration branch).
-
-- If the marker is not found or not finished on that ref → dependency **not satisfied**.
-- **Do not** load `otherLump` config or use B's `baseBranch` for the check in v1.
-
-**Rationale:** when the runner is on A's branch, B's lump folder may be absent — resolving B's `baseBranch` is awkward. We do not expect cross-lump dependencies that span different integration branches in practice; upstream work must be merged into **A's line** (marker visible on A's `baseBranch`).
-
-**Out of scope v1:** cross-integration-branch cross-lump dependencies (e.g. A on `ver/0.0.7` waiting for a marker that exists only on `main`). Failure mode if misconfigured: context never becomes eligible (document clearly).
+Cross-lump dependency on `otherLump/ctx` → marker on **`origin/<lump A's baseBranch>`**, not B's branch and not discovery branch.
 
 ### Cross-lump `baseBranch` mismatch warning (v0.0.9)
 
-At daemon launch registry build (when both lumps are visible on the same branch), if a context has `dependsOnContexts` referencing `otherLump/ctx` and `otherLump.baseBranch !== thisLump.baseBranch`, emit a **warning** (daemon log / operator-visible). Do not hard-fail unless launch rules above already fail for other reasons.
-
-This matches current engine behavior (single `baseBranch` passed to all `getContextStatus` calls in `getToDoContextList`); v0.0.9 **documents and preserves** it while adding multi-branch discovery in dedicated mode.
+At daemon launch (when both lumps visible on same discovery scan), if `dependsOnContexts` references `otherLump/ctx` and `otherLump.baseBranch !== thisLump.baseBranch`, emit a **warning**. Do not hard-fail unless other launch rules fail.
 
 ---
 
-## Related issues (not primary scope of this doc)
+## Related issues (not primary scope)
 
 | Topic | Note |
-|-------|------|
-| Double `getToDoContextList` per run | Lock resolution + `runLump` each call discovery; consider caching todo list between phases in a separate change |
-| `GetContextListFnInput` | Still `{ codeBasePaths, lumpVariables }` only; no `baseBranch` in v0.0.9 |
-| Shared discovery from copy | Deliberately not done — see [Shared mode: execution vs discovery](#shared-mode-execution-vs-discovery) |
-| Docs / schema | Update `LocalConfig`, `lump-config.md`, `local-config.md`, daemon + clean behavior; CLI validation for effective list + `allowUnlistedBaseBranch` |
+| --- | --- |
+| Double `getToDoContextList` per run | Separate follow-up |
+| `GetContextListFnInput` | No `baseBranch` in v0.0.9 |
+| Shared discovery from copy | Deliberately not done |
+| `allowUnlistedBaseBranch` | **Removed** — use `discoveryBranch` / `baseBranch` |
+| Docs / schema | `discoveryBranch(s)` in local + lump config |
 
 ---
 
-## Implementation checklist (high level)
+## Implementation checklist
 
-- [ ] `LocalConfig`: optional `projectBaseBranch` when non-empty `projectBaseBranches` is set; add optional `projectBaseBranches`; helpers `resolveProjectBaseBranches(localConfig)` — array wins when present, else `[projectBaseBranch]` — and `resolvePrimaryProjectBaseBranch(localConfig)` — singular when set, else first array element; reject empty array, duplicates, and configs with neither field
-- [ ] `allowUnlistedBaseBranch` on lump config + schema
-- [ ] Validate lump `baseBranch` is in the effective list unless opt-out
-- [ ] Dedicated daemon launch: full branch scan + fail fast on duplicate lump names, unlisted base branches, unloadable configs
-- [ ] Dedicated daemon tick: loop branches in order → pre-flight → run all lumps on each branch sequentially
-- [ ] Per-lump daemon: verify `baseBranch` in list at launch; tick pre-flights to lump branch only
-- [ ] Manual `run`: config from current checkout only; pre-flight to lump `baseBranch`
-- [ ] `makeLumpWorkspaceFns`: teardown/switch-back uses lump resolved `baseBranch`
-- [ ] `clean`: no pre-flight; remote + local + shared copy lump branch deletion
-- [ ] Cross-lump `baseBranch` mismatch warning at launch registry build
-- [ ] Document shared vs dedicated discovery (including local-edit-without-push workflow)
-- [ ] Document cross-lump dep rule (demanding lump's `baseBranch` only)
-- [ ] E2E: dedicated discovers lump on second listed branch; branch order in one tick; launch fail on duplicate lump name; validation fail for unlisted `baseBranch`; clean without pre-flight
+- [ ] `LocalConfig`: `discoveryBranch` / `discoveryBranches`; helpers `resolveDiscoveryBranches`, `resolvePrimaryDiscoveryBranch`; parse validation
+- [ ] Lump `discoveryBranch` on config + schema; `resolveLumpDiscoveryBranch`, `resolveLumpBaseBranch`
+- [ ] `validateLumpDiscoveryBranchAllowlist` — **dedicated mode only**
+- [ ] Dedicated daemon launch: same-branch duplicate lumpName fail; unlisted discoveryBranch fail; optional misalignment warning
+- [ ] Dedicated daemon tick: loop discovery branches → discover → pre-flight to `resolvedBaseBranch` → run
+- [ ] Per-lump daemon: current checkout config; dedicated allowlist; tick to `resolvedBaseBranch`
+- [ ] `run`, `lump-plan`, `lump-status`: dedicated allowlist; shared skips allowlist
+- [ ] Shared daemon: multi-`discoveryBranches` warning; ignore lump `discoveryBranch`
+- [ ] `makeLumpWorkspaceFns`: teardown uses `resolvedBaseBranch`
+- [ ] `clean`: no pre-flight
+- [ ] Cross-lump `baseBranch` mismatch warning at launch
+- [ ] User DOCS + AGENTS.md
+- [ ] E2E: dedicated second discovery branch; branch order; same-branch duplicate fail; cross-branch same name OK; unlisted discoveryBranch fail; clean without pre-flight
 
 ---
 
 ## Summary sentence
 
-**The effective integration-branch list (`projectBaseBranches` if set, else `[projectBaseBranch]`) declares which lines a machine may touch; lumps anchor to one of those lines; dedicated daemons validate at launch, then each tick pre-flights each listed branch in order and runs every lump on that branch; shared mode runs on the copy but discovers from source so you can edit lumps locally without pushing; cross-lump dependencies are satisfied only when the upstream marker is finished on the demanding lump's `baseBranch`.**
+**`discoveryBranch(s)` in `local.json` declares which integration lines a dedicated installation may scan; each lump may set `discoveryBranch` (inventory) and `baseBranch` (git execution) separately; dedicated daemons loop discovery branches each tick, discover matching lumps, pre-flight to each lump's execution branch, and run; shared mode discovers from source with no allowlist and ignores lump `discoveryBranch`; cross-lump dependencies remain satisfied only when the upstream marker is finished on the demanding lump's `baseBranch`.**

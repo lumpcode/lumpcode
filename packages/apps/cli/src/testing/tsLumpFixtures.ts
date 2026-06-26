@@ -65,7 +65,7 @@ export async function withTsLumpProject(
         await fs.mkdir(lumpDir, { recursive: true });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main' }),
             'utf-8',
         );
         await fs.writeFile(
