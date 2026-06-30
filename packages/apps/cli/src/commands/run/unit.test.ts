@@ -74,8 +74,8 @@ describe('run command — multi discovery branches', () => {
     async function setupMultiBranchLocal() {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
         });
         await writeMinimalLump(projectRoot, 'releaseLine', {
             discoveryBranch: 'ver/0.0.9',
@@ -95,8 +95,8 @@ describe('run command — multi discovery branches', () => {
     it('fails before pre-flight when lump config is missing on current checkout', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
         });
         await createIntegrationBranch({
             projectRoot,
@@ -123,8 +123,8 @@ describe('run command — multi discovery branches', () => {
     it('fails before pre-flight when discoveryBranch is unlisted in dedicated mode', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main'],
+            primaryBranch: 'main',
+            primaryBranches: ['main'],
         });
         await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
@@ -136,7 +136,7 @@ describe('run command — multi discovery branches', () => {
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
+        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|primaryBranches|ver\/0\.0\.7/i);
         expect(preflightSpy).not.toHaveBeenCalled();
     });
 
@@ -181,8 +181,8 @@ describe('run command — multi discovery branches', () => {
     it('pre-flights to resolvedBaseBranch for LUMP-SPLIT (discovery on main, execution on ver/0.0.9)', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
         });
         await writeMinimalLump(projectRoot, 'splitLine', {
             discoveryBranch: 'main',
@@ -208,8 +208,8 @@ describe('run command — multi discovery branches', () => {
     it('shared mode proceeds when discoveryBranch is unlisted (no allowlist)', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main'],
+            primaryBranch: 'main',
+            primaryBranches: ['main'],
         });
         await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
 
@@ -224,8 +224,8 @@ describe('run command — multi discovery branches', () => {
     it('shared mode leaves source checkout on main after run', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
         });
         await createIntegrationBranch({
             projectRoot,

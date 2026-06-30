@@ -18,7 +18,7 @@ export async function resolveTargetLumpNames(input: {
         }
         return success([lumpName]);
     }
-    const lumpNames = await discoverLoadableLumpNames(localConfigFolderPath);
+    const lumpNames = await discoverLoadableLumpNames({ localConfigFolderPath });
     if (lumpNames.length === 0) {
         return failure(
             'No lumps with a loadable config (config.json or config.js) were found under .lumpcode/lumps.',

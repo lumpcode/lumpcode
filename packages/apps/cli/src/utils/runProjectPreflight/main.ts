@@ -5,7 +5,7 @@ import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { getProjectName } from '../getProjectName';
 import { readLocalConfig } from '../readLocalConfig';
-import { resolvePrimaryDiscoveryBranch } from '../resolveDiscoveryBranches';
+import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { runPreflight } from '../runPreflight';
 
 export interface RunProjectPreflightInput {
@@ -52,7 +52,7 @@ export async function runProjectPreflight(
         finalLocalConfig = localConfigResult.data;
     }
 
-    projectBaseBranch = input.targetBranch ?? resolvePrimaryDiscoveryBranch(finalLocalConfig);
+    projectBaseBranch = input.targetBranch ?? resolvePrimaryBranch(finalLocalConfig);
     effectiveMode = finalLocalConfig.mode;
     workspaceStrategy = finalLocalConfig.workspaceStrategy ?? 'checkout';
 

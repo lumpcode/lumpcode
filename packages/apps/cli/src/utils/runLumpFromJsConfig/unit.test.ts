@@ -46,7 +46,7 @@ describe('runLumpFromJsConfig', () => {
         await fs.mkdir(localConfigFolderPath, { recursive: true });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main' }),
+            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
             'utf-8',
         );
         await fs.writeFile(
@@ -236,7 +236,7 @@ describe('runLumpFromJsConfig', () => {
     it('fails immediately when branch workspace lock is held (fail mode, worktree)', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main', workspaceStrategy: 'worktree' }),
+            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'worktree' }),
             'utf-8',
         );
         const branchWorkspacePath = path.join(
@@ -362,8 +362,8 @@ describe('runLumpFromJsConfig', () => {
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                discoveryBranch: 'main',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranch: 'main',
+                primaryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );
@@ -373,7 +373,7 @@ describe('runLumpFromJsConfig', () => {
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(runLumpFromJsConfigFailureMessage(result.data)).toMatch(
-            /discoveryBranch|discoveryBranches|ver\/0\.0\.7/i,
+            /discoveryBranch|primaryBranches|ver\/0\.0\.7/i,
         );
         expect(core.runLump).not.toHaveBeenCalled();
     });
@@ -381,7 +381,7 @@ describe('runLumpFromJsConfig', () => {
     it('proceeds to runLump in shared mode when discoveryBranch is unlisted', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'shared', discoveryBranch: 'main' }),
+            JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
             'utf-8',
         );
         vi.mocked(core.runLump).mockResolvedValue(
@@ -403,7 +403,7 @@ describe('runLumpFromJsConfig', () => {
     it('shared mode runs preflight to resolvedBaseBranch when setup is invoked', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'shared', discoveryBranch: 'main' }),
+            JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
             'utf-8',
         );
         git('checkout -b ver/0.0.9', projectRoot);
@@ -423,7 +423,7 @@ describe('runLumpFromJsConfig', () => {
     it('worktree dedicated releases execution lock after setup while branch lock stays held', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main', workspaceStrategy: 'worktree' }),
+            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'worktree' }),
             'utf-8',
         );
 

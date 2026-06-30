@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { success } from '@lumpcode/core';
 
 import {
     aliveDaemonSpawnFn,
@@ -45,7 +46,7 @@ async function writeDefaultLocalJson(
 ) {
     await fs.writeFile(
         path.join(projectRoot, '.lumpcode', 'local.json'),
-        JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main', ...overrides }),
+        JSON.stringify({ mode: 'dedicated', primaryBranch: 'main', ...overrides }),
         'utf-8',
     );
 }
@@ -660,8 +661,8 @@ describe('start command — multi discovery branches', () => {
     async function writeMultiLocal(overrides: Record<string, unknown> = {}) {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
             ...overrides,
         });
     }
@@ -710,9 +711,12 @@ describe('start command — multi discovery branches', () => {
         expect(result.success).toBe(true);
     });
 
-    it('fails launch for unlisted lump discoveryBranch', async () => {
-        await writeMultiLocal({ discoveryBranches: ['main'] });
-        await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
+    it('fails launch when a discovery branch in primaryBranches is missing on remote', async () => {
+        await writeMultiLocal();
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
+        git('add -A', projectRoot);
+        git('commit -m "mainLine on main"', projectRoot);
+        git('push origin main', projectRoot);
 
         const result = await makeStartHandler()({
             options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -720,10 +724,10 @@ describe('start command — multi discovery branches', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
+        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|Discovery branch/i);
     });
 
-    it('fails launch when a branch has unloadable lump config', async () => {
+    it('warns and launches when a branch has unloadable lump config', async () => {
         await writeMultiLocal();
         await writeMinimalLump(projectRoot, 'mainLine');
         const badLineDir = path.join(projectRoot, '.lumpcode', 'lumps', 'badLine');
@@ -735,13 +739,21 @@ describe('start command — multi discovery branches', () => {
             branchName: 'ver/0.0.9',
         });
 
-        const result = await makeStartHandler()({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/config|badLine/i);
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
+            expect(logged).toMatch(/badLine/i);
+            expect(logged).toMatch(/skipping/i);
+        } finally {
+            logSpy.mockRestore();
+            warnSpy.mockRestore();
+        }
     });
 
     it('warns on cross-lump baseBranch mismatch but still launches', async () => {
@@ -777,8 +789,8 @@ describe('start command — multi discovery branches', () => {
     it('fails start --lumpName when lump discoveryBranch is not in effective list', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main'],
+            primaryBranch: 'main',
+            primaryBranches: ['main'],
         });
         await writeMinimalLump(projectRoot, 'releaseLine', {
             discoveryBranch: 'ver/0.0.9',
@@ -791,7 +803,7 @@ describe('start command — multi discovery branches', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|discoveryBranch|discoveryBranches/i);
+        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|discoveryBranch|primaryBranches/i);
     });
 
     it('succeeds start --lumpName when lump discoveryBranch is listed', async () => {
@@ -812,8 +824,8 @@ describe('start command — multi discovery branches', () => {
     it('shared mode launch succeeds without multi-discovery branch loop', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'shared',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
         });
         await writeMinimalLump(projectRoot, 'mainLine');
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
@@ -836,11 +848,93 @@ describe('start command — multi discovery branches', () => {
         }
     });
 
+    it('runs branch-only releaseLine when daemon starts on main checkout', async () => {
+        await writeMultiLocal();
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
+        git('add -A', projectRoot);
+        git('commit -m "mainLine on main"', projectRoot);
+        git('push origin main', projectRoot);
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            lumpSpecs: [
+                {
+                    name: 'releaseLine',
+                    configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+                },
+            ],
+        });
+
+        const runLumpSpy = vi.spyOn(
+            await import('../../utils/runLumpFromJsConfig'),
+            'runLumpFromJsConfig',
+        );
+
+        try {
+            const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            expect(result.success).toBe(true);
+            const lumpNames = runLumpSpy.mock.calls.map((c) => c[0].lumpName);
+            expect(lumpNames).toContain('mainLine');
+            expect(lumpNames).toContain('releaseLine');
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('preflights discovery branches in primaryBranches order', async () => {
+        await writeLocalJson(localConfigFolderPath(), {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            primaryBranches: ['ver/0.0.9', 'main'],
+        });
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
+        git('add -A', projectRoot);
+        git('commit -m "mainLine on main"', projectRoot);
+        git('push origin main', projectRoot);
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            lumpSpecs: [
+                {
+                    name: 'releaseLine',
+                    configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+                },
+            ],
+        });
+
+        const discoverSpy = vi.spyOn(
+            await import('../../utils/discoverDedicatedLumpsForScanBranch'),
+            'discoverDedicatedLumpsForScanBranch',
+        );
+        const runLumpSpy = vi.spyOn(
+            await import('../../utils/runLumpFromJsConfig'),
+            'runLumpFromJsConfig',
+        ).mockResolvedValue(success({ skipped: false, result: { contextNames: [] } }));
+
+        try {
+            await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            const scanBranches = discoverSpy.mock.calls.map((c) => c[0].scanBranch);
+            expect(scanBranches).toEqual(['ver/0.0.9', 'main', 'ver/0.0.9', 'main']);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
     it('runs lumps in discovery-branch scan order on each tick', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['ver/0.0.9', 'main'],
+            primaryBranch: 'main',
+            primaryBranches: ['ver/0.0.9', 'main'],
         });
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
         await writeMinimalLump(projectRoot, 'releaseLine', {
@@ -857,13 +951,17 @@ describe('start command — multi discovery branches', () => {
             await import('../../utils/runLumpFromJsConfig'),
             'runLumpFromJsConfig',
         );
-        await makeStartHandler({ waitForShutdownOverride: async () => {} })({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        try {
+            await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
 
-        const lumpNames = runLumpSpy.mock.calls.map((c) => c[0].lumpName);
-        expect(lumpNames.indexOf('releaseLine')).toBeLessThan(lumpNames.lastIndexOf('mainLine'));
+            const lumpNames = runLumpSpy.mock.calls.map((c) => c[0].lumpName);
+            expect(lumpNames.indexOf('releaseLine')).toBeLessThan(lumpNames.lastIndexOf('mainLine'));
+        } finally {
+            runLumpSpy.mockRestore();
+        }
     });
 });
 

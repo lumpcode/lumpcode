@@ -14,12 +14,11 @@ import {
     assertDaemonStartAllowed,
     commandFailure,
     createCliLogger,
-    discoverLoadableLumpNames,
+    discoverDedicatedLumpsForScanBranch,
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
-    resolveDiscoveryBranches,
-    resolveLumpBranches,
+    resolvePrimaryBranches,
     resolveTargetLumpNames,
     runLumpFromJsConfig,
     runLumpFromJsConfigFailureMessage,
@@ -139,7 +138,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const frozenLocalConfig: LocalConfig = localConfigResult.data;
     const workspaceStrategy = frozenLocalConfig.workspaceStrategy ?? 'checkout';
-    const effectiveDiscoveryBranches = resolveDiscoveryBranches(frozenLocalConfig);
+    const effectivePrimaryBranches = resolvePrimaryBranches(frozenLocalConfig);
 
     const targetLumpsResult = await resolveTargetLumpNames({
         localConfigFolderPath,
@@ -150,7 +149,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const allowEmptyDedicatedDiscovery =
             !lumpNameOpt &&
             frozenLocalConfig.mode === 'dedicated' &&
-            (frozenLocalConfig.discoveryBranches?.length ?? 0) > 1 &&
+            (frozenLocalConfig.primaryBranches?.length ?? 0) > 1 &&
             targetLumpsResult.data.includes('No lumps');
         if (!allowEmptyDedicatedDiscovery) {
             return failure({ messages: [targetLumpsResult.data] });
@@ -310,12 +309,12 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
         if (
             frozenLocalConfig.mode === 'shared' &&
-            effectiveDiscoveryBranches.length > 1 &&
+            effectivePrimaryBranches.length > 1 &&
             !sharedMultiDiscoveryWarningLogged
         ) {
             logger.info(
-                'local.json lists multiple discovery branches; multi-discovery daemon scans are dedicated-only. ' +
-                    'Using the primary discovery branch for shared mode.',
+                'local.json lists multiple primary branches; multi-branch daemon scans are dedicated-only. ' +
+                    'Using the primary branch for shared mode.',
             );
             sharedMultiDiscoveryWarningLogged = true;
         }
@@ -328,6 +327,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
                 return;
             }
+            logger.info(`lump "${lumpName}": jsConfResult: ${jsConfResult.data}`);
             const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
                 importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
             });
@@ -384,20 +384,23 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         if (frozenLocalConfig.mode === 'dedicated') {
             ticks += 1;
             const lumpsThisTick: string[] = [];
-            const lumpNames = await discoverLoadableLumpNames(localConfigFolderPath);
 
-            for (const discoveryBranch of effectiveDiscoveryBranches) {
-                for (const lumpName of lumpNames) {
-                    const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-                    if (!jsConfResult.success) {
-                        logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
-                        continue;
-                    }
-                    const branches = resolveLumpBranches({
-                        lumpConfig: jsConfResult.data,
-                        localConfig: frozenLocalConfig,
-                    });
-                    if (branches.resolvedDiscoveryBranch !== discoveryBranch) {
+            for (const scanBranch of effectivePrimaryBranches) {
+                const discoverResult = await discoverDedicatedLumpsForScanBranch({
+                    scanBranch,
+                    sourceProjectRoot: projectRoot,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                    localConfig: frozenLocalConfig,
+                    logger,
+                });
+                if (!discoverResult.success) {
+                    logger.error(`discovery branch "${scanBranch}": ${discoverResult.data}; skipping`);
+                    continue;
+                }
+                for (const { lumpName } of discoverResult.data) {
+                    if (lumpsThisTick.includes(lumpName)) {
+                        logger.warn(`duplicate lump "${lumpName}" on branch "${scanBranch}"; skipping`);
                         continue;
                     }
                     lumpsThisTick.push(lumpName);
