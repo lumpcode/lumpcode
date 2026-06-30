@@ -49,7 +49,6 @@ export * from './readDaemonPidIfAlive';
 export * from './readJson';
 export * from './readProjectJsonBaseBranch';
 export * from './readLocalConfig';
-export * from './recallSharedExecutionWorkspace';
 export * from './resolveDaemonPaths';
 export * from './resolveLumpDisabled';
 export * from './resolveProjectExecutionContext';
