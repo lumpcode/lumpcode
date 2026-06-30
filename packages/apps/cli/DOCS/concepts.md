@@ -15,8 +15,8 @@ This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (ca
 | **Tick**          | One scheduler iteration: for each enabled lump, run the same engine path as `lumpcode run <lumpName>`.                                                                                                           |
 | **Work branch**   | Branch Lumpcode creates/updates for the batch. Default `lump/<lumpName>/<contextName…>`, customizable with `branchFn`.                                                                                           |
 | **Marker commit** | Commit whose subject is exactly `LUMP: <lumpName> - <contextName>`. **Not configurable** so `clean`, `lump-status`, and `context-status` stay aligned with the engine.                                           |
-| **projectBaseBranch** | Branch declared in `.lumpcode/local.json`. Lumpcode pulls it before every run, lumps default to it as their `baseBranch`, and status is judged against `origin/<projectBaseBranch>`. |
-| **baseBranch**  | Per-lump override of `projectBaseBranch`. Use when one lump needs to branch off a different upstream (e.g. a long-lived release branch).                                                                          |
+| **primaryDiscoveryBranch** | First integration branch from `.lumpcode/local.json` (`discoveryBranches[0]` when set, else `discoveryBranch`). Lumpcode pulls it before project-wide pre-flight; lumps default to it as `baseBranch` when they omit both `baseBranch` and `discoveryBranch`. |
+| **baseBranch**  | Per-lump execution integration branch. Defaults to the lump's `discoveryBranch`, then `primaryDiscoveryBranch`. Use `baseBranch` when execution should differ from discovery (e.g. a long-lived release branch). |
 | **mode**        | `shared` or `dedicated` (in `.lumpcode/local.json`). Decides whether Lumpcode operates on the current checkout or a separate copy under `~/.lumpcode/project-copies/<projectName>/`. |
 
 **Status** — Per-context progress, derived from **remote** git history and cached in `.lumpcode/lumps/<lumpName>/contextStatusRecord.json`:
@@ -56,6 +56,8 @@ dedicated mode:
   branch workspace    checkout: same path; worktree: .lumpcode/worktrees/...
 ```
 
+In **dedicated** mode with **`worktree`**, pre-flight and worktree setup on the main checkout are **serialized** (one lump at a time per machine) via an execution-workspace lock. After setup completes, agents on different worktrees may run **concurrently** (each worktree is protected by its own branch-workspace lock). **`checkout`** strategy holds one lock for the full run because execution and branch workspaces are the same path.
+
 There are **three subcommands whose names include “status”** (not the same thing as the three **status values** `toDo` / `branchPushed` / `finished` in the table above): do not confuse **`daemon-status`** (daemon process), **`lump-status`** (recompute all context rows from remote git), and **`context-status`** (one context row). Comparison table: [commands.md § Three commands…](./commands.md#three-commands-that-mention-status).
 
 ## One run, end to end
@@ -63,7 +65,7 @@ There are **three subcommands whose names include “status”** (not the same t
 ```mermaid
 flowchart LR
   start["lumpcode run myLump"]
-  preflight["Pre-flight: pull projectBaseBranch<br/>(in copy or in place per mode)"]
+  preflight["Pre-flight: pull primaryDiscoveryBranch<br/>(in copy or in place per mode)"]
   discover["Discover contexts<br/>contextListJson / fn / matchFn"]
   checkout["Pull lump baseBranch<br/>work branch lump/myLump/..."]
   agent["Run agent with prompt"]
@@ -71,7 +73,7 @@ flowchart LR
   commit["git commit<br/>LUMP: myLump - ctx"]
   push["git push origin"]
   refresh["Refresh contextStatusRecord.json"]
-  back["Switch back to projectBaseBranch"]
+  back["Switch back to lump baseBranch"]
   start --> preflight --> discover --> checkout --> agent --> history --> commit --> push --> back --> refresh
 ```
 
@@ -101,7 +103,7 @@ stateDiagram-v2
 Useful pairings on a server:
 
 - **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`) — caps how many open `lump/<lumpName>/*` branches on `origin` exist before a run is skipped (local-only branches are not counted). See [lump-config.md](./lump-config.md#optional-top-level-fields).
-- **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to `projectBaseBranch` before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
+- **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to the primary discovery branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
 - **`"disabled": true`** on a lump — on the next tick, the daemon skips that lump without stopping the scheduler.
 
 **Daemon files** (under `~/.lumpcode/daemons/`):
@@ -125,12 +127,12 @@ Full flag reference: [commands.md](./commands.md).
 Before every `run` and every daemon tick, Lumpcode runs a **pre-flight** that:
 
 1. Resolves the execution workspace from `local.json.mode`.
-2. In that workspace runs `git fetch --all`, switches to `projectBaseBranch`, `git reset --hard origin/<projectBaseBranch>`, then `git pull`.
+2. In that workspace runs `git fetch --all`, switches to the target branch (primary discovery branch or a lump's resolved `baseBranch`), `git reset --hard origin/<branch>`, then `git pull`.
 
 After pre-flight, each lump prepares git inside the execution workspace according to `local.json.workspaceStrategy` (default `checkout`):
 
-- **`checkout`:** fetch/pull `baseBranch`, create a fresh `lump/<lumpName>/<context…>` branch in the main worktree, run, commit, push, then switch back to `projectBaseBranch`.
-- **`worktree`:** add a linked worktree at `.lumpcode/worktrees/<branch>/` (paths mirror branch segments), run the agent there, commit, push, then remove the worktree. The main worktree stays on `projectBaseBranch`.
+- **`checkout`:** fetch/pull `baseBranch`, create a fresh `lump/<lumpName>/<context…>` branch in the main worktree, run, commit, push, then switch back to the lump's resolved `baseBranch`.
+- **`worktree`:** add a linked worktree at `.lumpcode/worktrees/<branch>/` (paths mirror branch segments), run the agent there, commit, push, then remove the worktree. The main worktree stays on the lump's resolved `baseBranch`.
 
 The next lump in the same tick starts from a clean, known state.
 
@@ -144,7 +146,7 @@ Worktrees always live under the execution workspace (the copy in `shared`, the c
 ## Related documentation
 
 - [get-started.md](./get-started.md) — First lump from zero
-- [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `projectBaseBranch`, `workspaceStrategy`)
+- [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `discoveryBranch`, `workspaceStrategy`)
 - [lump-config.md](./lump-config.md) — All config keys
 - [commands.md](./commands.md) — Every subcommand
 

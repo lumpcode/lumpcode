@@ -15,6 +15,7 @@ import {
     sharedModeCopyPath,
     useE2eProjects,
     writeE2eLumpFixture,
+    commitAndPushMain,
 } from './harness';
 
 const releaseLineConfig = {
@@ -41,6 +42,13 @@ describe('E2E multi discovery branches', () => {
                 configOverrides: releaseLineConfig,
             });
         });
+        // Daemon discovers lumps from the current checkout; keep releaseLine on main too.
+        await writeE2eLumpFixture({
+            projectRoot: project.projectRoot,
+            lumpName: 'releaseLine',
+            configOverrides: releaseLineConfig,
+        });
+        commitAndPushMain(project, 'releaseLine on main for daemon discovery');
 
         await runForegroundUntilMarkers({
             project,
@@ -73,6 +81,12 @@ describe('E2E multi discovery branches', () => {
                 'utf-8',
             );
         });
+        await writeE2eLumpFixture({
+            projectRoot: project.projectRoot,
+            lumpName: 'releaseLine',
+            configOverrides: releaseLineConfig,
+        });
+        commitAndPushMain(project, 'releaseLine on main for daemon discovery');
 
         await runForegroundUntilMarkers({
             project,

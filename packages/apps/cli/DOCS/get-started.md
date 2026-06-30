@@ -9,7 +9,7 @@ Follow this guide in order to get started with your first `lumpcode run`. Links 
 Install and prepare the following:
 
 1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
-2. **Git** repository with **`origin`** reachable for fetch/push. The **`projectBaseBranch`** you'll declare in `.lumpcode/local.json` (typically `main`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode pulls it during pre-flight and reads it via `origin/<projectBaseBranch>` for status.
+2. **Git** repository with **`origin`** reachable for fetch/push. The **`discoveryBranch`** you'll declare in `.lumpcode/local.json` (typically `main`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode pulls it during pre-flight and reads it via `origin/<branch>` for status.
 3. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`** and **`copilot`** work out of the box when `cursor-agent` or `copilot` is on `PATH`; other agents (e.g. **`aider`**) need a custom module until more presets ship.
 
 ---
@@ -52,7 +52,7 @@ This creates:
 ```text
 .lumpcode/
 ├── project.json      # project name and optional project-wide settings (commit this)
-├── local.json        # per-machine mode + projectBaseBranch (gitignored)
+├── local.json        # per-machine mode + discoveryBranch (gitignored)
 ├── lumps/            # one folder per lump
 └── commands/         # optional custom agent command modules (.js)
 ```
@@ -64,7 +64,7 @@ This creates:
 ```json
 {
   "mode": "shared",
-  "projectBaseBranch": "main"
+  "discoveryBranch": "main"
 }
 ```
 
@@ -75,7 +75,7 @@ Optional flags:
 - `--projectPath <dir>` — Initialize another directory (default: current working directory).
 - `--projectName <name>` — Stored verbatim; must already satisfy the character rules (see [project-config.md](./project-config.md#projectname-rules)).
 - `--mode <shared|dedicated>` — Initial `local.json.mode` (default `shared`).
-- `--projectBaseBranch <branch>` — Initial `local.json.projectBaseBranch` (default `main`).
+- `--discoveryBranch <branch>` — Initial `local.json.discoveryBranch` (default `main`).
 
 Extra fields (`maximumNumberOfConcurrentBranches`, …): [project-config.md](./project-config.md).
 
@@ -139,7 +139,7 @@ Repeat-per-component variant (multiple paths must exist per context—the prompt
 }
 ```
 
-The base branch comes from `.lumpcode/local.json.projectBaseBranch`. Add a per-lump `"baseBranch": "release/2.0"` only if this lump needs to branch off something else.
+The base branch comes from `.lumpcode/local.json` (`discoveryBranch` or the first entry of `discoveryBranches`). Add a per-lump `"baseBranch": "release/2.0"` only if this lump needs to branch off something else.
 
 Transforms (e.g. `$upperFirst{…}`) and **`contextOptionsFn`** for `priority` / `dependsOnContexts` (including cross-lump `otherLumpName/contextName`): [lump-config.md § contextListJson](./lump-config.md#contextlistjson) and [§ Context ordering](./lump-config.md#context-ordering-and-cross-lump-dependencies). Fully custom sourcing: **`getContextListFn`** / **`contextMatchFn`** ([lump-config.md](./lump-config.md), [advanced-config.md](./advanced-config.md)).
 
@@ -151,7 +151,7 @@ Transforms (e.g. `$upperFirst{…}`) and **`contextOptionsFn`** for `priority` /
 lumpcode run myFirstLump
 ```
 
-In one tick, Lumpcode first runs **pre-flight** (pulls `projectBaseBranch` from `local.json` in the resolved workspace), then picks the next context(s); prepares the work branch `lump/myFirstLump/…`; runs your agent; commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above); pushes to **`origin`**; refreshes **`contextStatusRecord.json`**; and finally switches the workspace back to `projectBaseBranch`.
+In one tick, Lumpcode first runs **pre-flight** (pulls the primary discovery branch from `local.json` in the resolved workspace), then picks the next context(s); prepares the work branch `lump/myFirstLump/…`; runs your agent; commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above); pushes to **`origin`**; refreshes **`contextStatusRecord.json`**; and finally switches the workspace back to the lump's resolved `baseBranch`.
 
 **Workspace:** `local.json.mode` decides where the run happens — `shared` uses **`~/.lumpcode/project-copies/<projectName>/`** (a copy of your repo); `dedicated` uses **this checkout** in place (destructive reset). [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes) · [local-config.md](./local-config.md)
 
@@ -189,7 +189,7 @@ Details — cron flags, caps, trade-offs: [concepts.md § When to use run vs sta
 | Artifact | Location |
 |----------|----------|
 | Lump configs | `.lumpcode/lumps/<lumpName>/` |
-| Per-machine mode + projectBaseBranch | `.lumpcode/local.json` (gitignored) |
+| Per-machine mode + discoveryBranch | `.lumpcode/local.json` (gitignored) |
 | Context status cache | `.lumpcode/lumps/<lumpName>/contextStatusRecord.json` |
 | Prompt run history (optional, `keepHistory: true`) | `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored) |
 | TypeScript transpile cache | `.lumpcode/.cache/transpile/` (gitignored) |
@@ -207,7 +207,7 @@ You now have your first working lump ! Browse when you need more depth:
 
 - [concepts.md](./concepts.md) — Lifecycle diagrams and workspace details
 - [commands.md](./commands.md) — Every subcommand and flag
-- [local-config.md](./local-config.md) — `.lumpcode/local.json` (`mode`, `projectBaseBranch`)
+- [local-config.md](./local-config.md) — `.lumpcode/local.json` (`mode`, `discoveryBranch`)
 - [lump-config.md](./lump-config.md) — All lump config keys
 - [advanced-config.md](./advanced-config.md) — Hooks, dynamic `steps`, custom commands
 - [types.md](./types.md) — Hook parameter shapes
