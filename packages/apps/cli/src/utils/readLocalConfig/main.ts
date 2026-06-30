@@ -27,14 +27,16 @@ const localConfigSchema = z
     .object({
         mode: z.enum(['shared', 'dedicated']),
         primaryBranch: z.string().min(1, 'primaryBranch must be a non-empty string').optional(),
+        projectBaseBranch: z.string().min(1, 'projectBaseBranch must be a non-empty string').optional(),
         primaryBranches: primaryBranchesSchema.optional(),
         workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
         disabled: z.boolean().optional(),
     })
     .superRefine((value, ctx) => {
         const hasSingular = value.primaryBranch !== undefined;
+        const hasLegacy = value.projectBaseBranch !== undefined;
         const hasArray = value.primaryBranches !== undefined;
-        if (!hasSingular && !hasArray) {
+        if (!hasSingular && !hasLegacy && !hasArray) {
             ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 message: 'primaryBranch or primaryBranches is required',

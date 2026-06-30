@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 import { resolvePrimaryBranch, resolvePrimaryBranches } from './main';
@@ -48,6 +48,15 @@ describe('resolvePrimaryBranches', () => {
 });
 
 describe('resolvePrimaryBranch', () => {
+    it('falls back to deprecated projectBaseBranch and warns once (LC-LEGACY)', () => {
+        const localConfig: LocalConfig = { mode: 'dedicated', projectBaseBranch: 'develop' };
+        const warn = vi.fn();
+        expect(resolvePrimaryBranch(localConfig, { warn })).toBe('develop');
+        resolvePrimaryBranch(localConfig, { warn });
+        expect(warn).toHaveBeenCalledOnce();
+        expect(warn.mock.calls[0]![0]).toMatch(/projectBaseBranch.*deprecated/i);
+    });
+
     it('returns first element of effective list (LC-MULTI)', () => {
         const localConfig: LocalConfig = {
             mode: 'dedicated',

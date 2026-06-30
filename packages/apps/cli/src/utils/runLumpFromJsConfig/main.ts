@@ -83,7 +83,7 @@ export async function runLumpFromJsConfig(input: {
         localConfig = localConfigResult.data;
     }
 
-    const projectBaseBranch = resolvePrimaryBranch(localConfig);
+    const projectBaseBranch = resolvePrimaryBranch(localConfig, logger);
     const workspaceStrategy = localConfig.workspaceStrategy ?? 'checkout';
 
     const branches = resolveLumpBranches({
@@ -96,7 +96,7 @@ export async function runLumpFromJsConfig(input: {
         mode: localConfig.mode,
         lumpName,
         resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
-        effectivePrimaryBranches: resolvePrimaryBranches(localConfig),
+        effectivePrimaryBranches: resolvePrimaryBranches(localConfig, logger),
     });
     if (!allowlistResult.success) return failure(toRunLumpMessageFailure(allowlistResult.data));
 

@@ -87,7 +87,7 @@ export async function jsConfigToRunLumpInput({
     const baseBranch = localConfig
         ? resolveLumpBaseBranch({
             lumpConfig: config,
-            primaryBranch: resolvePrimaryBranch(localConfig),
+            primaryBranch: resolvePrimaryBranch(localConfig, logger),
             mode: localConfig.mode,
         })
         : (lumpBaseBranchOverride ?? config.discoveryBranch ?? projectBaseBranch);
