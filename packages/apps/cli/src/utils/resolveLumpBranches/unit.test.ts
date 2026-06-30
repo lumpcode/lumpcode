@@ -38,16 +38,6 @@ describe('resolveLumpBranches', () => {
         ).toBe('main');
     });
 
-    it('falls back to project.json projectBaseBranch as legacy last priority', () => {
-        expect(
-            resolveLumpBaseBranch({
-                lumpConfig: {},
-                primaryDiscoveryBranch,
-                projectJsonBaseBranch: 'legacy-main',
-            }),
-        ).toBe('legacy-main');
-    });
-
     it('resolves discoveryBranch from lump config or primaryDiscoveryBranch', () => {
         expect(
             resolveLumpDiscoveryBranch({

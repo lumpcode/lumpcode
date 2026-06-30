@@ -18,12 +18,11 @@ import {
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
-    readProjectJsonBaseBranch,
     resolveDiscoveryBranches,
     resolveLumpBranches,
     resolveTargetLumpNames,
-    runProjectPreflight,
     runLumpFromJsConfig,
+    runLumpFromJsConfigFailureMessage,
     validateDaemonLaunch,
 } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
@@ -321,26 +320,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             sharedMultiDiscoveryWarningLogged = true;
         }
 
-        const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
-
-        const runOneLump = async (input: {
-            lumpName: string;
-            targetBaseBranch: string;
-        }): Promise<void> => {
-            const { lumpName, targetBaseBranch } = input;
-            const preflightResult = await runProjectPreflight({
-                sourceProjectRoot: projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                localConfig: frozenLocalConfig,
-                targetBranch: targetBaseBranch,
-            });
-            if (!preflightResult.success) {
-                logger.error(`pre-flight failed for lump "${lumpName}": ${preflightResult.data}`);
-                return;
-            }
-            const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } =
-                preflightResult.data;
+        const runOneLump = async (input: { lumpName: string }): Promise<void> => {
+            const { lumpName } = input;
 
             const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
             if (!jsConfResult.success) {
@@ -368,17 +349,14 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 lumpName,
                 localConfigFolderPath,
                 globalConfigFolderPath,
-                projectBaseBranch,
-                executionWorkspacePath,
-                workspaceStrategy,
+                sourceProjectRoot: projectRoot,
                 lockMode: 'wait',
                 projectName,
+                localConfig: frozenLocalConfig,
                 logger: lumpLogger,
             });
             if (!runLumpRes.success) {
-                const errMsg =
-                    typeof runLumpRes.data === 'string' ? runLumpRes.data : runLumpRes.data.message;
-                logger.error(`lump "${lumpName}": ${errMsg}`);
+                logger.error(`lump "${lumpName}": ${runLumpFromJsConfigFailureMessage(runLumpRes.data)}`);
             } else if (runLumpRes.data.skipped) {
                 logger.info(
                     `lump "${lumpName}" skipped: ${runLumpRes.data.reason} - ${runLumpRes.data.reasonDetail}`,
@@ -397,37 +375,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 logger.error(`lump "${lumpNameOpt}": ${jsConfResult.data}`);
                 return;
             }
-            const { resolvedBaseBranch } = resolveLumpBranches({
-                lumpConfig: jsConfResult.data,
-                localConfig: frozenLocalConfig,
-                projectJsonBaseBranch,
-            });
             ticks += 1;
             logger.info(`tick ${ticks} — running lump "${lumpNameOpt}"…`);
-            await runOneLump({ lumpName: lumpNameOpt, targetBaseBranch: resolvedBaseBranch });
+            await runOneLump({ lumpName: lumpNameOpt });
             return;
         }
 
         if (frozenLocalConfig.mode === 'dedicated') {
             ticks += 1;
             const lumpsThisTick: string[] = [];
+            const lumpNames = await discoverLoadableLumpNames(localConfigFolderPath);
 
             for (const discoveryBranch of effectiveDiscoveryBranches) {
-                const discoveryPreflight = await runProjectPreflight({
-                    sourceProjectRoot: projectRoot,
-                    localConfigFolderPath,
-                    globalConfigFolderPath,
-                    localConfig: frozenLocalConfig,
-                    targetBranch: discoveryBranch,
-                });
-                if (!discoveryPreflight.success) {
-                    logger.error(
-                        `pre-flight failed for discovery branch "${discoveryBranch}": ${discoveryPreflight.data}`,
-                    );
-                    continue;
-                }
-
-                const lumpNames = await discoverLoadableLumpNames(localConfigFolderPath);
                 for (const lumpName of lumpNames) {
                     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
                     if (!jsConfResult.success) {
@@ -437,16 +396,12 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     const branches = resolveLumpBranches({
                         lumpConfig: jsConfResult.data,
                         localConfig: frozenLocalConfig,
-                        projectJsonBaseBranch,
                     });
                     if (branches.resolvedDiscoveryBranch !== discoveryBranch) {
                         continue;
                     }
                     lumpsThisTick.push(lumpName);
-                    await runOneLump({
-                        lumpName,
-                        targetBaseBranch: branches.resolvedBaseBranch,
-                    });
+                    await runOneLump({ lumpName });
                 }
             }
 
@@ -474,17 +429,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         ticks += 1;
         logger.info(`tick ${ticks} — running ${names.length} lump(s)… [${names.join(', ')}]`);
         for (const lumpName of names) {
-            const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-            if (!jsConfResult.success) {
-                logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
-                continue;
-            }
-            const { resolvedBaseBranch } = resolveLumpBranches({
-                lumpConfig: jsConfResult.data,
-                localConfig: frozenLocalConfig,
-                projectJsonBaseBranch,
-            });
-            await runOneLump({ lumpName, targetBaseBranch: resolvedBaseBranch });
+            await runOneLump({ lumpName });
         }
     };
 
@@ -514,7 +459,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     try {
         cronJob = new Cron(
             cronSetup,
-            { protect: true },
+            { protect: true, name: 'lumpcode' + (lumpNameOpt ? '-' + lumpNameOpt : '') },
             async () => {
                 try {
                     await runTick();

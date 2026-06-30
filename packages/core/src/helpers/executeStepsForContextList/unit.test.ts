@@ -761,3 +761,110 @@ describe('executeStepsForContextList dynamic steps', () => {
         expect(errorCalls.some((message) => message.includes('git push on branch'))).toBe(true);
     });
 });
+
+describe('executeStepsForContextList setupWorkspaceFn.afterExec', () => {
+    let projectRoot: string;
+
+    beforeEach(async () => {
+        projectRoot = await mkdtemp(join(tmpdir(), 'after-setup-hook-'));
+        initTestGitRepo(projectRoot);
+    });
+
+    afterEach(async () => {
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    it('invokes afterExec after successful setup exec', async () => {
+        const hookCalls: Array<{ workspacePath: string }> = [];
+        const branchWorkspacePath = join(projectRoot, 'branch-ws');
+
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommandFn: stubGitAdd,
+            gitCommitCommandFn: stubGitCommit,
+            gitPushCommandFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: makeSteps(['step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({
+                command: `mkdir "${branchWorkspacePath}"`,
+                workspacePath: branchWorkspacePath,
+                afterExec: async (input) => {
+                    hookCalls.push(input);
+                },
+            }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        expect(hookCalls).toEqual([{ workspacePath: branchWorkspacePath }]);
+    });
+
+    it('does not invoke afterExec when setup exec fails', async () => {
+        const hookCalls: string[] = [];
+
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommandFn: stubGitAdd,
+            gitCommitCommandFn: stubGitCommit,
+            gitPushCommandFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: makeSteps(['step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({
+                command: 'exit 1',
+                workspacePath: projectRoot,
+                afterExec: async () => {
+                    hookCalls.push('called');
+                },
+            }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(false);
+        expect(hookCalls).toEqual([]);
+    });
+
+    it('does not invoke afterExec when setup command is empty', async () => {
+        const hookCalls: string[] = [];
+
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommandFn: stubGitAdd,
+            gitCommitCommandFn: stubGitCommit,
+            gitPushCommandFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: makeSteps(['step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({
+                command: '',
+                workspacePath: projectRoot,
+                afterExec: async () => {
+                    hookCalls.push('called');
+                },
+            }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        expect(hookCalls).toEqual([]);
+    });
+});

@@ -17,18 +17,14 @@ export function resolveLumpDiscoveryBranch(input: {
 export function resolveLumpBaseBranch(input: {
     lumpConfig: Pick<LumpJsConfig, 'baseBranch' | 'discoveryBranch'>;
     primaryDiscoveryBranch: string;
-    projectJsonBaseBranch?: string;
     mode?: Mode;
 }): string {
-    const { lumpConfig, primaryDiscoveryBranch, projectJsonBaseBranch, mode } = input;
+    const { lumpConfig, primaryDiscoveryBranch, mode } = input;
     if (lumpConfig.baseBranch !== undefined) {
         return lumpConfig.baseBranch;
     }
     if (mode !== 'shared' && lumpConfig.discoveryBranch !== undefined) {
         return lumpConfig.discoveryBranch;
-    }
-    if (projectJsonBaseBranch !== undefined) {
-        return projectJsonBaseBranch;
     }
     return primaryDiscoveryBranch;
 }
@@ -36,7 +32,6 @@ export function resolveLumpBaseBranch(input: {
 export function resolveLumpBranches(input: {
     lumpConfig: Pick<LumpJsConfig, 'baseBranch' | 'discoveryBranch'>;
     localConfig: LocalConfig;
-    projectJsonBaseBranch?: string;
 }): { resolvedDiscoveryBranch: string; resolvedBaseBranch: string } {
     const primaryDiscoveryBranch = resolvePrimaryDiscoveryBranch(input.localConfig);
     const mode = input.localConfig.mode;
@@ -48,7 +43,6 @@ export function resolveLumpBranches(input: {
     const resolvedBaseBranch = resolveLumpBaseBranch({
         lumpConfig: input.lumpConfig,
         primaryDiscoveryBranch,
-        projectJsonBaseBranch: input.projectJsonBaseBranch,
         mode,
     });
     return { resolvedDiscoveryBranch, resolvedBaseBranch };
