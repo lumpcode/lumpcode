@@ -117,7 +117,7 @@ export async function createE2eProject(input: {
     await fs.writeFile(
         path.join(lumpcodeDir, 'local.json'),
         JSON.stringify(
-            { mode: 'dedicated', discoveryBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
+            { mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
             null,
             2,
         ),

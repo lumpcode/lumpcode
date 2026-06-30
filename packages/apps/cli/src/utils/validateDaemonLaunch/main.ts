@@ -3,9 +3,9 @@ import { failure, success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
-import { discoverLumpNames } from '../discoverLoadableLumpNames';
+import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
-import { resolveDiscoveryBranches } from '../resolveDiscoveryBranches';
+import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
 
@@ -77,7 +77,7 @@ export async function validateDaemonLaunch(input: {
         logger,
     } = input;
 
-    const effectiveDiscoveryBranches = resolveDiscoveryBranches(localConfig);
+    const effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
 
     if (lumpNameOpt) {
         const jsConfResult = await getJsConfigFromLumpName({ lumpName: lumpNameOpt, localConfigFolderPath });
@@ -92,7 +92,7 @@ export async function validateDaemonLaunch(input: {
             mode: localConfig.mode,
             lumpName: lumpNameOpt,
             resolvedDiscoveryBranch,
-            effectiveDiscoveryBranches,
+            effectivePrimaryBranches,
         });
     }
 
@@ -102,45 +102,37 @@ export async function validateDaemonLaunch(input: {
 
     const registry: LumpRegistryEntry[] = [];
 
-    for (const discoveryBranch of effectiveDiscoveryBranches) {
-        const lumpNames = await discoverLumpNames(localConfigFolderPath);
+    for (const scanBranch of effectivePrimaryBranches) {
+        const discoverResult = await discoverDedicatedLumpsForScanBranch({
+            scanBranch,
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig,
+            logger,
+        });
+        if (!discoverResult.success) {
+            return failure(`Discovery branch "${scanBranch}": ${discoverResult.data}`);
+        }
+
         const seenOnBranch = new Set<string>();
 
-        for (const lumpName of lumpNames) {
-            const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-            if (!jsConfResult.success) {
-                return failure(`Lump "${lumpName}" on "${discoveryBranch}": ${jsConfResult.data}`);
-            }
-
+        for (const { lumpName, jsConfig } of discoverResult.data) {
             const branches = resolveLumpBranches({
-                lumpConfig: jsConfResult.data,
+                lumpConfig: jsConfig,
                 localConfig,
             });
 
-            const allowlistResult = validateLumpDiscoveryBranchAllowlist({
-                mode: localConfig.mode,
-                lumpName,
-                resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
-                effectiveDiscoveryBranches,
-            });
-            if (!allowlistResult.success) {
-                return allowlistResult;
-            }
-
-            if (branches.resolvedDiscoveryBranch !== discoveryBranch) {
-                continue;
-            }
-
             if (seenOnBranch.has(lumpName)) {
                 return failure(
-                    `Duplicate lump name "${lumpName}" on discovery branch "${discoveryBranch}"`,
+                    `Duplicate lump name "${lumpName}" on primary branch "${scanBranch}"`,
                 );
             }
             seenOnBranch.add(lumpName);
 
             registry.push({
                 lumpName,
-                jsConfig: jsConfResult.data,
+                jsConfig,
                 resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
                 resolvedBaseBranch: branches.resolvedBaseBranch,
             });

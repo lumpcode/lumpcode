@@ -131,7 +131,7 @@ describe('discoverLoadableLumpNames with config.ts', () => {
 };`,
             );
 
-            const names = await discoverLoadableLumpNames(localConfigFolderPath);
+            const names = await discoverLoadableLumpNames({ localConfigFolderPath });
             expect(names).toEqual([lumpName]);
         });
     });

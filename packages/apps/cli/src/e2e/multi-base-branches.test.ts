@@ -15,7 +15,6 @@ import {
     sharedModeCopyPath,
     useE2eProjects,
     writeE2eLumpFixture,
-    commitAndPushMain,
 } from './harness';
 
 const releaseLineConfig = {
@@ -30,8 +29,8 @@ describe('E2E multi discovery branches', () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                discoveryBranch: 'main',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranch: 'main',
+                primaryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
@@ -42,13 +41,6 @@ describe('E2E multi discovery branches', () => {
                 configOverrides: releaseLineConfig,
             });
         });
-        // Daemon discovers lumps from the current checkout; keep releaseLine on main too.
-        await writeE2eLumpFixture({
-            projectRoot: project.projectRoot,
-            lumpName: 'releaseLine',
-            configOverrides: releaseLineConfig,
-        });
-        commitAndPushMain(project, 'releaseLine on main for daemon discovery');
 
         await runForegroundUntilMarkers({
             project,
@@ -61,11 +53,11 @@ describe('E2E multi discovery branches', () => {
         expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'releaseLine', contextName: 'README' });
     });
 
-    it('DAEMON-MDB-S2 tick order follows discoveryBranches array (ver/0.0.9 before main)', async () => {
+    it('DAEMON-MDB-S2 tick order follows primaryBranches array (ver/0.0.9 before main)', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                discoveryBranches: ['ver/0.0.9', 'main'],
+                primaryBranches: ['ver/0.0.9', 'main'],
             },
             lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
@@ -81,12 +73,6 @@ describe('E2E multi discovery branches', () => {
                 'utf-8',
             );
         });
-        await writeE2eLumpFixture({
-            projectRoot: project.projectRoot,
-            lumpName: 'releaseLine',
-            configOverrides: releaseLineConfig,
-        });
-        commitAndPushMain(project, 'releaseLine on main for daemon discovery');
 
         await runForegroundUntilMarkers({
             project,
@@ -109,11 +95,39 @@ describe('E2E multi discovery branches', () => {
         }
     });
 
+    it('DAEMON-MDB-S5 branch-only releaseLine on ver/0.0.9 is discovered from main checkout', async () => {
+        const project = await createProject({
+            localJson: {
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                primaryBranches: ['main', 'ver/0.0.9'],
+            },
+            lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
+        });
+        await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
+            await writeE2eLumpFixture({
+                projectRoot: root,
+                lumpName: 'releaseLine',
+                configOverrides: releaseLineConfig,
+            });
+        });
+
+        await runForegroundUntilMarkers({
+            project,
+            waitFor: [
+                { lumpName: 'mainLine', contextName: 'README' },
+                { lumpName: 'releaseLine', contextName: 'README' },
+            ],
+        });
+        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'mainLine', contextName: 'README' });
+        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'releaseLine', contextName: 'README' });
+    });
+
     it('DAEMON-MDB-S3 cross-branch same lumpName launch succeeds and both run', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [{ name: 'sharedName', discoveryBranch: 'main' }],
         });
@@ -143,7 +157,7 @@ describe('E2E multi discovery branches', () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
         });
@@ -171,7 +185,7 @@ describe('E2E multi discovery branches', () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [],
         });
@@ -191,19 +205,19 @@ describe('E2E multi discovery branches', () => {
 
     it('RUN-MDB-S2 unlisted discoveryBranch fails run --json envelope', async () => {
         const project = await createProject({
-            localJson: { mode: 'dedicated', discoveryBranch: 'main' },
+            localJson: { mode: 'dedicated', primaryBranch: 'main' },
             lumps: [{ name: 'legacyLine', discoveryBranch: 'ver/0.0.7' }],
         });
         const result = await runE2eCli({ project, args: ['run', 'legacyLine', '--json'] });
         expect(result.code).not.toBe(0);
-        expect(`${result.stdout}\n${result.stderr}`).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
+        expect(`${result.stdout}\n${result.stderr}`).toMatch(/discoveryBranch|primaryBranches|ver\/0\.0\.7/i);
     });
 
     it('CLEAN-MDB-S1 clean removes lump branches without switching checkout', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'shared',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [{ name: 'cleanLump' }],
         });
