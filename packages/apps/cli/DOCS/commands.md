@@ -54,7 +54,7 @@ On failure the process exits non-zero. The result envelope goes to stderr on fai
 
 Every subcommand accepts **`--verbose`**. On **`run`** and **`start`** it gates **`Logger.verbose`** output — extra engine detail during a lump run (branch names, shell commands, git status snapshots, and similar). On other commands the flag is accepted for consistency but has no effect today.
 
-**Not gated by `--verbose`:** normal operational progress at **`info`** level still prints on **`run`** / **`start`** without the flag — for example daemon tick summaries, branch-workspace lock-wait lines, and per-lump tick results. Those are suppressed only when **`--json`** is set (except operational **`error`** lines; see above).
+**Not gated by `--verbose`:** normal operational progress at **`info`** level still prints on **`run`** / **`start`** without the flag — for example daemon tick summaries, execution-workspace and branch-workspace lock-wait lines, and per-lump tick results. Those are suppressed only when **`--json`** is set (except operational **`error`** lines; see above).
 
 Verbose is activated when **either** the CLI flag **or** the lump config field **`verbose: true`** is set for that **`run`** / **`start`** invocation (`effectiveVerbose = --verbose || lumpConfig.verbose`).
 
@@ -182,7 +182,9 @@ Plus global [`--json`](#ref-json-output).
 - Normal completion: message includes `SUCCESS: Lump run successfully` and `data` may include details of the run (branch name, context names, etc.).
 - **Skipped run** when `maximumNumberOfConcurrentBranches` is reached: still a success but nothing is done.
 
-**Fails if:** `local.json` missing or invalid, pre-flight git commands fail, config missing/invalid, or engine errors.
+**Fails if:** `local.json` missing or invalid, pre-flight git commands fail, config missing/invalid, engine errors, **`branchWorkspaceBusy`** (another run holds the branch workspace), or **`executionWorkspaceBusy`** in dedicated mode (another run is preparing the checkout — pre-flight or worktree setup).
+
+With **`--json`**, busy responses include a stable `code` field (`branchWorkspaceBusy` or `executionWorkspaceBusy`) plus path and optional holder pid/lump name.
 
 **See also:** [concepts.md](./concepts.md#one-run-end-to-end), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-5-run-once).
 

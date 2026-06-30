@@ -8,7 +8,6 @@ import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { readProjectJsonBaseBranch } from '../readProjectJsonBaseBranch';
 import { resolveDiscoveryBranches } from '../resolveDiscoveryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
-import { runProjectPreflight } from '../runProjectPreflight';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
 
 type LumpRegistryEntry = {
@@ -107,20 +106,6 @@ export async function validateDaemonLaunch(input: {
     const registry: LumpRegistryEntry[] = [];
 
     for (const discoveryBranch of effectiveDiscoveryBranches) {
-        const preflightResult = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            localConfig,
-            targetBranch: discoveryBranch,
-        });
-        if (!preflightResult.success) {
-            return failure(
-                `Daemon launch validation failed while pre-flighting discovery branch "${discoveryBranch}": ` +
-                    `${preflightResult.data}`,
-            );
-        }
-
         const lumpNames = await discoverLumpNames(localConfigFolderPath);
         const seenOnBranch = new Set<string>();
 

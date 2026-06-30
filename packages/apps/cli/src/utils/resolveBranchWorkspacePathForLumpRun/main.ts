@@ -5,6 +5,7 @@ import {
     type Failure,
     getCodeBasePaths,
     getToDoContextList,
+    type ContextList,
     type RunLumpInput,
     success,
     type Success,
@@ -14,8 +15,8 @@ import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { branchWorkspacePath as getBranchWorkspacePath } from '../branchWorkspacePath';
 
 export type ResolveBranchWorkspacePathForLumpRunResult =
-    | { needsLock: false }
-    | { needsLock: true; branchWorkspacePath: string };
+    | { needsLock: false; contextListToDo: ContextList }
+    | { needsLock: true; branchWorkspacePath: string; contextListToDo: ContextList };
 
 export async function resolveBranchWorkspacePathForLumpRun(input: {
     runLumpInput: RunLumpInput;
@@ -40,14 +41,15 @@ export async function resolveBranchWorkspacePathForLumpRun(input: {
         baseBranch: runLumpInput.baseBranch,
         gitCommitMessageFn: runLumpInput.gitCommitMessageFn!,
     });
-    
+
     if (!todoResult.success) {
         return failure(todoResult.data.message);
     }
 
-    const batchContexts = todoResult.data.slice(0, runLumpInput.numberOfContextsPerBranch ?? 1);
+    const contextListToDo = todoResult.data;
+    const batchContexts = contextListToDo.slice(0, runLumpInput.numberOfContextsPerBranch ?? 1);
     if (batchContexts.length === 0) {
-        return success({ needsLock: false as const });
+        return success({ needsLock: false as const, contextListToDo });
     }
 
     const branchName = await runLumpInput.branchFn({
@@ -62,5 +64,5 @@ export async function resolveBranchWorkspacePathForLumpRun(input: {
         branchName,
     });
 
-    return success({ needsLock: true, branchWorkspacePath });
+    return success({ needsLock: true, branchWorkspacePath, contextListToDo });
 }

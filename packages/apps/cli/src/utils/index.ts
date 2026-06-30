@@ -2,6 +2,7 @@ export * from './addCommand';
 export * from './assertDaemonStartAllowed';
 export * from './atDirectory';
 export * from './branchWorkspaceLock';
+export * from './executionWorkspaceLock';
 export * from './branchWorkspacePath';
 export * from './buildContextStatusRecord';
 export * from './cliLog';

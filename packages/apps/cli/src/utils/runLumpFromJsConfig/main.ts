@@ -1,27 +1,40 @@
 import path from "node:path";
 
-import { failure, Failure, runLump, RunLumpOutput, success, Success, type Logger } from "@lumpcode/core";
+import { failure, Failure, RunLumpOutput, success, Success, type Logger } from "@lumpcode/core";
 
 import { LumpJsConfig } from "../../types";
 import type { LocalConfig } from "../../types/LocalConfig";
-import type { WorkspaceStrategy } from "../../types/WorkspaceStrategy";
-import {
-    acquireBranchWorkspaceLock,
-    type BranchWorkspaceBusyError,
-    type BranchWorkspaceLockMode,
-} from "../branchWorkspaceLock";
 import { countOpenLumpBranches } from "../countOpenLumpBranches";
+import { getExecutionWorkspacePath } from "../getExecutionWorkspacePath";
+import { getProjectName } from "../getProjectName";
 import { jsConfigToRunLumpInput } from "../jsConfigToRunLumpInput";
 import { readLocalConfig } from "../readLocalConfig";
 import { readProjectJsonBaseBranch } from "../readProjectJsonBaseBranch";
 import { resolveBranchWorkspacePathForLumpRun } from "../resolveBranchWorkspacePathForLumpRun";
-import { resolveDiscoveryBranches } from "../resolveDiscoveryBranches";
+import { resolveDiscoveryBranches, resolvePrimaryDiscoveryBranch } from "../resolveDiscoveryBranches";
 import { resolveLumpBranches } from "../resolveLumpBranches";
+import { runProjectPreflight } from "../runProjectPreflight";
 import { validateLumpDiscoveryBranchAllowlist } from "../validateLumpDiscoveryBranchAllowlist";
 import { updateContextStatusRecord } from "../updateContextStatusRecord";
+import type { WorkspaceLockMode } from "../workspaceFileLock";
+import type { RunLumpFromJsConfigFailure } from "./failures";
+import {
+    toRunLumpMessageFailure,
+} from "./failures";
+import { resolveWorkspaceLockPlan } from "./resolveWorkspaceLockPlan";
+import { runLumpWithWorkspaceLocks } from "./runLumpWithWorkspaceLocks";
 
 export type { BranchWorkspaceBusyError } from '../branchWorkspaceLock';
-export { isBranchWorkspaceBusyError } from '../branchWorkspaceLock';
+export type { ExecutionWorkspaceBusyError } from '../executionWorkspaceLock';
+export type { RunLumpFromJsConfigFailure } from './failures';
+export {
+    branchWorkspaceBusyFailure,
+    executionWorkspaceBusyFailure,
+    isRunLumpBranchWorkspaceBusyFailure,
+    isRunLumpExecutionWorkspaceBusyFailure,
+    runLumpFromJsConfigFailureMessage,
+    toRunLumpMessageFailure,
+} from './failures';
 
 export type RunLumpFromJsConfigSuccess =
     | {
@@ -38,53 +51,69 @@ export async function runLumpFromJsConfig(input: {
     lumpName: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
-    /** Project-wide base branch (from `.lumpcode/local.json`). */
-    projectBaseBranch: string;
-    /** Execution workspace (git repo root) resolved by pre-flight. */
-    executionWorkspacePath: string;
-    workspaceStrategy: WorkspaceStrategy;
-    lockMode?: BranchWorkspaceLockMode;
+    /** Project workspace: directory containing `.lumpcode/` and `.git/`. */
+    sourceProjectRoot: string;
+    lockMode?: WorkspaceLockMode;
     projectName?: string;
     logger: Logger;
-}): Promise<
-    Success<RunLumpFromJsConfigSuccess> | Failure<string | BranchWorkspaceBusyError>
-> {
+    /** When set, skips reading `.lumpcode/local.json` (e.g. daemon frozen config). */
+    localConfig?: LocalConfig;
+}): Promise<Success<RunLumpFromJsConfigSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         jsConfig,
         lumpName,
         localConfigFolderPath,
         globalConfigFolderPath,
-        projectBaseBranch,
-        executionWorkspacePath,
-        workspaceStrategy,
+        sourceProjectRoot,
         lockMode = 'fail',
-        projectName,
+        projectName: projectNameInput,
         logger,
+        localConfig: providedLocalConfig,
     } = input;
 
     const projectRoot = path.dirname(localConfigFolderPath);
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
-    let resolvedBaseBranch = jsConfig.baseBranch ?? jsConfig.discoveryBranch ?? projectBaseBranch;
-
-    if (localConfigResult.success) {
-        const localConfig = localConfigResult.data;
-        const branches = resolveLumpBranches({
-            lumpConfig: jsConfig,
-            localConfig,
-            projectJsonBaseBranch,
-        });
-        resolvedBaseBranch = branches.resolvedBaseBranch;
-
-        const allowlistResult = validateLumpDiscoveryBranchAllowlist({
-            mode: localConfig.mode,
-            lumpName,
-            resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
-            effectiveDiscoveryBranches: resolveDiscoveryBranches(localConfig),
-        });
-        if (!allowlistResult.success) return failure(allowlistResult.data);
+    let localConfig: LocalConfig;
+    if (providedLocalConfig) {
+        localConfig = providedLocalConfig;
+    } else {
+        const localConfigResult = await readLocalConfig({ localConfigFolderPath });
+        if (!localConfigResult.success) return failure(toRunLumpMessageFailure(localConfigResult.data));
+        localConfig = localConfigResult.data;
     }
+
+    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
+    const projectBaseBranch = resolvePrimaryDiscoveryBranch(localConfig);
+    const workspaceStrategy = localConfig.workspaceStrategy ?? 'checkout';
+
+    const branches = resolveLumpBranches({
+        lumpConfig: jsConfig,
+        localConfig,
+        projectJsonBaseBranch,
+    });
+    const resolvedBaseBranch = branches.resolvedBaseBranch;
+
+    const allowlistResult = validateLumpDiscoveryBranchAllowlist({
+        mode: localConfig.mode,
+        lumpName,
+        resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
+        effectiveDiscoveryBranches: resolveDiscoveryBranches(localConfig),
+    });
+    if (!allowlistResult.success) return failure(toRunLumpMessageFailure(allowlistResult.data));
+
+    const projectNameResult = await getProjectName({
+        localConfigFolderPath,
+        projectRoot: sourceProjectRoot,
+    });
+    if (!projectNameResult.success) return failure(toRunLumpMessageFailure(projectNameResult.data));
+    const projectName = projectNameInput ?? projectNameResult.data;
+
+    const tentativeExecutionWorkspacePath = getExecutionWorkspacePath({
+        mode: localConfig.mode,
+        sourceProjectRoot,
+        globalConfigFolderPath,
+        projectName,
+    });
 
     const runLumpInputResult = await jsConfigToRunLumpInput({
         config: jsConfig,
@@ -92,21 +121,24 @@ export async function runLumpFromJsConfig(input: {
         localConfigFolderPath,
         globalConfigFolderPath,
         projectBaseBranch,
-        executionWorkspacePath,
+        executionWorkspacePath: tentativeExecutionWorkspacePath,
         workspaceStrategy,
         logger,
-        localConfig: localConfigResult.success ? localConfigResult.data : undefined,
+        localConfig,
         projectJsonBaseBranch,
     });
 
-    if (!runLumpInputResult.success) return failure(runLumpInputResult.data);
+    if (!runLumpInputResult.success) return failure(toRunLumpMessageFailure(runLumpInputResult.data));
 
     const { maximumNumberOfConcurrentBranches } = jsConfig;
     if (
         typeof maximumNumberOfConcurrentBranches === 'number' &&
         maximumNumberOfConcurrentBranches >= 0
     ) {
-        const openBranchCount = await countOpenLumpBranches({ executionWorkspacePath, lumpName });
+        const openBranchCount = await countOpenLumpBranches({
+            executionWorkspacePath: tentativeExecutionWorkspacePath,
+            lumpName,
+        });
         if (openBranchCount >= maximumNumberOfConcurrentBranches) {
             return success({
                 skipped: true,
@@ -122,50 +154,59 @@ export async function runLumpFromJsConfig(input: {
         }
     }
 
-    const runLumpInput = runLumpInputResult.data;
-
     const branchPathResult = await resolveBranchWorkspacePathForLumpRun({
-        runLumpInput: runLumpInput,
+        runLumpInput: runLumpInputResult.data,
         localConfigFolderPath,
-        executionWorkspacePath,
+        executionWorkspacePath: tentativeExecutionWorkspacePath,
         workspaceStrategy,
     });
-    if (!branchPathResult.success) return failure(branchPathResult.data);
+    if (!branchPathResult.success) return failure(toRunLumpMessageFailure(branchPathResult.data));
 
-    let releaseLock: (() => Promise<void>) | undefined;
-    const branchPathResultData = branchPathResult.data;
-    if (branchPathResultData.needsLock) {
-        const lockResult = await acquireBranchWorkspaceLock({
-            globalConfigFolderPath,
-            branchWorkspacePath: branchPathResultData.branchWorkspacePath,
-            lumpName,
-            mode: lockMode,
-            projectName,
-            logger,
-        });
-        if (!lockResult.success) return failure(lockResult.data);
-        releaseLock = lockResult.data;
+    const runLumpInput = {
+        ...runLumpInputResult.data,
+        preResolvedContextListToDo: branchPathResult.data.contextListToDo,
+    };
+
+    const lockPlan = resolveWorkspaceLockPlan({
+        needsLock: branchPathResult.data.needsLock,
+        mode: localConfig.mode,
+        workspaceStrategy,
+        executionWorkspacePath: tentativeExecutionWorkspacePath,
+        branchWorkspacePath: branchPathResult.data.needsLock
+            ? branchPathResult.data.branchWorkspacePath
+            : tentativeExecutionWorkspacePath,
+    });
+
+    const runLumpOutputResult = await runLumpWithWorkspaceLocks({
+        plan: lockPlan,
+        runLumpInput,
+        globalConfigFolderPath,
+        lumpName,
+        projectName,
+        lockMode,
+        logger,
+        preflight: () =>
+            runProjectPreflight({
+                sourceProjectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                localConfig,
+                targetBranch: resolvedBaseBranch,
+            }).then((result) =>
+                result.success ? success(undefined) : failure(result.data),
+            ),
+    });
+
+    if (!runLumpOutputResult.success) return runLumpOutputResult;
+
+    const updateContextStatusRecordResult = await updateContextStatusRecord({
+        projectRoot,
+        lumpName,
+        baseBranch: resolvedBaseBranch,
+    });
+    if (!updateContextStatusRecordResult.success) {
+        logger.error(`Failed to update context status record: ${updateContextStatusRecordResult.data}`);
     }
 
-    try {
-        const runLumpResult = await runLump(runLumpInput);
-
-        if (!runLumpResult.success) return failure(runLumpResult.data.message);
-
-        const updateContextStatusRecordResult = await updateContextStatusRecord({
-            projectRoot,
-            lumpName,
-            baseBranch: resolvedBaseBranch,
-        });
-
-        if (!updateContextStatusRecordResult.success) {
-            logger.error(`Failed to update context status record: ${updateContextStatusRecordResult.data}`);
-        }
-
-        return success({ skipped: false as const, ...runLumpResult.data });
-    } finally {
-        if (releaseLock) {
-            await releaseLock();
-        }
-    }
+    return success({ skipped: false as const, ...runLumpOutputResult.data });
 }

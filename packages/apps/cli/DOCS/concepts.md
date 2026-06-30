@@ -56,6 +56,8 @@ dedicated mode:
   branch workspace    checkout: same path; worktree: .lumpcode/worktrees/...
 ```
 
+In **dedicated** mode with **`worktree`**, pre-flight and worktree setup on the main checkout are **serialized** (one lump at a time per machine) via an execution-workspace lock. After setup completes, agents on different worktrees may run **concurrently** (each worktree is protected by its own branch-workspace lock). **`checkout`** strategy holds one lock for the full run because execution and branch workspaces are the same path.
+
 There are **three subcommands whose names include “status”** (not the same thing as the three **status values** `toDo` / `branchPushed` / `finished` in the table above): do not confuse **`daemon-status`** (daemon process), **`lump-status`** (recompute all context rows from remote git), and **`context-status`** (one context row). Comparison table: [commands.md § Three commands…](./commands.md#three-commands-that-mention-status).
 
 ## One run, end to end
