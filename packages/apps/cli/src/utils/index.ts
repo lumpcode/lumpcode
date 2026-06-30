@@ -47,7 +47,6 @@ export * from './projectJsonPath';
 export * from './readDaemonMeta';
 export * from './readDaemonPidIfAlive';
 export * from './readJson';
-export * from './readProjectJsonBaseBranch';
 export * from './readLocalConfig';
 export * from './resolveDaemonPaths';
 export * from './resolveLumpDisabled';

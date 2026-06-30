@@ -5,7 +5,6 @@ import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
 import { discoverLumpNames } from '../discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
-import { readProjectJsonBaseBranch } from '../readProjectJsonBaseBranch';
 import { resolveDiscoveryBranches } from '../resolveDiscoveryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
@@ -78,7 +77,6 @@ export async function validateDaemonLaunch(input: {
         logger,
     } = input;
 
-    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
     const effectiveDiscoveryBranches = resolveDiscoveryBranches(localConfig);
 
     if (lumpNameOpt) {
@@ -89,7 +87,6 @@ export async function validateDaemonLaunch(input: {
         const { resolvedDiscoveryBranch } = resolveLumpBranches({
             lumpConfig: jsConfResult.data,
             localConfig,
-            projectJsonBaseBranch,
         });
         return validateLumpDiscoveryBranchAllowlist({
             mode: localConfig.mode,
@@ -118,7 +115,6 @@ export async function validateDaemonLaunch(input: {
             const branches = resolveLumpBranches({
                 lumpConfig: jsConfResult.data,
                 localConfig,
-                projectJsonBaseBranch,
             });
 
             const allowlistResult = validateLumpDiscoveryBranchAllowlist({

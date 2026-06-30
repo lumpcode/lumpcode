@@ -18,7 +18,6 @@ import {
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
-    readProjectJsonBaseBranch,
     resolveDiscoveryBranches,
     resolveLumpBranches,
     resolveTargetLumpNames,
@@ -321,8 +320,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             sharedMultiDiscoveryWarningLogged = true;
         }
 
-        const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
-
         const runOneLump = async (input: { lumpName: string }): Promise<void> => {
             const { lumpName } = input;
 
@@ -399,7 +396,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     const branches = resolveLumpBranches({
                         lumpConfig: jsConfResult.data,
                         localConfig: frozenLocalConfig,
-                        projectJsonBaseBranch,
                     });
                     if (branches.resolvedDiscoveryBranch !== discoveryBranch) {
                         continue;
