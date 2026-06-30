@@ -156,7 +156,7 @@ describe('run command — multi discovery branches', () => {
 
     it('loads config before pre-flight and passes targetBranch from resolved lump baseBranch', async () => {
         await setupMultiBranchLocal();
-        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        const runLumpSpy = vi.spyOn(runLumpFromJsConfigModule, 'runLumpFromJsConfig');
         const getConfigSpy = vi.spyOn(
             await import('../../utils/getJsConfigFromLumpName'),
             'getJsConfigFromLumpName',
@@ -168,10 +168,13 @@ describe('run command — multi discovery branches', () => {
         });
 
         expect(getConfigSpy.mock.invocationCallOrder[0]).toBeLessThan(
-            preflightSpy.mock.invocationCallOrder[0]!,
+            runLumpSpy.mock.invocationCallOrder[0]!,
         );
-        expect(preflightSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ targetBranch: 'ver/0.0.9' }),
+        expect(runLumpSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                sourceProjectRoot: projectRoot,
+                lumpName: 'releaseLine',
+            }),
         );
     });
 
@@ -187,14 +190,18 @@ describe('run command — multi discovery branches', () => {
         });
         await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'ver/0.0.9' });
 
-        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
-        await makeHandler()({
+        const runLumpSpy = vi.spyOn(runLumpFromJsConfigModule, 'runLumpFromJsConfig');
+        const result = await makeHandler()({
             options: {},
             arguments: { lumpName: 'splitLine' },
         });
 
-        expect(preflightSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ targetBranch: 'ver/0.0.9' }),
+        expect(result.success).toBe(true);
+        expect(runLumpSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                lumpName: 'splitLine',
+                sourceProjectRoot: projectRoot,
+            }),
         );
     });
 
@@ -214,7 +221,7 @@ describe('run command — multi discovery branches', () => {
         expect(result.success).toBe(true);
     });
 
-    it('shared mode pre-flights copy to lump baseBranch while source stays on main', async () => {
+    it('shared mode leaves source checkout on main after run', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
             discoveryBranch: 'main',
@@ -230,26 +237,12 @@ describe('run command — multi discovery branches', () => {
             baseBranch: 'ver/0.0.9',
         });
 
-        const runSpy = vi.spyOn(runLumpFromJsConfigModule, 'runLumpFromJsConfig').mockResolvedValue({
-            success: true,
-            data: {
-                skipped: false,
-                result: {
-                    branchName: 'lump/releaseLine/README',
-                    contextNames: ['README'],
-                    contextRunStateList: [],
-                },
-            },
-        });
-
-        await makeHandler()({
+        const result = await makeHandler()({
             options: {},
             arguments: { lumpName: 'releaseLine' },
         });
 
+        expect(result.success).toBe(true);
         expect(gitCurrentBranch(projectRoot)).toBe('main');
-        const copyPath = path.join(globalConfigFolderPath, 'project-copies', 'run-cmd-test');
-        expect(gitCurrentBranch(copyPath)).toBe('ver/0.0.9');
-        expect(runSpy).toHaveBeenCalled();
     });
 });

@@ -16,7 +16,6 @@ import { lumpWorktreePath } from '../../utils/getLumpWorktreePath';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpBranchGlob } from '../../utils/lumpBranchGlob';
 import { readLocalConfig } from '../../utils/readLocalConfig';
-import { recallSharedExecutionWorkspace } from '../../utils/recallSharedExecutionWorkspace';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
 const inputSchema = z.object({
@@ -219,17 +218,13 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 globalConfigFolderPath,
                 projectName: projectNameResult.data,
             });
-            const rememberedCopyPath = recallSharedExecutionWorkspace(projectRoot);
-            for (const candidate of [copyPath, rememberedCopyPath]) {
-                if (!candidate) continue;
-                try {
-                    const stat = await fs.stat(candidate);
-                    if (stat.isDirectory()) {
-                        executionWorkspaces.push(path.resolve(candidate));
-                    }
-                } catch {
-                    // no shared copy at this path
+            try {
+                const stat = await fs.stat(copyPath);
+                if (stat.isDirectory()) {
+                    executionWorkspaces.push(path.resolve(copyPath));
                 }
+            } catch {
+                // no shared copy at this path
             }
         }
     }

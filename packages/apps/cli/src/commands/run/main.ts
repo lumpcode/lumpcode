@@ -6,15 +6,12 @@ import {
     commandFailure,
     createCliLogger,
     getJsConfigFromLumpName,
-    isBranchWorkspaceBusyError,
+    isRunLumpBranchWorkspaceBusyFailure,
+    isRunLumpExecutionWorkspaceBusyFailure,
     readLocalConfig,
-    readProjectJsonBaseBranch,
-    resolveDiscoveryBranches,
-    resolveLumpBranches,
-    runProjectPreflight,
     runLumpFromJsConfig,
+    runLumpFromJsConfigFailureMessage,
     RunLumpFromJsConfigSuccess,
-    validateLumpDiscoveryBranchAllowlist,
 } from '../../utils';
 import { execAsync, failure, shellSingleQuote, success } from '@lumpcode/core';
 import { globalConfigFolderPath, localConfigFolderPath } from '../../constants';
@@ -54,21 +51,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const localConfig = localConfigResult.data;
 
-    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
-    const { resolvedDiscoveryBranch, resolvedBaseBranch } = resolveLumpBranches({
-        lumpConfig: jsConfResult.data,
-        localConfig,
-        projectJsonBaseBranch,
-    });
-
-    const allowlistResult = validateLumpDiscoveryBranchAllowlist({
-        mode: localConfig.mode,
-        lumpName,
-        resolvedDiscoveryBranch,
-        effectiveDiscoveryBranches: resolveDiscoveryBranches(localConfig),
-    });
-    if (!allowlistResult.success) return commandFailure(allowlistResult.data);
-
     let dedicatedRestoreBranch: string | undefined;
     if (localConfig.mode === 'dedicated') {
         const branchResult = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: projectRoot });
@@ -78,15 +60,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     try {
-        const preflightResult = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            targetBranch: resolvedBaseBranch,
-        });
-        if (!preflightResult.success) return commandFailure(preflightResult.data);
-        const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } = preflightResult.data;
-
         const effectiveVerbose = !!cliVerbose || !!jsConfResult.data.verbose;
         const logger = createCliLogger({ verbose: effectiveVerbose, json: !!json });
 
@@ -95,22 +68,21 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             lumpName,
             localConfigFolderPath,
             globalConfigFolderPath,
-            projectBaseBranch,
-            executionWorkspacePath,
-            workspaceStrategy,
+            sourceProjectRoot: projectRoot,
             logger,
         });
         if (!runLumpRes.success) {
             const errData = runLumpRes.data;
-            if (isBranchWorkspaceBusyError(errData)) {
+            if (
+                isRunLumpBranchWorkspaceBusyFailure(errData) ||
+                isRunLumpExecutionWorkspaceBusyFailure(errData)
+            ) {
                 return failure({
                     messages: [errData.message],
-                    data: {
-                        ...errData,
-                    },
+                    data: errData,
                 });
             }
-            return commandFailure(errData);
+            return commandFailure(runLumpFromJsConfigFailureMessage(errData));
         }
         if (runLumpRes.data.skipped) {
             return success({
