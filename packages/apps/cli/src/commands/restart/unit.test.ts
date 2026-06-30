@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     aliveDaemonSpawnFn,
     setDaemonTestGlobalConfigFolder,
+    waitForDaemonMetaFile,
     waitForDaemonPidFile,
 } from '../../testing';
 import { command as startCommand } from '../start/main';
@@ -124,6 +125,7 @@ describe('restart command', () => {
         const originalCron = '*/7 * * * *';
         await runStart(aliveDaemonSpawnFn, { cronSetup: originalCron });
         await waitForDaemonPidFile(pidPath());
+        await waitForDaemonMetaFile(metaPath());
 
         const initialRaw = await fs.readFile(pidPath(), 'utf8');
         const initialPid = Number.parseInt(initialRaw.trim(), 10);
@@ -174,6 +176,7 @@ describe('restart command', () => {
     it('falls back to the default cron schedule when the meta file is missing', async () => {
         await runStart(aliveDaemonSpawnFn, { cronSetup: '*/9 * * * *' });
         await waitForDaemonPidFile(pidPath());
+        await waitForDaemonMetaFile(metaPath());
 
         await fs.unlink(metaPath());
 
