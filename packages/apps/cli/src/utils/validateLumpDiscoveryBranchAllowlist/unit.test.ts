@@ -1,17 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { resolveDiscoveryBranches } from '../resolveDiscoveryBranches';
+import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { validateLumpDiscoveryBranchAllowlist } from './main';
 
 describe('validateLumpDiscoveryBranchAllowlist', () => {
-    const effectiveDiscoveryBranches = ['main', 'ver/0.0.9'];
+    const effectivePrimaryBranches = ['main', 'ver/0.0.9'];
 
     it('returns success for a listed discoveryBranch', () => {
         const result = validateLumpDiscoveryBranchAllowlist({
             mode: 'dedicated',
             lumpName: 'releaseLine',
             resolvedDiscoveryBranch: 'ver/0.0.9',
-            effectiveDiscoveryBranches,
+            effectivePrimaryBranches,
         });
         expect(result.success).toBe(true);
     });
@@ -21,7 +21,7 @@ describe('validateLumpDiscoveryBranchAllowlist', () => {
             mode: 'dedicated',
             lumpName: 'legacyLine',
             resolvedDiscoveryBranch: 'ver/0.0.7',
-            effectiveDiscoveryBranches,
+            effectivePrimaryBranches,
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
@@ -34,23 +34,23 @@ describe('validateLumpDiscoveryBranchAllowlist', () => {
             mode: 'shared',
             lumpName: 'legacyLine',
             resolvedDiscoveryBranch: 'ver/0.0.7',
-            effectiveDiscoveryBranches,
+            effectivePrimaryBranches,
         });
         expect(result.success).toBe(true);
     });
 
-    it('uses effective list from resolveDiscoveryBranches (LC-MULTI + LUMP-VER)', () => {
+    it('uses effective list from resolvePrimaryBranches (LC-MULTI + LUMP-VER)', () => {
         const localConfig = {
             mode: 'dedicated' as const,
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
         };
-        const branches = resolveDiscoveryBranches(localConfig);
+        const branches = resolvePrimaryBranches(localConfig);
         const result = validateLumpDiscoveryBranchAllowlist({
             mode: 'dedicated',
             lumpName: 'releaseLine',
             resolvedDiscoveryBranch: 'ver/0.0.9',
-            effectiveDiscoveryBranches: branches,
+            effectivePrimaryBranches: branches,
         });
         expect(result.success).toBe(true);
     });

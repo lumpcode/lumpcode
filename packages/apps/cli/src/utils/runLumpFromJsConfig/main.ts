@@ -9,7 +9,7 @@ import { getExecutionWorkspacePath } from "../getExecutionWorkspacePath";
 import { getProjectName } from "../getProjectName";
 import { jsConfigToRunLumpInput } from "../jsConfigToRunLumpInput";
 import { readLocalConfig } from "../readLocalConfig";
-import { resolveDiscoveryBranches, resolvePrimaryDiscoveryBranch } from "../resolveDiscoveryBranches";
+import { resolvePrimaryBranch, resolvePrimaryBranches } from "../resolvePrimaryBranches";
 import { resolveLumpBranches } from "../resolveLumpBranches";
 import { runProjectPreflight } from "../runProjectPreflight";
 import { validateLumpDiscoveryBranchAllowlist } from "../validateLumpDiscoveryBranchAllowlist";
@@ -83,7 +83,7 @@ export async function runLumpFromJsConfig(input: {
         localConfig = localConfigResult.data;
     }
 
-    const projectBaseBranch = resolvePrimaryDiscoveryBranch(localConfig);
+    const projectBaseBranch = resolvePrimaryBranch(localConfig);
     const workspaceStrategy = localConfig.workspaceStrategy ?? 'checkout';
 
     const branches = resolveLumpBranches({
@@ -96,7 +96,7 @@ export async function runLumpFromJsConfig(input: {
         mode: localConfig.mode,
         lumpName,
         resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
-        effectiveDiscoveryBranches: resolveDiscoveryBranches(localConfig),
+        effectivePrimaryBranches: resolvePrimaryBranches(localConfig),
     });
     if (!allowlistResult.success) return failure(toRunLumpMessageFailure(allowlistResult.data));
 

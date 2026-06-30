@@ -105,13 +105,13 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 | `--projectPath` | string | No | Directory to initialize (default: `.` resolved from cwd) |
 | `--projectName` | string | No | Stored in `project.json`; must be letters, digits, `_`, `-` only; if omitted, inferred from `origin` or directory basename and normalized |
 | `--mode` | `shared` \| `dedicated` | No | Initial `local.json.mode` (default `shared`) — see [local-config.md](./local-config.md) |
-| `--discoveryBranch` | string | No | Initial `local.json.discoveryBranch` (default `main`) |
+| `--primaryBranch` | string | No | Initial `local.json.primaryBranch` (default `main`) |
 
 
 **Creates:**
 
 - `.lumpcode/project.json` — minimal `{ "projectName": "…" }`
-- `.lumpcode/local.json` — `{ "mode": "shared", "discoveryBranch": "main" }` (per machine, gitignored)
+- `.lumpcode/local.json` — `{ "mode": "shared", "primaryBranch": "main" }` (per machine, gitignored)
 - `.lumpcode/lumps/` — empty
 - `.lumpcode/commands/` — empty
 - Appends `.lumpcode/**/contextStatusRecord.json`, `.lumpcode/**/history/`, `.lumpcode/.cache/`, and `.lumpcode/local.json` to `.gitignore`
@@ -251,7 +251,7 @@ Plus global [`--json`](#ref-json-output).
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 
-**`local.json` at startup:** `.lumpcode/local.json` is read **once** when the daemon starts (`mode`, `discoveryBranch`, `discoveryBranches`, `workspaceStrategy`, `disabled`). Those values are frozen for every tick until you restart the daemon. Edit the file and restart to pick up changes.
+**`local.json` at startup:** `.lumpcode/local.json` is read **once** when the daemon starts (`mode`, `primaryBranch`, `primaryBranches`, `workspaceStrategy`, `disabled`). Those values are frozen for every tick until you restart the daemon. Edit the file and restart to pick up changes.
 
 **Pre-flight per tick:** skips the tick when `disabled` is `true` in the frozen config (no pre-flight, no lump runs). Otherwise it runs pre-flight (`git fetch && git switch <branch> && git reset --hard origin/<branch> && git pull`), then runs every targeted loadable lump whose own config is not `disabled`. If pre-flight fails the tick is **skipped** with an error logged to the daemon log file; the next tick tries again.
 
@@ -465,7 +465,7 @@ When `--lumpName` is omitted, `lumpName` from the meta file is used if present (
 - [get-started.md](./get-started.md) — Tutorial
 - [concepts.md](./concepts.md) — Mental model and daemon
 - [project-config.md](./project-config.md) — `project.json`
-- [local-config.md](./local-config.md) — Per-machine `.lumpcode/local.json` (`mode`, `discoveryBranch`)
+- [local-config.md](./local-config.md) — Per-machine `.lumpcode/local.json` (`mode`, `primaryBranch`)
 - [lump-config.md](./lump-config.md) — Lump configuration
 - [advanced-config.md](./advanced-config.md) — Hooks, dynamic prompts, custom commands
 

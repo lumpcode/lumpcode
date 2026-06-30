@@ -34,7 +34,7 @@ describe('lump-status command', () => {
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'shared', discoveryBranch: 'main' }),
+            JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
             'utf-8',
         );
     }, 60_000);
@@ -149,8 +149,8 @@ describe('lump-status command', () => {
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                discoveryBranch: 'main',
-                discoveryBranches: ['main'],
+                primaryBranch: 'main',
+                primaryBranches: ['main'],
             }),
             'utf-8',
         );
@@ -172,7 +172,7 @@ describe('lump-status command', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.9/i);
+        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|primaryBranches|ver\/0\.0\.9/i);
     }, 60_000);
 
     it('succeeds in shared mode when discoveryBranch is unlisted (no allowlist)', async () => {
@@ -180,8 +180,8 @@ describe('lump-status command', () => {
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'shared',
-                discoveryBranch: 'main',
-                discoveryBranches: ['main'],
+                primaryBranch: 'main',
+                primaryBranches: ['main'],
             }),
             'utf-8',
         );

@@ -303,7 +303,7 @@ Pick `mode` (`shared` / `dedicated`) and `workspaceStrategy` in [local-config.md
 ## Related documentation
 
 - [lump-config.md](./lump-config.md) — Field reference
-- [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `discoveryBranch`, `workspaceStrategy`)
+- [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `primaryBranch`, `workspaceStrategy`)
 - [concepts.md](./concepts.md) — Daemon, pre-flight, status lifecycle
 - [types.md](./types.md) — Hook signatures
 - [examples.md](./examples.md) — Runnable lump configs

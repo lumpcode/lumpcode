@@ -8,14 +8,14 @@ import {
 } from './main';
 
 describe('resolveLumpBranches', () => {
-    const primaryDiscoveryBranch = 'main';
-    const localConfig: LocalConfig = { mode: 'dedicated', discoveryBranch: 'main' };
+    const primaryBranch = 'main';
+    const localConfig: LocalConfig = { mode: 'dedicated', primaryBranch: 'main' };
 
     it('uses explicit baseBranch for resolvedBaseBranch', () => {
         expect(
             resolveLumpBaseBranch({
                 lumpConfig: { baseBranch: 'ver/0.0.9' },
-                primaryDiscoveryBranch,
+                primaryBranch,
             }),
         ).toBe('ver/0.0.9');
     });
@@ -24,31 +24,31 @@ describe('resolveLumpBranches', () => {
         expect(
             resolveLumpBaseBranch({
                 lumpConfig: { discoveryBranch: 'ver/0.0.9' },
-                primaryDiscoveryBranch,
+                primaryBranch,
             }),
         ).toBe('ver/0.0.9');
     });
 
-    it('falls back to primaryDiscoveryBranch when both baseBranch and discoveryBranch are omitted', () => {
+    it('falls back to primaryBranch when both baseBranch and discoveryBranch are omitted', () => {
         expect(
             resolveLumpBaseBranch({
                 lumpConfig: {},
-                primaryDiscoveryBranch,
+                primaryBranch,
             }),
         ).toBe('main');
     });
 
-    it('resolves discoveryBranch from lump config or primaryDiscoveryBranch', () => {
+    it('resolves discoveryBranch from lump config or primaryBranch', () => {
         expect(
             resolveLumpDiscoveryBranch({
                 lumpConfig: { discoveryBranch: 'ver/0.0.9' },
-                primaryDiscoveryBranch,
+                primaryBranch,
             }),
         ).toBe('ver/0.0.9');
         expect(
             resolveLumpDiscoveryBranch({
                 lumpConfig: {},
-                primaryDiscoveryBranch,
+                primaryBranch,
             }),
         ).toBe('main');
     });

@@ -90,18 +90,18 @@
 
 - Project root: directory with both `.lumpcode` and `.git`; engine `projectRoot` = parent of `.lumpcode/` (`jsConfigToRunLumpInput` derives from `localConfigFolderPath`)
 - **`project.json`**: `projectName` (letters, digits, `_`, `-` only); inferred from `git remote get-url origin` or sanitized basename on `project-setup`; used for daemon filenames and `project-copies/<projectName>/`
-- **`.lumpcode/local.json`** (gitignored; scaffolded by `project-setup --mode`): **required** for `run`/`start` — `mode` (`shared` | `dedicated`), `discoveryBranch` or `discoveryBranches`, optional `workspaceStrategy` (`checkout` | `worktree`, default `checkout`), optional `disabled` (boolean — daemon skips all lumps on machine; manual `run` unaffected). No `--mode`/`--force` on `run`/`start` — edit `local.json`. Read once at daemon startup (restart to pick up changes)
+- **`.lumpcode/local.json`** (gitignored; scaffolded by `project-setup --mode`): **required** for `run`/`start` — `mode` (`shared` | `dedicated`), `primaryBranch` or `primaryBranches`, optional `workspaceStrategy` (`checkout` | `worktree`, default `checkout`), optional `disabled` (boolean — daemon skips all lumps on machine; manual `run` unaffected). No `--mode`/`--force` on `run`/`start` — edit `local.json`. Read once at daemon startup (restart to pick up changes)
 
 ### Branch resolution (v0.0.9)
 
 - Split **execution** (`baseBranch`) from **discovery** (`discoveryBranch`); design ref: `.lumpcode/lumps/v0.0.9/multi-project-base-branches.reference.md`
-- `effectiveDiscoveryBranches` = non-empty `discoveryBranches` else `[discoveryBranch]`; `primaryDiscoveryBranch` = first
-- `resolvedDiscoveryBranch` = lump `discoveryBranch ?? primaryDiscoveryBranch`
-- `resolvedBaseBranch` = lump `baseBranch ?? discoveryBranch ?? primaryDiscoveryBranch`
+- `effectivePrimaryBranches` = non-empty `primaryBranches` else `[primaryBranch]`; resolved `primaryBranch` = first
+- `resolvedDiscoveryBranch` = lump `discoveryBranch ?? primaryBranch`
+- `resolvedBaseBranch` = lump `baseBranch ?? discoveryBranch ?? primaryBranch`
 - `resolvedBaseBranch` on `RunLumpInput` drives context status and worktree fetch; pre-flight/teardown use `resolvedBaseBranch`
-- **Dedicated allowlist**: `resolvedDiscoveryBranch` must be in `effectiveDiscoveryBranches` — enforce in **`runLumpFromJsConfig` only** (not `baseBranch`; command handlers must not duplicate)
-- **Shared mode**: no allowlist; lump `discoveryBranch` ignored; multi-`discoveryBranches` logs once (dedicated-only feature); executes on copy at `resolvedBaseBranch`, discovers from source `projectRoot`
-- Dedicated daemon: loops `effectiveDiscoveryBranches` per tick; same `lumpName` on different discovery branches OK; duplicate `lumpName` on same discovery-branch scan fails launch
+- **Dedicated allowlist**: `resolvedDiscoveryBranch` must be in `effectivePrimaryBranches` — enforce in **`runLumpFromJsConfig` only** (not `baseBranch`; command handlers must not duplicate)
+- **Shared mode**: no allowlist; lump `discoveryBranch` ignored; multi-`primaryBranches` logs once (dedicated-only feature); executes on copy at `resolvedBaseBranch`, discovers from source `projectRoot`
+- Dedicated daemon: loops `effectivePrimaryBranches` per tick; same `lumpName` on different primary branches OK; duplicate `lumpName` on same primary-branch scan fails launch
 - `lump-plan`/`lump-status`: non-destructive (no pre-flight); manual `run` requires lump config on current checkout
 
 ### Workspaces and pre-flight

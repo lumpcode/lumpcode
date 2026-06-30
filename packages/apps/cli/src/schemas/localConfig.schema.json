@@ -12,11 +12,11 @@
       "enum": ["shared", "dedicated"],
       "description": "How Lumpcode handles the current checkout. `shared`: this is your day-to-day clone; Lumpcode never touches it and runs in a separate copy under ~/.lumpcode/project-copies/<projectName>/. `dedicated`: this clone is owned by Lumpcode (typical daemon machine); Lumpcode pulls and runs in place, including a destructive `git reset --hard` on the target branch before each tick."
     },
-    "discoveryBranch": {
+    "primaryBranch": {
       "type": "string",
-      "description": "Singular discovery integration branch. Required when discoveryBranches is omitted. Used as the primary discovery branch (first in the effective list when discoveryBranches is also set but empty)."
+      "description": "Singular primary integration branch. Required when primaryBranches is omitted. Used as the first entry in the effective list when primaryBranches is also set but empty."
     },
-    "discoveryBranches": {
+    "primaryBranches": {
       "type": "array",
       "minItems": 1,
       "items": {
@@ -24,7 +24,7 @@
         "minLength": 1
       },
       "uniqueItems": true,
-      "description": "Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular discoveryBranch."
+      "description": "Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular primaryBranch."
     },
     "workspaceStrategy": {
       "type": "string",
@@ -37,7 +37,7 @@
     }
   },
   "anyOf": [
-    { "required": ["discoveryBranch"] },
-    { "required": ["discoveryBranches"] }
+    { "required": ["primaryBranch"] },
+    { "required": ["primaryBranches"] }
   ]
 }
