@@ -50,7 +50,6 @@ export * from './readJson';
 export * from './readProjectJsonBaseBranch';
 export * from './readLocalConfig';
 export * from './recallSharedExecutionWorkspace';
-export * from './resolveBranchWorkspacePathForLumpRun';
 export * from './resolveDaemonPaths';
 export * from './resolveLumpDisabled';
 export * from './resolveProjectExecutionContext';

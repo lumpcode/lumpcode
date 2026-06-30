@@ -463,7 +463,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     try {
         cronJob = new Cron(
             cronSetup,
-            { protect: true },
+            { protect: true, name: 'lumpcode' + (lumpNameOpt ? '-' + lumpNameOpt : '') },
             async () => {
                 try {
                     await runTick();

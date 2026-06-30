@@ -16,7 +16,6 @@ export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Om
     | 'baseBranch' 
     | 'setupWorkspaceFn' 
     | 'teardownWorkspaceFn'
-    | 'preResolvedContextListToDo'
     | 'gitAddCommandFn' 
     | 'gitCommitCommandFn' 
     | 'gitPushCommandFn'

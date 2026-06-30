@@ -1,4 +1,4 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, ContextList, Logger } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger } from "../../types";
 import { createConsoleLogger, set, success } from "../../utils";
 import { 
     getToDoContextList,
@@ -28,23 +28,20 @@ Failure<{ message: string; }>
         teardownFn = () => undefined,
         teardownWorkspaceFn = defaultTeardownWorkspaceFn,
         getKeepHistoryFilePathFn = () => undefined,
-        preResolvedContextListToDo,
         logger: loggerInput,
     } = input;
 
     const logger = loggerInput ?? createConsoleLogger({});
     
 
-    const contextListToDoResult = preResolvedContextListToDo !== undefined
-        ? success(preResolvedContextListToDo)
-        : await getToDoContextList({
-            getContextListFn,
-            lumpVariables,
-            projectRoot,
-            baseBranch,
-            gitCommitMessageFn,
-            logger,
-        });
+    const contextListToDoResult = await getToDoContextList({
+        getContextListFn,
+        lumpVariables,
+        projectRoot,
+        baseBranch,
+        gitCommitMessageFn,
+        logger,
+    });
 
     if (!contextListToDoResult.success) {
         return set(
@@ -125,8 +122,6 @@ export interface RunLumpInput<V extends LumpVariables = LumpVariables> {
     teardownWorkspaceFn?: TeardownWorkspaceFn;
     logger?: Logger;
     getKeepHistoryFilePathFn?: (context: Context) => string | undefined;
-    /** When set, skips resolving the to-do context list inside runLump (CLI lock planning). */
-    preResolvedContextListToDo?: ContextList;
 }
 
 export interface RunLumpOutput {

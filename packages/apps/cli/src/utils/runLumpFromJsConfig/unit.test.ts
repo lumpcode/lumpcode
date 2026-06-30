@@ -99,6 +99,28 @@ describe('runLumpFromJsConfig', () => {
         });
     }
 
+    const defaultSetupInput = {
+        baseBranch: 'main',
+        branchName: 'lump/my-lump/ctx1',
+        contextList: [{ name: 'ctx1', variables: {} }],
+        workspacePath: '.',
+    } as const;
+
+    function mockRunLumpInvokingSetup(
+        runResult: core.RunLumpOutput = {
+            result: {
+                branchName: 'lump/my-lump/ctx1',
+                contextNames: ['ctx1'],
+                contextRunStateList: [],
+            },
+        } as unknown as core.RunLumpOutput,
+    ) {
+        vi.mocked(core.runLump).mockImplementation(async (runInput) => {
+            await runInput.setupWorkspaceFn!(defaultSetupInput);
+            return core.success(runResult);
+        });
+    }
+
     function createAndPushLumpBranch(lumpName: string, contextName: string) {
         const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
         git('checkout main', projectRoot);
@@ -234,17 +256,19 @@ describe('runLumpFromJsConfig', () => {
         expect(held.success).toBe(true);
         if (!held.success) throw new Error('unreachable');
 
+        mockRunLumpInvokingSetup();
+
         const result = await callRunLumpFromJsConfig(makeJsConfig({}));
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(isRunLumpBranchWorkspaceBusyFailure(result.data)).toBe(true);
-        expect(core.runLump).not.toHaveBeenCalled();
+        expect(core.runLump).toHaveBeenCalledOnce();
 
         await held.data();
     });
 
-    it('fails immediately when execution workspace lock is held (fail mode)', async () => {
+    it('fails when execution workspace lock is held at setup time (fail mode)', async () => {
         const held = await acquireExecutionWorkspaceLock({
             globalConfigFolderPath,
             executionWorkspacePath: projectRoot,
@@ -254,14 +278,38 @@ describe('runLumpFromJsConfig', () => {
         expect(held.success).toBe(true);
         if (!held.success) throw new Error('unreachable');
 
+        mockRunLumpInvokingSetup();
+
         const result = await callRunLumpFromJsConfig(makeJsConfig({}));
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(isRunLumpExecutionWorkspaceBusyFailure(result.data)).toBe(true);
-        expect(core.runLump).not.toHaveBeenCalled();
+        expect(core.runLump).toHaveBeenCalledOnce();
 
         await held.data();
+    });
+
+    it('does not preflight or acquire locks when core returns early with no work', async () => {
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.success({
+                result: {
+                    updatedGroupStatusRecord: { data: {} },
+                    branchName: '',
+                    contextNames: [],
+                    contextRunStateList: [],
+                },
+            } as unknown as core.RunLumpOutput),
+        );
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+
+        await callRunLumpFromJsConfig(makeJsConfig({}));
+
+        expect(preflightSpy).not.toHaveBeenCalled();
+        const branchLocksDir = path.join(globalConfigFolderPath, 'branch-workspace-locks');
+        const execLocksDir = path.join(globalConfigFolderPath, 'execution-workspace-locks');
+        await expect(fs.access(branchLocksDir)).rejects.toMatchObject({ code: 'ENOENT' });
+        await expect(fs.access(execLocksDir)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
     it('does not acquire lock when run is skipped for tooManyOpenBranches', async () => {
@@ -284,15 +332,7 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('checkout dedicated uses only execution workspace lock for full run', async () => {
-        vi.mocked(core.runLump).mockResolvedValue(
-            core.success({
-                result: {
-                    branchName: 'some-branch',
-                    contextNames: ['ctx1'],
-                    contextRunStateList: [],
-                },
-            } as unknown as core.RunLumpOutput),
-        );
+        mockRunLumpInvokingSetup();
 
         const result = await callRunLumpFromJsConfig(makeJsConfig({}));
 
@@ -306,16 +346,8 @@ describe('runLumpFromJsConfig', () => {
         expect(execLockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
     });
 
-    it('preflights to resolvedBaseBranch inside the orchestrator', async () => {
-        vi.mocked(core.runLump).mockResolvedValue(
-            core.success({
-                result: {
-                    branchName: 'some-branch',
-                    contextNames: ['ctx1'],
-                    contextRunStateList: [],
-                },
-            } as unknown as core.RunLumpOutput),
-        );
+    it('preflights to resolvedBaseBranch when setup is invoked', async () => {
+        mockRunLumpInvokingSetup();
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
 
         await callRunLumpFromJsConfig(makeJsConfig({ baseBranch: 'develop' }));
@@ -368,7 +400,7 @@ describe('runLumpFromJsConfig', () => {
         expect(core.runLump).toHaveBeenCalled();
     });
 
-    it('shared mode runs preflight to resolvedBaseBranch when contexts are pending', async () => {
+    it('shared mode runs preflight to resolvedBaseBranch when setup is invoked', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({ mode: 'shared', discoveryBranch: 'main' }),
@@ -378,15 +410,7 @@ describe('runLumpFromJsConfig', () => {
         git('push -u origin ver/0.0.9', projectRoot);
         git('checkout main', projectRoot);
 
-        vi.mocked(core.runLump).mockResolvedValue(
-            core.success({
-                result: {
-                    branchName: 'some-branch',
-                    contextNames: ['ctx1'],
-                    contextRunStateList: [],
-                },
-            } as unknown as core.RunLumpOutput),
-        );
+        mockRunLumpInvokingSetup();
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
 
         await callRunLumpFromJsConfig(makeJsConfig({ baseBranch: 'ver/0.0.9' }));
@@ -461,18 +485,22 @@ describe('runLumpFromJsConfig', () => {
         expect(held.success).toBe(true);
         if (!held.success) throw new Error('unreachable');
 
-        vi.mocked(core.runLump).mockResolvedValue(
-            core.success({
+        let setupEntered = false;
+        vi.mocked(core.runLump).mockImplementation(async (runInput) => {
+            setupEntered = true;
+            await runInput.setupWorkspaceFn!(defaultSetupInput);
+            return core.success({
                 result: {
-                    branchName: 'some-branch',
+                    branchName: 'lump/my-lump/ctx1',
                     contextNames: ['ctx1'],
                     contextRunStateList: [],
                 },
-            } as unknown as core.RunLumpOutput),
-        );
+            } as unknown as core.RunLumpOutput);
+        });
 
         const waiterPromise = callRunLumpFromJsConfig(makeJsConfig({}), { lockMode: 'wait' });
         await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(setupEntered).toBe(true);
         await held.data();
         const waiter = await waiterPromise;
 

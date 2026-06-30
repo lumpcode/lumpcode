@@ -1,6 +1,6 @@
 import path from "node:path";
 
-import { failure, Failure, RunLumpOutput, success, Success, type Logger } from "@lumpcode/core";
+import { failure, Failure, runLump, RunLumpOutput, success, Success, type Logger } from "@lumpcode/core";
 
 import { LumpJsConfig } from "../../types";
 import type { LocalConfig } from "../../types/LocalConfig";
@@ -10,7 +10,6 @@ import { getProjectName } from "../getProjectName";
 import { jsConfigToRunLumpInput } from "../jsConfigToRunLumpInput";
 import { readLocalConfig } from "../readLocalConfig";
 import { readProjectJsonBaseBranch } from "../readProjectJsonBaseBranch";
-import { resolveBranchWorkspacePathForLumpRun } from "../resolveBranchWorkspacePathForLumpRun";
 import { resolveDiscoveryBranches, resolvePrimaryDiscoveryBranch } from "../resolveDiscoveryBranches";
 import { resolveLumpBranches } from "../resolveLumpBranches";
 import { runProjectPreflight } from "../runProjectPreflight";
@@ -21,8 +20,11 @@ import type { RunLumpFromJsConfigFailure } from "./failures";
 import {
     toRunLumpMessageFailure,
 } from "./failures";
-import { resolveWorkspaceLockPlan } from "./resolveWorkspaceLockPlan";
-import { runLumpWithWorkspaceLocks } from "./runLumpWithWorkspaceLocks";
+import {
+    createWorkspaceLockSession,
+    releaseWorkspaceLockSession,
+    withWorkspaceLockHooks,
+} from "./withWorkspaceLockHooks";
 
 export type { BranchWorkspaceBusyError } from '../branchWorkspaceLock';
 export type { ExecutionWorkspaceBusyError } from '../executionWorkspaceLock';
@@ -154,50 +156,48 @@ export async function runLumpFromJsConfig(input: {
         }
     }
 
-    const branchPathResult = await resolveBranchWorkspacePathForLumpRun({
-        runLumpInput: runLumpInputResult.data,
-        localConfigFolderPath,
-        executionWorkspacePath: tentativeExecutionWorkspacePath,
-        workspaceStrategy,
-    });
-    if (!branchPathResult.success) return failure(toRunLumpMessageFailure(branchPathResult.data));
-
+    const session = createWorkspaceLockSession();
     const runLumpInput = {
         ...runLumpInputResult.data,
-        preResolvedContextListToDo: branchPathResult.data.contextListToDo,
+        setupWorkspaceFn: withWorkspaceLockHooks({
+            setupWorkspaceFn: runLumpInputResult.data.setupWorkspaceFn!,
+            session,
+            ctx: {
+                mode: localConfig.mode,
+                workspaceStrategy,
+                executionWorkspacePath: tentativeExecutionWorkspacePath,
+                globalConfigFolderPath,
+                lumpName,
+                projectName,
+                lockMode,
+                logger,
+                preflight: () =>
+                    runProjectPreflight({
+                        sourceProjectRoot,
+                        localConfigFolderPath,
+                        globalConfigFolderPath,
+                        localConfig,
+                        targetBranch: resolvedBaseBranch,
+                    }).then((result) =>
+                        result.success ? success(undefined) : failure(result.data),
+                    ),
+            },
+        }),
     };
 
-    const lockPlan = resolveWorkspaceLockPlan({
-        needsLock: branchPathResult.data.needsLock,
-        mode: localConfig.mode,
-        workspaceStrategy,
-        executionWorkspacePath: tentativeExecutionWorkspacePath,
-        branchWorkspacePath: branchPathResult.data.needsLock
-            ? branchPathResult.data.branchWorkspacePath
-            : tentativeExecutionWorkspacePath,
-    });
-
-    const runLumpOutputResult = await runLumpWithWorkspaceLocks({
-        plan: lockPlan,
-        runLumpInput,
-        globalConfigFolderPath,
-        lumpName,
-        projectName,
-        lockMode,
-        logger,
-        preflight: () =>
-            runProjectPreflight({
-                sourceProjectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                localConfig,
-                targetBranch: resolvedBaseBranch,
-            }).then((result) =>
-                result.success ? success(undefined) : failure(result.data),
-            ),
-    });
-
-    if (!runLumpOutputResult.success) return runLumpOutputResult;
+    let runLumpOutput: RunLumpOutput;
+    try {
+        const runLumpResult = await runLump(runLumpInput);
+        if (session.pendingFailure) {
+            return failure(session.pendingFailure);
+        }
+        if (!runLumpResult.success) {
+            return failure(toRunLumpMessageFailure(runLumpResult.data.message));
+        }
+        runLumpOutput = runLumpResult.data;
+    } finally {
+        await releaseWorkspaceLockSession(session);
+    }
 
     const updateContextStatusRecordResult = await updateContextStatusRecord({
         projectRoot,
@@ -208,5 +208,5 @@ export async function runLumpFromJsConfig(input: {
         logger.error(`Failed to update context status record: ${updateContextStatusRecordResult.data}`);
     }
 
-    return success({ skipped: false as const, ...runLumpOutputResult.data });
+    return success({ skipped: false as const, ...runLumpOutput });
 }
