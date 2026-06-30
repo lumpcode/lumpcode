@@ -49,7 +49,7 @@ describe('runProjectPreflight', () => {
         expect(result.data).toContain('Missing .lumpcode/local.json');
     });
 
-    it('returns the resolved workspace + primary discovery branch + mode in dedicated mode', async () => {
+    it('returns the resolved workspace + primary branch + mode in dedicated mode', async () => {
         await writeLocalJsonDedicated();
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
@@ -105,7 +105,7 @@ describe('runProjectPreflight', () => {
         expect(result.data.workspaceStrategy).toBe('checkout');
     });
 
-    it('defaults to primary discovery branch when targetBranch is omitted', async () => {
+    it('defaults to primary branch when targetBranch is omitted', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
             primaryBranches: ['main', 'ver/0.0.9'],

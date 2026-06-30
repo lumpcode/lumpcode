@@ -21,7 +21,7 @@ export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Om
     | 'gitPushCommandFn'
 >, {
     baseBranch?: RunLumpInput<V>['baseBranch'];
-    /** Which integration line this lump is discovered and scheduled on (defaults to primary discovery branch). */
+    /** Which integration line this lump is discovered and scheduled on (defaults to primary branch from local.json). */
     discoveryBranch?: string;
     command?: LumpJsConfigStep['command'];
     contextListJson?: FilePath | Record<string, string>;

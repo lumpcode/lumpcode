@@ -103,7 +103,7 @@ stateDiagram-v2
 Useful pairings on a server:
 
 - **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`) — caps how many open `lump/<lumpName>/*` branches on `origin` exist before a run is skipped (local-only branches are not counted). See [lump-config.md](./lump-config.md#optional-top-level-fields).
-- **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to the primary discovery branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
+- **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to the primary branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
 - **`"disabled": true`** on a lump — on the next tick, the daemon skips that lump without stopping the scheduler.
 
 **Daemon files** (under `~/.lumpcode/daemons/`):
@@ -127,7 +127,7 @@ Full flag reference: [commands.md](./commands.md).
 Before every `run` and every daemon tick, Lumpcode runs a **pre-flight** that:
 
 1. Resolves the execution workspace from `local.json.mode`.
-2. In that workspace runs `git fetch --all`, switches to the target branch (primary discovery branch or a lump's resolved `baseBranch`), `git reset --hard origin/<branch>`, then `git pull`.
+2. In that workspace runs `git fetch --all`, switches to the target branch (primary branch or a lump's resolved `baseBranch`), `git reset --hard origin/<branch>`, then `git pull`.
 
 After pre-flight, each lump prepares git inside the execution workspace according to `local.json.workspaceStrategy` (default `checkout`):
 

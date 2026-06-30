@@ -52,7 +52,7 @@ export async function jsConfigToRunLumpInput({
     lumpName: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
-    /** Resolved lump execution branch (from pre-flight) or primary discovery branch. */
+    /** Resolved lump execution branch (from pre-flight) or primary branch from local.json. */
     projectBaseBranch: string;
     /** Execution workspace (git repo root) resolved by pre-flight. */
     executionWorkspacePath: string;
