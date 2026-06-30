@@ -45,7 +45,7 @@ async function writeDefaultLocalJson(
 ) {
     await fs.writeFile(
         path.join(projectRoot, '.lumpcode', 'local.json'),
-        JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main', ...overrides }),
+        JSON.stringify({ mode: 'dedicated', primaryBranch: 'main', ...overrides }),
         'utf-8',
     );
 }
@@ -660,8 +660,8 @@ describe('start command — multi discovery branches', () => {
     async function writeMultiLocal(overrides: Record<string, unknown> = {}) {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
             ...overrides,
         });
     }
@@ -711,7 +711,7 @@ describe('start command — multi discovery branches', () => {
     });
 
     it('fails launch for unlisted lump discoveryBranch', async () => {
-        await writeMultiLocal({ discoveryBranches: ['main'] });
+        await writeMultiLocal({ primaryBranches: ['main'] });
         await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
 
         const result = await makeStartHandler()({
@@ -720,7 +720,7 @@ describe('start command — multi discovery branches', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
+        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|primaryBranches|ver\/0\.0\.7/i);
     });
 
     it('fails launch when a branch has unloadable lump config', async () => {
@@ -777,8 +777,8 @@ describe('start command — multi discovery branches', () => {
     it('fails start --lumpName when lump discoveryBranch is not in effective list', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main'],
+            primaryBranch: 'main',
+            primaryBranches: ['main'],
         });
         await writeMinimalLump(projectRoot, 'releaseLine', {
             discoveryBranch: 'ver/0.0.9',
@@ -791,7 +791,7 @@ describe('start command — multi discovery branches', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|discoveryBranch|discoveryBranches/i);
+        expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|discoveryBranch|primaryBranches/i);
     });
 
     it('succeeds start --lumpName when lump discoveryBranch is listed', async () => {
@@ -812,8 +812,8 @@ describe('start command — multi discovery branches', () => {
     it('shared mode launch succeeds without multi-discovery branch loop', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'shared',
-            discoveryBranch: 'main',
-            discoveryBranches: ['main', 'ver/0.0.9'],
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'ver/0.0.9'],
         });
         await writeMinimalLump(projectRoot, 'mainLine');
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
@@ -839,8 +839,8 @@ describe('start command — multi discovery branches', () => {
     it('runs lumps in discovery-branch scan order on each tick', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
-            discoveryBranch: 'main',
-            discoveryBranches: ['ver/0.0.9', 'main'],
+            primaryBranch: 'main',
+            primaryBranches: ['ver/0.0.9', 'main'],
         });
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
         await writeMinimalLump(projectRoot, 'releaseLine', {

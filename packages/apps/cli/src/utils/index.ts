@@ -51,7 +51,7 @@ export * from './readLocalConfig';
 export * from './resolveDaemonPaths';
 export * from './resolveLumpDisabled';
 export * from './resolveProjectExecutionContext';
-export * from './resolveDiscoveryBranches';
+export * from './resolvePrimaryBranches';
 export * from './resolveLumpBranches';
 export * from './resolveTargetLumpNames';
 export * from './runLumpFromJsConfig';

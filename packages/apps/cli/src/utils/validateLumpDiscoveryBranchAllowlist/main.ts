@@ -10,12 +10,12 @@ export function validateLumpDiscoveryBranchAllowlist(
         return success(undefined);
     }
 
-    if (input.effectiveDiscoveryBranches.includes(input.resolvedDiscoveryBranch)) {
+    if (input.effectivePrimaryBranches.includes(input.resolvedDiscoveryBranch)) {
         return success(undefined);
     }
 
     return failure(
         `Lump "${input.lumpName}" discoveryBranch "${input.resolvedDiscoveryBranch}" is not listed in ` +
-            `local.json discoveryBranches (allowed: ${input.effectiveDiscoveryBranches.join(', ')})`,
+            `local.json primaryBranches (allowed: ${input.effectivePrimaryBranches.join(', ')})`,
     );
 }

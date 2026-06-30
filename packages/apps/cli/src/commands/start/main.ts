@@ -18,7 +18,7 @@ import {
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
-    resolveDiscoveryBranches,
+    resolvePrimaryBranches,
     resolveLumpBranches,
     resolveTargetLumpNames,
     runLumpFromJsConfig,
@@ -139,7 +139,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const frozenLocalConfig: LocalConfig = localConfigResult.data;
     const workspaceStrategy = frozenLocalConfig.workspaceStrategy ?? 'checkout';
-    const effectiveDiscoveryBranches = resolveDiscoveryBranches(frozenLocalConfig);
+    const effectivePrimaryBranches = resolvePrimaryBranches(frozenLocalConfig);
 
     const targetLumpsResult = await resolveTargetLumpNames({
         localConfigFolderPath,
@@ -150,7 +150,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const allowEmptyDedicatedDiscovery =
             !lumpNameOpt &&
             frozenLocalConfig.mode === 'dedicated' &&
-            (frozenLocalConfig.discoveryBranches?.length ?? 0) > 1 &&
+            (frozenLocalConfig.primaryBranches?.length ?? 0) > 1 &&
             targetLumpsResult.data.includes('No lumps');
         if (!allowEmptyDedicatedDiscovery) {
             return failure({ messages: [targetLumpsResult.data] });
@@ -310,12 +310,12 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
         if (
             frozenLocalConfig.mode === 'shared' &&
-            effectiveDiscoveryBranches.length > 1 &&
+            effectivePrimaryBranches.length > 1 &&
             !sharedMultiDiscoveryWarningLogged
         ) {
             logger.info(
-                'local.json lists multiple discovery branches; multi-discovery daemon scans are dedicated-only. ' +
-                    'Using the primary discovery branch for shared mode.',
+                'local.json lists multiple primary branches; multi-branch daemon scans are dedicated-only. ' +
+                    'Using the primary branch for shared mode.',
             );
             sharedMultiDiscoveryWarningLogged = true;
         }
@@ -386,7 +386,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             const lumpsThisTick: string[] = [];
             const lumpNames = await discoverLoadableLumpNames(localConfigFolderPath);
 
-            for (const discoveryBranch of effectiveDiscoveryBranches) {
+            for (const scanBranch of effectivePrimaryBranches) {
                 for (const lumpName of lumpNames) {
                     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
                     if (!jsConfResult.success) {
@@ -397,7 +397,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                         lumpConfig: jsConfResult.data,
                         localConfig: frozenLocalConfig,
                     });
-                    if (branches.resolvedDiscoveryBranch !== discoveryBranch) {
+                    if (branches.resolvedDiscoveryBranch !== scanBranch) {
                         continue;
                     }
                     lumpsThisTick.push(lumpName);

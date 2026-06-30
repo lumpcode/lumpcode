@@ -51,7 +51,10 @@ export function workspaceLockFilePath(input: {
     const normalizedPath = path.resolve(input.workspacePath);
     const hash = crypto.createHash('sha256').update(normalizedPath).digest('hex');
     return path.join(
-        workspaceLocksDirPath({ globalConfigFolderPath: input.globalConfigFolderPath, spec: input.spec }),
+        workspaceLocksDirPath({ 
+            globalConfigFolderPath: input.globalConfigFolderPath, 
+            spec: input.spec,
+        }),
         `${hash}.lock.json`,
     );
 }
