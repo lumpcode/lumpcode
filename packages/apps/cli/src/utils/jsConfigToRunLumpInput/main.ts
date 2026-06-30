@@ -47,7 +47,6 @@ export async function jsConfigToRunLumpInput({
     workspaceStrategy = 'checkout',
     logger = noopLogger,
     localConfig,
-    projectJsonBaseBranch,
 }: {
     config: LumpJsConfig;
     lumpName: string;
@@ -61,7 +60,6 @@ export async function jsConfigToRunLumpInput({
     logger?: Logger;
     /** When set, resolves lump baseBranch via the full discovery/base fallback chain. */
     localConfig?: LocalConfig;
-    projectJsonBaseBranch?: string;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
         baseBranch: lumpBaseBranchOverride,
@@ -90,7 +88,6 @@ export async function jsConfigToRunLumpInput({
         ? resolveLumpBaseBranch({
             lumpConfig: config,
             primaryDiscoveryBranch: resolvePrimaryDiscoveryBranch(localConfig),
-            projectJsonBaseBranch,
             mode: localConfig.mode,
         })
         : (lumpBaseBranchOverride ?? config.discoveryBranch ?? projectBaseBranch);

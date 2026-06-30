@@ -10,7 +10,6 @@ import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import { discoverLoadableLumpNames } from '../../utils/discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import { readLocalConfig } from '../../utils/readLocalConfig';
-import { readProjectJsonBaseBranch } from '../../utils/readProjectJsonBaseBranch';
 import { resolveDiscoveryBranches } from '../../utils/resolveDiscoveryBranches';
 import { resolveLumpBranches } from '../../utils/resolveLumpBranches';
 import { validateLumpDiscoveryBranchAllowlist } from '../../utils/validateLumpDiscoveryBranchAllowlist';
@@ -54,7 +53,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const localConfig = localConfigResult.data;
     const effectiveDiscoveryBranches = resolveDiscoveryBranches(localConfig);
-    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
 
     const lumpNameOpt = rawLumpName?.trim() ? rawLumpName.trim() : undefined;
 
@@ -82,7 +80,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const { resolvedDiscoveryBranch, resolvedBaseBranch } = resolveLumpBranches({
             lumpConfig: jsConfResult.data,
             localConfig,
-            projectJsonBaseBranch,
         });
         const allowlistResult = validateLumpDiscoveryBranchAllowlist({
             mode: localConfig.mode,
