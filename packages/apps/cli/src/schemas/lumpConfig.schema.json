@@ -25,12 +25,12 @@
   "properties": {
     "baseBranch": {
       "type": "string",
-      "description": "Git integration line for execution: pre-flight, markers, finished checks, and worktrees. When omitted, defaults to discoveryBranch, then the primary discovery branch from local.json.",
+      "description": "Git integration line for execution: pre-flight, markers, finished checks, and worktrees. When omitted, defaults to discoveryBranch, then the primary branch from local.json.",
       "examples": ["main", "develop", "ver/0.0.9"]
     },
     "discoveryBranch": {
       "type": "string",
-      "description": "Integration line for inventory and discovery scheduling. Optional; defaults to the primary discovery branch from .lumpcode/local.json. In dedicated mode, must be listed in discoveryBranch or discoveryBranches. Ignored in shared mode.",
+      "description": "Integration line for inventory and discovery scheduling. Optional; defaults to the primary branch from .lumpcode/local.json. In dedicated mode, must be listed in primaryBranches. Ignored in shared mode.",
       "examples": ["main", "ver/0.0.9"]
     },
     "branchFn": {

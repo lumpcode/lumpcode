@@ -34,7 +34,7 @@ describe('planLumpFromJsConfig', () => {
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'preview-lump'), { recursive: true });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', discoveryBranch: 'main' }),
+            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
             'utf-8',
         );
         await fs.writeFile(
@@ -159,8 +159,8 @@ describe('planLumpFromJsConfig', () => {
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                discoveryBranch: 'main',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranch: 'main',
+                primaryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );
@@ -186,7 +186,7 @@ describe('planLumpFromJsConfig', () => {
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/discoveryBranch|discoveryBranches|ver\/0\.0\.7/i);
+        expect(result.data).toMatch(/primaryBranch|primaryBranches|ver\/0\.0\.7/i);
     });
 
     it('succeeds plan preview when discoveryBranch is listed (no pre-flight)', async () => {
@@ -194,8 +194,8 @@ describe('planLumpFromJsConfig', () => {
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({
                 mode: 'dedicated',
-                discoveryBranch: 'main',
-                discoveryBranches: ['main', 'ver/0.0.9'],
+                primaryBranch: 'main',
+                primaryBranches: ['main', 'ver/0.0.9'],
             }),
             'utf-8',
         );

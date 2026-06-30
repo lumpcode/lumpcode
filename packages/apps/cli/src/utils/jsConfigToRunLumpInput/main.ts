@@ -32,7 +32,7 @@ import { makeLumpWorkspaceFns } from '../makeLumpWorkspaceFns';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import type { LocalConfig } from '../../types/LocalConfig';
 import { resolveLumpBaseBranch } from '../resolveLumpBranches';
-import { resolvePrimaryDiscoveryBranch } from '../resolveDiscoveryBranches';
+import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { lumpBranchName } from '../lumpBranchName';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { lumpHistoryFilePath } from '../lumpHistoryFilePath';
@@ -52,7 +52,7 @@ export async function jsConfigToRunLumpInput({
     lumpName: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
-    /** Resolved lump execution branch (from pre-flight) or primary discovery branch. */
+    /** Resolved lump execution branch (from pre-flight) or primary branch from local.json. */
     projectBaseBranch: string;
     /** Execution workspace (git repo root) resolved by pre-flight. */
     executionWorkspacePath: string;
@@ -87,7 +87,7 @@ export async function jsConfigToRunLumpInput({
     const baseBranch = localConfig
         ? resolveLumpBaseBranch({
             lumpConfig: config,
-            primaryDiscoveryBranch: resolvePrimaryDiscoveryBranch(localConfig),
+            primaryBranch: resolvePrimaryBranch(localConfig, logger),
             mode: localConfig.mode,
         })
         : (lumpBaseBranchOverride ?? config.discoveryBranch ?? projectBaseBranch);

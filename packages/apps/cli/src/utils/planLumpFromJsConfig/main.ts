@@ -21,7 +21,7 @@ import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { readLocalConfig } from '../readLocalConfig';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
-import { resolveDiscoveryBranches } from '../resolveDiscoveryBranches';
+import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
 import { resolveProjectExecutionContext } from '../resolveProjectExecutionContext';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
@@ -102,7 +102,7 @@ export async function planLumpFromJsConfig(input: {
         mode: localConfig.mode,
         lumpName,
         resolvedDiscoveryBranch,
-        effectiveDiscoveryBranches: resolveDiscoveryBranches(localConfig),
+        effectivePrimaryBranches: resolvePrimaryBranches(localConfig),
     });
     if (!allowlistResult.success) return allowlistResult;
 
