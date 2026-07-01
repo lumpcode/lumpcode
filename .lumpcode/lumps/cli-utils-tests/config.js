@@ -1,6 +1,7 @@
 import { defineConfig } from '@lumpcode/cli-types';
 
 export default defineConfig({
+    disabled: true,
     contextMatchFn({
         codeBasePath,
         codeBasePaths

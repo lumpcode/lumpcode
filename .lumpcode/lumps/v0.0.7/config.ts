@@ -6,6 +6,7 @@ import { CommandDescriptor, Step } from '@lumpcode/core';
 import path from 'path';
 
 export default defineConfig({
+    disabled: true,
     command: 'cursor',
     lumpVariables: {
         model: 'composer-2.5',

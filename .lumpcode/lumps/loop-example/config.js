@@ -67,6 +67,7 @@ fi
 }
 
 export default defineConfig({
+    disabled: true,
     getContextListFn: async () => {
         const name = Date.now().toString();
         return [

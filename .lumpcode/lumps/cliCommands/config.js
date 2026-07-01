@@ -3,6 +3,7 @@ import { defineConfig } from '@lumpcode/cli-types';
 
 export default defineConfig({
     command: "cursor",
+    disabled: true,
     // command({ context, prompt }) {
     //     console.log('context', context);
     //     console.log('prompt', prompt);
