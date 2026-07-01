@@ -39,7 +39,7 @@ export type ExecuteStepsForContextListParams = Required<Pick<
 >> & {
     contextList: ContextList;
     logger?: Logger;
-}
+} 
 
 export async function executeStepsForContextList({
     baseBranch,
@@ -81,8 +81,7 @@ export async function executeStepsForContextList({
         workspacePath: '.',
     };
 
-    const { command: setupWorkspaceCommand, workspacePath, afterExec } =
-        await setupWorkspaceFn(injectedGitAndWorkspaceFnsInput);
+    const { command: setupWorkspaceCommand, workspacePath } = await setupWorkspaceFn(injectedGitAndWorkspaceFnsInput);
 
     logger.verbose(`setupWorkspaceCommand ${setupWorkspaceCommand}`);
     logger.verbose(`workspacePath ${workspacePath}`);
@@ -98,10 +97,6 @@ export async function executeStepsForContextList({
                 ['data', 'message'], 
                 `Failed to setup the workspace: ${setupWorkspaceCommandExec.data.message}`
             );
-        }
-
-        if (afterExec) {
-            await afterExec({ workspacePath });
         }
     }
 
