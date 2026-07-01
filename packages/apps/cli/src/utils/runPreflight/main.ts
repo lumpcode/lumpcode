@@ -6,6 +6,8 @@ import { execAsync, failure, type Failure, shellSingleQuote, success, type Succe
 import type { Mode } from '../../types/Mode';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { projectCopiesRootPath } from '../projectCopiesRootPath';
+import { rememberSharedExecutionWorkspace } from '../recallSharedExecutionWorkspace';
+
 export interface RunPreflightInput {
     mode: Mode;
     projectBaseBranch: string;
@@ -60,6 +62,10 @@ export async function runPreflight(input: RunPreflightInput): Promise<Success<Ru
 
     const pullResult = await pullProjectBaseBranch({ executionWorkspacePath, projectBaseBranch });
     if (!pullResult.success) return pullResult;
+
+    if (mode === 'shared') {
+        rememberSharedExecutionWorkspace(sourceProjectRoot, executionWorkspacePath);
+    }
 
     return success({ executionWorkspacePath });
 }

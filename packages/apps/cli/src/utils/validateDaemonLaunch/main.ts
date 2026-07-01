@@ -5,8 +5,10 @@ import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
 import { discoverLumpNames } from '../discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
+import { readProjectJsonBaseBranch } from '../readProjectJsonBaseBranch';
 import { resolveDiscoveryBranches } from '../resolveDiscoveryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
+import { runProjectPreflight } from '../runProjectPreflight';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
 
 type LumpRegistryEntry = {
@@ -77,6 +79,7 @@ export async function validateDaemonLaunch(input: {
         logger,
     } = input;
 
+    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
     const effectiveDiscoveryBranches = resolveDiscoveryBranches(localConfig);
 
     if (lumpNameOpt) {
@@ -87,6 +90,7 @@ export async function validateDaemonLaunch(input: {
         const { resolvedDiscoveryBranch } = resolveLumpBranches({
             lumpConfig: jsConfResult.data,
             localConfig,
+            projectJsonBaseBranch,
         });
         return validateLumpDiscoveryBranchAllowlist({
             mode: localConfig.mode,
@@ -103,6 +107,20 @@ export async function validateDaemonLaunch(input: {
     const registry: LumpRegistryEntry[] = [];
 
     for (const discoveryBranch of effectiveDiscoveryBranches) {
+        const preflightResult = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig,
+            targetBranch: discoveryBranch,
+        });
+        if (!preflightResult.success) {
+            return failure(
+                `Daemon launch validation failed while pre-flighting discovery branch "${discoveryBranch}": ` +
+                    `${preflightResult.data}`,
+            );
+        }
+
         const lumpNames = await discoverLumpNames(localConfigFolderPath);
         const seenOnBranch = new Set<string>();
 
@@ -115,6 +133,7 @@ export async function validateDaemonLaunch(input: {
             const branches = resolveLumpBranches({
                 lumpConfig: jsConfResult.data,
                 localConfig,
+                projectJsonBaseBranch,
             });
 
             const allowlistResult = validateLumpDiscoveryBranchAllowlist({

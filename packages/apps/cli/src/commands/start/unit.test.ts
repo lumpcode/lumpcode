@@ -668,14 +668,14 @@ describe('start command — multi discovery branches', () => {
 
     async function seedMainAndReleaseLumps() {
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
-        await writeMinimalLump(projectRoot, 'releaseLine', {
-            discoveryBranch: 'ver/0.0.9',
-            baseBranch: 'ver/0.0.9',
-        });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
+            lumpSpecs: [{
+                name: 'releaseLine',
+                configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+            }],
         });
     }
 
@@ -726,13 +726,11 @@ describe('start command — multi discovery branches', () => {
     it('fails launch when a branch has unloadable lump config', async () => {
         await writeMultiLocal();
         await writeMinimalLump(projectRoot, 'mainLine');
-        const badLineDir = path.join(projectRoot, '.lumpcode', 'lumps', 'badLine');
-        await fs.mkdir(badLineDir, { recursive: true });
-        await fs.writeFile(path.join(badLineDir, 'config.json'), JSON.stringify({ notValid: true }), 'utf-8');
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
+            lumpSpecs: [{ name: 'badLine', configJson: { notValid: true } }],
         });
 
         const result = await makeStartHandler()({
@@ -836,34 +834,32 @@ describe('start command — multi discovery branches', () => {
         }
     });
 
-    it('runs lumps in discovery-branch scan order on each tick', async () => {
+    it('tick pre-flights discovery branches in LC-MULTI-ORDER array order', async () => {
         await writeLocalJson(localConfigFolderPath(), {
             mode: 'dedicated',
             discoveryBranch: 'main',
             discoveryBranches: ['ver/0.0.9', 'main'],
         });
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
-        await writeMinimalLump(projectRoot, 'releaseLine', {
-            discoveryBranch: 'ver/0.0.9',
-            baseBranch: 'ver/0.0.9',
-        });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
             branchName: 'ver/0.0.9',
+            lumpSpecs: [{
+                name: 'releaseLine',
+                configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+            }],
         });
 
-        const runLumpSpy = vi.spyOn(
-            await import('../../utils/runLumpFromJsConfig'),
-            'runLumpFromJsConfig',
-        );
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
         await makeStartHandler({ waitForShutdownOverride: async () => {} })({
             options: { foreground: true, cronSetup: '*/5 * * * *' },
             arguments: {},
         });
 
-        const lumpNames = runLumpSpy.mock.calls.map((c) => c[0].lumpName);
-        expect(lumpNames.indexOf('releaseLine')).toBeLessThan(lumpNames.lastIndexOf('mainLine'));
+        const branches = preflightSpy.mock.calls.map((c) => c[0].targetBranch);
+        const ordered = branches.filter((b): b is string => b === 'ver/0.0.9' || b === 'main');
+        expect(ordered.indexOf('ver/0.0.9')).toBeLessThan(ordered.indexOf('main'));
     });
 });
 
