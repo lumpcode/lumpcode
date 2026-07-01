@@ -328,6 +328,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
                 return;
             }
+            logger.info(`lump "${lumpName}": jsConfResult: ${jsConfResult.data}`);
             const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
                 importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
             });
@@ -384,7 +385,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         if (frozenLocalConfig.mode === 'dedicated') {
             ticks += 1;
             const lumpsThisTick: string[] = [];
-            const lumpNames = await discoverLoadableLumpNames(localConfigFolderPath);
+            const lumpNames = await discoverLoadableLumpNames({ localConfigFolderPath });
 
             for (const scanBranch of effectivePrimaryBranches) {
                 for (const lumpName of lumpNames) {

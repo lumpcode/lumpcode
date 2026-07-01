@@ -58,7 +58,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
     const lumpNames = lumpNameOpt
         ? [lumpNameOpt]
-        : await discoverLoadableLumpNames(localConfigFolderPath);
+        : await discoverLoadableLumpNames({ localConfigFolderPath });
 
     if (lumpNames.length === 0) {
         const hint = lumpNameOpt

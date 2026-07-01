@@ -723,7 +723,7 @@ describe('start command — multi discovery branches', () => {
         expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|primaryBranches|ver\/0\.0\.7/i);
     });
 
-    it('fails launch when a branch has unloadable lump config', async () => {
+    it('warns and launches when a branch has unloadable lump config', async () => {
         await writeMultiLocal();
         await writeMinimalLump(projectRoot, 'mainLine');
         const badLineDir = path.join(projectRoot, '.lumpcode', 'lumps', 'badLine');
@@ -735,13 +735,21 @@ describe('start command — multi discovery branches', () => {
             branchName: 'ver/0.0.9',
         });
 
-        const result = await makeStartHandler()({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.messages.join(' ')).toMatch(/config|badLine/i);
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const result = await makeStartHandler({ waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
+            expect(logged).toMatch(/badLine/i);
+            expect(logged).toMatch(/skipping/i);
+        } finally {
+            logSpy.mockRestore();
+            warnSpy.mockRestore();
+        }
     });
 
     it('warns on cross-lump baseBranch mismatch but still launches', async () => {

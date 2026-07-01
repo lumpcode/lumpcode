@@ -3,7 +3,7 @@ import { failure, success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
-import { discoverLumpNames } from '../discoverLoadableLumpNames';
+import { discoverLoadableLumps } from '../discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
@@ -100,20 +100,16 @@ export async function validateDaemonLaunch(input: {
         return success(undefined);
     }
 
+    const loadableLumps = await discoverLoadableLumps({ localConfigFolderPath, logger });
+
     const registry: LumpRegistryEntry[] = [];
 
     for (const scanBranch of effectivePrimaryBranches) {
-        const lumpNames = await discoverLumpNames(localConfigFolderPath);
         const seenOnBranch = new Set<string>();
 
-        for (const lumpName of lumpNames) {
-            const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-            if (!jsConfResult.success) {
-                return failure(`Lump "${lumpName}" on "${scanBranch}": ${jsConfResult.data}`);
-            }
-
+        for (const { lumpName, jsConfig } of loadableLumps) {
             const branches = resolveLumpBranches({
-                lumpConfig: jsConfResult.data,
+                lumpConfig: jsConfig,
                 localConfig,
             });
 
@@ -140,7 +136,7 @@ export async function validateDaemonLaunch(input: {
 
             registry.push({
                 lumpName,
-                jsConfig: jsConfResult.data,
+                jsConfig,
                 resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
                 resolvedBaseBranch: branches.resolvedBaseBranch,
             });

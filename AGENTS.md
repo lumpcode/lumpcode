@@ -90,7 +90,7 @@
 
 - Project root: directory with both `.lumpcode` and `.git`; engine `projectRoot` = parent of `.lumpcode/` (`jsConfigToRunLumpInput` derives from `localConfigFolderPath`)
 - **`project.json`**: `projectName` (letters, digits, `_`, `-` only); inferred from `git remote get-url origin` or sanitized basename on `project-setup`; used for daemon filenames and `project-copies/<projectName>/`
-- **`.lumpcode/local.json`** (gitignored; scaffolded by `project-setup --mode`): **required** for `run`/`start` — `mode` (`shared` | `dedicated`), `primaryBranch` or `primaryBranches`, optional `workspaceStrategy` (`checkout` | `worktree`, default `checkout`), optional `disabled` (boolean — daemon skips all lumps on machine; manual `run` unaffected). No `--mode`/`--force` on `run`/`start` — edit `local.json`. Read once at daemon startup (restart to pick up changes)
+- **`.lumpcode/local.json`** (gitignored; scaffolded by `project-setup --mode`): **required** for `run`/`start` — `mode` (`shared` | `dedicated`), `primaryBranch` or `primaryBranches`, optional deprecated `projectBaseBranch` alias (warn once via `resolvePrimaryBranches` when logger passed), optional `workspaceStrategy` (`checkout` | `worktree`, default `checkout`), optional `disabled` (boolean — daemon skips all lumps on machine; manual `run` unaffected). No `--mode`/`--force` on `run`/`start` — edit `local.json`. Read once at daemon startup (restart to pick up changes)
 
 ### Branch resolution (v0.0.9)
 
@@ -130,8 +130,11 @@
 - PID/meta JSON written **only in `--foreground`** (detached parent spawns foreground child)
 - `daemon-status`: PID file + alive process; `daemon-log`: log file exists (can `tail -f` after exit)
 - Croner `{ protect: true }` + `await runTick()` — long tick blocks next fire; lumps sequential within tick
-- **`validateDaemonLaunch`**: filesystem-only at start (allowlist, duplicate-name, config load — no destructive preflight); fail-fast on same-discovery duplicate `lumpName`, unlisted branch, unloadable config
+- **`discoverLumpNames`** / **`discoverLoadableLumpNames`**: all dirs under `.lumpcode/lumps/` vs subset with loadable `config.ts`/`config.js`/`config.json` — used by `start`, `validateDaemonLaunch`, `resolveTargetLumpNames`, `lump-status`
+- **`validateDaemonLaunch`**: filesystem-only at start (allowlist, duplicate-name — no destructive preflight); dedicated mode validates **`discoverLoadableLumpNames` only**; dirs without config → `logger.warn` and skip (explicit `--lumpName` without config still fail-fast); fail-fast on same-primary duplicate `lumpName`, unlisted discovery branch
 - Tick: loop discovery branches → discover lumps → `runLumpFromJsConfig` per lump (preflight inside); skip bad lumps without crashing
+- Manual `run`: no daemon PID gate — coordinates with running daemons via workspace locks only (`lockMode: 'fail'` vs daemon `wait`); dedicated `dedicatedRestoreBranch` `git switch` in handler `finally` runs after lock release (not serialized with daemon preflight)
+- `daemon-status` / `stop`: single scope only (global or one `--lumpName`); no list-all/stop-all — internal `listRunningProjectDaemons` used by `start` collision checks only
 - Global daemon: fails if any project daemon running. Per-lump: fails if global running, same lump running, or other per-lump running when `workspaceStrategy` ≠ `worktree`
 - `daemon-log`: follows by default; `--noFollow` prints and exits; `--lines` limits initial output
 - Cross-lump `dependsOnContexts`: warns when `otherLump.baseBranch !== thisLump.baseBranch`
