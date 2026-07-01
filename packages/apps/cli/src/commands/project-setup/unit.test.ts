@@ -51,12 +51,12 @@ describe('project-setup command', () => {
             const localRaw = await fs.readFile(path.join(projectRoot, '.lumpcode', 'local.json'), 'utf-8');
             const local = JSON.parse(localRaw) as {
                 mode: string;
-                discoveryBranch: string;
+                projectBaseBranch: string;
                 workspaceStrategy: string;
             };
             expect(local).toEqual({
                 mode: 'shared',
-                discoveryBranch: 'main',
+                projectBaseBranch: 'main',
                 workspaceStrategy: 'checkout',
             });
 
@@ -71,22 +71,22 @@ describe('project-setup command', () => {
         }
     });
 
-    it('honors --mode and --discoveryBranch when scaffolding local.json', async () => {
+    it('honors --mode and --projectBaseBranch when scaffolding local.json', async () => {
         const handle = makeHandler();
         const prev = process.cwd();
         process.chdir(projectRoot);
         try {
             const result = await handle({
-                options: { projectName: 'my-app', mode: 'dedicated', discoveryBranch: 'develop' },
+                options: { projectName: 'my-app', mode: 'dedicated', projectBaseBranch: 'develop' },
                 arguments: {},
             });
             expect(result.success).toBe(true);
 
             const localRaw = await fs.readFile(path.join(projectRoot, '.lumpcode', 'local.json'), 'utf-8');
-            const local = JSON.parse(localRaw) as { mode: string; discoveryBranch: string };
+            const local = JSON.parse(localRaw) as { mode: string; projectBaseBranch: string };
             expect(local).toEqual({
                 mode: 'dedicated',
-                discoveryBranch: 'develop',
+                projectBaseBranch: 'develop',
                 workspaceStrategy: 'checkout',
             });
         } finally {

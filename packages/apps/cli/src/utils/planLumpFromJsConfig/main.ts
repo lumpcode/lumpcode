@@ -20,6 +20,7 @@ import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { readLocalConfig } from '../readLocalConfig';
+import { readProjectJsonBaseBranch } from '../readProjectJsonBaseBranch';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
 import { resolveDiscoveryBranches } from '../resolveDiscoveryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
@@ -94,9 +95,11 @@ export async function planLumpFromJsConfig(input: {
     if (!localConfigResult.success) return localConfigResult;
     const localConfig = localConfigResult.data;
 
+    const projectJsonBaseBranch = await readProjectJsonBaseBranch({ localConfigFolderPath });
     const { resolvedDiscoveryBranch } = resolveLumpBranches({
         lumpConfig: jsConfig,
         localConfig,
+        projectJsonBaseBranch,
     });
     const allowlistResult = validateLumpDiscoveryBranchAllowlist({
         mode: localConfig.mode,
@@ -128,6 +131,7 @@ export async function planLumpFromJsConfig(input: {
         executionWorkspacePath,
         workspaceStrategy,
         localConfig,
+        projectJsonBaseBranch,
     });
     if (!runLumpInputResult.success) return runLumpInputResult;
 

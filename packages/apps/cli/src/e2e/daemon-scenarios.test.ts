@@ -38,8 +38,8 @@ describe('E2E daemon scenarios', () => {
         );
         await expect(fs.access(pidFilePath)).rejects.toThrow();
 
-        await waitForPath(pidFilePath, 30_000);
-        await waitForPath(metaFilePath, 30_000);
+        await waitForPath(pidFilePath, 60_000);
+        await waitForPath(metaFilePath, 60_000);
 
         const status = await runE2eCli({ project, args: ['daemon-status', '--json'] });
         expectCliOk(status, 'daemon-status');

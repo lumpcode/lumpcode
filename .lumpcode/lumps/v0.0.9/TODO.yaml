@@ -13,7 +13,6 @@
     through branch workspace setup; release before agent loop. Complements
     branch workspace lock.
   type: feature
-  done: true
   priority: 1
   dependsOn:
     - multi-project-base-branches
@@ -22,7 +21,7 @@
     stop --force SIGKILLs daemon plus all descendants (ps/pgrep tree walk, no
     pid collection); default stop reads meta.busy and prints info instead of
     timing out when a lump run is active.
-  type: feature
+  type: bugfix
   priority: 2
 - name: npm-package-cross-links
   task: >-
