@@ -317,17 +317,6 @@ export async function writeE2eLumpFixture(input: {
     );
 }
 
-/** Commits and pushes pending changes on `main` so dedicated pre-flight reset keeps them. */
-export function commitAndPushMain(project: E2eProject, message: string): void {
-    git('add -A', project.projectRoot);
-    try {
-        git(`commit -m ${JSON.stringify(message)}`, project.projectRoot);
-    } catch {
-        git(`commit --allow-empty -m ${JSON.stringify(message)}`, project.projectRoot);
-    }
-    git('push origin main', project.projectRoot);
-}
-
 function gitCommitIntegrationBranch(projectRoot: string, branchName: string): void {
     try {
         git(`commit -m "integration ${branchName}"`, projectRoot);

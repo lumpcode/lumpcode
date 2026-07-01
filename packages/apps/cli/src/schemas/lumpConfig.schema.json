@@ -25,7 +25,7 @@
   "properties": {
     "baseBranch": {
       "type": "string",
-      "description": "Git integration line for execution: pre-flight, markers, finished checks, and worktrees. When omitted, defaults to discoveryBranch, then the primary discovery branch from local.json.",
+      "description": "Git integration line for execution: pre-flight, markers, finished checks, and worktrees. When omitted, defaults to discoveryBranch, then the primary discovery branch from local.json, then project.json projectBaseBranch.",
       "examples": ["main", "develop", "ver/0.0.9"]
     },
     "discoveryBranch": {

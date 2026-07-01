@@ -229,7 +229,7 @@ describe('clean command', () => {
         git('checkout main', copyRoot);
         git('checkout main', projectRoot);
 
-        const handle = command.handlerMaker({ projectRoot, globalConfigFolderPath });
+        const handle = makeHandler();
         const result = await handle({ options: {}, arguments: {} });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
