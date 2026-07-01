@@ -4,6 +4,7 @@ export default defineConfig({
     command: 'cursor',
     getContextListFn: './contexts.js',
     numberOfContextsPerBranch: 1,
+    disabled: true,
     maximumNumberOfConcurrentBranches: 2,
     steps: [
         {
