@@ -5,7 +5,7 @@ import { failure, success } from '@lumpcode/core';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { ContextStatusRecord } from '../../types/ContextStatusRecord';
-import { commandFailure } from '../../utils/commandFailure';
+import { orCommandFailure } from '../../utils/commandFailure';
 import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import { discoverLoadableLumpNames } from '../../utils/discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
@@ -43,11 +43,13 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { lumpName: rawLumpName, json: jsonOutput } = input.options;
     const show = input.options.silent !== true;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = await orCommandFailure(
+        await validateCurrentLumpProjectRoot({ cwd: projectRoot }),
+    );
+    if (!validationResult.success) return validationResult;
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+    const localConfigResult = await orCommandFailure(await readLocalConfig({ localConfigFolderPath }));
+    if (!localConfigResult.success) return localConfigResult;
     const { projectBaseBranch } = localConfigResult.data;
 
     const lumpNameOpt = rawLumpName?.trim() ? rawLumpName.trim() : undefined;

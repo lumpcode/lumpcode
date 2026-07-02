@@ -4,6 +4,7 @@ import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
     commandFailure,
+    orCommandFailure,
     createCliLogger,
     getJsConfigFromLumpName,
     isBranchWorkspaceBusyError,
@@ -38,19 +39,23 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const lumpName = input.arguments.lumpName;
     const { json, verbose: cliVerbose } = input.options;
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
-    const preflightResult = await runProjectPreflight({
-        sourceProjectRoot: projectRoot,
-        localConfigFolderPath,
-        globalConfigFolderPath,
-    });
-    if (!preflightResult.success) return commandFailure(preflightResult.data);
+    const preflightResult = await orCommandFailure(
+        await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        }),
+    );
+    if (!preflightResult.success) return preflightResult;
     const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } = preflightResult.data;
 
-    const jsConfResult = await getJsConfigFromLumpName({
-        lumpName,
-        localConfigFolderPath,
-    });
-    if (!jsConfResult.success) return commandFailure(jsConfResult.data);
+    const jsConfResult = await orCommandFailure(
+        await getJsConfigFromLumpName({
+            lumpName,
+            localConfigFolderPath,
+        }),
+    );
+    if (!jsConfResult.success) return jsConfResult;
 
     const effectiveVerbose = !!cliVerbose || !!jsConfResult.data.verbose;
     const logger = createCliLogger({ verbose: effectiveVerbose, json: !!json });

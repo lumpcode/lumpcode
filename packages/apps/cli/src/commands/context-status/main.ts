@@ -5,7 +5,7 @@ import { failure, success } from '@lumpcode/core';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import type { ContextStatusRecordItem } from '../../types/ContextStatusRecord';
-import { commandFailure } from '../../utils/commandFailure';
+import { orCommandFailure } from '../../utils/commandFailure';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import { setContextToFinishedStatus } from '../../utils/setContextToFinishedStatus';
 import { updateContextStatusRecord } from '../../utils/updateContextStatusRecord';
@@ -44,11 +44,15 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { lumpName, contextName } = input.arguments;
     const setToFinished = input.options.setToFinished ?? false;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = await orCommandFailure(
+        await validateCurrentLumpProjectRoot({ cwd: projectRoot }),
+    );
+    if (!validationResult.success) return validationResult;
 
-    const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-    if (!jsConfResult.success) return commandFailure(jsConfResult.data);
+    const jsConfResult = await orCommandFailure(
+        await getJsConfigFromLumpName({ lumpName, localConfigFolderPath }),
+    );
+    if (!jsConfResult.success) return jsConfResult;
     const jsConfig = jsConfResult.data;
     const baseBranch = jsConfig.baseBranch;
     if (!baseBranch) {
@@ -64,7 +68,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             lumpName,
             baseBranch,
         });
-        if (!finishResult.success) return commandFailure(finishResult.data);
+        const finishMapped = orCommandFailure(finishResult);
+        if (!finishMapped.success) return finishMapped;
     }
 
     const updateResult = await updateContextStatusRecord({
