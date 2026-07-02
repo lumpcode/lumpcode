@@ -25,6 +25,8 @@ export type E2eLumpSpec = {
     hookFiles?: Record<string, string>;
     disabled?: boolean;
     maximumNumberOfConcurrentBranches?: number;
+    baseBranch?: string;
+    discoveryBranch?: string;
     useE2eAgent?: boolean;
     /** When true (Windows E2E), use a `.cmd` shim on PATH instead of the Node mock agent. */
     useCmdShimAgent?: boolean;
@@ -66,6 +68,8 @@ function resolveLumpConfig(lump: E2eLumpSpec, cmd: string): ResolvedLumpConfig {
             ...defaultE2eLumpConfigJson(lump.useE2eAgent !== false ? { command: cmd } : {}),
             ...lump.configJson,
             ...(lump.disabled ? { disabled: true } : {}),
+            ...(lump.baseBranch ? { baseBranch: lump.baseBranch } : {}),
+            ...(lump.discoveryBranch ? { discoveryBranch: lump.discoveryBranch } : {}),
             ...(lump.maximumNumberOfConcurrentBranches !== undefined
                 ? { maximumNumberOfConcurrentBranches: lump.maximumNumberOfConcurrentBranches }
                 : {}),
@@ -113,7 +117,7 @@ export async function createE2eProject(input: {
     await fs.writeFile(
         path.join(lumpcodeDir, 'local.json'),
         JSON.stringify(
-            { mode: 'dedicated', projectBaseBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
+            { mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
             null,
             2,
         ),
@@ -272,4 +276,80 @@ export function e2eMarkerPath(root: string, lumpName: string, contextName: strin
 /** Execution workspace path for a project running in `shared` mode (`~/.lumpcode/project-copies/<projectName>`). */
 export function sharedModeCopyPath(globalConfigFolderPath: string, projectName: string): string {
     return path.join(globalConfigFolderPath, 'project-copies', projectName);
+}
+
+/**
+ * Scaffolds a lump with e2e mock agent (`config.json`, `e2e-mock-agent.cjs`, and
+ * `commands/e2e-agent-<lumpName>.js`) under an existing project checkout.
+ */
+export async function writeE2eLumpFixture(input: {
+    projectRoot: string;
+    lumpName: string;
+    configOverrides?: Record<string, unknown>;
+}): Promise<void> {
+    const { projectRoot, lumpName, configOverrides = {} } = input;
+    const commandName = `e2e-agent-${lumpName}`;
+    const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', lumpName);
+    const commandsDir = path.join(projectRoot, '.lumpcode', 'commands');
+    await fs.mkdir(lumpDir, { recursive: true });
+    await fs.mkdir(commandsDir, { recursive: true });
+    await fs.writeFile(
+        path.join(lumpDir, 'config.json'),
+        JSON.stringify(
+            {
+                ...defaultE2eLumpConfigJson({ command: commandName }),
+                ...configOverrides,
+            },
+            null,
+            2,
+        ),
+        'utf-8',
+    );
+    await fs.writeFile(
+        path.join(lumpDir, E2E_MOCK_AGENT_SCRIPT_BASENAME),
+        createE2eMockAgentScript({ lumpName }),
+        'utf-8',
+    );
+    await fs.writeFile(
+        path.join(commandsDir, `${commandName}.js`),
+        createE2eAgentCommandModule({ lumpName }),
+        'utf-8',
+    );
+}
+
+/** Commits and pushes pending changes on `main` so dedicated pre-flight reset keeps them. */
+export function commitAndPushMain(project: E2eProject, message: string): void {
+    git('add -A', project.projectRoot);
+    try {
+        git(`commit -m ${JSON.stringify(message)}`, project.projectRoot);
+    } catch {
+        git(`commit --allow-empty -m ${JSON.stringify(message)}`, project.projectRoot);
+    }
+    git('push origin main', project.projectRoot);
+}
+
+function gitCommitIntegrationBranch(projectRoot: string, branchName: string): void {
+    try {
+        git(`commit -m "integration ${branchName}"`, projectRoot);
+    } catch {
+        git(`commit --allow-empty -m "integration ${branchName}"`, projectRoot);
+    }
+}
+
+/**
+ * Creates and pushes an integration branch from `main`, runs `mutateFn` to add
+ * branch-only lumps or files, then returns the checkout to `main`.
+ */
+export async function pushIntegrationBranch(
+    project: E2eProject,
+    branchName: string,
+    mutateFn: (projectRoot: string) => Promise<void>,
+): Promise<void> {
+    git(`fetch origin main`, project.projectRoot);
+    git(`checkout -b ${branchName} origin/main`, project.projectRoot);
+    await mutateFn(project.projectRoot);
+    git('add -A', project.projectRoot);
+    gitCommitIntegrationBranch(project.projectRoot, branchName);
+    git(`push -u origin ${branchName}`, project.projectRoot);
+    git('checkout main', project.projectRoot);
 }

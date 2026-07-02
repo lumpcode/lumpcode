@@ -21,7 +21,7 @@ import { projectJsonPath } from '../../utils/projectJsonPath';
 import { LOCAL_CONFIG_FILE_NAME } from '../../utils/readLocalConfig';
 
 const DEFAULT_MODE: Mode = 'shared';
-const DEFAULT_PROJECT_BASE_BRANCH = 'main';
+const DEFAULT_PRIMARY_BRANCH = 'main';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -34,10 +34,10 @@ const inputSchema = z.object({
             .enum(['shared', 'dedicated'])
             .optional()
             .describe('Initial `mode` written to .lumpcode/local.json (default: shared). Use `dedicated` on a daemon machine.'),
-        projectBaseBranch: z
+        primaryBranch: z
             .string()
             .optional()
-            .describe('Initial `projectBaseBranch` written to .lumpcode/local.json (default: main)'),
+            .describe('Initial `primaryBranch` written to .lumpcode/local.json (default: main)'),
     }),
     arguments: z.object({}),
 });
@@ -177,10 +177,10 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
         projectName,
     };
 
-    const localConfig: LocalConfig = {
+    const localConfig = {
         mode: input.options.mode ?? DEFAULT_MODE,
-        projectBaseBranch: input.options.projectBaseBranch?.trim() || DEFAULT_PROJECT_BASE_BRANCH,
-        workspaceStrategy: 'checkout',
+        primaryBranch: input.options.primaryBranch?.trim() || DEFAULT_PRIMARY_BRANCH,
+        workspaceStrategy: 'checkout' as const,
     };
 
     try {

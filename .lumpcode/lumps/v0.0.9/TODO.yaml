@@ -1,0 +1,35 @@
+- name: multi-project-base-branches
+  task: >-
+    Multi integration-branch support — optional projectBaseBranches in
+    local.json, lump baseBranch allowlist, dedicated daemon branch-ordered
+    discovery and ticks, run/clean/pre-flight behavior.
+  ref: multi-project-base-branches.reference.md
+  type: feature
+  priority: 1
+  done: true
+- name: execution-workspace-setup-lock
+  task: >-
+    Serialize git mutations on the execution workspace from per-lump pre-flight
+    through branch workspace setup; release before agent loop. Complements
+    branch workspace lock.
+  type: feature
+  done: true
+  priority: 1
+  dependsOn:
+    - multi-project-base-branches
+- name: daemon-stop-mid-run
+  task: >-
+    stop --force SIGKILLs daemon plus all descendants (ps/pgrep tree walk, no
+    pid collection); default stop reads meta.busy and prints info instead of
+    timing out when a lump run is active.
+  type: feature
+  priority: 2
+- name: npm-package-cross-links
+  task: >-
+    On npm package README pages, add links to sibling Lumpcode packages —
+    @lumpcode/cli, @lumpcode/core, @lumpcode/cli-types, and optional lumpcode
+    meta package. Use absolute npmjs.com or GitHub URLs so links work on
+    npmjs.com (same rule as CLI DOCS absolute GitHub links).
+  type: documentation
+  priority: 2
+  done: true

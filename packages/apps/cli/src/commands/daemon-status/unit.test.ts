@@ -58,7 +58,7 @@ describe('daemon-status command', () => {
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
             'utf-8',
         );
     });

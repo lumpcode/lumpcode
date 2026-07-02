@@ -25,8 +25,13 @@
   "properties": {
     "baseBranch": {
       "type": "string",
-      "description": "Optional override of the project-wide `projectBaseBranch` (from `.lumpcode/local.json`). When set, this lump runs against the given branch instead; the per-lump workspace flow will fetch and pull it before creating the lump branch. Most lumps omit this field.",
-      "examples": ["main", "develop", "release/2.0"]
+      "description": "Git integration line for execution: pre-flight, markers, finished checks, and worktrees. When omitted, defaults to discoveryBranch, then the primary branch from local.json.",
+      "examples": ["main", "develop", "ver/0.0.9"]
+    },
+    "discoveryBranch": {
+      "type": "string",
+      "description": "Integration line for inventory and discovery scheduling. Optional; defaults to the primary branch from .lumpcode/local.json. In dedicated mode, must be listed in primaryBranches. Ignored in shared mode.",
+      "examples": ["main", "ver/0.0.9"]
     },
     "branchFn": {
       "type": "string",

@@ -35,4 +35,22 @@ describe('validateLumpJsonConfig', () => {
         });
         expect(result.success).toBe(true);
     });
+
+    it('accepts optional discoveryBranch string', () => {
+        const result = validateLumpJsonConfig({
+            contextListJson: { FILE: 'src/{FILE}' },
+            prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
+            discoveryBranch: 'ver/0.0.9',
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it('rejects non-string discoveryBranch', () => {
+        const result = validateLumpJsonConfig({
+            contextListJson: { FILE: 'src/{FILE}' },
+            prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
+            discoveryBranch: 42,
+        });
+        expect(result.success).toBe(false);
+    });
 });

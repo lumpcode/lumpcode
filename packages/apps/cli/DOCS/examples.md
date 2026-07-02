@@ -26,7 +26,7 @@ Uses a single fixed path every repo already has (`README.md`). Adjust `FILE` if 
 }
 ```
 
-(`baseBranch` defaults to `projectBaseBranch` from `.lumpcode/local.json`; add it on a lump only to override.)
+(`baseBranch` defaults to the primary branch from `.lumpcode/local.json`; add it on a lump only to override.)
 
 Run once: `lumpcode run smokeTest`, then `git log --remotes --grep '^LUMP:' --oneline` and `lumpcode lump-status --lumpName smokeTest`.
 
@@ -59,7 +59,7 @@ Lumpcode commits each context as `LUMP: reactToVue - <ComponentName>` on `lump/r
 
 *When to use:* ordered backlog where later work must wait until earlier tickets are merged to the base branch.
 
-Treat a JSON ticket file as the source of truth and let `dependsOnContexts` enforce order. Subsequent tickets only become eligible once their dependency’s commit is on `origin/<projectBaseBranch>` (i.e. merged).
+Treat a JSON ticket file as the source of truth and let `dependsOnContexts` enforce order. Subsequent tickets only become eligible once their dependency’s commit is on `origin/<baseBranch>` (i.e. merged).
 
 `.lumpcode/lumps/userProfile/config.json`:
 
@@ -245,7 +245,7 @@ The second item is a **function** that returns either a one-step array or an emp
 
 ## 7. Cross-lump dependency — run after another lump finishes
 
-*When to use:* a downstream lump (docs, integration tests, release notes) should start only after an upstream lump’s context is merged to `projectBaseBranch`.
+*When to use:* a downstream lump (docs, integration tests, release notes) should start only after an upstream lump’s context is merged to the integration branch.
 
 Two lumps in one project. **`scaffoldApi`** adds API stubs; **`apiDocs`** rewrites README files but only after `scaffoldApi` has finished context `README` on `main`.
 

@@ -2,10 +2,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { command } from './main';
 import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
+import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
+import { gitCurrentBranch } from '../../testing';
 
 function git(cmd: string, cwd: string) {
     execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
@@ -32,7 +34,7 @@ describe('lump-status command', () => {
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'shared', projectBaseBranch: 'main' }),
+            JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
             'utf-8',
         );
     }, 60_000);
@@ -121,4 +123,84 @@ describe('lump-status command', () => {
         },
         60_000,
     );
+
+    it('does not call runProjectPreflight', async () => {
+        await writeLump('alpha');
+        const spy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        await makeHandler()({
+            options: {},
+            arguments: {},
+        });
+        expect(spy).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('leaves checkout branch unchanged', async () => {
+        await writeLump('alpha');
+        const before = gitCurrentBranch(projectRoot);
+        await makeHandler()({
+            options: {},
+            arguments: {},
+        });
+        expect(gitCurrentBranch(projectRoot)).toBe(before);
+    }, 60_000);
+
+    it('fails allowlist validation for unlisted discoveryBranch (dedicated)', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                primaryBranches: ['main'],
+            }),
+            'utf-8',
+        );
+        const lumpDir = path.join(localConfigFolderPath, 'lumps', 'unlisted');
+        await fs.mkdir(lumpDir, { recursive: true });
+        await fs.writeFile(
+            path.join(lumpDir, 'config.json'),
+            JSON.stringify({
+                discoveryBranch: 'ver/0.0.9',
+                contextListJson: { c1: 'README.md' },
+                prompt: { promptTemplate: 'task', command: 'claude' },
+            }),
+            'utf-8',
+        );
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/discoveryBranch|primaryBranches|ver\/0\.0\.9/i);
+    }, 60_000);
+
+    it('succeeds in shared mode when discoveryBranch is unlisted (no allowlist)', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'shared',
+                primaryBranch: 'main',
+                primaryBranches: ['main'],
+            }),
+            'utf-8',
+        );
+        const lumpDir = path.join(localConfigFolderPath, 'lumps', 'unlisted');
+        await fs.mkdir(lumpDir, { recursive: true });
+        await fs.writeFile(
+            path.join(lumpDir, 'config.json'),
+            JSON.stringify({
+                discoveryBranch: 'ver/0.0.9',
+                contextListJson: { c1: 'README.md' },
+                prompt: { promptTemplate: 'task', command: 'claude' },
+            }),
+            'utf-8',
+        );
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+    }, 60_000);
 });

@@ -14,12 +14,15 @@ import {
     assertDaemonStartAllowed,
     commandFailure,
     createCliLogger,
+    discoverDedicatedLumpsForScanBranch,
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
+    resolvePrimaryBranches,
     resolveTargetLumpNames,
-    runProjectPreflight,
     runLumpFromJsConfig,
+    runLumpFromJsConfigFailureMessage,
+    validateDaemonLaunch,
 } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
@@ -135,15 +138,26 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const frozenLocalConfig: LocalConfig = localConfigResult.data;
     const workspaceStrategy = frozenLocalConfig.workspaceStrategy ?? 'checkout';
+    const effectivePrimaryBranches = resolvePrimaryBranches(frozenLocalConfig);
 
     const targetLumpsResult = await resolveTargetLumpNames({
         localConfigFolderPath,
         lumpName: lumpNameOpt,
     });
+    let initialLumps: string[];
     if (!targetLumpsResult.success) {
-        return failure({ messages: [targetLumpsResult.data] });
+        const allowEmptyDedicatedDiscovery =
+            !lumpNameOpt &&
+            frozenLocalConfig.mode === 'dedicated' &&
+            (frozenLocalConfig.primaryBranches?.length ?? 0) > 1 &&
+            targetLumpsResult.data.includes('No lumps');
+        if (!allowEmptyDedicatedDiscovery) {
+            return failure({ messages: [targetLumpsResult.data] });
+        }
+        initialLumps = [];
+    } else {
+        initialLumps = targetLumpsResult.data;
     }
-    const initialLumps = targetLumpsResult.data;
 
     try {
         new CronPattern(cronSetup);
@@ -280,6 +294,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     let ticks = 0;
     let cronJob: Cron | undefined;
     const projectDisabled = frozenLocalConfig.disabled === true;
+    let sharedMultiDiscoveryWarningLogged = false;
 
     if (projectDisabled) {
         logger.info('project disabled in local.json; skipping tick.');
@@ -292,18 +307,113 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             return;
         }
 
-        const preflightResult = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            localConfig: frozenLocalConfig,
-        });
-        if (!preflightResult.success) {
-            logger.error(`pre-flight failed; skipping tick: ${preflightResult.data}`);
+        if (
+            frozenLocalConfig.mode === 'shared' &&
+            effectivePrimaryBranches.length > 1 &&
+            !sharedMultiDiscoveryWarningLogged
+        ) {
+            logger.info(
+                'local.json lists multiple primary branches; multi-branch daemon scans are dedicated-only. ' +
+                    'Using the primary branch for shared mode.',
+            );
+            sharedMultiDiscoveryWarningLogged = true;
+        }
+
+        const runOneLump = async (input: { lumpName: string }): Promise<void> => {
+            const { lumpName } = input;
+
+            const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
+            if (!jsConfResult.success) {
+                logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
+                return;
+            }
+            logger.info(`lump "${lumpName}": jsConfResult: ${jsConfResult.data}`);
+            const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
+                importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
+            });
+            if (!disabledResult.success) {
+                logger.error(`lump "${lumpName}": ${disabledResult.data}`);
+                return;
+            }
+            if (disabledResult.data.disabled) {
+                logger.info(`lump "${lumpName}": skipped (disabled)`);
+                return;
+            }
+            const lumpLogger = createCliLogger({
+                verbose: !!cliVerbose || !!jsConfResult.data.verbose,
+                json: !!json,
+                prefix: '[lumpcode start]',
+            });
+            const runLumpRes = await runLumpFromJsConfig({
+                jsConfig: jsConfResult.data,
+                lumpName,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                sourceProjectRoot: projectRoot,
+                lockMode: 'wait',
+                projectName,
+                localConfig: frozenLocalConfig,
+                logger: lumpLogger,
+            });
+            if (!runLumpRes.success) {
+                logger.error(`lump "${lumpName}": ${runLumpFromJsConfigFailureMessage(runLumpRes.data)}`);
+            } else if (runLumpRes.data.skipped) {
+                logger.info(
+                    `lump "${lumpName}" skipped: ${runLumpRes.data.reason} - ${runLumpRes.data.reasonDetail}`,
+                );
+            } else {
+                const contextNames = runLumpRes.data.result.contextNames;
+                logger.info(
+                    `lump "${lumpName}": ok (contexts: ${contextNames.join(', ') || 'none'})`,
+                );
+            }
+        };
+
+        if (lumpNameOpt) {
+            const jsConfResult = await getJsConfigFromLumpName({ lumpName: lumpNameOpt, localConfigFolderPath });
+            if (!jsConfResult.success) {
+                logger.error(`lump "${lumpNameOpt}": ${jsConfResult.data}`);
+                return;
+            }
+            ticks += 1;
+            logger.info(`tick ${ticks} — running lump "${lumpNameOpt}"…`);
+            await runOneLump({ lumpName: lumpNameOpt });
             return;
         }
-        const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } =
-            preflightResult.data;
+
+        if (frozenLocalConfig.mode === 'dedicated') {
+            ticks += 1;
+            const lumpsThisTick: string[] = [];
+
+            for (const scanBranch of effectivePrimaryBranches) {
+                const discoverResult = await discoverDedicatedLumpsForScanBranch({
+                    scanBranch,
+                    sourceProjectRoot: projectRoot,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                    localConfig: frozenLocalConfig,
+                    logger,
+                });
+                if (!discoverResult.success) {
+                    logger.error(`discovery branch "${scanBranch}": ${discoverResult.data}; skipping`);
+                    continue;
+                }
+                for (const { lumpName } of discoverResult.data) {
+                    if (lumpsThisTick.includes(lumpName)) {
+                        logger.warn(`duplicate lump "${lumpName}" on branch "${scanBranch}"; skipping`);
+                        continue;
+                    }
+                    lumpsThisTick.push(lumpName);
+                    await runOneLump({ lumpName });
+                }
+            }
+
+            logger.info(
+                `tick ${ticks} — ran ${lumpsThisTick.length} lump(s)…` +
+                    (lumpsThisTick.length ? ` [${lumpsThisTick.join(', ')}]` : ''),
+            );
+            return;
+        }
 
         const namesResult = await resolveTargetLumpNames({
             localConfigFolderPath,
@@ -322,53 +432,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         ticks += 1;
         logger.info(`tick ${ticks} — running ${names.length} lump(s)… [${names.join(', ')}]`);
         for (const lumpName of names) {
-            const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-            if (!jsConfResult.success) {
-                logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
-                continue;
-            }
-            const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
-                importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
-            });
-            if (!disabledResult.success) {
-                logger.error(`lump "${lumpName}": ${disabledResult.data}`);
-                continue;
-            }
-            if (disabledResult.data.disabled) {
-                logger.info(`lump "${lumpName}": skipped (disabled)`);
-                continue;
-            }
-            const lumpLogger = createCliLogger({
-                verbose: !!cliVerbose || !!jsConfResult.data.verbose,
-                json: !!json,
-                prefix: '[lumpcode start]',
-            });
-            const runLumpRes = await runLumpFromJsConfig({
-                jsConfig: jsConfResult.data,
-                lumpName,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                projectBaseBranch,
-                executionWorkspacePath,
-                workspaceStrategy,
-                lockMode: 'wait',
-                projectName,
-                logger: lumpLogger,
-            });
-            if (!runLumpRes.success) {
-                const errMsg =
-                    typeof runLumpRes.data === 'string' ? runLumpRes.data : runLumpRes.data.message;
-                logger.error(`lump "${lumpName}": ${errMsg}`);
-            } else if (runLumpRes.data.skipped) {
-                logger.info(
-                    `lump "${lumpName}" skipped: ${runLumpRes.data.reason} - ${runLumpRes.data.reasonDetail}`,
-                );
-            } else {
-                const contextNames = runLumpRes.data.result.contextNames;
-                logger.info(
-                    `lump "${lumpName}": ok (contexts: ${contextNames.join(', ') || 'none'})`,
-                );
-            }
+            await runOneLump({ lumpName });
         }
     };
 
@@ -380,12 +444,25 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         `Lumpcode daemon on ${cronSetup}. ${scopeLabel}. First run now, then on schedule. Press Ctrl+C to stop.`,
     );
 
+    const launchValidation = await validateDaemonLaunch({
+        projectRoot,
+        localConfigFolderPath,
+        globalConfigFolderPath,
+        localConfig: frozenLocalConfig,
+        lumpNameOpt,
+        logger,
+    });
+    if (!launchValidation.success) {
+        await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
+        return failure({ messages: [launchValidation.data] });
+    }
+
     await runTick();
 
     try {
         cronJob = new Cron(
             cronSetup,
-            { protect: true },
+            { protect: true, name: 'lumpcode' + (lumpNameOpt ? '-' + lumpNameOpt : '') },
             async () => {
                 try {
                     await runTick();

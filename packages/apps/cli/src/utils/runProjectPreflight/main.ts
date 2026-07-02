@@ -5,6 +5,7 @@ import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { getProjectName } from '../getProjectName';
 import { readLocalConfig } from '../readLocalConfig';
+import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { runPreflight } from '../runPreflight';
 
 export interface RunProjectPreflightInput {
@@ -13,6 +14,8 @@ export interface RunProjectPreflightInput {
     globalConfigFolderPath: string;
     /** When set, skips reading `.lumpcode/local.json` (e.g. daemon frozen config at startup). */
     localConfig?: LocalConfig;
+    /** Integration branch to pre-flight; defaults to primary project base branch. */
+    targetBranch?: string;
 }
 
 export interface RunProjectPreflightOutput {
@@ -49,7 +52,7 @@ export async function runProjectPreflight(
         finalLocalConfig = localConfigResult.data;
     }
 
-    projectBaseBranch = finalLocalConfig.projectBaseBranch;
+    projectBaseBranch = input.targetBranch ?? resolvePrimaryBranch(finalLocalConfig);
     effectiveMode = finalLocalConfig.mode;
     workspaceStrategy = finalLocalConfig.workspaceStrategy ?? 'checkout';
 

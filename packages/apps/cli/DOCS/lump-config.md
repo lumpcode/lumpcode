@@ -45,7 +45,7 @@ Minimal shape:
 }
 ```
 
-The base branch comes from **`.lumpcode/local.json.projectBaseBranch`** by default — set `baseBranch` here only when this specific lump should run against a different branch. Workspace setup (in-place vs. on a copy) is also per machine, configured in `.lumpcode/local.json.mode` — see [local-config.md](./local-config.md).
+The base branch comes from **`.lumpcode/local.json`** (`primaryBranch` or the first entry of `primaryBranches`) by default — set `baseBranch` here only when this specific lump should run against a different branch. Workspace setup (in-place vs. on a copy) is also per machine, configured in `.lumpcode/local.json.mode` — see [local-config.md](./local-config.md).
 
 Everything else (`command` at top level when using shorthand strings, hooks, etc.) is optional — see [Optional top-level fields](#optional-top-level-fields).
 
@@ -104,7 +104,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `baseBranch` | string | Override `local.json.projectBaseBranch` for this lump only. Set when this lump should branch off something other than the project-wide base (e.g. a long-lived release branch). |
+| `baseBranch` | string | Override the default execution branch for this lump (`discoveryBranch` on the lump, then primary branch from `local.json`). Set when this lump should branch off something other than the project-wide default (e.g. a long-lived release branch). |
 | `command` | [Command name](#command-names) | Default agent command for all prompt items that don’t set their own `command` |
 | `branchFn` | [Function reference](#field-forms-conventions) | Custom branch naming; default is `lump/<lumpName>/<contextNames…>` |
 | `disabled` | boolean | When `true`, the background daemon skips this lump (`lumpcode start`); `run` still executes if invoked manually |
@@ -180,7 +180,7 @@ Set **`options.priority`** and **`options.dependsOnContexts`** on each context (
 | `priority` | Lower number runs sooner among contexts that pass dependency checks. |
 | `dependsOnContexts` | Every listed dependency must be **`finished`** before this context runs. |
 
-Each `dependsOnContexts` entry is either a context **`name` in this lump**, or **`<otherLumpName>/<contextName>`** to wait on a context from another lump in the same project. Lumpcode resolves cross-lump refs using that lump’s marker commit (`LUMP: <otherLumpName> - <contextName>`) on the remote — same git repo, shared `projectBaseBranch` / merge workflow.
+Each `dependsOnContexts` entry is either a context **`name` in this lump**, or **`<otherLumpName>/<contextName>`** to wait on a context from another lump in the same project. Lumpcode resolves cross-lump refs using that lump’s marker commit (`LUMP: <otherLumpName> - <contextName>`) on the remote — same git repo, shared integration branch / merge workflow.
 
 Context **`name`** values must not contain `/`; use the slash form only in `dependsOnContexts`. Ticket-queue (same lump): [examples.md § 2](./examples.md#2-feature-ticket-queue--strict-dependency-order). Cross-lump pipeline: [examples.md § 7](./examples.md#7-cross-lump-dependency--run-after-another-lump-finishes).
 
@@ -321,7 +321,7 @@ export default defineConfig({
 ## Related documentation
 
 - [concepts.md](./concepts.md) — Status lifecycle, pre-flight, daemon overview
-- [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `projectBaseBranch`)
+- [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `primaryBranch`)
 - [advanced-config.md](./advanced-config.md) — Hooks, dynamic prompts, custom commands
 - [types.md](./types.md) — Callback signatures
 - [commands.md](./commands.md) — `run`, `daemon-status`, `lump-status`, `context-status`
