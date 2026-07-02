@@ -17,6 +17,7 @@ import {
 } from '../../utils/getProjectName';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpsDirPath } from '../../utils/lumpDirPath';
+import { nodeErrorCode } from '../../utils/nodeErrorCode';
 import { projectJsonPath } from '../../utils/projectJsonPath';
 import { LOCAL_CONFIG_FILE_NAME } from '../../utils/readLocalConfig';
 
@@ -101,10 +102,7 @@ async function ensureGitignoreLines({
     try {
         content = await fs.readFile(gitignorePath, 'utf-8');
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrorCode(error);
         if (code !== 'ENOENT') {
             return failure(`Cannot read .gitignore: ${String(error)}`);
         }
@@ -135,10 +133,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
     try {
         stat = await fs.stat(projectRoot);
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrorCode(error);
         if (code === 'ENOENT') {
             return failure({ messages: [`Project path does not exist: ${projectRoot}`] });
         }

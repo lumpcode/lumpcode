@@ -4,6 +4,8 @@ import * as path from 'node:path';
 
 import { failure, type Failure, success, type Success, type Logger } from '@lumpcode/core';
 
+import { nodeErrorCode } from '../nodeErrorCode';
+
 export type BranchWorkspaceLockMode = 'wait' | 'fail';
 
 export type BranchWorkspaceBusyError = {
@@ -52,8 +54,7 @@ function isProcessAlive(pid: number): boolean {
         process.kill(pid, 0);
         return true;
     } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
+        const code = nodeErrorCode(e);
         return code !== 'ESRCH';
     }
 }
@@ -123,8 +124,7 @@ async function tryAcquireBranchWorkspaceLockOnce(input: {
         }
         return { status: 'acquired' };
     } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
+        const code = nodeErrorCode(e);
         if (code !== 'EEXIST') {
             throw e;
         }

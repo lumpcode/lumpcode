@@ -7,6 +7,7 @@ import { failure, success } from '@lumpcode/core';
 import { AUTH_FILE_PATH } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
+import { nodeErrorCode } from '../../utils/nodeErrorCode';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema,
@@ -34,10 +35,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             data: { removed: true },
         });
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrorCode(error);
         if (code === 'ENOENT') {
             return success({
                 messages: ['No stored authentication found.'],

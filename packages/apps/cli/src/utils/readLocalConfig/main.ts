@@ -5,6 +5,7 @@ import * as z from 'zod';
 import { failure, type Failure, success, type Success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
+import { nodeErrorCode } from '../nodeErrorCode';
 
 const localConfigSchema = z.object({
     mode: z.enum(['shared', 'dedicated']),
@@ -27,10 +28,7 @@ export async function readLocalConfig(input: {
     try {
         raw = await fs.readFile(filePath, 'utf-8');
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrorCode(error);
         if (code === 'ENOENT') {
             return failure(MISSING_HINT);
         }

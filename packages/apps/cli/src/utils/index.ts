@@ -40,6 +40,7 @@ export * from './makeGetContextListFnFromTemplate';
 export * from './makeGitCommitMessageFnFromLumpName';
 export * from './makeLumpWorkspaceFns';
 export * from './makePromptFnFromTemplate';
+export * from './nodeErrorCode';
 export * from './planLumpFromJsConfig';
 export * from './projectCopiesRootPath';
 export * from './projectJsonPath';

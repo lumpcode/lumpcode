@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { LocalConfig } from '../../types/LocalConfig';
+import { nodeErrorCode } from '../../utils/nodeErrorCode';
 import {
     createE2eAgentCommandModule,
     createE2eMockAgentScript,
@@ -256,7 +257,7 @@ async function rmWithRetry(dir: string, attempts = 6): Promise<void> {
             await fs.rm(dir, { recursive: true, force: true });
             return;
         } catch (err) {
-            const code = (err as NodeJS.ErrnoException).code;
+            const code = nodeErrorCode(err);
             const retryable = code === 'EBUSY' || code === 'EPERM' || code === 'ENOTEMPTY';
             if (!retryable || attempt === attempts - 1) throw err;
             await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));

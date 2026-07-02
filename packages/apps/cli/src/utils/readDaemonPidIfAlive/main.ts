@@ -3,6 +3,8 @@ import * as fs from 'node:fs/promises';
 import type { Failure, Success } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
+import { nodeErrorCode } from '../nodeErrorCode';
+
 export type DaemonPidAlive = { pid: number };
 export type DaemonPidStale = { stale: true };
 export type DaemonPidReadResult = DaemonPidAlive | DaemonPidStale | undefined;
@@ -20,10 +22,7 @@ export async function readDaemonPidIfAlive(
     try {
         raw = await fs.readFile(pidFilePath, 'utf8');
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrorCode(error);
         if (code === 'ENOENT') {
             return success(undefined);
         }
@@ -39,8 +38,7 @@ export async function readDaemonPidIfAlive(
         process.kill(pid, 0);
         return success({ pid });
     } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
+        const code = nodeErrorCode(e);
         if (code === 'ESRCH') {
             return success(stalePid);
         }

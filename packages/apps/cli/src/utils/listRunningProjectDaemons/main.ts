@@ -7,6 +7,7 @@ import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { daemonFileBaseName } from '../daemonFileBaseName';
 import { daemonPidPath } from '../daemonPidPath';
 import { metaFilePathFromPidFilePath, readDaemonMeta } from '../readDaemonMeta';
+import { nodeErrorCode } from '../nodeErrorCode';
 import { readDaemonPidIfAlive } from '../readDaemonPidIfAlive';
 
 export type RunningDaemonInfo = {
@@ -71,10 +72,7 @@ export async function listRunningProjectDaemons(input: {
     try {
         entries = await fs.readdir(daemonsDir);
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrorCode(error);
         if (code === 'ENOENT') {
             return success(result);
         }
