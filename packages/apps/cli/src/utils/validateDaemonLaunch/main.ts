@@ -3,7 +3,7 @@ import { failure, success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
-import { discoverLoadableLumps } from '../discoverLoadableLumpNames';
+import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
@@ -100,32 +100,28 @@ export async function validateDaemonLaunch(input: {
         return success(undefined);
     }
 
-    const loadableLumps = await discoverLoadableLumps({ localConfigFolderPath, logger });
-
     const registry: LumpRegistryEntry[] = [];
 
     for (const scanBranch of effectivePrimaryBranches) {
+        const discoverResult = await discoverDedicatedLumpsForScanBranch({
+            scanBranch,
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig,
+            logger,
+        });
+        if (!discoverResult.success) {
+            return failure(`Discovery branch "${scanBranch}": ${discoverResult.data}`);
+        }
+
         const seenOnBranch = new Set<string>();
 
-        for (const { lumpName, jsConfig } of loadableLumps) {
+        for (const { lumpName, jsConfig } of discoverResult.data) {
             const branches = resolveLumpBranches({
                 lumpConfig: jsConfig,
                 localConfig,
             });
-
-            const allowlistResult = validateLumpDiscoveryBranchAllowlist({
-                mode: localConfig.mode,
-                lumpName,
-                resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
-                effectivePrimaryBranches,
-            });
-            if (!allowlistResult.success) {
-                return allowlistResult;
-            }
-
-            if (branches.resolvedDiscoveryBranch !== scanBranch) {
-                continue;
-            }
 
             if (seenOnBranch.has(lumpName)) {
                 return failure(

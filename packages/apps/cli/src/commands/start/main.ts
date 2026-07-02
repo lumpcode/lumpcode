@@ -14,12 +14,11 @@ import {
     assertDaemonStartAllowed,
     commandFailure,
     createCliLogger,
-    discoverLoadableLumpNames,
+    discoverDedicatedLumpsForScanBranch,
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
     resolvePrimaryBranches,
-    resolveLumpBranches,
     resolveTargetLumpNames,
     runLumpFromJsConfig,
     runLumpFromJsConfigFailureMessage,
@@ -385,20 +384,23 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         if (frozenLocalConfig.mode === 'dedicated') {
             ticks += 1;
             const lumpsThisTick: string[] = [];
-            const lumpNames = await discoverLoadableLumpNames({ localConfigFolderPath });
 
             for (const scanBranch of effectivePrimaryBranches) {
-                for (const lumpName of lumpNames) {
-                    const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-                    if (!jsConfResult.success) {
-                        logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
-                        continue;
-                    }
-                    const branches = resolveLumpBranches({
-                        lumpConfig: jsConfResult.data,
-                        localConfig: frozenLocalConfig,
-                    });
-                    if (branches.resolvedDiscoveryBranch !== scanBranch) {
+                const discoverResult = await discoverDedicatedLumpsForScanBranch({
+                    scanBranch,
+                    sourceProjectRoot: projectRoot,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                    localConfig: frozenLocalConfig,
+                    logger,
+                });
+                if (!discoverResult.success) {
+                    logger.error(`discovery branch "${scanBranch}": ${discoverResult.data}; skipping`);
+                    continue;
+                }
+                for (const { lumpName } of discoverResult.data) {
+                    if (lumpsThisTick.includes(lumpName)) {
+                        logger.warn(`duplicate lump "${lumpName}" on branch "${scanBranch}"; skipping`);
                         continue;
                     }
                     lumpsThisTick.push(lumpName);

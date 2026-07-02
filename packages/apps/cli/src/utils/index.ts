@@ -16,6 +16,7 @@ export * from './daemonMetaPath';
 export * from './daemonPidPath';
 export * from './daemonsDirPath';
 export * from './defineConfig';
+export * from './discoverDedicatedLumpsForScanBranch';
 export * from './discoverLoadableLumpNames';
 export * from './ensurePresetCommandsInstalled';
 export * from './extractPattern';

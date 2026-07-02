@@ -15,7 +15,6 @@ import {
     sharedModeCopyPath,
     useE2eProjects,
     writeE2eLumpFixture,
-    commitAndPushMain,
 } from './harness';
 
 const releaseLineConfig = {
@@ -42,13 +41,6 @@ describe('E2E multi discovery branches', () => {
                 configOverrides: releaseLineConfig,
             });
         });
-        // Daemon discovers lumps from the current checkout; keep releaseLine on main too.
-        await writeE2eLumpFixture({
-            projectRoot: project.projectRoot,
-            lumpName: 'releaseLine',
-            configOverrides: releaseLineConfig,
-        });
-        commitAndPushMain(project, 'releaseLine on main for daemon discovery');
 
         await runForegroundUntilMarkers({
             project,
@@ -81,12 +73,6 @@ describe('E2E multi discovery branches', () => {
                 'utf-8',
             );
         });
-        await writeE2eLumpFixture({
-            projectRoot: project.projectRoot,
-            lumpName: 'releaseLine',
-            configOverrides: releaseLineConfig,
-        });
-        commitAndPushMain(project, 'releaseLine on main for daemon discovery');
 
         await runForegroundUntilMarkers({
             project,
@@ -107,6 +93,34 @@ describe('E2E multi discovery branches', () => {
         } catch {
             // Order log is optional until daemon writes it; marker wait above is the primary assertion.
         }
+    });
+
+    it('DAEMON-MDB-S5 branch-only releaseLine on ver/0.0.9 is discovered from main checkout', async () => {
+        const project = await createProject({
+            localJson: {
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                primaryBranches: ['main', 'ver/0.0.9'],
+            },
+            lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
+        });
+        await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
+            await writeE2eLumpFixture({
+                projectRoot: root,
+                lumpName: 'releaseLine',
+                configOverrides: releaseLineConfig,
+            });
+        });
+
+        await runForegroundUntilMarkers({
+            project,
+            waitFor: [
+                { lumpName: 'mainLine', contextName: 'README' },
+                { lumpName: 'releaseLine', contextName: 'README' },
+            ],
+        });
+        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'mainLine', contextName: 'README' });
+        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName: 'releaseLine', contextName: 'README' });
     });
 
     it('DAEMON-MDB-S3 cross-branch same lumpName launch succeeds and both run', async () => {
