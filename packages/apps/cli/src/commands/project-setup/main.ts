@@ -9,7 +9,7 @@ import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { Mode } from '../../types/Mode';
 import type { ProjectConfig } from '../../types/ProjectConfig';
-import { commandFailure } from '../../utils/commandFailure';
+import { unwrapOrCommandFailure } from '../../utils/commandFailure';
 import {
     isValidProjectName,
     rawRepoSegmentFromRemoteUrl,
@@ -164,12 +164,13 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
         });
     }
 
-    const projectNameResolution = await resolveProjectName({
-        projectRoot,
-        explicitName: input.options.projectName,
-    });
-
-    if (!projectNameResolution.success) return commandFailure(projectNameResolution.data);
+    const projectNameResolution = await unwrapOrCommandFailure(
+        await resolveProjectName({
+            projectRoot,
+            explicitName: input.options.projectName,
+        }),
+    );
+    if (!projectNameResolution.success) return projectNameResolution;
 
     const projectName = projectNameResolution.data;
 

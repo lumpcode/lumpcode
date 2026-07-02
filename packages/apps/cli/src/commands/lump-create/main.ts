@@ -6,7 +6,7 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure } from '../../utils/commandFailure';
+import { unwrapOrCommandFailure } from '../../utils/commandFailure';
 import { assertValidLumpName } from '../../utils/isValidLumpName';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpDirPath } from '../../utils/lumpDirPath';
@@ -107,8 +107,10 @@ function fileBodyForFormat(format: LumpConfigFormat): string {
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot } = injections;
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = await unwrapOrCommandFailure(
+        await validateCurrentLumpProjectRoot({ cwd: projectRoot }),
+    );
+    if (!validationResult.success) return validationResult;
 
     const lumpName = input.arguments.lumpName;
     const nameCheck = assertValidLumpName(lumpName);

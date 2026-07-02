@@ -3,13 +3,14 @@ import * as z from 'zod';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
-    commandFailure,
     createCliLogger,
     getJsConfigFromLumpName,
     isBranchWorkspaceBusyError,
     runProjectPreflight,
     runLumpFromJsConfig,
     RunLumpFromJsConfigSuccess,
+    unwrapOrCommandFailure,
+    commandFailure,
 } from '../../utils';
 import { failure, success } from '@lumpcode/core';
 import { globalConfigFolderPath, localConfigFolderPath } from '../../constants';
@@ -38,19 +39,23 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const lumpName = input.arguments.lumpName;
     const { json, verbose: cliVerbose } = input.options;
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
-    const preflightResult = await runProjectPreflight({
-        sourceProjectRoot: projectRoot,
-        localConfigFolderPath,
-        globalConfigFolderPath,
-    });
-    if (!preflightResult.success) return commandFailure(preflightResult.data);
+    const preflightResult = await unwrapOrCommandFailure(
+        await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        }),
+    );
+    if (!preflightResult.success) return preflightResult;
     const { executionWorkspacePath, projectBaseBranch, workspaceStrategy } = preflightResult.data;
 
-    const jsConfResult = await getJsConfigFromLumpName({
-        lumpName,
-        localConfigFolderPath,
-    });
-    if (!jsConfResult.success) return commandFailure(jsConfResult.data);
+    const jsConfResult = await unwrapOrCommandFailure(
+        await getJsConfigFromLumpName({
+            lumpName,
+            localConfigFolderPath,
+        }),
+    );
+    if (!jsConfResult.success) return jsConfResult;
 
     const effectiveVerbose = !!cliVerbose || !!jsConfResult.data.verbose;
     const logger = createCliLogger({ verbose: effectiveVerbose, json: !!json });

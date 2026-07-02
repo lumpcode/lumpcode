@@ -7,7 +7,7 @@ import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { command as startCommand, defaultCronPattern } from '../start/main';
 import { command as stopCommand } from '../stop/main';
-import { commandFailure } from '../../utils/commandFailure';
+import { unwrapOrCommandFailure } from '../../utils/commandFailure';
 import { readDaemonMeta } from '../../utils/readDaemonMeta';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
@@ -66,17 +66,21 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const json = input.options.json === true;
     const lumpNameFromCli = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = await unwrapOrCommandFailure(
+        await validateCurrentLumpProjectRoot({ cwd: projectRoot }),
+    );
+    if (!validationResult.success) return validationResult;
 
     const lumpNameForPaths = lumpNameFromCli;
-    const pathsResult = await resolveDaemonPaths({
-        projectRoot,
-        localConfigFolderPath,
-        globalConfigFolderPath,
-        lumpName: lumpNameForPaths,
-    });
-    if (!pathsResult.success) return commandFailure(pathsResult.data);
+    const pathsResult = await unwrapOrCommandFailure(
+        await resolveDaemonPaths({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            lumpName: lumpNameForPaths,
+        }),
+    );
+    if (!pathsResult.success) return pathsResult;
 
     const meta = await readDaemonMetaForRestart({ metaFilePath: pathsResult.data.metaFilePath });
     const cronSetup = meta.cronSetup;
