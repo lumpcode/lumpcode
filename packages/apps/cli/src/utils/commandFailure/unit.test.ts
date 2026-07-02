@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { commandFailure } from './main';
+import { failure, success } from '@lumpcode/core';
+
+import { commandFailure, unwrapOrCommandFailure } from './main';
 
 describe('commandFailure', () => {
     it('returns a failure result', () => {
@@ -25,5 +27,22 @@ describe('commandFailure', () => {
         if (result.success) throw new Error('unreachable');
 
         expect(result.data.messages).toEqual([message]);
+    });
+});
+
+describe('unwrapOrCommandFailure', () => {
+    it('returns success unchanged', () => {
+        const result = unwrapOrCommandFailure(success({ ok: true }));
+
+        expect(result).toEqual(success({ ok: true }));
+    });
+
+    it('wraps string failures as command output', () => {
+        const result = unwrapOrCommandFailure(failure('not a lumpcode project'));
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+
+        expect(result.data).toEqual({ messages: ['not a lumpcode project'] });
     });
 });

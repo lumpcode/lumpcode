@@ -5,7 +5,7 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure, readDaemonPidIfAlive } from '../../utils';
+import { unwrapOrCommandFailure, readDaemonPidIfAlive } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
@@ -35,16 +35,20 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
     const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = unwrapOrCommandFailure(
+        await validateCurrentLumpProjectRoot({ cwd: projectRoot }),
+    );
+    if (!validationResult.success) return validationResult;
 
-    const pathsResult = await resolveDaemonPaths({
-        projectRoot,
-        localConfigFolderPath,
-        globalConfigFolderPath,
-        lumpName: lumpNameOpt,
-    });
-    if (!pathsResult.success) return commandFailure(pathsResult.data);
+    const pathsResult = unwrapOrCommandFailure(
+        await resolveDaemonPaths({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            lumpName: lumpNameOpt,
+        }),
+    );
+    if (!pathsResult.success) return pathsResult;
 
     const { pidFilePath, metaFilePath, projectName } = pathsResult.data;
     const scopeLabel = lumpNameOpt ? ` lump "${lumpNameOpt}"` : '';

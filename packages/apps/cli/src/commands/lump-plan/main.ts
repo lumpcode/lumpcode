@@ -4,7 +4,7 @@ import { success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure } from '../../utils/commandFailure';
+import { unwrapOrCommandFailure } from '../../utils/commandFailure';
 import {
     planLumpFromJsConfig,
     type LumpPlanDepth,
@@ -130,20 +130,23 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const lumpName = input.arguments.lumpName;
     const depth = resolveDepth(input.options);
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = unwrapOrCommandFailure(
+        await validateCurrentLumpProjectRoot({ cwd: projectRoot }),
+    );
+    if (!validationResult.success) return validationResult;
 
-    const planResult = await planLumpFromJsConfig({
-        lumpName,
-        localConfigFolderPath,
-        globalConfigFolderPath,
-        projectRoot,
-        depth,
-        todoOnly: input.options.todoOnly,
-        contextName: input.options.contextName?.trim() || undefined,
-    });
-
-    if (!planResult.success) return commandFailure(planResult.data);
+    const planResult = unwrapOrCommandFailure(
+        await planLumpFromJsConfig({
+            lumpName,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth,
+            todoOnly: input.options.todoOnly,
+            contextName: input.options.contextName?.trim() || undefined,
+        }),
+    );
+    if (!planResult.success) return planResult;
 
     const data = planResult.data;
     const messages = input.options.json

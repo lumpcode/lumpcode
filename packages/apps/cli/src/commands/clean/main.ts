@@ -8,7 +8,7 @@ import { globalConfigFolderPath } from '../../constants';
 import { REFS_HEADS_PREFIX, LUMP_BRANCH_PREFIX } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure } from '../../utils/commandFailure';
+import { unwrapOrCommandFailure } from '../../utils/commandFailure';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import { lumpWorktreePath } from '../../utils/getLumpWorktreePath';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
@@ -189,21 +189,24 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { projectRoot } = injections;
     const { lumpName, contextName } = input.options;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = unwrapOrCommandFailure(
+        await validateCurrentLumpProjectRoot({ cwd: projectRoot }),
+    );
+    if (!validationResult.success) return validationResult;
 
     if (contextName && !lumpName) {
         return failure({ messages: ['--contextName requires --lumpName to be set'] });
     }
 
     const localConfig = localConfigFolderPath({ projectRoot });
-    const preflightResult = await runProjectPreflight({
-        sourceProjectRoot: projectRoot,
-        localConfigFolderPath: localConfig,
-        globalConfigFolderPath,
-    });
-    if (!preflightResult.success) return commandFailure(preflightResult.data);
+    const preflightResult = unwrapOrCommandFailure(
+        await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath: localConfig,
+            globalConfigFolderPath,
+        }),
+    );
+    if (!preflightResult.success) return preflightResult;
     const { executionWorkspacePath } = preflightResult.data;
 
     await execAsync(`git fetch --all`, { cwd: executionWorkspacePath });
