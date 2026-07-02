@@ -16,6 +16,8 @@ generated-env.ts
 .lumpcode/**/contextStatusRecord.json
 .lumpcode/**/history/**
 .lumpcode/local.json
+.lumpcode/worktrees/
+.lumpcode/.cache/
 ._gitmodules
 packages/core/._git
 *.tgz
