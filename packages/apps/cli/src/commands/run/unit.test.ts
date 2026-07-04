@@ -15,7 +15,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
-import * as runLumpFromJsConfigModule from '../../utils/runLumpFromJsConfig';
+import * as runLumpFromLumpNameModule from '../../utils/runLumpFromLumpName';
 import { command } from './main';
 
 vi.mock('@lumpcode/core', async () => {
@@ -154,26 +154,20 @@ describe('run command — multi discovery branches', () => {
         expect(gitCurrentBranch(projectRoot)).toBe('main');
     });
 
-    it('loads config before pre-flight and passes targetBranch from resolved lump baseBranch', async () => {
+    it('loads config in phase 1 before calling runLumpFromJsConfig', async () => {
         await setupMultiBranchLocal();
-        const runLumpSpy = vi.spyOn(runLumpFromJsConfigModule, 'runLumpFromJsConfig');
-        const getConfigSpy = vi.spyOn(
-            await import('../../utils/getJsConfigFromLumpName'),
-            'getJsConfigFromLumpName',
-        );
+        const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
 
         await makeHandler()({
             options: {},
             arguments: { lumpName: 'releaseLine' },
         });
 
-        expect(getConfigSpy.mock.invocationCallOrder[0]).toBeLessThan(
-            runLumpSpy.mock.invocationCallOrder[0]!,
-        );
         expect(runLumpSpy).toHaveBeenCalledWith(
             expect.objectContaining({
                 sourceProjectRoot: projectRoot,
                 lumpName: 'releaseLine',
+                effectiveDiscoveryBranch: 'ver/0.0.9',
             }),
         );
     });
@@ -190,7 +184,7 @@ describe('run command — multi discovery branches', () => {
         });
         await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'ver/0.0.9' });
 
-        const runLumpSpy = vi.spyOn(runLumpFromJsConfigModule, 'runLumpFromJsConfig');
+        const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
         const result = await makeHandler()({
             options: {},
             arguments: { lumpName: 'splitLine' },

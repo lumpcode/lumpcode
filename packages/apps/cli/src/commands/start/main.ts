@@ -18,17 +18,16 @@ import {
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
+    resolveEffectiveDiscoveryBranch,
     resolvePrimaryBranches,
     resolveTargetLumpNames,
-    runLumpFromJsConfig,
     runLumpFromJsConfigFailureMessage,
+    runLumpFromLumpName,
     validateDaemonLaunch,
 } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
-import { lumpImportBasePath } from '../../utils/lumpDirPath';
-import { resolveLumpDisabled } from '../../utils/resolveLumpDisabled';
 import type { DaemonMetaWrite } from '../../utils/readDaemonMeta';
 
 /** Default detached-daemon schedule; used by `start` and `restart`. */
@@ -45,6 +44,12 @@ const inputSchema = z.object({
             .optional()
             .describe('Run blocking in this terminal (omit to detach a background daemon)'),
         lumpName: z.string().optional().describe('Run the scheduler for a single lump only'),
+        discoveryBranch: z
+            .string()
+            .optional()
+            .describe(
+                'Discovery branch override for solo daemon (dedicated; must be listed in primaryBranches)',
+            ),
     }),
     arguments: z.object({}),
 });
@@ -124,6 +129,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const foreground = input.options.foreground === true;
     const cronSetup = input.options.cronSetup?.trim() || defaultCronPattern;
     const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
+    const discoveryBranchOpt = input.options.discoveryBranch?.trim() || undefined;
     const spawnImpl = spawnFn ?? nodeSpawn;
     const logger = createCliLogger({
         verbose: !!cliVerbose,
@@ -218,6 +224,9 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         if (lumpNameOpt) {
             spawnArgs.push('--lumpName', lumpNameOpt);
         }
+        if (discoveryBranchOpt) {
+            spawnArgs.push('--discoveryBranch', discoveryBranchOpt);
+        }
         if (json) {
             spawnArgs.push('--json');
         }
@@ -296,6 +305,25 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const projectDisabled = frozenLocalConfig.disabled === true;
     let sharedMultiDiscoveryWarningLogged = false;
 
+    let frozenEffectiveDiscoveryBranch: string | undefined;
+    if (lumpNameOpt) {
+        const discoveryResult = await resolveEffectiveDiscoveryBranch({
+            discoveryBranchOpt,
+            lumpName: lumpNameOpt,
+            localConfigFolderPath,
+            localConfig: frozenLocalConfig,
+            logger,
+            warnSharedDiscoveryBranchIgnored: true,
+        });
+        if (!discoveryResult.success) {
+            await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
+            return failure({ messages: [discoveryResult.data] });
+        }
+        frozenEffectiveDiscoveryBranch = discoveryResult.data;
+    } else if (discoveryBranchOpt) {
+        logger.info('--discoveryBranch has no effect on a global daemon; ignoring.');
+    }
+
     if (projectDisabled) {
         logger.info('project disabled in local.json; skipping tick.');
     }
@@ -322,30 +350,15 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const runOneLump = async (input: { lumpName: string }): Promise<void> => {
             const { lumpName } = input;
 
-            const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-            if (!jsConfResult.success) {
-                logger.error(`lump "${lumpName}": ${jsConfResult.data}`);
-                return;
-            }
-            logger.info(`lump "${lumpName}": jsConfResult: ${jsConfResult.data}`);
-            const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
-                importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
-            });
-            if (!disabledResult.success) {
-                logger.error(`lump "${lumpName}": ${disabledResult.data}`);
-                return;
-            }
-            if (disabledResult.data.disabled) {
-                logger.info(`lump "${lumpName}": skipped (disabled)`);
-                return;
-            }
+            const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
             const lumpLogger = createCliLogger({
-                verbose: !!cliVerbose || !!jsConfResult.data.verbose,
+                verbose:
+                    !!cliVerbose ||
+                    !!(jsConfForVerbose.success && jsConfForVerbose.data.verbose),
                 json: !!json,
                 prefix: '[lumpcode start]',
             });
-            const runLumpRes = await runLumpFromJsConfig({
-                jsConfig: jsConfResult.data,
+            const runLumpRes = await runLumpFromLumpName({
                 lumpName,
                 localConfigFolderPath,
                 globalConfigFolderPath,
@@ -354,13 +367,20 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 projectName,
                 localConfig: frozenLocalConfig,
                 logger: lumpLogger,
+                effectiveDiscoveryBranch:
+                    lumpName === lumpNameOpt ? frozenEffectiveDiscoveryBranch : undefined,
+                discoveryBranchOpt: lumpName === lumpNameOpt ? discoveryBranchOpt : undefined,
             });
             if (!runLumpRes.success) {
                 logger.error(`lump "${lumpName}": ${runLumpFromJsConfigFailureMessage(runLumpRes.data)}`);
             } else if (runLumpRes.data.skipped) {
-                logger.info(
-                    `lump "${lumpName}" skipped: ${runLumpRes.data.reason} - ${runLumpRes.data.reasonDetail}`,
-                );
+                if (runLumpRes.data.reason === 'disabled') {
+                    logger.info(`lump "${lumpName}": skipped (disabled)`);
+                } else {
+                    logger.info(
+                        `lump "${lumpName}" skipped: ${runLumpRes.data.reason} - ${runLumpRes.data.reasonDetail}`,
+                    );
+                }
             } else {
                 const contextNames = runLumpRes.data.result.contextNames;
                 logger.info(
@@ -370,11 +390,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         };
 
         if (lumpNameOpt) {
-            const jsConfResult = await getJsConfigFromLumpName({ lumpName: lumpNameOpt, localConfigFolderPath });
-            if (!jsConfResult.success) {
-                logger.error(`lump "${lumpNameOpt}": ${jsConfResult.data}`);
-                return;
-            }
             ticks += 1;
             logger.info(`tick ${ticks} — running lump "${lumpNameOpt}"…`);
             await runOneLump({ lumpName: lumpNameOpt });
@@ -450,6 +465,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         globalConfigFolderPath,
         localConfig: frozenLocalConfig,
         lumpNameOpt,
+        effectiveDiscoveryBranch: frozenEffectiveDiscoveryBranch,
+        discoveryBranchOpt,
         logger,
     });
     if (!launchValidation.success) {

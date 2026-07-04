@@ -13,6 +13,7 @@
 - Use `cwd` with `execAsync`/`child_process` instead of `cd ... &&`; command functions return only the command string, pass `cwd` at the call site
 - Limit change scope to specified packages; note follow-up work for other packages separately
 - CLI utils live flat under `packages/apps/cli/src/utils/` (one util per directory: `main.ts` + `index.ts`, barrel-exported from `utils/index.ts` — no nested subdirs). Shared test-only helpers go under `packages/apps/cli/src/testing/` with a barrel `index.ts`. Prefer a private inline helper in the calling module over a new util directory for small single-caller logic
+- Name path-lock release callbacks `releaseLock`, not phase-specific names (e.g. `phase1Lock`); enforce each guard/skip at one canonical layer — do not duplicate the same check in both `runLumpFromLumpName` and `runLumpFromJsConfig`
 
 ### Testing
 
@@ -65,7 +66,7 @@
 - `getToDoContextList` validates names via `validateContextListNames` (unique, `^[a-zA-Z0-9_-]+$`)
 - Cross-lump `dependsOnContexts`: composite `lumpName/contextName`; CLI `makeGitCommitMessageFnFromLumpName` maps `/` in dependency refs to `LUMP:<referencedLump> - <contextName>` — slash only for dependency refs, not same-lump context names
 - Lump config precedence: **`config.ts` > `config.js` > `config.json`**; hook `*Fn` paths and custom commands support **`.ts`**; shipped presets stay **`.js`** only; `lump-create` scaffolds JSON/JS only
-- Per-lump `disabled`: boolean, zero-arg sync/async fn, or `FilePath` to a module — daemon `runTick` skips truthy; no `enable`/`disable` subcommands
+- Per-lump `disabled`: boolean, zero-arg sync/async fn, or `FilePath` to a module — phase 1 returns `{ skipped: true, reason: 'disabled' }` (exit 0 on manual `run`); daemon `runTick` logs info and continues; no `enable`/`disable` subcommands
 
 ### Context sourcing (mutually exclusive)
 
@@ -107,21 +108,24 @@
 ### Workspaces and pre-flight
 
 - **Execution workspace** (`executionWorkspacePath`): project copy in `shared`, operator checkout in `dedicated`
-- **Branch workspace**: mapped to core `workspacePath` via `makeLumpWorkspaceFns`; worktrees at `.lumpcode/worktrees/<branch-as-nested-dirs>/` under execution workspace (CLI-only; engine `cwd` stays source `projectRoot`)
+- **Branch workspace**: mapped to core `workspacePath` via `makeLumpWorkspaceFns` → `setupWorkspaceFn` (checkout or worktree; not `runProjectPreflight`); worktrees at `.lumpcode/worktrees/<branch-as-nested-dirs>/` under execution workspace (CLI-only; engine `cwd` stays source `projectRoot`)
 - Checkout strategy: `atDirectory(executionWorkspacePath, …)` (`cd /d` on win32). Worktree strategy: `git -C <executionWorkspacePath>`, `shellSingleQuote` on slash branch names, `shellBestEffort` for best-effort steps, platform-specific rm, `mkdir` worktree parent before `git worktree add` on Windows
-- **`runPreflight`**: before every `run` and daemon tick — resolve execution workspace, `git fetch --all` / switch / hard-reset / pull target branch
+- **`runProjectPreflight` / `runPreflight`**: execution-workspace only — fetch/switch/hard-reset/pull; no branch-workspace preflight. Lump-run hook in `withWorkspaceLockHooks` targets **`resolvedBaseBranch`** (not `resolvedDiscoveryBranch` except when they coincide); daemon discovery uses a separate call with **`scanBranch`** in `discoverDedicatedLumpsForScanBranch`
 - Shared mode copy reuse: compare source vs copy `origin` URLs; `git remote set-url`/`add` on mismatch only (fresh `fs.cp` skips — inherited remote correct). `git fetch --all` alone cannot fix wrong `origin` URL
 - No dirty-tree guard yet — dedicated mode can wipe uncommitted work
-- `maximumNumberOfConcurrentBranches`: enforced in `runLumpFromJsConfig` via `countOpenLumpBranches` at execution workspace (`git ls-remote --heads origin` for `lump/<lumpName>/*`); limit reached → `skipped` variant
+- `maximumNumberOfConcurrentBranches`: enforced only in `runLumpFromJsConfig` via **`evaluateTooManyOpenBranchesSkip`** (`countOpenLumpBranches` at execution workspace, `git ls-remote --heads origin` for `lump/<lumpName>/*`); limit reached → `skipped` variant; not duplicated in phase 1
 
 ### Workspace locks (CLI-only)
 
-- `runLumpFromJsConfig` wraps `setupWorkspaceFn` with **`withWorkspaceLockHooks`** — locks + preflight when core invokes setup (use `branchName` from `GitAndWorkspaceFnsInput`); checks `session.pendingFailure` after `runLump` (hook sets on lock/preflight failure — no throws) with `finally` session release
-- **`executionWorkspaceLock`**: serializes destructive preflight + setup on operator checkout
-- **`branchWorkspaceLock`**: agent + per-context git (shared + worktree; dedicated checkout skips when execution = branch path)
-- Worktree mode releases execution lock via **`withSetupWorkspaceAfterExec`**
-- Manual `run`: `lockMode: 'fail'`; daemon: `wait`; atomic `wx` only (no FIFO v1)
-- `workspaceFileLock` is internal — barrel-export only `executionWorkspaceLock` / `branchWorkspaceLock`
+- **`workspacePathLock`**: single namespace per `path.resolve` (`workspace-path-locks/`); **`workspacePathBusy`** failure; manual `run` `lockMode: 'fail'`, daemon `wait`; atomic `wx` only (no FIFO v1)
+- **`run` / `start`** call **`runLumpFromLumpName`** (phase 1) → **`runLumpFromJsConfig`** (phase 2); tests may call `runLumpFromJsConfig` directly with `jsConfig`
+- **Phase 1** (dedicated): `preflightDiscoveryBranchWithLock` → load config + disabled soft skip; checkout keeps lock into phase 2; worktree releases after validation
+- **Phase 2**: `withWorkspaceLockHooks` — baseBranch preflight at setup; checkout continuous hold; worktree hold execution through setup then swap to worktree path lock via **`withSetupWorkspaceAfterExec`**
+- Phase-1 **`releaseLock`** handoff → adopted into `session.releaseExecutionPathLock` at **`runLumpFromJsConfig` entry**; `try/finally` + **`releaseWorkspaceLockSession`** releases on all early returns (including **`tooManyOpenBranches`**)
+- Disabled lump soft skip in phase 1 must call **`releaseLock`** before return (phase 2 not invoked)
+- **`--discoveryBranch`** on `run` and `start --lumpName`; **`resolveEffectiveDiscoveryBranch`** (discovery only, not `resolvedBaseBranch`); global/shared warn-and-ignore
+- **`discoverDedicatedLumpsForScanBranch`**: short-lived locked preflight per `scanBranch` with lock holder **`DISCOVERY_SCAN_LOCK_HOLDER`** (`__discovery__`); global tick re-runs phase 1 per lump
+- `workspaceFileLock` is internal — barrel-export `workspacePathLock` only
 - Do not duplicate core planning in CLI for lock keys (no pre-run `getToDoContextList` or `branchFn`)
 
 ### Daemon
@@ -131,9 +135,9 @@
 - `daemon-status`: PID file + alive process; `daemon-log`: log file exists (can `tail -f` after exit)
 - Croner `{ protect: true }` + `await runTick()` — long tick blocks next fire; lumps sequential within tick
 - **`discoverLumpNames`** / **`discoverLoadableLumps`** / **`discoverLoadableLumpNames`**: all lump dirs vs single-pass loadable `{ lumpName, jsConfig }[]` (optional `logger` warns invalid dirs); names-only wrapper — used by `start`, `validateDaemonLaunch`, `resolveTargetLumpNames`, `lump-status`, `discoverDedicatedLumpsForScanBranch`
-- **`discoverDedicatedLumpsForScanBranch`**: dedicated discovery helper — `runProjectPreflight` to `scanBranch`, then `discoverLoadableLumps`, then filter by `resolvedDiscoveryBranch`; used by daemon tick and `validateDaemonLaunch`
-- **`validateDaemonLaunch`**: filesystem-only at start (allowlist, duplicate-name); dedicated global daemon preflights each `primaryBranches` entry before discover; dirs without config → `logger.warn` and skip (explicit `--lumpName` without config still fail-fast); fail-fast on same-primary duplicate `lumpName`, unlisted discovery branch, discovery preflight failure
-- Tick (dedicated global): loop `primaryBranches` → preflight to discovery branch → discover lumps → `runLumpFromJsConfig` per lump; skip branch/lump failures without crashing
+- **`discoverDedicatedLumpsForScanBranch`**: dedicated discovery helper — locked preflight to `scanBranch`, then `discoverLoadableLumps`, then filter by `resolvedDiscoveryBranch`; used by daemon tick and `validateDaemonLaunch`
+- **`validateDaemonLaunch`**: filesystem-only at start (allowlist, duplicate-name); dedicated global daemon locked preflight per `primaryBranches` before discover; dirs without config → `logger.warn` and skip (explicit `--lumpName` without config still fail-fast); fail-fast on same-primary duplicate `lumpName`, unlisted discovery branch, discovery preflight failure
+- Tick (dedicated global): loop `primaryBranches` → locked discover per branch → `runLumpFromLumpName` per lump; skip branch/lump failures without crashing
 - Manual `run`: no daemon PID gate — coordinates with running daemons via workspace locks only (`lockMode: 'fail'` vs daemon `wait`); dedicated `dedicatedRestoreBranch` `git switch` in handler `finally` runs after lock release (not serialized with daemon preflight)
 - `daemon-status` / `stop`: single scope only (global or one `--lumpName`); no list-all/stop-all — internal `listRunningProjectDaemons` used by `start` collision checks only
 - Global daemon: fails if any project daemon running. Per-lump: fails if global running, same lump running, or other per-lump running when `workspaceStrategy` ≠ `worktree`

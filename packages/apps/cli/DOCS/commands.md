@@ -170,21 +170,28 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 | `lumpName` | Yes      | Name of the folder under `.lumpcode/lumps/` |
 
 
+| Option              | Type   | Required | Description                                                                                    |
+| ------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------- |
+| `--discoveryBranch` | string | No       | Dedicated mode only: override the lump discovery branch (must be listed in `primaryBranches`) |
+
+
 Plus global [`--json`](#ref-json-output).
 
 **Behavior:**
 
-1. Reads `.lumpcode/local.json` (hard-fails if missing); resolves `mode`, then runs **pre-flight** (`git fetch && git switch <branch> && git reset --hard origin/<branch> && git pull`) in the resolved workspace.
-2. Runs the lump, then switches the workspace back to the lump's resolved `baseBranch`.
+1. Reads `.lumpcode/local.json` (hard-fails if missing); in dedicated mode, phase 1 locks the execution workspace, pre-flights to `effectiveDiscoveryBranch` (CLI override or lump `discoveryBranch`), loads config, then runs the lump; phase 2 pre-flights to the lump `baseBranch` before agent work.
+2. In shared mode, `--discoveryBranch` is ignored (warn once); discovery workspace state is operator-managed.
+3. After a dedicated manual run, switches the operator checkout back to the branch you were on before `run`.
 
 **Success cases:**
 
 - Normal completion: message includes `SUCCESS: Lump run successfully` and `data` may include details of the run (branch name, context names, etc.).
 - **Skipped run** when `maximumNumberOfConcurrentBranches` is reached: still a success but nothing is done.
+- **Skipped run** when the lump config has `disabled: true`: exit 0 with an informational message.
 
-**Fails if:** `local.json` missing or invalid, pre-flight git commands fail, config missing/invalid, engine errors, **`branchWorkspaceBusy`** (another run holds the branch workspace), or **`executionWorkspaceBusy`** in dedicated mode (another run is preparing the checkout — pre-flight or worktree setup).
+**Fails if:** `local.json` missing or invalid, pre-flight git commands fail, config missing/invalid, engine errors, or **`workspacePathBusy`** (another run or daemon holds the workspace path lock).
 
-With **`--json`**, busy responses include a stable `code` field (`branchWorkspaceBusy` or `executionWorkspaceBusy`) plus path and optional holder pid/lump name.
+With **`--json`**, busy responses include a stable `code` field (`workspacePathBusy`) plus path and optional holder pid/lump name.
 
 **See also:** [concepts.md](./concepts.md#one-run-end-to-end), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-5-run-once).
 
@@ -243,11 +250,12 @@ Plus global [`--json`](#ref-json-output).
 **Usage:** `lumpcode start [options]`
 
 
-| Option         | Type    | Required | Description                                                              |
-| -------------- | ------- | -------- | ------------------------------------------------------------------------ |
-| `--foreground` | flag | No       | Blocking in this terminal; omit to detach a background daemon |
-| `--cronSetup`  | string  | No       | Cron expression (default `*/5 * * * *` — every 5 minutes)                |
-| `--lumpName`   | string  | No       | Run the scheduler for a single lump only                                 |
+| Option              | Type    | Required | Description                                                              |
+| ------------------- | ------- | -------- | ------------------------------------------------------------------------ |
+| `--foreground`      | flag    | No       | Blocking in this terminal; omit to detach a background daemon            |
+| `--cronSetup`       | string  | No       | Cron expression (default `*/5 * * * *` — every 5 minutes)              |
+| `--lumpName`        | string  | No       | Run the scheduler for a single lump only                                 |
+| `--discoveryBranch` | string  | No       | With `--lumpName` in dedicated mode: override discovery branch (must be in `primaryBranches`); ignored on a global daemon |
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 

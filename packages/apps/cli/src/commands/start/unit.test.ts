@@ -867,8 +867,8 @@ describe('start command — multi discovery branches', () => {
         });
 
         const runLumpSpy = vi.spyOn(
-            await import('../../utils/runLumpFromJsConfig'),
-            'runLumpFromJsConfig',
+            await import('../../utils/runLumpFromLumpName'),
+            'runLumpFromLumpName',
         );
 
         try {
@@ -913,9 +913,18 @@ describe('start command — multi discovery branches', () => {
             'discoverDedicatedLumpsForScanBranch',
         );
         const runLumpSpy = vi.spyOn(
-            await import('../../utils/runLumpFromJsConfig'),
-            'runLumpFromJsConfig',
-        ).mockResolvedValue(success({ skipped: false, result: { contextNames: [] } }));
+            await import('../../utils/runLumpFromLumpName'),
+            'runLumpFromLumpName',
+        ).mockResolvedValue(
+            success({
+                skipped: false,
+                result: {
+                    branchName: '',
+                    contextNames: [],
+                    contextRunStateList: [],
+                },
+            }),
+        );
 
         try {
             await makeStartHandler({ waitForShutdownOverride: async () => {} })({
@@ -948,8 +957,8 @@ describe('start command — multi discovery branches', () => {
         });
 
         const runLumpSpy = vi.spyOn(
-            await import('../../utils/runLumpFromJsConfig'),
-            'runLumpFromJsConfig',
+            await import('../../utils/runLumpFromLumpName'),
+            'runLumpFromLumpName',
         );
         try {
             await makeStartHandler({ waitForShutdownOverride: async () => {} })({

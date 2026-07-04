@@ -6,18 +6,23 @@ import {
     commandFailure,
     createCliLogger,
     getJsConfigFromLumpName,
-    isRunLumpBranchWorkspaceBusyFailure,
-    isRunLumpExecutionWorkspaceBusyFailure,
+    isRunLumpWorkspacePathBusyFailure,
     readLocalConfig,
-    runLumpFromJsConfig,
+    resolveEffectiveDiscoveryBranch,
     runLumpFromJsConfigFailureMessage,
-    RunLumpFromJsConfigSuccess,
+    runLumpFromLumpName,
+    type RunLumpFromLumpNameSuccess,
 } from '../../utils';
 import { execAsync, failure, shellSingleQuote, success } from '@lumpcode/core';
 import { globalConfigFolderPath, localConfigFolderPath } from '../../constants';
 
 const inputSchema = z.object({
-    options: baseCommandOptionsSchema,
+    options: baseCommandOptionsSchema.extend({
+        discoveryBranch: z
+            .string()
+            .optional()
+            .describe('Discovery branch override (dedicated mode; must be listed in primaryBranches)'),
+    }),
     arguments: z.object({
         lumpName: z.string().describe('The name of the lump to run'),
     }),
@@ -27,7 +32,7 @@ export type Input = z.infer<typeof inputSchema>;
 
 export type Output = {
     messages: string[];
-    data?: RunLumpFromJsConfigSuccess;
+    data?: RunLumpFromLumpNameSuccess;
 };
 
 export interface Injections {
@@ -38,18 +43,22 @@ export interface Injections {
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async input => {
     const lumpName = input.arguments.lumpName;
+    const discoveryBranchOpt = input.options.discoveryBranch?.trim() || undefined;
     const { json, verbose: cliVerbose } = input.options;
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
-
-    const jsConfResult = await getJsConfigFromLumpName({
-        lumpName,
-        localConfigFolderPath,
-    });
-    if (!jsConfResult.success) return commandFailure(jsConfResult.data);
 
     const localConfigResult = await readLocalConfig({ localConfigFolderPath });
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const localConfig = localConfigResult.data;
+
+    const discoveryResult = await resolveEffectiveDiscoveryBranch({
+        discoveryBranchOpt,
+        lumpName,
+        localConfigFolderPath,
+        localConfig,
+        warnSharedDiscoveryBranchIgnored: true,
+    });
+    if (!discoveryResult.success) return commandFailure(discoveryResult.data);
 
     let dedicatedRestoreBranch: string | undefined;
     if (localConfig.mode === 'dedicated') {
@@ -60,23 +69,27 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     try {
-        const effectiveVerbose = !!cliVerbose || !!jsConfResult.data.verbose;
-        const logger = createCliLogger({ verbose: effectiveVerbose, json: !!json });
+        const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
+        const logger = createCliLogger({
+            verbose:
+                !!cliVerbose ||
+                !!(jsConfForVerbose.success && jsConfForVerbose.data.verbose),
+            json: !!json,
+        });
 
-        const runLumpRes = await runLumpFromJsConfig({
-            jsConfig: jsConfResult.data,
+        const runLumpRes = await runLumpFromLumpName({
             lumpName,
             localConfigFolderPath,
             globalConfigFolderPath,
             sourceProjectRoot: projectRoot,
             logger,
+            localConfig,
+            effectiveDiscoveryBranch: discoveryResult.data,
+            discoveryBranchOpt,
         });
         if (!runLumpRes.success) {
             const errData = runLumpRes.data;
-            if (
-                isRunLumpBranchWorkspaceBusyFailure(errData) ||
-                isRunLumpExecutionWorkspaceBusyFailure(errData)
-            ) {
+            if (isRunLumpWorkspacePathBusyFailure(errData)) {
                 return failure({
                     messages: [errData.message],
                     data: errData,
@@ -85,8 +98,12 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             return commandFailure(runLumpFromJsConfigFailureMessage(errData));
         }
         if (runLumpRes.data.skipped) {
+            const detail =
+                runLumpRes.data.reason === 'disabled'
+                    ? runLumpRes.data.reasonDetail
+                    : runLumpRes.data.reasonDetail ?? runLumpRes.data.reason;
             return success({
-                messages: [runLumpRes.data.reason],
+                messages: [detail],
                 data: runLumpRes.data,
             });
         }

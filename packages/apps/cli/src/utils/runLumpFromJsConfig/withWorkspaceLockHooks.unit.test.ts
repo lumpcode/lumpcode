@@ -5,17 +5,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { failure, noopLogger, success, type SetupWorkspaceFn } from '@lumpcode/core';
 
-import { acquireBranchWorkspaceLock } from '../branchWorkspaceLock';
-import { acquireExecutionWorkspaceLock } from '../executionWorkspaceLock';
+import { acquireWorkspacePathLock } from '../workspacePathLock';
 import {
     createWorkspaceLockSession,
     releaseWorkspaceLockSession,
     withWorkspaceLockHooks,
 } from './withWorkspaceLockHooks';
-import {
-    isRunLumpBranchWorkspaceBusyFailure,
-    isRunLumpExecutionWorkspaceBusyFailure,
-} from './failures';
+import { isRunLumpWorkspacePathBusyFailure } from './failures';
 
 describe('withWorkspaceLockHooks', () => {
     let globalConfigFolderPath: string;
@@ -35,8 +31,7 @@ describe('withWorkspaceLockHooks', () => {
         baseBranch: 'main',
         branchName: 'lump/my-lump/ctx1',
         contextList: [{ name: 'ctx1', variables: {} }],
-        workspacePath: '.',
-    } as const;
+    };
 
     function makeInnerSetup(): SetupWorkspaceFn {
         return async () => ({
@@ -59,7 +54,7 @@ describe('withWorkspaceLockHooks', () => {
         };
     }
 
-    it('acquires execution lock and runs preflight before inner setup (dedicated checkout)', async () => {
+    it('acquires execution path lock and runs preflight before inner setup (dedicated checkout)', async () => {
         const preflightSpy = vi.fn(async () => success(undefined));
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({
@@ -71,13 +66,42 @@ describe('withWorkspaceLockHooks', () => {
         await wrapped(setupInput);
 
         expect(preflightSpy).toHaveBeenCalledOnce();
-        expect(session.releaseExecutionLock).toBeTypeOf('function');
-        expect(session.releaseBranchLock).toBeUndefined();
+        expect(session.releaseExecutionPathLock).toBeTypeOf('function');
+        expect(session.releaseBranchPathLock).toBeUndefined();
 
         await releaseWorkspaceLockSession(session);
     });
 
-    it('acquires branch lock for shared mode without execution lock', async () => {
+    it('skips re-acquire when session already holds execution path lock (phase 1 handoff)', async () => {
+        const acquired = await acquireWorkspacePathLock({
+            globalConfigFolderPath,
+            workspacePath: executionWorkspacePath,
+            lumpName: 'phase1',
+            mode: 'fail',
+        });
+        expect(acquired.success).toBe(true);
+        if (!acquired.success) throw new Error('unreachable');
+
+        const session = createWorkspaceLockSession();
+        session.releaseExecutionPathLock = acquired.data;
+        const wrapped = withWorkspaceLockHooks({
+            setupWorkspaceFn: makeInnerSetup(),
+            session,
+            ctx: makeCtx(),
+        });
+
+        await wrapped(setupInput);
+        expect(session.releaseExecutionPathLock).toBe(acquired.data);
+
+        const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
+        const lockFiles = await fs.readdir(locksDir);
+        expect(lockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(1);
+
+        await releaseWorkspaceLockSession(session);
+        expect((await fs.readdir(locksDir)).filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
+    });
+
+    it('acquires path lock for shared mode', async () => {
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({
             setupWorkspaceFn: makeInnerSetup(),
@@ -87,13 +111,13 @@ describe('withWorkspaceLockHooks', () => {
 
         await wrapped(setupInput);
 
-        expect(session.releaseBranchLock).toBeTypeOf('function');
-        expect(session.releaseExecutionLock).toBeUndefined();
+        expect(session.releaseBranchPathLock).toBeTypeOf('function');
+        expect(session.releaseExecutionPathLock).toBeUndefined();
 
         await releaseWorkspaceLockSession(session);
     });
 
-    it('records branchWorkspaceBusy on session when branch lock is held (worktree)', async () => {
+    it('records workspacePathBusy on session when worktree branch path lock is held', async () => {
         const branchWorkspacePath = path.join(
             executionWorkspacePath,
             '.lumpcode',
@@ -102,9 +126,9 @@ describe('withWorkspaceLockHooks', () => {
             'my-lump',
             'ctx1',
         );
-        const held = await acquireBranchWorkspaceLock({
+        const held = await acquireWorkspacePathLock({
             globalConfigFolderPath,
-            branchWorkspacePath,
+            workspacePath: branchWorkspacePath,
             lumpName: 'holder',
             mode: 'fail',
         });
@@ -121,17 +145,17 @@ describe('withWorkspaceLockHooks', () => {
 
         const setup = await wrapped(setupInput);
         expect(session.pendingFailure).toBeDefined();
-        expect(isRunLumpBranchWorkspaceBusyFailure(session.pendingFailure!)).toBe(true);
+        expect(isRunLumpWorkspacePathBusyFailure(session.pendingFailure!)).toBe(true);
         expect(innerSetup).not.toHaveBeenCalled();
         expect(setup.command).toContain('process.exit(1)');
-        expect(session.releaseBranchLock).toBeUndefined();
+        expect(session.releaseBranchPathLock).toBeUndefined();
 
         await held.data();
+        await releaseWorkspaceLockSession(session);
     });
 
-    it('releases execution lock via afterExec for dedicated worktree', async () => {
-        const execLocksDir = path.join(globalConfigFolderPath, 'execution-workspace-locks');
-        const branchLocksDir = path.join(globalConfigFolderPath, 'branch-workspace-locks');
+    it('releases execution path lock via afterExec for dedicated worktree', async () => {
+        const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
         const branchWorkspacePath = path.join(
             executionWorkspacePath,
             '.lumpcode',
@@ -141,8 +165,8 @@ describe('withWorkspaceLockHooks', () => {
             'ctx1',
         );
 
-        async function countLockFiles(dir: string): Promise<number> {
-            const files = await fs.readdir(dir).catch(() => []);
+        async function countLockFiles(): Promise<number> {
+            const files = await fs.readdir(locksDir).catch(() => []);
             return files.filter((f) => f.endsWith('.lock.json')).length;
         }
 
@@ -157,18 +181,16 @@ describe('withWorkspaceLockHooks', () => {
         });
 
         const setup = await wrapped(setupInput);
-        expect(await countLockFiles(execLocksDir)).toBe(1);
-        expect(await countLockFiles(branchLocksDir)).toBe(1);
+        expect(await countLockFiles()).toBe(2);
 
         await setup.afterExec!({ workspacePath: branchWorkspacePath });
-        expect(await countLockFiles(execLocksDir)).toBe(0);
-        expect(await countLockFiles(branchLocksDir)).toBe(1);
+        expect(await countLockFiles()).toBe(1);
 
         await releaseWorkspaceLockSession(session);
-        expect(await countLockFiles(branchLocksDir)).toBe(0);
+        expect(await countLockFiles()).toBe(0);
     });
 
-    it('records preflight failure on session after acquiring execution lock', async () => {
+    it('records preflight failure on session after acquiring execution path lock', async () => {
         const innerSetup = vi.fn(makeInnerSetup());
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({
@@ -183,15 +205,15 @@ describe('withWorkspaceLockHooks', () => {
         expect(session.pendingFailure).toEqual({ kind: 'message', message: 'preflight failed' });
         expect(innerSetup).not.toHaveBeenCalled();
         expect(setup.command).toContain('process.exit(1)');
-        expect(session.releaseExecutionLock).toBeTypeOf('function');
+        expect(session.releaseExecutionPathLock).toBeTypeOf('function');
 
         await releaseWorkspaceLockSession(session);
     });
 
-    it('records executionWorkspaceBusy before preflight when execution lock is held', async () => {
-        const held = await acquireExecutionWorkspaceLock({
+    it('records workspacePathBusy before preflight when execution path lock is held', async () => {
+        const held = await acquireWorkspacePathLock({
             globalConfigFolderPath,
-            executionWorkspacePath,
+            workspacePath: executionWorkspacePath,
             lumpName: 'holder',
             mode: 'fail',
         });
@@ -208,7 +230,7 @@ describe('withWorkspaceLockHooks', () => {
 
         await wrapped(setupInput);
         expect(session.pendingFailure).toBeDefined();
-        expect(isRunLumpExecutionWorkspaceBusyFailure(session.pendingFailure!)).toBe(true);
+        expect(isRunLumpWorkspacePathBusyFailure(session.pendingFailure!)).toBe(true);
         expect(preflightSpy).not.toHaveBeenCalled();
 
         await held.data();

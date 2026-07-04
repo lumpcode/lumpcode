@@ -1,16 +1,19 @@
+import * as path from 'node:path';
+
 import type { Failure, Logger, SetupWorkspaceFn, Success } from '@lumpcode/core';
 
 import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
-import { acquireBranchWorkspaceLock } from '../branchWorkspaceLock';
 import { branchWorkspacePath } from '../branchWorkspacePath';
-import { acquireExecutionWorkspaceLock } from '../executionWorkspaceLock';
 import { withSetupWorkspaceAfterExec } from '../makeLumpWorkspaceFns';
+import {
+    acquireWorkspacePathLock,
+    type ReleaseWorkspacePathLockFn,
+} from '../workspacePathLock';
 import type { WorkspaceLockMode } from '../workspaceFileLock';
 import {
-    branchWorkspaceBusyFailure,
-    executionWorkspaceBusyFailure,
     toRunLumpMessageFailure,
+    workspacePathBusyFailure,
     type RunLumpFromJsConfigFailure,
 } from './failures';
 
@@ -18,8 +21,8 @@ import {
 const SETUP_BLOCKED_COMMAND = 'node -e "process.exit(1)"';
 
 export type WorkspaceLockSession = {
-    releaseBranchLock?: () => Promise<void>;
-    releaseExecutionLock?: () => Promise<void>;
+    releaseExecutionPathLock?: ReleaseWorkspacePathLockFn;
+    releaseBranchPathLock?: ReleaseWorkspacePathLockFn;
     pendingFailure?: RunLumpFromJsConfigFailure;
 };
 
@@ -39,19 +42,41 @@ export function createWorkspaceLockSession(): WorkspaceLockSession {
     return {};
 }
 
-function needsBranchWorkspaceLock(input: { mode: Mode; workspaceStrategy: WorkspaceStrategy }): boolean {
-    return input.mode === 'shared' || input.workspaceStrategy === 'worktree';
-}
-
-function needsExecutionWorkspaceLock(mode: Mode): boolean {
-    return mode === 'dedicated';
-}
-
 function blockedSetupResult(workspacePath: string) {
     return {
         command: SETUP_BLOCKED_COMMAND,
         workspacePath,
     };
+}
+
+async function acquirePathLockOrBusy(input: {
+    globalConfigFolderPath: string;
+    workspacePath: string;
+    lumpName: string;
+    lockMode: WorkspaceLockMode;
+    projectName?: string;
+    logger: Logger;
+    session: WorkspaceLockSession;
+    assign: 'execution' | 'branch';
+}): Promise<boolean> {
+    const lockResult = await acquireWorkspacePathLock({
+        globalConfigFolderPath: input.globalConfigFolderPath,
+        workspacePath: input.workspacePath,
+        lumpName: input.lumpName,
+        mode: input.lockMode,
+        projectName: input.projectName,
+        logger: input.logger,
+    });
+    if (!lockResult.success) {
+        input.session.pendingFailure = workspacePathBusyFailure(lockResult.data);
+        return false;
+    }
+    if (input.assign === 'execution') {
+        input.session.releaseExecutionPathLock = lockResult.data;
+    } else {
+        input.session.releaseBranchPathLock = lockResult.data;
+    }
+    return true;
 }
 
 export function withWorkspaceLockHooks(input: {
@@ -68,20 +93,76 @@ export function withWorkspaceLockHooks(input: {
             branchName: setupInput.branchName,
         });
 
-        if (needsExecutionWorkspaceLock(ctx.mode)) {
-            const execLockResult = await acquireExecutionWorkspaceLock({
-                globalConfigFolderPath: ctx.globalConfigFolderPath,
-                executionWorkspacePath: ctx.executionWorkspacePath,
-                lumpName: ctx.lumpName,
-                mode: ctx.lockMode,
-                projectName: ctx.projectName,
-                logger: ctx.logger,
-            });
-            if (!execLockResult.success) {
-                session.pendingFailure = executionWorkspaceBusyFailure(execLockResult.data);
+        const resolvedExecutionPath = path.resolve(ctx.executionWorkspacePath);
+        const resolvedBranchPath = path.resolve(branchWorkspacePathValue);
+
+        if (ctx.mode === 'dedicated') {
+            if (!session.releaseExecutionPathLock) {
+                if (
+                    !(await acquirePathLockOrBusy({
+                        globalConfigFolderPath: ctx.globalConfigFolderPath,
+                        workspacePath: resolvedExecutionPath,
+                        lumpName: ctx.lumpName,
+                        lockMode: ctx.lockMode,
+                        projectName: ctx.projectName,
+                        logger: ctx.logger,
+                        session,
+                        assign: 'execution',
+                    }))
+                ) {
+                    return blockedSetupResult(branchWorkspacePathValue);
+                }
+            }
+
+            const preflightResult = await ctx.preflight();
+            if (!preflightResult.success) {
+                session.pendingFailure = toRunLumpMessageFailure(preflightResult.data);
                 return blockedSetupResult(branchWorkspacePathValue);
             }
-            session.releaseExecutionLock = execLockResult.data;
+
+            if (ctx.workspaceStrategy === 'worktree') {
+                if (
+                    !(await acquirePathLockOrBusy({
+                        globalConfigFolderPath: ctx.globalConfigFolderPath,
+                        workspacePath: resolvedBranchPath,
+                        lumpName: ctx.lumpName,
+                        lockMode: ctx.lockMode,
+                        projectName: ctx.projectName,
+                        logger: ctx.logger,
+                        session,
+                        assign: 'branch',
+                    }))
+                ) {
+                    return blockedSetupResult(branchWorkspacePathValue);
+                }
+
+                const innerSetupFn = withSetupWorkspaceAfterExec(setupWorkspaceFn, async () => {
+                    if (session.releaseExecutionPathLock) {
+                        const releaseExecutionPathLockFn = session.releaseExecutionPathLock;
+                        session.releaseExecutionPathLock = undefined;
+                        await releaseExecutionPathLockFn();
+                    }
+                });
+
+                return innerSetupFn(setupInput);
+            }
+
+            return setupWorkspaceFn(setupInput);
+        }
+
+        if (
+            !(await acquirePathLockOrBusy({
+                globalConfigFolderPath: ctx.globalConfigFolderPath,
+                workspacePath: resolvedBranchPath,
+                lumpName: ctx.lumpName,
+                lockMode: ctx.lockMode,
+                projectName: ctx.projectName,
+                logger: ctx.logger,
+                session,
+                assign: 'branch',
+            }))
+        ) {
+            return blockedSetupResult(branchWorkspacePathValue);
         }
 
         const preflightResult = await ctx.preflight();
@@ -90,44 +171,17 @@ export function withWorkspaceLockHooks(input: {
             return blockedSetupResult(branchWorkspacePathValue);
         }
 
-        if (needsBranchWorkspaceLock(ctx)) {
-            const branchLockResult = await acquireBranchWorkspaceLock({
-                globalConfigFolderPath: ctx.globalConfigFolderPath,
-                branchWorkspacePath: branchWorkspacePathValue,
-                lumpName: ctx.lumpName,
-                mode: ctx.lockMode,
-                projectName: ctx.projectName,
-                logger: ctx.logger,
-            });
-            if (!branchLockResult.success) {
-                session.pendingFailure = branchWorkspaceBusyFailure(branchLockResult.data);
-                return blockedSetupResult(branchWorkspacePathValue);
-            }
-            session.releaseBranchLock = branchLockResult.data;
-        }
-
-        const innerSetupFn =
-            ctx.mode === 'dedicated' && ctx.workspaceStrategy === 'worktree'
-                ? withSetupWorkspaceAfterExec(setupWorkspaceFn, async () => {
-                    if (session.releaseExecutionLock) {
-                        const releaseExecutionLockFn = session.releaseExecutionLock;
-                        session.releaseExecutionLock = undefined;
-                        await releaseExecutionLockFn();
-                    }
-                })
-                : setupWorkspaceFn;
-
-        return innerSetupFn(setupInput);
+        return setupWorkspaceFn(setupInput);
     };
 }
 
 export async function releaseWorkspaceLockSession(session: WorkspaceLockSession): Promise<void> {
-    if (session.releaseBranchLock) {
-        await session.releaseBranchLock();
-        session.releaseBranchLock = undefined;
+    if (session.releaseBranchPathLock) {
+        await session.releaseBranchPathLock();
+        session.releaseBranchPathLock = undefined;
     }
-    if (session.releaseExecutionLock) {
-        await session.releaseExecutionLock();
-        session.releaseExecutionLock = undefined;
+    if (session.releaseExecutionPathLock) {
+        await session.releaseExecutionPathLock();
+        session.releaseExecutionPathLock = undefined;
     }
 }
