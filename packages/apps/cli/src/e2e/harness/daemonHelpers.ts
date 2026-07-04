@@ -53,13 +53,18 @@ function isDaemonNotRunningStop(result: RunCliResult): boolean {
     return /no daemon pid file|already gone|not running/i.test(msg);
 }
 
-/** Runs `lumpcode stop` and ignores "already stopped" outcomes; throws on unexpected failures. */
+/** Runs `lumpcode stop --force` and ignores "already stopped" outcomes; throws on unexpected failures. */
 export async function stopDaemonSafely(input: {
     project: E2eProject;
     runCli: (args: string[]) => Promise<RunCliResult>;
     lumpName?: string;
 }): Promise<void> {
-    const args = ['stop', '--json', ...(input.lumpName ? ['--lumpName', input.lumpName] : [])];
+    const args = [
+        'stop',
+        '--json',
+        '--force',
+        ...(input.lumpName ? ['--lumpName', input.lumpName] : []),
+    ];
     const result = await input.runCli(args);
     if (result.code === 0) return;
     if (isDaemonNotRunningStop(result)) return;

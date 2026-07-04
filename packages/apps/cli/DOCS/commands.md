@@ -303,13 +303,20 @@ Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | 
 
 **Usage:** `lumpcode stop [options]`
 
-| Option       | Type   | Required | Description                                      |
-| ------------ | ------ | -------- | ------------------------------------------------ |
-| `--lumpName` | string | No       | Stop the daemon scoped to a single lump          |
+| Option       | Type    | Required | Description                                      |
+| ------------ | ------- | -------- | ------------------------------------------------ |
+| `--lumpName` | string  | No       | Stop the daemon scoped to a single lump          |
+| `--force`    | boolean | No       | Force-stop the daemon and its child processes    |
 
-**Behavior:** Reads the scoped PID file under `~/.lumpcode/daemons/`, sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID and meta files on success.
+**Behavior:** Reads the scoped PID file under `~/.lumpcode/daemons/` and daemon meta.
 
-**Fails if:** No PID file, invalid PID, cannot signal process, or process does not exit within the deadline.
+When the daemon is **idle** (meta has no `busy` flag, or `busy` is false), sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID and meta files on success.
+
+When the daemon is **running a lump** (`meta.busy === true`), default stop **does not signal** the process. It exits non-zero with a message that the daemon is busy and to wait for the run to finish or use `lumpcode stop --force`. With **`--json`**, the failure includes `data.code: "daemonBusy"`. PID and meta files are left in place. If the daemon crashed with stale `busy: true` in meta, use `--force` to recover.
+
+**`lumpcode stop --force`** skips the busy check, tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. This is **best-effort**: agent processes that detached from the daemon process tree may survive.
+
+**Fails if:** No PID file, invalid PID, cannot signal process, daemon is busy (default stop only), or process does not exit within the deadline.
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon).
 

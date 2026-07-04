@@ -5,13 +5,17 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure, readDaemonPidIfAlive } from '../../utils';
+import { commandFailure, killProcessTree, readDaemonMeta, readDaemonPidIfAlive } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
         lumpName: z.string().optional().describe('Stop the daemon scoped to a single lump'),
+        force: z
+            .boolean()
+            .optional()
+            .describe('Force-stop the daemon and its child processes (SIGKILL / taskkill)'),
     }),
     arguments: z.object({}),
 });
@@ -34,6 +38,7 @@ const sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeo
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
     const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
+    const force = input.options.force === true;
 
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
@@ -70,6 +75,49 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     const pid = pidAlive.pid;
+
+    const metaResult = await readDaemonMeta(metaFilePath);
+    if (!metaResult.success) {
+        return failure({ messages: [metaResult.data] });
+    }
+    if (!force && metaResult.data.busy === true) {
+        return failure({
+            messages: [
+                'Daemon is busy running a lump; wait for it to finish or run `lumpcode stop --force`.',
+            ],
+            data: { code: 'daemonBusy' as const },
+        });
+    }
+
+    if (force) {
+        const killResult = await killProcessTree({ pid });
+        if (!killResult.success) {
+            return failure({ messages: [killResult.data] });
+        }
+
+        const deadlineMs = 5000;
+        const deadline = Date.now() + deadlineMs;
+        while (Date.now() < deadline) {
+            try {
+                process.kill(pid, 0);
+            } catch {
+                await fs.unlink(pidFilePath).catch(() => {});
+                await fs.unlink(metaFilePath).catch(() => {});
+                return success({
+                    messages: [
+                        `Force-stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
+                    ],
+                });
+            }
+            await sleep(50);
+        }
+
+        return failure({
+            messages: [
+                `Force-killed pid ${pid} but it did not exit within ${deadlineMs / 1000}s. PID file left at ${pidFilePath}.`,
+            ],
+        });
+    }
 
     try {
         process.kill(pid, 'SIGTERM');
@@ -118,6 +166,6 @@ export const command = {
     handlerMaker,
     name: 'stop',
     description:
-        'Stop the background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--lumpName` to stop a per-lump daemon.',
+        'Stop the background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--lumpName` to stop a per-lump daemon. Pass `--force` when a lump run is active.',
     inputSchema,
 } satisfies Command;

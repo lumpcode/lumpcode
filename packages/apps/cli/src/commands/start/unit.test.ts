@@ -1138,7 +1138,7 @@ describe('start command — daemon busy meta toggle', () => {
             .spyOn(await import('../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
             .mockResolvedValue(
                 failure({
-                    kind: 'message',
+                    kind: 'message' as const,
                     message: 'boom',
                 }),
             );
