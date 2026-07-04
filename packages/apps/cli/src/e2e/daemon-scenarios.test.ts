@@ -11,6 +11,7 @@ import {
     runE2eCli,
     runForegroundUntilMarkers,
     useE2eProjects,
+    waitForDaemonIdle,
     waitForPath,
 } from './harness';
 
@@ -45,6 +46,7 @@ describe('E2E daemon scenarios', () => {
         expectCliOk(status, 'daemon-status');
         expectDaemonRunning(status, true);
 
+        await waitForDaemonIdle({ metaFilePath });
         expectCliOk(await runE2eCli({ project, args: ['stop', '--json'] }), 'stop');
     });
 
