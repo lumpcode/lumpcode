@@ -6,14 +6,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import * as core from '@lumpcode/core';
 
-import { acquireBranchWorkspaceLock } from '../branchWorkspaceLock';
-import {
-    acquireExecutionWorkspaceLock,
-} from '../executionWorkspaceLock';
+import { acquireWorkspacePathLock } from '../workspacePathLock';
 import * as runProjectPreflightModule from '../runProjectPreflight';
 import {
-    isRunLumpBranchWorkspaceBusyFailure,
-    isRunLumpExecutionWorkspaceBusyFailure,
+    isRunLumpWorkspacePathBusyFailure,
     runLumpFromJsConfig,
     runLumpFromJsConfigFailureMessage,
 } from './main';
@@ -103,8 +99,7 @@ describe('runLumpFromJsConfig', () => {
         baseBranch: 'main',
         branchName: 'lump/my-lump/ctx1',
         contextList: [{ name: 'ctx1', variables: {} }],
-        workspacePath: '.',
-    } as const;
+    };
 
     function mockRunLumpInvokingSetup(
         runResult: core.RunLumpOutput = {
@@ -247,9 +242,9 @@ describe('runLumpFromJsConfig', () => {
             'my-lump',
             'ctx1',
         );
-        const held = await acquireBranchWorkspaceLock({
+        const held = await acquireWorkspacePathLock({
             globalConfigFolderPath,
-            branchWorkspacePath,
+            workspacePath: branchWorkspacePath,
             lumpName: 'holder',
             mode: 'fail',
         });
@@ -262,16 +257,16 @@ describe('runLumpFromJsConfig', () => {
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(isRunLumpBranchWorkspaceBusyFailure(result.data)).toBe(true);
+        expect(isRunLumpWorkspacePathBusyFailure(result.data)).toBe(true);
         expect(core.runLump).toHaveBeenCalledOnce();
 
         await held.data();
     });
 
     it('fails when execution workspace lock is held at setup time (fail mode)', async () => {
-        const held = await acquireExecutionWorkspaceLock({
+        const held = await acquireWorkspacePathLock({
             globalConfigFolderPath,
-            executionWorkspacePath: projectRoot,
+            workspacePath: projectRoot,
             lumpName: 'holder',
             mode: 'fail',
         });
@@ -284,7 +279,7 @@ describe('runLumpFromJsConfig', () => {
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(isRunLumpExecutionWorkspaceBusyFailure(result.data)).toBe(true);
+        expect(isRunLumpWorkspacePathBusyFailure(result.data)).toBe(true);
         expect(core.runLump).toHaveBeenCalledOnce();
 
         await held.data();
@@ -306,10 +301,8 @@ describe('runLumpFromJsConfig', () => {
         await callRunLumpFromJsConfig(makeJsConfig({}));
 
         expect(preflightSpy).not.toHaveBeenCalled();
-        const branchLocksDir = path.join(globalConfigFolderPath, 'branch-workspace-locks');
-        const execLocksDir = path.join(globalConfigFolderPath, 'execution-workspace-locks');
-        await expect(fs.access(branchLocksDir)).rejects.toMatchObject({ code: 'ENOENT' });
-        await expect(fs.access(execLocksDir)).rejects.toMatchObject({ code: 'ENOENT' });
+        const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
+        await expect(fs.access(locksDir)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
     it('does not acquire lock when run is skipped for tooManyOpenBranches', async () => {
@@ -325,25 +318,49 @@ describe('runLumpFromJsConfig', () => {
         expect(result.data.skipped).toBe(true);
         expect(preflightSpy).not.toHaveBeenCalled();
 
-        const branchLocksDir = path.join(globalConfigFolderPath, 'branch-workspace-locks');
-        const execLocksDir = path.join(globalConfigFolderPath, 'execution-workspace-locks');
-        await expect(fs.access(branchLocksDir)).rejects.toMatchObject({ code: 'ENOENT' });
-        await expect(fs.access(execLocksDir)).rejects.toMatchObject({ code: 'ENOENT' });
+        const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
+        await expect(fs.access(locksDir)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
-    it('checkout dedicated uses only execution workspace lock for full run', async () => {
+    it('releases a phase-1 releaseLock when tooManyOpenBranches skips', async () => {
+        createAndPushLumpBranch('my-lump', 'ctx-a');
+        createAndPushLumpBranch('my-lump', 'ctx-b');
+
+        const held = await acquireWorkspacePathLock({
+            globalConfigFolderPath,
+            workspacePath: projectRoot,
+            lumpName: 'phase1-handoff',
+            mode: 'fail',
+        });
+        expect(held.success).toBe(true);
+        if (!held.success) throw new Error('unreachable');
+
+        const result = await callRunLumpFromJsConfig(makeJsConfig({ maximumNumberOfConcurrentBranches: 2 }), {
+            releaseLock: held.data,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.skipped).toBe(true);
+        if (!result.data.skipped) throw new Error('unreachable');
+        expect(result.data.reason).toBe('tooManyOpenBranches');
+        expect(core.runLump).not.toHaveBeenCalled();
+
+        const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
+        const lockFiles = await fs.readdir(locksDir).catch(() => []);
+        expect(lockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
+    });
+
+    it('checkout dedicated uses path lock for full run', async () => {
         mockRunLumpInvokingSetup();
 
         const result = await callRunLumpFromJsConfig(makeJsConfig({}));
 
         expect(result.success).toBe(true);
 
-        const branchLocksDir = path.join(globalConfigFolderPath, 'branch-workspace-locks');
-        await expect(fs.access(branchLocksDir)).rejects.toMatchObject({ code: 'ENOENT' });
-
-        const execLocksDir = path.join(globalConfigFolderPath, 'execution-workspace-locks');
-        const execLockFiles = await fs.readdir(execLocksDir).catch(() => []);
-        expect(execLockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
+        const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
+        const lockFiles = await fs.readdir(locksDir).catch(() => []);
+        expect(lockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
     });
 
     it('preflights to resolvedBaseBranch when setup is invoked', async () => {
@@ -355,27 +372,6 @@ describe('runLumpFromJsConfig', () => {
         expect(preflightSpy).toHaveBeenCalledWith(
             expect.objectContaining({ targetBranch: 'develop' }),
         );
-    });
-
-    it('fails before runLump when discoveryBranch is not in effective allowlist (dedicated)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({
-                mode: 'dedicated',
-                primaryBranch: 'main',
-                primaryBranches: ['main', 'ver/0.0.9'],
-            }),
-            'utf-8',
-        );
-
-        const result = await callRunLumpFromJsConfig(makeJsConfig({ discoveryBranch: 'ver/0.0.7' }));
-
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(runLumpFromJsConfigFailureMessage(result.data)).toMatch(
-            /discoveryBranch|primaryBranches|ver\/0\.0\.7/i,
-        );
-        expect(core.runLump).not.toHaveBeenCalled();
     });
 
     it('proceeds to runLump in shared mode when discoveryBranch is unlisted', async () => {
@@ -435,11 +431,10 @@ describe('runLumpFromJsConfig', () => {
             'my-lump',
             'ctx1',
         );
-        const execLocksDir = path.join(globalConfigFolderPath, 'execution-workspace-locks');
-        const branchLocksDir = path.join(globalConfigFolderPath, 'branch-workspace-locks');
+        const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
 
-        async function countLockFiles(dir: string): Promise<number> {
-            const files = await fs.readdir(dir).catch(() => []);
+        async function countLockFiles(): Promise<number> {
+            const files = await fs.readdir(locksDir).catch(() => []);
             return files.filter((f) => f.endsWith('.lock.json')).length;
         }
 
@@ -449,16 +444,13 @@ describe('runLumpFromJsConfig', () => {
                 baseBranch: 'main',
                 branchName: 'lump/my-lump/ctx1',
                 contextList: [{ name: 'ctx1', variables: {} }],
-                workspacePath: '.',
             });
             expect(setup.afterExec).toBeTypeOf('function');
-            expect(await countLockFiles(execLocksDir)).toBe(1);
-            expect(await countLockFiles(branchLocksDir)).toBe(1);
+            expect(await countLockFiles()).toBe(2);
 
             await setup.afterExec!({ workspacePath: branchWorkspacePath });
 
-            expect(await countLockFiles(execLocksDir)).toBe(0);
-            expect(await countLockFiles(branchLocksDir)).toBe(1);
+            expect(await countLockFiles()).toBe(1);
 
             return core.success({
                 result: {
@@ -471,14 +463,13 @@ describe('runLumpFromJsConfig', () => {
 
         const result = await callRunLumpFromJsConfig(makeJsConfig({}));
         expect(result.success).toBe(true);
-        expect(await countLockFiles(execLocksDir)).toBe(0);
-        expect(await countLockFiles(branchLocksDir)).toBe(0);
+        expect(await countLockFiles()).toBe(0);
     });
 
-    it('waits for execution workspace lock when lockMode is wait', async () => {
-        const held = await acquireExecutionWorkspaceLock({
+    it('waits for workspace path lock when lockMode is wait', async () => {
+        const held = await acquireWorkspacePathLock({
             globalConfigFolderPath,
-            executionWorkspacePath: projectRoot,
+            workspacePath: projectRoot,
             lumpName: 'holder',
             mode: 'fail',
         });

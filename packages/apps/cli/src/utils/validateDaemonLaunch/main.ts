@@ -4,7 +4,7 @@ import { failure, success } from '@lumpcode/core';
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
 import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
-import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
+import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { resolveLumpBranches } from '../resolveLumpBranches';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
@@ -66,6 +66,8 @@ export async function validateDaemonLaunch(input: {
     globalConfigFolderPath: string;
     localConfig: LocalConfig;
     lumpNameOpt?: string;
+    effectiveDiscoveryBranch?: string;
+    discoveryBranchOpt?: string;
     logger: Logger;
 }): Promise<Success<void> | Failure<string>> {
     const {
@@ -74,26 +76,38 @@ export async function validateDaemonLaunch(input: {
         globalConfigFolderPath,
         localConfig,
         lumpNameOpt,
+        effectiveDiscoveryBranch: providedDiscoveryBranch,
+        discoveryBranchOpt,
         logger,
     } = input;
 
     const effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
 
     if (lumpNameOpt) {
-        const jsConfResult = await getJsConfigFromLumpName({ lumpName: lumpNameOpt, localConfigFolderPath });
-        if (!jsConfResult.success) {
-            return failure(`Lump "${lumpNameOpt}": ${jsConfResult.data}`);
+        if (providedDiscoveryBranch !== undefined) {
+            return validateLumpDiscoveryBranchAllowlist({
+                mode: localConfig.mode,
+                lumpName: lumpNameOpt,
+                resolvedDiscoveryBranch: providedDiscoveryBranch,
+                effectivePrimaryBranches,
+            });
         }
-        const { resolvedDiscoveryBranch } = resolveLumpBranches({
-            lumpConfig: jsConfResult.data,
-            localConfig,
-        });
-        return validateLumpDiscoveryBranchAllowlist({
-            mode: localConfig.mode,
+
+        const discoveryResult = await resolveEffectiveDiscoveryBranch({
+            discoveryBranchOpt,
             lumpName: lumpNameOpt,
-            resolvedDiscoveryBranch,
-            effectivePrimaryBranches,
+            localConfigFolderPath,
+            localConfig,
+            logger,
         });
+        if (!discoveryResult.success) {
+            return failure(discoveryResult.data);
+        }
+        return success(undefined);
+    }
+
+    if (discoveryBranchOpt?.trim()) {
+        logger.info('--discoveryBranch has no effect on a global daemon; ignoring.');
     }
 
     if (localConfig.mode !== 'dedicated') {
