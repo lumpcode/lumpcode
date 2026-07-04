@@ -15,8 +15,8 @@ This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (ca
 | **Tick**          | One scheduler iteration: for each enabled lump, run the same engine path as `lumpcode run <lumpName>`.                                                                                                           |
 | **Work branch**   | Branch Lumpcode creates/updates for the batch. Default `lump/<lumpName>/<contextName…>`, customizable with `branchFn`.                                                                                           |
 | **Marker commit** | Commit whose subject is exactly `LUMP: <lumpName> - <contextName>`. **Not configurable** so `clean`, `lump-status`, and `context-status` stay aligned with the engine.                                           |
-| **primaryBranch** | First integration branch from `.lumpcode/local.json` (`primaryBranches[0]` when set, else `primaryBranch`). Lumpcode pulls it before project-wide pre-flight; lumps default to it as `baseBranch` when they omit both `baseBranch` and `discoveryBranch`. |
-| **baseBranch**  | Per-lump execution integration branch. Defaults to the lump's `discoveryBranch`, then `primaryBranch`. Use `baseBranch` when execution should differ from discovery (e.g. a long-lived release branch). |
+| **primaryBranch** | First integration branch from `.lumpcode/local.json` (`primaryBranches[0]` when set, else `primaryBranch`). Lumpcode pulls it before project-wide pre-flight; it is the default for both discovery and execution — see [Branch resolution](#branch-resolution). |
+| **baseBranch**  | Per-lump execution integration branch — see [Branch resolution](#branch-resolution). Use `baseBranch` when execution should differ from discovery (e.g. a long-lived release branch). |
 | **mode**        | `shared` or `dedicated` (in `.lumpcode/local.json`). Decides whether Lumpcode operates on the current checkout or a separate copy under `~/.lumpcode/project-copies/<projectName>/`. |
 
 **Status** — Per-context progress, derived from **remote** git history and cached in `.lumpcode/lumps/<lumpName>/contextStatusRecord.json`:
@@ -56,9 +56,27 @@ dedicated mode:
   branch workspace    checkout: same path; worktree: .lumpcode/worktrees/...
 ```
 
-In **dedicated** mode with **`worktree`**, pre-flight and worktree setup on the main checkout are **serialized** (one lump at a time per machine) via an execution-workspace lock. After setup completes, agents on different worktrees may run **concurrently** (each worktree is protected by its own branch-workspace lock). **`checkout`** strategy holds one lock for the full run because execution and branch workspaces are the same path.
+How runs coordinate over these paths (locks, fail-fast vs wait, worktree parallelism): [Concurrency and locks](#concurrency-and-locks).
 
-There are **three subcommands whose names include “status”** (not the same thing as the three **status values** `toDo` / `branchPushed` / `finished` in the table above): do not confuse **`daemon-status`** (daemon process), **`lump-status`** (recompute all context rows from remote git), and **`context-status`** (one context row). Comparison table: [commands.md § Three commands…](./commands.md#three-commands-that-mention-status).
+Three subcommand names include “status” (`daemon-status`, `lump-status`, `context-status`) — they check different things; see the comparison table in [commands.md](./commands.md#three-commands-that-mention-status).
+
+## Branch resolution
+
+Lumpcode distinguishes two branch roles per lump. This section is the canonical definition; other pages link here.
+
+- **Discovery branch** — the integration branch a lump is *found and scheduled from* (which checkout state the daemon or `run` reads the lump config and contexts on).
+- **Base branch (execution)** — the integration branch work *branches off of*, where marker commits are checked for `finished`, and where the workspace returns after a run.
+
+Resolution order (first set value wins):
+
+```text
+resolved discovery branch = lump discoveryBranch  →  primary branch
+resolved base branch      = lump baseBranch  →  lump discoveryBranch  →  primary branch
+```
+
+The **primary branch** comes from `.lumpcode/local.json`: the first entry of `primaryBranches` when set, else `primaryBranch`. On a single-branch project you configure nothing — everything resolves to `main` (or whatever your primary branch is).
+
+The per-lump **`discoveryBranch`** field is **dedicated mode only** and must be listed in `local.json` `primaryBranches`; shared mode ignores it with a warning (discovery always reads your source checkout). Set per-lump **`baseBranch`** when execution should target a different branch than discovery (e.g. a long-lived release branch). Multiple primary branches on one dedicated daemon: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
 
 ## One run, end to end
 
@@ -142,6 +160,17 @@ The next lump in the same tick starts from a clean, known state.
 | `dedicated` | The current checkout itself | You setup lumpcode as a daemon on a distant server machine you don't develop on; pre-flight runs the destructive in-place reset |
 
 Worktrees always live under the execution workspace (the copy in `shared`, the checkout in `dedicated`). See [local-config.md](./local-config.md#workspace-strategies).
+
+## Concurrency and locks
+
+Lumpcode serializes work with **per-path locks** so that runs, daemons, and worktrees never fight over the same git checkout. What you need to know as an operator:
+
+- **One writer per workspace path.** Each execution workspace and each branch workspace is protected by its own lock. Two runs never mutate the same path at the same time.
+- **Manual `run` fails fast; daemons wait.** If another run or daemon holds the workspace lock, `lumpcode run` exits with a **`workspacePathBusy`** error (with `--json`: `data.code: "workspacePathBusy"` plus the path and the holder's pid/lump when known). A daemon tick instead **waits** for the lock and proceeds when it frees up.
+- **`checkout` strategy = one lock for the whole run.** Execution and branch workspaces are the same path, so the lock is held from pre-flight to teardown — one lump at a time per workspace.
+- **`worktree` strategy allows parallelism.** Pre-flight and worktree setup on the main checkout are serialized (one lump at a time per machine), but once set up, agents on different worktrees run **concurrently**, each behind its own branch-workspace lock.
+- **Daemon collisions are checked at `start`.** A global daemon refuses to start while any daemon for the project runs; per-lump daemons can coexist only when every running daemon uses the `worktree` strategy. Full rules: [commands.md § start](./commands.md#ref-cmd-start).
+- **Stale locks self-heal.** After a crash or `lumpcode stop --force`, a lock file may be left behind. The next acquire detects that the holding process is dead and removes the stale lock automatically — no manual cleanup needed.
 
 ## Related documentation
 

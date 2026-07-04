@@ -155,6 +155,14 @@ type ContextMatchFn = (params: {
 >;
 ```
 
+### `DisabledFn` (function form of `disabled`)
+
+```ts
+type DisabledFn = () => MaybePromise<boolean>;
+```
+
+Zero-argument function accepted by the top-level [`disabled`](./lump-config.md#optional-top-level-fields) field (inline in `config.js` / `config.ts`, or as the default export of a module referenced by file path). Evaluated on each run/tick; return `true` to skip the lump.
+
 ### `BranchFn`
 
 ```ts
@@ -222,7 +230,7 @@ type PostCommandExecFn = (input: {
 }) => MaybePromise<void>;
 ```
 
-`commandResult` is the **captured stdout** (string). Parse JSON yourself if your agent returns structured text. `commandSucceeded` is `true` when the subprocess exited successfully or execution was skipped (`commandFn` returned `null`); `false` when the subprocess failed but `continueOnError` allowed the hook to run.
+`commandResult` is the **captured stdout** (string). Parse JSON yourself if your agent returns structured text. `commandSucceeded` is `true` when the subprocess exited successfully or execution was skipped (`commandFn` returned `null`); `false` when the subprocess failed but the step's [`continueOnError`](./lump-config.md#per-item-fields-lumpjsonconfigstep) allowed the hook to run.
 
 ### `SetupFn`
 

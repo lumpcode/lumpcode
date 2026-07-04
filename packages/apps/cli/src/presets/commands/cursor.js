@@ -30,7 +30,7 @@ export const command = (async ({
     projectRoot,
     workspacePath,
 }) => {
-    const model = lumpVariables.model ?? stepVariables.model ?? 'auto';
+    const model = stepVariables.model ?? lumpVariables.model ?? 'auto';
     const { newChat = false, chatIdIndex = null } = stepVariables || {};
 
     const chatState = contextRunState.cursorSetup ?? (contextRunState.cursorSetup = {});
