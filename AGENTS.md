@@ -126,6 +126,7 @@
 - **`--discoveryBranch`** on `run` and `start --lumpName`; **`resolveEffectiveDiscoveryBranch`** (discovery only, not `resolvedBaseBranch`); global/shared warn-and-ignore
 - **`discoverDedicatedLumpsForScanBranch`**: short-lived locked preflight per `scanBranch` with lock holder **`DISCOVERY_SCAN_LOCK_HOLDER`** (`__discovery__`); global tick re-runs phase 1 per lump
 - `workspaceFileLock` is internal — barrel-export `workspacePathLock` only
+- Force-killed daemons (`stop --force`) may leave path locks; next acquire removes stale locks when holder PID is dead — no stop-time lock cleanup
 - Do not duplicate core planning in CLI for lock keys (no pre-run `getToDoContextList` or `branchFn`)
 
 ### Daemon
@@ -140,6 +141,8 @@
 - Tick (dedicated global): loop `primaryBranches` → locked discover per branch → `runLumpFromLumpName` per lump; skip branch/lump failures without crashing
 - Manual `run`: no daemon PID gate — coordinates with running daemons via workspace locks only (`lockMode: 'fail'` vs daemon `wait`); dedicated `dedicatedRestoreBranch` `git switch` in handler `finally` runs after lock release (not serialized with daemon preflight)
 - `daemon-status` / `stop`: single scope only (global or one `--lumpName`); no list-all/stop-all — internal `listRunningProjectDaemons` used by `start` collision checks only
+- Default `stop` refuses when `meta.busy === true` (no signal; `--json` `daemonBusy`); `--force` tree-kills daemon + descendants; stale `busy` trusts meta until `--force`
+- `busy` toggled per `runLumpFromLumpName` in `try/finally` (not whole tick or discovery)
 - Global daemon: fails if any project daemon running. Per-lump: fails if global running, same lump running, or other per-lump running when `workspaceStrategy` ≠ `worktree`
 - `daemon-log`: follows by default; `--noFollow` prints and exits; `--lines` limits initial output
 - Cross-lump `dependsOnContexts`: warns when `otherLump.baseBranch !== thisLump.baseBranch`
@@ -176,6 +179,7 @@
 - SEA: minified `build:bundle` (uncaught errors can dump the one-line bundle); sidecars (`schemas/`, `presets/`, esbuild binary) beside `process.execPath`; `validateLumpJsonConfig` reads schema beside binary; embed static assets when feasible; macOS binaries ad-hoc codesigned only (strip quarantine xattr or sign + notarize for distribution)
 - CI (`.github/workflows/build-cli.yml`): `unit-test` (build core, cli-types, cli-utils first — their `dist/` is gitignored) → OS `build` matrix → aggregating `ci` job; E2E on ubuntu/macOS/windows including arm; isolated `HOME`/`USERPROFILE` per platform
 - E2E: `packages/apps/cli/src/e2e/` subprocess harness; rerun **`build:bundle` + `build:sea`** after bundle/SEA changes; mock agent via `e2e-mock-agent.cjs` script file (not `node -e`); `pushIntegrationBranch` needs full `writeE2eLumpFixture` (config-only writes wrong lump path)
+- E2E teardown: `stopDaemonSafely` should pass `--force` so teardown does not race daemon `meta.busy` mid-run
 - ncc emits CJS — use `lodash/camelCase` not `lodash-es`; `build:bundle` externalizes `esbuild`; SEA spawns esbuild sidecar via `execFile` (`esbuildPlatformBinaryRelativePath`: Windows `@esbuild/win32-x64/esbuild.exe`, Unix `bin/esbuild`)
 - **OSS**: Apache 2.0 at `lumpcode/lumpcode`; no feature gates or account required; ICLA/CLA Assistant before external contributions; publish order: core → cli-types → cli → optional `lumpcode` via `scripts/publish-npm.mjs`; release branches `ver/X.Y.Z`, tags `vX.Y.Z`
 

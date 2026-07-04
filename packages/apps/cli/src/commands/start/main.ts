@@ -29,6 +29,7 @@ import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import type { DaemonMetaWrite } from '../../utils/readDaemonMeta';
+import { readDaemonMeta } from '../../utils/readDaemonMeta';
 
 /** Default detached-daemon schedule; used by `start` and `restart`. */
 export const defaultCronPattern = '*/5 * * * *';
@@ -120,6 +121,20 @@ async function tryRemoveOwnDaemonArtifacts(pidFilePath: string, metaFilePath: st
     } catch {
         // missing or unreadable file — ignore
     }
+}
+
+async function updateDaemonMetaBusy(metaFilePath: string, busy: boolean): Promise<void> {
+    const metaResult = await readDaemonMeta(metaFilePath);
+    const current = metaResult.success ? metaResult.data : { workspaceStrategy: 'checkout' as const };
+
+    const payload: Record<string, unknown> = {
+        ...(current.cronSetup !== undefined ? { cronSetup: current.cronSetup } : {}),
+        workspaceStrategy: current.workspaceStrategy,
+        ...(current.lumpName !== undefined ? { lumpName: current.lumpName } : {}),
+        ...(busy ? { busy: true } : {}),
+    };
+
+    await fs.writeFile(metaFilePath, `${JSON.stringify(payload)}\n`, 'utf8');
 }
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
@@ -350,42 +365,47 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const runOneLump = async (input: { lumpName: string }): Promise<void> => {
             const { lumpName } = input;
 
-            const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-            const lumpLogger = createCliLogger({
-                verbose:
-                    !!cliVerbose ||
-                    !!(jsConfForVerbose.success && jsConfForVerbose.data.verbose),
-                json: !!json,
-                prefix: '[lumpcode start]',
-            });
-            const runLumpRes = await runLumpFromLumpName({
-                lumpName,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                sourceProjectRoot: projectRoot,
-                lockMode: 'wait',
-                projectName,
-                localConfig: frozenLocalConfig,
-                logger: lumpLogger,
-                effectiveDiscoveryBranch:
-                    lumpName === lumpNameOpt ? frozenEffectiveDiscoveryBranch : undefined,
-                discoveryBranchOpt: lumpName === lumpNameOpt ? discoveryBranchOpt : undefined,
-            });
-            if (!runLumpRes.success) {
-                logger.error(`lump "${lumpName}": ${runLumpFromJsConfigFailureMessage(runLumpRes.data)}`);
-            } else if (runLumpRes.data.skipped) {
-                if (runLumpRes.data.reason === 'disabled') {
-                    logger.info(`lump "${lumpName}": skipped (disabled)`);
+            await updateDaemonMetaBusy(metaFilePath, true);
+            try {
+                const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
+                const lumpLogger = createCliLogger({
+                    verbose:
+                        !!cliVerbose ||
+                        !!(jsConfForVerbose.success && jsConfForVerbose.data.verbose),
+                    json: !!json,
+                    prefix: '[lumpcode start]',
+                });
+                const runLumpRes = await runLumpFromLumpName({
+                    lumpName,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                    sourceProjectRoot: projectRoot,
+                    lockMode: 'wait',
+                    projectName,
+                    localConfig: frozenLocalConfig,
+                    logger: lumpLogger,
+                    effectiveDiscoveryBranch:
+                        lumpName === lumpNameOpt ? frozenEffectiveDiscoveryBranch : undefined,
+                    discoveryBranchOpt: lumpName === lumpNameOpt ? discoveryBranchOpt : undefined,
+                });
+                if (!runLumpRes.success) {
+                    logger.error(`lump "${lumpName}": ${runLumpFromJsConfigFailureMessage(runLumpRes.data)}`);
+                } else if (runLumpRes.data.skipped) {
+                    if (runLumpRes.data.reason === 'disabled') {
+                        logger.info(`lump "${lumpName}": skipped (disabled)`);
+                    } else {
+                        logger.info(
+                            `lump "${lumpName}" skipped: ${runLumpRes.data.reason} - ${runLumpRes.data.reasonDetail}`,
+                        );
+                    }
                 } else {
+                    const contextNames = runLumpRes.data.result.contextNames;
                     logger.info(
-                        `lump "${lumpName}" skipped: ${runLumpRes.data.reason} - ${runLumpRes.data.reasonDetail}`,
+                        `lump "${lumpName}": ok (contexts: ${contextNames.join(', ') || 'none'})`,
                     );
                 }
-            } else {
-                const contextNames = runLumpRes.data.result.contextNames;
-                logger.info(
-                    `lump "${lumpName}": ok (contexts: ${contextNames.join(', ') || 'none'})`,
-                );
+            } finally {
+                await updateDaemonMetaBusy(metaFilePath, false);
             }
         };
 

@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { spawn, type ChildProcess } from 'node:child_process';
 
-import { daemonMetaPath, daemonPidPath, daemonsDirPath } from '../../utils';
+import { daemonMetaPath, daemonPidPath, daemonsDirPath, readDaemonMeta } from '../../utils';
 import type { E2eProject } from './createE2eProject';
 import { e2eCliInvocation, runE2eCli } from './e2eCli';
 import { waitForRemoteMarker } from './markerAssertions';
@@ -47,19 +47,40 @@ export function assertHomeIsolated(project: E2eProject): void {
     }
 }
 
+/** Polls daemon meta until `busy` is not true (graceful stop requires an idle daemon). */
+export async function waitForDaemonIdle(input: {
+    metaFilePath: string;
+    timeoutMs?: number;
+}): Promise<void> {
+    const deadline = Date.now() + (input.timeoutMs ?? 120_000);
+    while (Date.now() < deadline) {
+        const metaResult = await readDaemonMeta(input.metaFilePath);
+        if (metaResult.success && metaResult.data.busy !== true) {
+            return;
+        }
+        await new Promise((r) => setTimeout(r, 100));
+    }
+    throw new Error(`Timed out waiting for daemon idle at ${input.metaFilePath}`);
+}
+
 /** Treats `stop` responses that mean no daemon is running as success during teardown. */
 function isDaemonNotRunningStop(result: RunCliResult): boolean {
     const msg = result.json.messages.join(' ');
-    return /no daemon pid file|already gone|not running/i.test(msg);
+    return /no daemon pid file|already gone|not running|invalid pid|removed stale file/i.test(msg);
 }
 
-/** Runs `lumpcode stop` and ignores "already stopped" outcomes; throws on unexpected failures. */
+/** Runs `lumpcode stop --force` and ignores "already stopped" outcomes; throws on unexpected failures. */
 export async function stopDaemonSafely(input: {
     project: E2eProject;
     runCli: (args: string[]) => Promise<RunCliResult>;
     lumpName?: string;
 }): Promise<void> {
-    const args = ['stop', '--json', ...(input.lumpName ? ['--lumpName', input.lumpName] : [])];
+    const args = [
+        'stop',
+        '--json',
+        '--force',
+        ...(input.lumpName ? ['--lumpName', input.lumpName] : []),
+    ];
     const result = await input.runCli(args);
     if (result.code === 0) return;
     if (isDaemonNotRunningStop(result)) return;

@@ -24,6 +24,7 @@
     timing out when a lump run is active.
   type: feature
   priority: 2
+  done: true
 - name: npm-package-cross-links
   task: >-
     On npm package README pages, add links to sibling Lumpcode packages —
