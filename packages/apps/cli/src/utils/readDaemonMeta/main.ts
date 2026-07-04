@@ -10,12 +10,14 @@ const daemonMetaSchema = z.object({
     cronSetup: z.string().optional(),
     lumpName: z.string().optional(),
     workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
+    busy: z.boolean().optional(),
 });
 
 export type DaemonMeta = {
     cronSetup?: string;
     lumpName?: string;
     workspaceStrategy: WorkspaceStrategy;
+    busy?: boolean;
 };
 
 /** Fields written when a detached daemon starts. */
@@ -63,6 +65,7 @@ export async function readDaemonMeta(
     return success({
         ...(validated.data.cronSetup !== undefined ? { cronSetup: validated.data.cronSetup } : {}),
         ...(validated.data.lumpName !== undefined ? { lumpName: validated.data.lumpName } : {}),
+        ...(validated.data.busy !== undefined ? { busy: validated.data.busy } : {}),
         workspaceStrategy: validated.data.workspaceStrategy ?? 'checkout',
     });
 }
