@@ -476,8 +476,8 @@ describe('jsConfigToRunLumpInput', () => {
         it('should resolve a command string to a local command module file', async () => {
             const data = assertSuccess(await resolveWithFixtures({ command: 'test-agent', prompt: 'Do something' }));
             const item = data.steps[0] as Step;
-            expect(item.commandFn.commandName).toBe('test-agent');
-            expect(await item.commandFn(commandFnCallArgs)).toEqual({ executable: 'local-agent', args: ['--local'] });
+            expect(item.commandFn?.commandName).toBe('test-agent');
+            expect(await item.commandFn?.(commandFnCallArgs)).toEqual({ executable: 'local-agent', args: ['--local'] });
         });
 
         it('should fall back to the global command when local is missing', async () => {
@@ -485,7 +485,7 @@ describe('jsConfigToRunLumpInput', () => {
                 { command: 'test-agent', prompt: 'Do something' },
                 { localConfigFolderPath: path.join(FIXTURES_DIR, 'nonexistent-local'), globalConfigFolderPath: GLOBAL_CONFIG_PATH },
             ));
-            expect(await (data.steps[0] as Step).commandFn(commandFnCallArgs)).toEqual({ executable: 'global-agent', args: ['--global'] });
+            expect(await (data.steps[0] as Step).commandFn?.(commandFnCallArgs)).toEqual({ executable: 'global-agent', args: ['--global'] });
         });
     });
 
@@ -526,8 +526,8 @@ describe('jsConfigToRunLumpInput', () => {
                 ],
             }));
             const [item0, item1] = data.steps as Step[];
-            expect(item0.commandFn.commandName).toBe('test-agent');
-            expect(item1.commandFn.commandName).toBe('second-agent');
+            expect(item0.commandFn?.commandName).toBe('test-agent');
+            expect(item1.commandFn?.commandName).toBe('second-agent');
             expect((await item0.commandFn?.(commandFnCallArgs))?.executable).toBe('local-agent');
             expect((await item1.commandFn?.(commandFnCallArgs))?.executable).toBe('second-agent');
         });
@@ -676,7 +676,7 @@ describe('jsConfigToRunLumpInput', () => {
             }));
             const subItems = await (data.steps[0] as Function)(promptFnInput()) as Step[];
             expect(subItems).toHaveLength(1);
-            expect(subItems[0].commandFn.commandName).toBe('test-agent');
+            expect(subItems[0].commandFn?.commandName).toBe('test-agent');
         });
 
         it('should execute all prompts including recursive ones through runLump', async () => {
@@ -859,6 +859,91 @@ describe('jsConfigToRunLumpInput', () => {
             } finally {
                 await fs.rm(tmpDir, { recursive: true, force: true });
             }
+        });
+    });
+
+    describe('promptTemplate and command file references', () => {
+        it('loads promptTemplate from a lump-relative template file', async () => {
+            const data = assertSuccess(await resolveWithFixtures({
+                command: stubCommandFn,
+                prompt: { promptTemplate: './prompts/from-file.md', commandFn: stubCommandFn },
+            }));
+            const item = data.steps[0] as Step;
+            expect(await item.promptFn?.(promptFnInput({ FILE: 'app.ts' }))).toBe(
+                'Refactor @app.ts using the on-disk template.',
+            );
+        });
+
+        it('treats prompt text with spaces as inline even when it mentions a .md path', async () => {
+            const data = assertSuccess(await resolveWithFixtures({
+                command: stubCommandFn,
+                prompt: {
+                    promptTemplate: 'Add a section to prompts/readme.md',
+                    commandFn: stubCommandFn,
+                },
+            }));
+            const item = data.steps[0] as Step;
+            expect(await item.promptFn?.(promptFnInput())).toBe('Add a section to prompts/readme.md');
+        });
+
+        it('fails fast when a prompt template file is missing', async () => {
+            assertFailure(
+                await resolveWithFixtures({
+                    command: stubCommandFn,
+                    prompt: { promptTemplate: './prompts/missing.md', commandFn: stubCommandFn },
+                }),
+                'Prompt template file not found: ./prompts/missing.md',
+            );
+        });
+
+        it('loads command modules from a lump-relative .js file path', async () => {
+            const data = assertSuccess(await resolveWithFixtures({
+                command: './agents/file-agent.js',
+                prompt: 'Hi',
+            }));
+            const item = data.steps[0] as Step;
+            expect(item.commandFn?.commandName).toBe('./agents/file-agent.js');
+            expect(await item.commandFn?.(commandFnCallArgs)).toEqual({
+                executable: 'file-agent',
+                args: ['--from-file'],
+            });
+        });
+
+        it('fails fast when a command module file is missing', async () => {
+            assertFailure(
+                await resolveWithFixtures({
+                    command: './agents/missing.js',
+                    prompt: 'Hi',
+                }),
+                'Command module file not found: ./agents/missing.js',
+            );
+        });
+
+        it('loads file-path commands inside recursive steps without registerCommands', async () => {
+            const recursiveFn = async () => [{
+                promptTemplate: 'Do work',
+                command: './agents/file-agent.js',
+            } as LumpJsConfigStep];
+            const data = assertSuccess(await resolveWithFixtures({
+                command: stubCommandFn,
+                prompt: undefined,
+                steps: [recursiveFn],
+            }));
+            const subItems = await (data.steps[0] as Function)(promptFnInput()) as Step[];
+            expect(subItems).toHaveLength(1);
+            expect(subItems[0].commandFn?.commandName).toBe('./agents/file-agent.js');
+        });
+
+        it('loads template files from string shorthand in steps', async () => {
+            const data = assertSuccess(await resolveWithFixtures({
+                command: stubCommandFn,
+                prompt: undefined,
+                steps: ['./prompts/from-file.md'],
+            }));
+            const item = data.steps[0] as Step;
+            expect(await item.promptFn?.(promptFnInput({ FILE: 'lib.ts' }))).toBe(
+                'Refactor @lib.ts using the on-disk template.',
+            );
         });
     });
 });

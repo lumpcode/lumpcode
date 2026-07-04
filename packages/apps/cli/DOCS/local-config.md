@@ -22,7 +22,7 @@ Legacy keys `discoveryBranch` / `discoveryBranches` are **not** accepted; use `p
 |-------|------|-------------|
 | `mode` | `"shared"` \| `"dedicated"` | How Lumpcode treats the current checkout. See [Modes](#modes) below. |
 | `primaryBranch` | string | Singular primary integration branch for this install. Required when `primaryBranches` is omitted. Also the default lump `baseBranch` when a lump omits both `baseBranch` and `discoveryBranch`. Status checks (`finished`) compare against each lump's resolved `baseBranch` (typically this branch). |
-| `primaryBranches` | string[] | Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular `primaryBranch`. The **primary branch** is the first entry (or `primaryBranch` when the array is omitted). |
+| `primaryBranches` | string[] | Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular `primaryBranch`. The **primary branch** is the first entry (or `primaryBranch` when the array is omitted). See [Multiple primary branches](#multiple-primary-branches-dedicated-daemons). |
 | `workspaceStrategy` | `"checkout"` \| `"worktree"` | How each lump run prepares git inside the [execution workspace](concepts.md#three-workspaces). Default: `"checkout"`. See [Workspace strategies](#workspace-strategies). |
 | `disabled` | boolean | When `true`, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected. |
 
@@ -60,16 +60,26 @@ Each lump run uses a **linked git worktree** under `.lumpcode/worktrees/<branch>
 
 Pick `worktree` when you want the base branch checked out in the main tree during runs, or when planning parallel lump execution later.
 
+## Multiple primary branches (dedicated daemons)
+
+`primaryBranches` lets **one dedicated daemon** serve several long-lived integration branches (e.g. `main` plus a release line). It is a **dedicated-mode feature**: in shared mode a multi-entry list is noted once in the logs and only the first entry is used.
+
+How a dedicated global daemon uses the list, each tick:
+
+1. For **each** listed branch in order: run a locked pre-flight to that branch, then discover the lumps whose resolved discovery branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)) is that branch.
+2. Run each discovered lump with the usual per-lump flow. A failure on one branch or lump is logged and does not stop the rest of the tick.
+
+Rules:
+
+- A lump's `discoveryBranch` **must be listed** in `primaryBranches` — `run`, `start`, and daemon launch fail otherwise (allowlist check).
+- The **same `lumpName`** may exist on different primary branches (each branch has its own checkout state of `.lumpcode/lumps/`); two lumps with the same name on the **same** scan branch fail daemon launch.
+- The **primary branch** (used for project-wide defaults) is always the **first** entry.
+
 ## Pre-flight
 
-Before every `run` and every daemon tick, Lumpcode runs a **pre-flight** that:
-
-1. Resolves the execution workspace from `mode` (project copy in `shared`, the checkout itself in `dedicated`).
-2. In that workspace: `git fetch --all && git switch <targetBranch> && git reset --hard origin/<targetBranch> && git pull origin <targetBranch>`. For a lump run, `targetBranch` is that lump's resolved `baseBranch`; for project-wide pre-flight it is the primary branch.
+Pre-flight mechanics (what runs, in which workspace, per mode) are defined once in [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes). Specific to this file: `mode` selects the execution workspace pre-flight operates on (project copy in `shared`, the checkout itself in `dedicated` — destructive reset), and `workspaceStrategy` selects the per-lump git flow that follows ([Workspace strategies](#workspace-strategies) above).
 
 If pre-flight fails, `run` reports a `commandFailure` and the daemon **skips the tick** (logged to the daemon log) and tries again on the next schedule.
-
-After pre-flight, each lump runs its own per-lump git flow on the execution workspace (see [Workspace strategies](#workspace-strategies)): fetch/pull of the lump's `baseBranch` (defaults to `discoveryBranch` on the lump, then the primary branch from this file), then either a checkout branch or a worktree branch workspace. After the lump finishes, checkout mode switches back to the resolved `baseBranch`; worktree mode removes the linked worktree while leaving the main tree on that branch.
 
 ## Commit vs. gitignore
 
