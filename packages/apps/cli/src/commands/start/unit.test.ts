@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { success } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
 
 import {
     aliveDaemonSpawnFn,
@@ -968,6 +968,323 @@ describe('start command — multi discovery branches', () => {
 
             const lumpNames = runLumpSpy.mock.calls.map((c) => c[0].lumpName);
             expect(lumpNames.indexOf('releaseLine')).toBeLessThan(lumpNames.lastIndexOf('mainLine'));
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+});
+
+describe('start command — daemon busy meta toggle', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+    const projectName = 'stop-mid-run-test-project';
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-busy-'));
+        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-busy-remote-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-busy-global-'));
+        setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
+        git('init --bare', remoteDir);
+        git('init -b main', projectRoot);
+        git('config user.email "test@test.com"', projectRoot);
+        git('config user.name "Test"', projectRoot);
+        git('commit --allow-empty -m "init"', projectRoot);
+        git(`remote add origin ${remoteDir}`, projectRoot);
+        git('push -u origin main', projectRoot);
+        await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
+        await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(remoteDir, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+    });
+
+    const localConfigFolderPath = () => path.join(projectRoot, '.lumpcode');
+
+    function makeStartHandler(overrides: Partial<Parameters<typeof command.handlerMaker>[0]> = {}) {
+        return command.handlerMaker({
+            projectRoot,
+            localConfigFolderPath: localConfigFolderPath(),
+            globalConfigFolderPath,
+            ...overrides,
+        });
+    }
+
+    async function setupForegroundProject() {
+        await fs.writeFile(
+            path.join(localConfigFolderPath(), 'project.json'),
+            JSON.stringify({ projectName }),
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath(), 'local.json'),
+            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
+            'utf-8',
+        );
+        const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'alpha');
+        await fs.mkdir(lumpDir, { recursive: true });
+        await fs.writeFile(path.join(lumpDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
+        git('add -A', projectRoot);
+        git('commit -m "add alpha lump"', projectRoot);
+        git('push origin main', projectRoot);
+    }
+
+    function metaPath() {
+        return path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+    }
+
+    function assertMetaKeysAreAllowed(raw: Record<string, unknown>) {
+        const allowed = new Set(['cronSetup', 'workspaceStrategy', 'lumpName', 'busy']);
+        for (const key of Object.keys(raw)) {
+            expect(allowed.has(key)).toBe(true);
+        }
+    }
+
+    it('sets busy: true while a lump run is in flight', async () => {
+        await setupForegroundProject();
+        let resolveRun!: (value: Awaited<ReturnType<typeof import('../../utils/runLumpFromLumpName').runLumpFromLumpName>>) => void;
+        const runDeferred = new Promise<
+            Awaited<ReturnType<typeof import('../../utils/runLumpFromLumpName').runLumpFromLumpName>>
+        >((resolve) => {
+            resolveRun = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockReturnValue(runDeferred);
+
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        try {
+            const startPromise = makeStartHandler({
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(async () => {
+                const metaResult = await import('../../utils/readDaemonMeta').then((m) =>
+                    m.readDaemonMeta(metaPath()),
+                );
+                expect(metaResult.success).toBe(true);
+                if (!metaResult.success) throw new Error('unreachable');
+                if (metaResult.data.busy !== true) {
+                    throw new Error('expected busy meta');
+                }
+            });
+
+            resolveRun(
+                success({
+                    skipped: false,
+                    result: {
+                        branchName: 'lump/alpha/x',
+                        contextNames: ['x'],
+                        contextRunStateList: [],
+                    },
+                }),
+            );
+            releaseShutdown();
+            await startPromise;
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('clears busy after a successful lump run', async () => {
+        await setupForegroundProject();
+        const runLumpSpy = vi
+            .spyOn(await import('../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockResolvedValue(
+                success({
+                    skipped: false,
+                    result: {
+                        branchName: 'lump/alpha/x',
+                        contextNames: ['x'],
+                        contextRunStateList: [],
+                    },
+                }),
+            );
+
+        try {
+            const result = await makeStartHandler({
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+
+            const metaResult = await import('../../utils/readDaemonMeta').then((m) =>
+                m.readDaemonMeta(metaPath()),
+            );
+            expect(metaResult.success).toBe(true);
+            if (!metaResult.success) throw new Error('unreachable');
+            expect(metaResult.data.busy).not.toBe(true);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('clears busy after a lump run error', async () => {
+        await setupForegroundProject();
+        const runLumpSpy = vi
+            .spyOn(await import('../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockResolvedValue(
+                failure({
+                    kind: 'message',
+                    message: 'boom',
+                }),
+            );
+
+        try {
+            const result = await makeStartHandler({
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+
+            const metaResult = await import('../../utils/readDaemonMeta').then((m) =>
+                m.readDaemonMeta(metaPath()),
+            );
+            expect(metaResult.success).toBe(true);
+            if (!metaResult.success) throw new Error('unreachable');
+            expect(metaResult.data.busy).not.toBe(true);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('clears busy after a skipped lump', async () => {
+        await setupForegroundProject();
+        const runLumpSpy = vi
+            .spyOn(await import('../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockResolvedValue(
+                success({
+                    skipped: true,
+                    reason: 'disabled',
+                    reasonDetail: 'lump disabled',
+                }),
+            );
+
+        try {
+            const result = await makeStartHandler({
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+
+            const metaResult = await import('../../utils/readDaemonMeta').then((m) =>
+                m.readDaemonMeta(metaPath()),
+            );
+            expect(metaResult.success).toBe(true);
+            if (!metaResult.success) throw new Error('unreachable');
+            expect(metaResult.data.busy).not.toBe(true);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('does not write child pid fields into daemon meta', async () => {
+        await setupForegroundProject();
+        const runLumpSpy = vi
+            .spyOn(await import('../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockResolvedValue(
+                success({
+                    skipped: false,
+                    result: {
+                        branchName: 'lump/alpha/x',
+                        contextNames: ['x'],
+                        contextRunStateList: [],
+                    },
+                }),
+            );
+
+        try {
+            await makeStartHandler({
+                waitForShutdownOverride: async () => {
+                    const raw = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
+                    assertMetaKeysAreAllowed(raw);
+                },
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('sets busy only during each sequential lump run window', async () => {
+        await setupForegroundProject();
+        const betaDir = path.join(projectRoot, '.lumpcode', 'lumps', 'beta');
+        await fs.mkdir(betaDir, { recursive: true });
+        await fs.writeFile(path.join(betaDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
+        git('add -A', projectRoot);
+        git('commit -m "add beta lump"', projectRoot);
+        git('push origin main', projectRoot);
+
+        const busySnapshots: boolean[] = [];
+        const releaseQueue: Array<() => void> = [];
+        let resolveShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            resolveShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async () => {
+                await new Promise<void>((resolve) => {
+                    releaseQueue.push(resolve);
+                });
+                return success({
+                    skipped: false,
+                    result: {
+                        branchName: 'lump/x',
+                        contextNames: [],
+                        contextRunStateList: [],
+                    },
+                });
+            });
+
+        const pollBusyDuringRuns = (async () => {
+            for (let index = 0; index < 2; index += 1) {
+                await vi.waitFor(() => {
+                    if (releaseQueue.length <= index) {
+                        throw new Error(`waiting for lump run ${index + 1}`);
+                    }
+                });
+                const metaResult = await import('../../utils/readDaemonMeta').then((m) =>
+                    m.readDaemonMeta(metaPath()),
+                );
+                expect(metaResult.success).toBe(true);
+                if (!metaResult.success) throw new Error('unreachable');
+                busySnapshots.push(metaResult.data.busy === true);
+                releaseQueue[index]?.();
+            }
+            resolveShutdown();
+        })();
+
+        try {
+            const startPromise = makeStartHandler({
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await Promise.all([startPromise, pollBusyDuringRuns]);
+            expect(busySnapshots).toEqual([true, true]);
         } finally {
             runLumpSpy.mockRestore();
         }
