@@ -199,4 +199,31 @@ describe('restart command', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.data?.cronSetup).toBe('*/5 * * * *');
     });
+
+    it('fails when the daemon is busy because inner stop refuses', async () => {
+        await runStart(aliveDaemonSpawnFn);
+        await waitForDaemonPidFile(pidPath());
+        const pid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
+        expect(Number.isNaN(pid)).toBe(false);
+
+        await fs.writeFile(
+            metaPath(),
+            `${JSON.stringify({
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+                busy: true,
+            })}\n`,
+            'utf8',
+        );
+
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/busy|--force/i);
+        expect(spawnFn).not.toHaveBeenCalled();
+        expect(() => process.kill(pid, 0)).not.toThrow();
+        await expect(fs.access(pidPath())).resolves.toBeUndefined();
+    });
 });

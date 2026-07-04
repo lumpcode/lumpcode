@@ -39,4 +39,79 @@ describe('readDaemonMeta', () => {
             lumpName: 'alpha',
         });
     });
+
+    it('reads busy: true from meta', async () => {
+        const metaPath = path.join(dir, 'busy-true.meta.json');
+        await fs.writeFile(
+            metaPath,
+            JSON.stringify({
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+                busy: true,
+            }),
+            'utf8',
+        );
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.busy).toBe(true);
+        expect(result.data.cronSetup).toBe('*/5 * * * *');
+        expect(result.data.workspaceStrategy).toBe('checkout');
+    });
+
+    it('reads busy: false from meta', async () => {
+        const metaPath = path.join(dir, 'busy-false.meta.json');
+        await fs.writeFile(
+            metaPath,
+            JSON.stringify({
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+                busy: false,
+            }),
+            'utf8',
+        );
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.busy).toBe(false);
+    });
+
+    it('omits busy when absent from meta', async () => {
+        const metaPath = path.join(dir, 'idle.meta.json');
+        await fs.writeFile(
+            metaPath,
+            JSON.stringify({
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+            }),
+            'utf8',
+        );
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.busy).toBeUndefined();
+    });
+
+    it('strips unknown child-pid keys from meta', async () => {
+        const metaPath = path.join(dir, 'agent-pid.meta.json');
+        await fs.writeFile(
+            metaPath,
+            JSON.stringify({
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+                agentPid: 12345,
+                childPids: [1, 2, 3],
+            }),
+            'utf8',
+        );
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual({
+            cronSetup: '*/5 * * * *',
+            workspaceStrategy: 'checkout',
+        });
+        expect('agentPid' in result.data).toBe(false);
+        expect('childPids' in result.data).toBe(false);
+    });
 });

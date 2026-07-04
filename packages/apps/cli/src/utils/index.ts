@@ -29,6 +29,7 @@ export * from './getGitCommitMessage';
 export * from './getJsConfigFromLumpName';
 export * from './isValidLumpName';
 export * from './jsConfigToRunLumpInput';
+export * from './killProcessTree';
 export * from './jsonConfigToJsConfig';
 export * from './listRunningProjectDaemons';
 export * from './localConfigFolderPath';
