@@ -5,6 +5,8 @@ import { type Failure, failure, type Success, success } from '@lumpcode/core';
 
 import { nodeErrnoCode } from '../nodeErrnoCode';
 
+import { nodeErrnoCode } from '../nodeErrnoCode';
+
 import { localConfigFolderPath } from '../localConfigFolderPath';
 
 const REQUIRED_DIRS = ['.git'] as const;

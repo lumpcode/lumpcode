@@ -1,8 +1,19 @@
 {
   "name": "@lumpcode/cli-utils",
-  "version": "0.0.6",
+  "version": "0.0.10",
   "private": true,
-  "description": "Internal runtime helpers re-exported from CLI sources (not published yet)",
+  "description": "Runtime helpers for Lumpcode lump configs and recipes (not published yet)",
+  "keywords": [
+    "lumpcode",
+    "loop-engineering",
+    "agent-loop",
+    "lump-config"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lumpcode/lumpcode.git",
+    "directory": "packages/apps/cli/cli-utils"
+  },
   "license": "Apache-2.0",
   "author": "",
   "type": "module",
@@ -14,7 +25,8 @@
     "build": "rollup -c"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.6"
+    "@lumpcode/core": "^0.0.10",
+    "js-yaml": "^5.0.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.1",

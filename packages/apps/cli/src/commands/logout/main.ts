@@ -6,6 +6,8 @@ import { failure, success } from '@lumpcode/core';
 
 import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
 
+import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
+
 import { AUTH_FILE_PATH } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';

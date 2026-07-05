@@ -9,6 +9,41 @@ import { failure } from '../failure';
 import { pathExists } from '../pathExists';
 import { success } from '../success';
 
+/** Strip terminal ANSI escapes and other C0 controls js-yaml rejects in literal blocks. */
+function sanitizeHistoryText(value: string): string {
+    return value
+        .replace(/\x1b\[[0-9;]*[A-Za-z]/g, '')
+        .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '');
+}
+
+function parseHistoryYamlContent(content: string): HistoryEntry[] {
+    const parsed = load(content, { schema: YAML11_SCHEMA });
+    if (!Array.isArray(parsed)) {
+        throw new Error('History file must contain a YAML sequence');
+    }
+    return parsed as HistoryEntry[];
+}
+
+function tryParseHistoryContent(content: string): HistoryEntry[] {
+    try {
+        return parseHistoryYamlContent(content);
+    } catch (firstError) {
+        const sanitized = sanitizeHistoryText(content);
+        if (sanitized === content) {
+            throw firstError;
+        }
+        return parseHistoryYamlContent(sanitized);
+    }
+}
+
+function sanitizeHistoryEntry(entry: HistoryEntry): HistoryEntry {
+    return {
+        ...entry,
+        prompt: sanitizeHistoryText(entry.prompt),
+        commandResult: sanitizeHistoryText(entry.commandResult),
+    };
+}
+
 export function historyFormatFromPath(
     filePath: string,
 ): Success<'yaml'> | Failure<string> {
@@ -57,7 +92,9 @@ function dumpHistoryEntries(entries: HistoryEntry[]): string {
         return '[]\n';
     }
 
-    return dump(entries, {
+    const sanitizedEntries = entries.map(sanitizeHistoryEntry);
+
+    return dump(sanitizedEntries, {
         schema: YAML11_SCHEMA,
         lineWidth: 0,
         noRefs: true,
@@ -81,11 +118,7 @@ export async function readHistoryFile({
 
     try {
         const content = await readFile(filePath, 'utf-8');
-        const parsed = load(content, { schema: YAML11_SCHEMA });
-        if (!Array.isArray(parsed)) {
-            return failure(`History file ${filePath} must contain a YAML sequence`);
-        }
-        return success(parsed as HistoryEntry[]);
+        return success(tryParseHistoryContent(content));
     } catch (error) {
         const detail = error instanceof Error ? error.message : String(error);
         return failure(`Failed to parse history file ${filePath}: ${detail}`);
@@ -140,6 +173,6 @@ export async function appendHistoryEntry({
         entries = [];
     }
 
-    entries.push(entry);
+    entries.push(sanitizeHistoryEntry(entry));
     return writeHistoryFile({ filePath, entries });
 }

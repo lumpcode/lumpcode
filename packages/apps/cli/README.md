@@ -1,6 +1,6 @@
 # Lumpcode CLI
 
-Lumpcode is a **CLI for running agent loops** over your codebase. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
+Lumpcode is a **CLI for running agent loops** over your codebase. It is a ready-made **loop engineering** tool: you design the loop that prompts your coding agent, and Lumpcode runs it. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
 
 > *Named after the **lumpfish**: a small cleaner fish that salmon farmers add to their pens to quietly pick parasites off the salmon. Lumpcode plays the same role in your codebase, steadily working through the long tail of repetitive coding chores (codemods, doc updates, dependency updates, new abstractions, missing tests...) one batch at a time, without overflowing you with PRs, while you stay focused on your code.*
 
