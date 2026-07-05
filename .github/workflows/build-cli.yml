@@ -2,10 +2,10 @@ name: Build CLI Binaries
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ['v*']
   pull_request:
-    branches: [main]
+    branches: [main, dev]
     paths:
       - 'packages/apps/cli/**'
       - 'packages/core/**'
