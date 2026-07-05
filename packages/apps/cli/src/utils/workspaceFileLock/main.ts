@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { failure, type Failure, success, type Success, type Logger } from '@lumpcode/core';
+import { failure, nodeErrnoCode, type Failure, success, type Success, type Logger } from '@lumpcode/core';
 
 export type WorkspaceLockMode = 'wait' | 'fail';
 
@@ -76,8 +76,7 @@ function isProcessAlive(pid: number): boolean {
         process.kill(pid, 0);
         return true;
     } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
+        const code = nodeErrnoCode(e);
         return code !== 'ESRCH';
     }
 }
@@ -156,8 +155,7 @@ async function tryAcquireWorkspaceFileLockOnce(input: {
         }
         return { status: 'acquired' };
     } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
+        const code = nodeErrnoCode(e);
         if (code !== 'EEXIST') {
             throw e;
         }
