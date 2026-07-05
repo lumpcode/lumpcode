@@ -12,7 +12,6 @@ import type { LocalConfig } from '../../types/LocalConfig';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
     assertDaemonStartAllowed,
-    commandFailure,
     createCliLogger,
     discoverDedicatedLumpsForScanBranch,
     formatDeamonLumpScopeCliOutput,
@@ -23,6 +22,7 @@ import {
     resolveTargetLumpNames,
     runLumpFromJsConfigFailureMessage,
     runLumpFromLumpName,
+    toCommandResult,
     validateDaemonLaunch,
 } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
@@ -152,11 +152,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         prefix: '[lumpcode start]',
     });
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = toCommandResult(await validateCurrentLumpProjectRoot({ cwd: projectRoot }));
+    if (!validationResult.success) return validationResult;
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+    const localConfigResult = toCommandResult(await readLocalConfig({ localConfigFolderPath }));
+    if (!localConfigResult.success) return localConfigResult;
     const frozenLocalConfig: LocalConfig = localConfigResult.data;
     const workspaceStrategy = frozenLocalConfig.workspaceStrategy ?? 'checkout';
     const effectivePrimaryBranches = resolvePrimaryBranches(frozenLocalConfig);
@@ -189,13 +189,13 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         });
     }
 
-    const daemonPathsResult = await resolveDaemonPaths({
+    const daemonPathsResult = toCommandResult(await resolveDaemonPaths({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
         lumpName: lumpNameOpt,
-    });
-    if (!daemonPathsResult.success) return commandFailure(daemonPathsResult.data);
+    }));
+    if (!daemonPathsResult.success) return daemonPathsResult;
 
     const { daemonsDir, pidFilePath, logFilePath, metaFilePath, projectName } = daemonPathsResult.data;
 

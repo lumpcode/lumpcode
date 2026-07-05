@@ -5,7 +5,7 @@ import { failure, success } from '@lumpcode/core';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import type { ContextStatusRecordItem } from '../../types/ContextStatusRecord';
-import { commandFailure } from '../../utils/commandFailure';
+import { toCommandResult } from '../../utils/toCommandResult';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import { setContextToFinishedStatus } from '../../utils/setContextToFinishedStatus';
 import { updateContextStatusRecord } from '../../utils/updateContextStatusRecord';
@@ -44,11 +44,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { lumpName, contextName } = input.arguments;
     const setToFinished = input.options.setToFinished ?? false;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = toCommandResult(await validateCurrentLumpProjectRoot({ cwd: projectRoot }));
+    if (!validationResult.success) return validationResult;
 
-    const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
-    if (!jsConfResult.success) return commandFailure(jsConfResult.data);
+    const jsConfResult = toCommandResult(await getJsConfigFromLumpName({ lumpName, localConfigFolderPath }));
+    if (!jsConfResult.success) return jsConfResult;
     const jsConfig = jsConfResult.data;
     const baseBranch = jsConfig.baseBranch;
     if (!baseBranch) {
@@ -58,13 +58,13 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     if (setToFinished) {
-        const finishResult = await setContextToFinishedStatus({
+        const finishResult = toCommandResult(await setContextToFinishedStatus({
             projectRoot,
             contextName,
             lumpName,
             baseBranch,
-        });
-        if (!finishResult.success) return commandFailure(finishResult.data);
+        }));
+        if (!finishResult.success) return finishResult;
     }
 
     const updateResult = await updateContextStatusRecord({

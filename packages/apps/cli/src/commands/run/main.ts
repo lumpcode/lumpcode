@@ -11,6 +11,7 @@ import {
     resolveEffectiveDiscoveryBranch,
     runLumpFromJsConfigFailureMessage,
     runLumpFromLumpName,
+    toCommandResult,
     type RunLumpFromLumpNameSuccess,
 } from '../../utils';
 import { execAsync, failure, shellSingleQuote, success } from '@lumpcode/core';
@@ -47,18 +48,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { json, verbose: cliVerbose } = input.options;
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+    const localConfigResult = toCommandResult(await readLocalConfig({ localConfigFolderPath }));
+    if (!localConfigResult.success) return localConfigResult;
     const localConfig = localConfigResult.data;
 
-    const discoveryResult = await resolveEffectiveDiscoveryBranch({
+    const discoveryResult = toCommandResult(await resolveEffectiveDiscoveryBranch({
         discoveryBranchOpt,
         lumpName,
         localConfigFolderPath,
         localConfig,
         warnSharedDiscoveryBranchIgnored: true,
-    });
-    if (!discoveryResult.success) return commandFailure(discoveryResult.data);
+    }));
+    if (!discoveryResult.success) return discoveryResult;
 
     let dedicatedRestoreBranch: string | undefined;
     if (localConfig.mode === 'dedicated') {

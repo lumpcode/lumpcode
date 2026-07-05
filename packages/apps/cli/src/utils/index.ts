@@ -7,6 +7,7 @@ export * from './buildContextStatusRecord';
 export * from './cliLog';
 export * from './createCliLogger';
 export * from './commandFailure';
+export * from './toCommandResult';
 export * from './contextStatusRecordPath';
 export * from './countOpenLumpBranches';
 export * from './daemonFileBaseName';

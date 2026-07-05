@@ -8,7 +8,7 @@ import { globalConfigFolderPath as defaultGlobalConfigFolderPath } from '../../c
 import { REFS_HEADS_PREFIX, LUMP_BRANCH_PREFIX } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure } from '../../utils/commandFailure';
+import { toCommandResult } from '../../utils/toCommandResult';
 import { getExecutionWorkspacePath } from '../../utils/getExecutionWorkspacePath';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import { getProjectName } from '../../utils/getProjectName';
@@ -193,17 +193,17 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const globalConfigFolderPath = injections.globalConfigFolderPath ?? defaultGlobalConfigFolderPath;
     const { lumpName, contextName } = input.options;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
+    const validationResult = toCommandResult(await validateCurrentLumpProjectRoot({ cwd: projectRoot }));
     
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    if (!validationResult.success) return validationResult;
 
     if (contextName && !lumpName) {
         return failure({ messages: ['--contextName requires --lumpName to be set'] });
     }
 
     const localConfigDir = localConfigFolderPath({ projectRoot });
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath: localConfigDir });
-    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+    const localConfigResult = toCommandResult(await readLocalConfig({ localConfigFolderPath: localConfigDir }));
+    if (!localConfigResult.success) return localConfigResult;
 
     const executionWorkspaces: string[] = [path.resolve(projectRoot)];
     if (localConfigResult.data.mode === 'shared') {

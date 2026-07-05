@@ -5,7 +5,7 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure, killProcessTree, readDaemonMeta, readDaemonPidIfAlive } from '../../utils';
+import { killProcessTree, readDaemonMeta, readDaemonPidIfAlive, toCommandResult } from '../../utils';
 import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
@@ -40,16 +40,16 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
     const force = input.options.force === true;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
+    const validationResult = toCommandResult(await validateCurrentLumpProjectRoot({ cwd: projectRoot }));
+    if (!validationResult.success) return validationResult;
 
-    const pathsResult = await resolveDaemonPaths({
+    const pathsResult = toCommandResult(await resolveDaemonPaths({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
         lumpName: lumpNameOpt,
-    });
-    if (!pathsResult.success) return commandFailure(pathsResult.data);
+    }));
+    if (!pathsResult.success) return pathsResult;
 
     const { pidFilePath, metaFilePath, projectName } = pathsResult.data;
     const scopeLabel = lumpNameOpt ? ` lump "${lumpNameOpt}"` : '';
