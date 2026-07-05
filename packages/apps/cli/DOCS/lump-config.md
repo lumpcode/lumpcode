@@ -30,7 +30,7 @@ Every runnable lump has **two required parts**:
 
    | Field | Purpose |
    |-------|---------|
-   | `prompt` | Single prompt step. Object (full item), or string shorthand (treated as inline `promptTemplate` text — **not** a file path; use `promptFn` to load from disk) |
+   | `prompt` | Single prompt step. Object (full item), or string shorthand (same `promptTemplate` rules: inline text or lump-relative template file) |
    | `steps` | Ordered list of steps (mix objects, strings, or dynamic functions — see [advanced-config.md](./advanced-config.md#dynamic-steps)) |
 
 Minimal shape:
@@ -83,11 +83,12 @@ Two forms appear repeatedly in the field tables below. Each is defined here once
   - an **inline JSON object**, or
   - a **string path** to a JSON file with the same shape
 
-### Command names
+### Command names and file paths
 
-`command` fields (top-level and per-prompt-item) are **not** function references. They hold the **registered name** of a command module:
+`command` fields (top-level and per-prompt-item) identify which agent module runs the prompt:
 
-- **String** (e.g. `"cursor"`, `"copilot"`, `"aider"`, `"my-agent"`) — resolved against `commands/<name>.ts`, then `commands/<name>.js` under the project (`.lumpcode/commands/`), then the same extensions under the global config folder (`~/.lumpcode/commands/`), then shipped presets (`~/.lumpcode/commands/presets/*.js`). Project-local wins over global override; global wins over preset. **`cursor`** and **`copilot`** are built-in preset names (require `cursor-agent` / `copilot` on `PATH`).
+- **Registered tag** (e.g. `"cursor"`, `"copilot"`, `"my-agent"`) — resolved against `commands/<name>.ts`, then `commands/<name>.js` under the project (`.lumpcode/commands/`), then the same extensions under the global config folder (`~/.lumpcode/commands/`), then shipped presets (`~/.lumpcode/commands/presets/*.js`). Project-local wins over global override; global wins over preset. **`cursor`** and **`copilot`** are built-in preset names (require `cursor-agent` / `copilot` on `PATH`).
+- **Lump-relative file path** — when the entire string has **no whitespace** and ends with **`.ts`** or **`.js`**, resolved from `.lumpcode/lumps/<lumpName>/` and loaded as a `CommandModule` (`command`, optional `setup`/`teardown`). Missing files fail at config load. `commandName` is the literal config string. File-path commands load on demand and do not need `registerCommands`.
 - **Inline function** (`config.js` or `config.ts` only) — a `CommandFn` used directly without registry lookup.
 
 Pass agent flags inside the command module's exported `command` function (`executable` + `args`), not in the `command` string. See [advanced-config.md](./advanced-config.md#custom-agent-commands).
@@ -105,7 +106,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | Field | Type | Description |
 |-------|------|-------------|
 | `baseBranch` | string | Override the default execution branch for this lump (`discoveryBranch` on the lump, then primary branch from `local.json`). Set when this lump should branch off something other than the project-wide default (e.g. a long-lived release branch). |
-| `command` | [Command name](#command-names) | Default agent command for all prompt items that don’t set their own `command` |
+| `command` | [Command tag or file path](#command-names-and-file-paths) | Default agent command for all prompt items that don’t set their own `command` |
 | `branchFn` | [Function reference](#field-forms-conventions) | Custom branch naming; default is `lump/<lumpName>/<contextNames…>` |
 | `disabled` | boolean | When `true`, the background daemon skips this lump (`lumpcode start`); `run` still executes if invoked manually |
 | `maximumNumberOfConcurrentBranches` | number | If set (≥ 0), `run` / daemon tick **skips** when open `lump/<lumpName>/*` branches on `origin` ≥ limit (local-only branches are not counted) |
@@ -194,7 +195,7 @@ Both are [function references](#field-forms-conventions). Shapes: [types.md](./t
 
 `prompt` may be:
 
-1. **String** — Treated as inline **`promptTemplate`** text (with `{VAR}` substitution). This string is **never** read as a file path—use a [function reference](#field-forms-conventions) on `promptFn` to load from disk.
+1. **String** — Same rules as **`promptTemplate`** below (inline text with `{VAR}` substitution, or a lump-relative template file).
 2. **Object** — `LumpJsonConfigStep` fields below.
 
 ### `steps` array
@@ -209,9 +210,9 @@ Each element may be:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `promptTemplate` | string | Optional. Inline template text — same `{VAR}` rules as [Prompt template syntax](#prompt-template-syntax). Mutually exclusive with `promptFn` on the same step. When omitted, the command receives an empty prompt string. |
-| `promptFn` | [Function reference](#field-forms-conventions) | Optional. Returns prompt text. Mutually exclusive with `promptTemplate` on the same step. |
-| `command` | [Command name](#command-names) | Required on each step unless overridden inline via `commandFn` in `config.js` / `config.ts`; inherits top-level `command` when omitted. |
+| `promptTemplate` | string | Optional. Inline template text (same `{VAR}` rules as [Prompt template syntax](#prompt-template-syntax)) **or** a lump-relative file when the entire value has no whitespace and ends with `.md`, `.txt`, `.template`, or `.prompt` (read once at config load from `.lumpcode/lumps/<lumpName>/`; missing file fails). Mutually exclusive with `promptFn`. When omitted, the command receives an empty prompt string. |
+| `promptFn` | [Function reference](#field-forms-conventions) | Optional. Returns prompt text dynamically. Mutually exclusive with `promptTemplate` on the same step. |
+| `command` | [Command tag or file path](#command-names-and-file-paths) | Required on each step unless overridden inline via `commandFn` in `config.js` / `config.ts`; inherits top-level `command` when omitted. |
 | `postCommandExecFn` | [Function reference](#field-forms-conventions) | Hook called after the agent finishes |
 | `stepVariables` | object | JSON-serializable bag passed to promptFn/command/postCommandExecFn hooks |
 | `timeoutMillis` | number | Millis cap for the agent process |

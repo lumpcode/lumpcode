@@ -40,8 +40,8 @@
     },
     "command": {
       "type": "string",
-      "description": "A top-level command shorthand applied to all prompt items. Holds the registered NAME of a command module (never a file path and never shell flags). Resolution order: '.lumpcode/commands/<name>.ts' then '.js' (project-local), the same under '~/.lumpcode/commands/' (global), then shipped presets at '~/.lumpcode/commands/presets/<name>.js'. 'cursor' and 'copilot' are built-in preset names. When set here, individual prompt items inherit this command unless they override it.",
-      "examples": ["copilot", "cursor", "my-agent"]
+      "description": "Default command for all prompt items (inherited when a step omits 'command'). Either a registered command tag (e.g. 'copilot', 'cursor') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — or a lump-relative file path ending in '.ts' or '.js' with no whitespace that exports a CommandModule ('command', optional 'setup'/'teardown'). Missing file-path modules fail at config load. Agent flags belong in the module's CommandFn, not in this string.",
+      "examples": ["copilot", "cursor", "./agents/custom.ts"]
     },
     "contextListJson": {
       "oneOf": [
@@ -161,11 +161,11 @@
           },
           {
             "type": "string",
-            "description": "A shorthand string interpreted as inline prompt template text (with {VAR} substitution). It is never read as a file path — use 'promptFn' to load prompt text from disk. Equivalent to a LumpJsonConfigStep with only the 'promptTemplate' field set."
+            "description": "Shorthand for 'promptTemplate': inline text with {VAR} substitution, or a lump-relative template file when the entire string has no whitespace and ends with '.md', '.txt', '.template', or '.prompt' (file must exist under '.lumpcode/lumps/<lumpName>/')."
           }
         ]
       },
-      "description": "An ordered list of prompt items executed sequentially for each context. Each element can be:\n  • A full LumpJsonConfigStep object with explicit fields\n  • A string shorthand interpreted as inline promptTemplate text (never a file path)\nUse this for multi-step lumps that need multiple sequential prompt/command cycles per context."
+      "description": "An ordered list of prompt items executed sequentially for each context. Each element can be a full LumpJsonConfigStep object or a string shorthand (same rules as 'promptTemplate' file vs inline text)."
     }
   },
   "$defs": {
@@ -174,7 +174,7 @@
       "additionalProperties": false,
       "description": "A single step in a lump's execution pipeline. Defines an optional prompt, which command to execute, and optional post-processing. Prompt fields are optional; when omitted the command receives an empty prompt string. The top-level 'command' is used when this step does not set 'command'.",
       "oneOf": [
-        { "type": "string", "description": "Shorthand: inline prompt template text (never a file path)." },
+        { "type": "string", "description": "Shorthand for promptTemplate (inline text or lump-relative template file — see promptTemplate)." },
         {
           "type": "object",
           "not": { "required": ["promptTemplate", "promptFn"] }
@@ -183,10 +183,11 @@
       "properties": {
         "promptTemplate": {
           "type": "string",
-          "description": "Inline prompt template text for this step — the literal prompt string, which may contain braced placeholders from the context's variables: `{VAR}` (literal) and `@{VAR}` (same value with a leading `@` for agents that use `@path` file context). Double-brace forms like {{FILE}} are NOT substituted. This value is NEVER read as a file path — to load prompt text from disk, use 'promptFn' instead.",
+          "description": "Prompt template text for this step. Inline string with {VAR} and @{VAR} substitution, OR a lump-relative file path when the entire value has no whitespace and ends with '.md', '.txt', '.template', or '.prompt' (resolved from '.lumpcode/lumps/<lumpName>/'; read once at config load; missing file fails). Mutually exclusive with 'promptFn'. When omitted, the command receives an empty prompt string.",
           "examples": [
             "Refactor the following file to use modern syntax",
-            "Tighten the prop types in @{COMPONENT} and update @{TEST}."
+            "Tighten the prop types in @{COMPONENT} and update @{TEST}.",
+            "./prompts/refactor.md"
           ]
         },
         "promptFn": {
@@ -196,8 +197,8 @@
         },
         "command": {
           "type": "string",
-          "description": "The registered NAME of the command module to execute with the generated prompt (never a file path). Resolution order: '.lumpcode/commands/<name>.ts' then '.js' (project-local), the same under '~/.lumpcode/commands/' (global), then shipped presets at '~/.lumpcode/commands/presets/<name>.js'. Do NOT include flags here; agent-specific flags go inside the command module's CommandFn output. Inherits the top-level 'command' when omitted.",
-          "examples": ["copilot", "cursor", "my-agent"]
+          "description": "Command tag (e.g. 'copilot', 'cursor') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — OR a lump-relative '.ts' or '.js' file path with no whitespace exporting a CommandModule. Inherits top-level 'command' when omitted. Agent flags belong in the module's CommandFn, not here.",
+          "examples": ["copilot", "cursor", "./agents/custom.ts"]
         },
         "postCommandExecFn": {
           "type": "string",

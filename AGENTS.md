@@ -39,12 +39,13 @@
 - When CLI flags change, document only the current spelling — no migration guides unless the user asks
 - `lumpConfig.schema.json` is part of the user-facing docs surface (editors read it via `$schema`) — keep descriptions, examples, and field coverage aligned with real CLI behavior, same as README/DOCS
 - Cross-cutting topics (e.g. branch resolution, concurrency/locks) get **one canonical section in `concepts.md`**; other pages link there instead of re-explaining — avoid duplicated prose that drifts
+- `AGENTS.md` continual-learning: capture durable principles and workspace facts, not session change logs or verbatim grilling Q&A outcomes
 
 ### CLI conventions
 
 - Unregistered `login`/`logout` command modules are **implementation-only** — do not document in user-facing README/DOCS (`npm login` in `DOCS/publishing.md` is npm registry auth only)
 - Arguments before options in usage; long option names in camelCase (e.g. `--lumpName`, `--contextName`, `--lines`) to match Commander/schema — avoid single-char keys needing special `addCommand` handling
-- Lump-config `command` field: bare command name only (`"copilot"`, `"cursor"`, `"aider"`) — never flags like `-p`; agent flags belong in the command module's `CommandFn` (`executable` + `args`)
+- Lump-config `command` field: registered tag (`"copilot"`, `"cursor"`, …) **or** lump-relative `.ts`/`.js` path (no whitespace; same `CommandModule` exports as `commands/<name>`); never shell flags — agent flags belong in the module's `CommandFn` (`executable` + `args`)
 - Omit boolean flags for defaults; pass once for the non-default — no `--<name> true|false` or legacy two-token boolean argv
 
 ### npm publish
@@ -160,6 +161,7 @@
 - Preset options (**`model`**, **`agentPermissions`**) on `lumpVariables`/`stepVariables`: **step overrides lump**, `model` defaults to `auto`; Cursor `cursorConfigDir`; Copilot `writablePaths`/`denyShell` → `--allow-tool`/`--deny-tool`; callback `stepIndex` is `number` at depth 1 or `number[]` when nested
 - `resolveImportable`: Vitest uses native `import(fileUrl)`; bundled code uses `dynamicImportForBundle` (Windows SEA requires `file://` URLs)
 - Lump-config `*Fn` paths resolve relative to `.lumpcode/lumps/<lumpName>/`
+- `promptTemplate` (`FilePathOrString`): resolve relative to `.lumpcode/lumps/<lumpName>/`; file ref only when entire string has no whitespace and ends with `.txt`, `.template`, `.prompt`, or `.md` and path exists (read once at config load; missing → fail); otherwise inline template text (`{VAR}` / `@{VAR}` unchanged). `command` file ref: no whitespace, ends with `.ts` or `.js`, exists under lump dir → `CommandModule` import; else tag lookup; `commandName` = literal config string; `registerCommands` tag-only
 - `getCommandPath`: explicit local/global config paths only (no implicit `~/.lumpcode` fallback)
 - `getContextStatus` CLI wrapper wires `makeGitCommitMessageFnFromLumpName(lumpName)`
 
