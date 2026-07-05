@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { type Failure, failure, type Success, success } from '@lumpcode/core';
+import { type Failure, failure, nodeErrnoCode, type Success, success } from '@lumpcode/core';
 
 import { localConfigFolderPath } from '../localConfigFolderPath';
 
@@ -15,10 +15,7 @@ export async function validateCurrentLumpProjectRoot(input: {
     try {
         stat = await fs.stat(lumpcodePath);
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrnoCode(error);
         if (code === 'ENOENT') {
             return failure(
                 `Not a Lumpcode project root: missing .lumpcode directory at ${lumpcodePath}`,
@@ -36,10 +33,7 @@ export async function validateCurrentLumpProjectRoot(input: {
         try {
             stat = await fs.stat(fullPath);
         } catch (error: unknown) {
-            const code =
-                error && typeof error === 'object' && 'code' in error
-                    ? (error as NodeJS.ErrnoException).code
-                    : undefined;
+            const code = nodeErrnoCode(error);
             if (code === 'ENOENT') {
                 return failure(
                     `Not a Lumpcode project root: missing ${name} directory at ${fullPath}`,

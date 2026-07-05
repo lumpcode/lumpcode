@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { nodeErrnoCode } from '@lumpcode/core';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { killProcessTree } from './main';
@@ -19,10 +20,7 @@ async function waitForPidGone(pid: number, timeoutMs = 5000): Promise<void> {
         try {
             process.kill(pid, 0);
         } catch (error) {
-            const code =
-                error && typeof error === 'object' && 'code' in error
-                    ? (error as NodeJS.ErrnoException).code
-                    : undefined;
+            const code = nodeErrnoCode(error);
             if (code === 'ESRCH') {
                 return;
             }
