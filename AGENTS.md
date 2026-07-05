@@ -37,12 +37,15 @@
 - Root `README.md`: early-development disclaimer; `assets/lumpfish.png` after the lumpfish blockquote
 - npm-published `packages/apps/cli/README.md` doc links: absolute GitHub URLs to `packages/apps/cli/DOCS/...` (relative `DOCS/` hrefs 404 on npmjs.com); keep relative links inside `DOCS/` for GitHub browsing
 - When CLI flags change, document only the current spelling — no migration guides unless the user asks
+- `lumpConfig.schema.json` is part of the user-facing docs surface (editors read it via `$schema`) — keep descriptions, examples, and field coverage aligned with real CLI behavior, same as README/DOCS
+- Cross-cutting topics (e.g. branch resolution, concurrency/locks) get **one canonical section in `concepts.md`**; other pages link there instead of re-explaining — avoid duplicated prose that drifts
+- `AGENTS.md` continual-learning: capture durable principles and workspace facts, not session change logs or verbatim grilling Q&A outcomes
 
 ### CLI conventions
 
 - Unregistered `login`/`logout` command modules are **implementation-only** — do not document in user-facing README/DOCS (`npm login` in `DOCS/publishing.md` is npm registry auth only)
 - Arguments before options in usage; long option names in camelCase (e.g. `--lumpName`, `--contextName`, `--lines`) to match Commander/schema — avoid single-char keys needing special `addCommand` handling
-- Lump-config `command` field: bare command name only (`"copilot"`, `"cursor"`, `"aider"`) — never flags like `-p`; agent flags belong in the command module's `CommandFn` (`executable` + `args`)
+- Lump-config `command` field: registered tag (`"copilot"`, `"cursor"`, …) **or** lump-relative `.ts`/`.js` path (no whitespace; same `CommandModule` exports as `commands/<name>`); never shell flags — agent flags belong in the module's `CommandFn` (`executable` + `args`)
 - Omit boolean flags for defaults; pass once for the non-default — no `--<name> true|false` or legacy two-token boolean argv
 
 ### npm publish
@@ -155,9 +158,10 @@
 - Lump-local `.ts` transpiles via **`transpileTypeScriptToCachedMjs`** (esbuild → `.lumpcode/.cache/transpile/<sha256>/<cacheKeyMs>/out.mjs`); bundle relative imports with `packages: 'external'`; post-process rewrites `import.meta.url`; **`ensureCacheGitignored`** on first transpile
 - Use **resumable** (not "idempotent") for run behavior; presets persist chat/session id in `contextRunState` and `keepHistory`
 - **Cursor/Copilot presets**: headless (`-p`, no user prompts); `.trim()` prompts, `null` for whitespace-only; resumable sessions in `<commandName>Setup`; Copilot denies agent `git commit`/`git push`
-- **`agentPermissions`** on `lumpVariables`/`stepVariables` (step overrides lump): Cursor `cursorConfigDir`; Copilot `writablePaths`/`denyShell` → `--allow-tool`/`--deny-tool`; callback `stepIndex` is `number` at depth 1 or `number[]` when nested
+- Preset options (**`model`**, **`agentPermissions`**) on `lumpVariables`/`stepVariables`: **step overrides lump**, `model` defaults to `auto`; Cursor `cursorConfigDir`; Copilot `writablePaths`/`denyShell` → `--allow-tool`/`--deny-tool`; callback `stepIndex` is `number` at depth 1 or `number[]` when nested
 - `resolveImportable`: Vitest uses native `import(fileUrl)`; bundled code uses `dynamicImportForBundle` (Windows SEA requires `file://` URLs)
 - Lump-config `*Fn` paths resolve relative to `.lumpcode/lumps/<lumpName>/`
+- `promptTemplate` (`FilePathOrString`): resolve relative to `.lumpcode/lumps/<lumpName>/`; file ref only when entire string has no whitespace and ends with `.txt`, `.template`, `.prompt`, or `.md` and path exists (read once at config load; missing → fail); otherwise inline template text (`{VAR}` / `@{VAR}` unchanged). `command` file ref: no whitespace, ends with `.ts` or `.js`, exists under lump dir → `CommandModule` import; else tag lookup; `commandName` = literal config string; `registerCommands` tag-only
 - `getCommandPath`: explicit local/global config paths only (no implicit `~/.lumpcode` fallback)
 - `getContextStatus` CLI wrapper wires `makeGitCommitMessageFnFromLumpName(lumpName)`
 
@@ -179,9 +183,10 @@
 - SEA: minified `build:bundle` (uncaught errors can dump the one-line bundle); sidecars (`schemas/`, `presets/`, esbuild binary) beside `process.execPath`; `validateLumpJsonConfig` reads schema beside binary; embed static assets when feasible; macOS binaries ad-hoc codesigned only (strip quarantine xattr or sign + notarize for distribution)
 - CI (`.github/workflows/build-cli.yml`): `unit-test` (build core, cli-types, cli-utils first — their `dist/` is gitignored) → OS `build` matrix → aggregating `ci` job; E2E on ubuntu/macOS/windows including arm; isolated `HOME`/`USERPROFILE` per platform
 - E2E: `packages/apps/cli/src/e2e/` subprocess harness; rerun **`build:bundle` + `build:sea`** after bundle/SEA changes; mock agent via `e2e-mock-agent.cjs` script file (not `node -e`); `pushIntegrationBranch` needs full `writeE2eLumpFixture` (config-only writes wrong lump path)
-- E2E teardown: `stopDaemonSafely` should pass `--force` so teardown does not race daemon `meta.busy` mid-run
+- E2E teardown: `stopDaemonSafely` should pass `--force` so teardown does not race daemon `meta.busy` mid-run; treat stale/invalid PID stop messages as already-stopped; `waitForDaemonIdle` polls meta `busy` before graceful-stop assertions
+- `killProcessTree` (win32): `taskkill /T /F` can fail on SEA child trees ("operation not supported") — treat as success when the root PID is already gone (best-effort per PRD)
 - ncc emits CJS — use `lodash/camelCase` not `lodash-es`; `build:bundle` externalizes `esbuild`; SEA spawns esbuild sidecar via `execFile` (`esbuildPlatformBinaryRelativePath`: Windows `@esbuild/win32-x64/esbuild.exe`, Unix `bin/esbuild`)
-- **OSS**: Apache 2.0 at `lumpcode/lumpcode`; no feature gates or account required; ICLA/CLA Assistant before external contributions; publish order: core → cli-types → cli → optional `lumpcode` via `scripts/publish-npm.mjs`; release branches `ver/X.Y.Z`, tags `vX.Y.Z`
+- **OSS**: Apache 2.0 at `lumpcode/lumpcode`; no feature gates or account required; ICLA/CLA Assistant before external contributions; publish order: core → cli-types → cli → optional `lumpcode` via `scripts/publish-npm.mjs`; release branches `ver/X.Y.Z`, annotated tags `vX.Y.Z` — tag push (`push: tags: ['v*']`) triggers Build CLI Binaries and the `release` job uploads binaries to a GitHub Release (`softprops/action-gh-release`); npm publish is separate
 
 ### Repo backlog
 

@@ -1,0 +1,1 @@
+Refactor @{FILE} using the on-disk template.

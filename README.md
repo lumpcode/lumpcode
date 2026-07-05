@@ -33,7 +33,7 @@ Verify: `lumpcode --version`
 
 ## Quick start
 
-From the root of a git repository you can push to `**origin**`.
+From the root of a git repository you can push to **`origin`**.
 
 **Prerequisites:** git `origin` push access, a CLI agent on `PATH`, and awareness that `run` invokes your agent (LLM cost). Details: [Getting started § Prerequisites](packages/apps/cli/DOCS/get-started.md#prerequisites).
 
@@ -68,9 +68,9 @@ This runs your agent on **one** context, commits a `LUMP: myFirstLump - …` mar
 
 | Package                       | npm                                                                        | Role                                                                         |
 | ----------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `packages/core`               | `[@lumpcode/core](https://www.npmjs.com/package/@lumpcode/core)`           | Engine API (`runLump`): Not intended for direct use; install `@lumpcode/cli` |
-| `packages/apps/cli`           | `[@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli)`             | CLI: project setup, run, daemon, status                                      |
-| `packages/apps/cli/cli-types` | `[@lumpcode/cli-types](https://www.npmjs.com/package/@lumpcode/cli-types)` | Typed `config.js` and command-module helpers                                 |
+| `packages/core`               | [`@lumpcode/core`](https://www.npmjs.com/package/@lumpcode/core)           | Engine API (`runLump`): Not intended for direct use; install `@lumpcode/cli` |
+| `packages/apps/cli`           | [`@lumpcode/cli`](https://www.npmjs.com/package/@lumpcode/cli)             | CLI: project setup, run, daemon, status                                      |
+| `packages/apps/cli/cli-types` | [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) | Typed `config.js` and command-module helpers                                 |
 
 
 All three are open source under [Apache 2.0](LICENSE).

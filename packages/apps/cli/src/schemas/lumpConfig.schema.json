@@ -40,8 +40,8 @@
     },
     "command": {
       "type": "string",
-      "description": "A top-level command shorthand applied to all prompt items. Can be either:\n  • A registered command string (e.g. 'claude') that will receive the prompt\n  • A file path to a module containing a CommandFn\nWhen set here, individual prompt items inherit this command unless they override it.",
-      "examples": ["claude", "aider", "./command.ts"]
+      "description": "Default command for all prompt items (inherited when a step omits 'command'). Either a registered command tag (e.g. 'copilot', 'cursor') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — or a lump-relative file path ending in '.ts' or '.js' with no whitespace that exports a CommandModule ('command', optional 'setup'/'teardown'). Missing file-path modules fail at config load. Agent flags belong in the module's CommandFn, not in this string.",
+      "examples": ["copilot", "cursor", "./agents/custom.ts"]
     },
     "contextListJson": {
       "oneOf": [
@@ -82,9 +82,19 @@
       "examples": ["./lump/contextOptionsFn.ts"]
     },
     "disabled": {
-      "type": "boolean",
-      "description": "When true, this lump configuration is skipped during execution. Useful for temporarily disabling a lump without removing its configuration.",
-      "default": false
+      "oneOf": [
+        {
+          "type": "boolean",
+          "description": "When true, the background daemon skips this lump; manual 'lumpcode run' reports a skipped run."
+        },
+        {
+          "type": "string",
+          "description": "File path to a module whose default export is a zero-argument function returning boolean (or Promise<boolean>). Evaluated on each run/tick to decide whether the lump is disabled."
+        }
+      ],
+      "description": "Disable this lump without removing its configuration. Either a boolean, or a file path to a module default-exporting a zero-argument function returning boolean (sync or async) evaluated on each run/tick. In config.js/config.ts the function can also be inline.",
+      "default": false,
+      "examples": [true, "./isDisabled.ts"]
     },
     "getContextListFn": {
       "type": "string",
@@ -115,6 +125,21 @@
       "description": "When true, enables verbose logging output during lump execution for debugging purposes.",
       "default": false
     },
+    "setupFn": {
+      "type": "string",
+      "description": "File path to a module exporting a SetupFn — a per-context lifecycle hook that runs once before the prompt loop for each context. Its returned { contextRunState } seeds the mutable per-context state bag. In the JS config this can be the function itself; in JSON it must be a file path.",
+      "examples": ["./lump/setupFn.ts"]
+    },
+    "teardownFn": {
+      "type": "string",
+      "description": "File path to a module exporting a TeardownFn — a per-context lifecycle hook that runs after all prompt items for a context, receiving the accumulated contextRunState. In the JS config this can be the function itself; in JSON it must be a file path.",
+      "examples": ["./lump/teardownFn.ts"]
+    },
+    "keepHistory": {
+      "type": "boolean",
+      "description": "When true, append one YAML entry per prompt step (prompt text, agent output, context, step index) to '.lumpcode/lumps/<lumpName>/history/<contextName>.yaml'. History files are gitignored by project-setup; intended for local debugging and inspection.",
+      "default": false
+    },
     "registerCommands": {
       "type": "array",
       "items": {
@@ -136,11 +161,11 @@
           },
           {
             "type": "string",
-            "description": "A shorthand string interpreted as a prompt template — either inline prompt text or a file path to a template file. Equivalent to a LumpJsonConfigStep with only the 'promptTemplate' field set."
+            "description": "Shorthand for 'promptTemplate': inline text with {VAR} substitution, or a lump-relative template file when the entire string has no whitespace and ends with '.md', '.txt', '.template', or '.prompt' (file must exist under '.lumpcode/lumps/<lumpName>/')."
           }
         ]
       },
-      "description": "An ordered list of prompt items executed sequentially for each context. Each element can be:\n  • A full LumpJsonConfigStep object with explicit fields\n  • A string shorthand interpreted as a promptTemplate (inline text or file path)\nUse this for multi-step lumps that need multiple sequential prompt/command cycles per context."
+      "description": "An ordered list of prompt items executed sequentially for each context. Each element can be a full LumpJsonConfigStep object or a string shorthand (same rules as 'promptTemplate' file vs inline text)."
     }
   },
   "$defs": {
@@ -149,7 +174,7 @@
       "additionalProperties": false,
       "description": "A single step in a lump's execution pipeline. Defines an optional prompt, which command to execute, and optional post-processing. Prompt fields are optional; when omitted the command receives an empty prompt string. The top-level 'command' is used when this step does not set 'command'.",
       "oneOf": [
-        { "type": "string", "description": "Shorthand: inline prompt template or file path to a template file." },
+        { "type": "string", "description": "Shorthand for promptTemplate (inline text or lump-relative template file — see promptTemplate)." },
         {
           "type": "object",
           "not": { "required": ["promptTemplate", "promptFn"] }
@@ -158,11 +183,11 @@
       "properties": {
         "promptTemplate": {
           "type": "string",
-          "description": "The prompt content for this step. Accepts two forms:\n  • Inline template string — the literal prompt text, which may contain braced placeholders from the context's variables: `{VAR}` (literal) and `@{VAR}` (same value with a leading `@` for agents that use `@path` file context). Double-brace forms like {{FILE}} are NOT substituted.\n  • File path — a path to a template file whose contents will be read and used as the prompt (e.g. './prompts/refactor.md')\nFor dynamic prompt generation based on context at runtime, use 'promptFn' instead.",
+          "description": "Prompt template text for this step. Inline string with {VAR} and @{VAR} substitution, OR a lump-relative file path when the entire value has no whitespace and ends with '.md', '.txt', '.template', or '.prompt' (resolved from '.lumpcode/lumps/<lumpName>/'; read once at config load; missing file fails). Mutually exclusive with 'promptFn'. When omitted, the command receives an empty prompt string.",
           "examples": [
             "Refactor the following file to use modern syntax",
-            "./prompts/my-template.md",
-            "./prompts/refactor.txt"
+            "Tighten the prop types in @{COMPONENT} and update @{TEST}.",
+            "./prompts/refactor.md"
           ]
         },
         "promptFn": {
@@ -172,8 +197,8 @@
         },
         "command": {
           "type": "string",
-          "description": "The command to execute with the generated prompt. Accepts two forms:\n  • Registered command name — the bare name of a command module (e.g. 'claude', 'aider'). Lumpcode resolves it to '.lumpcode/commands/<name>.js' (project-local) or '~/.lumpcode/commands/<name>.js' (global). Do NOT include flags here; agent-specific flags go inside the command module's CommandFn output.\n  • File path — a path to a module exporting a CommandFn directly\nThe prompt text is passed by the command module as args to the underlying agent.",
-          "examples": ["claude", "aider", "./lump/command.ts"]
+          "description": "Command tag (e.g. 'copilot', 'cursor') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — OR a lump-relative '.ts' or '.js' file path with no whitespace exporting a CommandModule. Inherits top-level 'command' when omitted. Agent flags belong in the module's CommandFn, not here.",
+          "examples": ["copilot", "cursor", "./agents/custom.ts"]
         },
         "postCommandExecFn": {
           "type": "string",
@@ -190,9 +215,14 @@
         },
         "timeoutMillis": {
           "type": "integer",
-          "minimum": 0,
-          "description": "Maximum time in milliseconds to wait for the command to complete before it is considered timed out. If omitted or set to 0, no timeout is enforced.",
+          "minimum": 1,
+          "description": "Maximum time in milliseconds to wait for the agent command to complete before it is considered timed out and the step fails. Defaults to 30 minutes (1800000) when omitted.",
           "examples": [60000, 300000]
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "description": "When true, a failing agent command (non-zero exit) on this step does not abort the context: 'postCommandExecFn' still runs (with commandSucceeded: false) and execution continues with the next step. Defaults to false — the context stops on the first failing step.",
+          "default": false
         }
       }
     }

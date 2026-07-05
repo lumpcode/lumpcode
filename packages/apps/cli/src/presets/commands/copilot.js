@@ -6,7 +6,7 @@ import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { resolveCopilotToolArgs } from './utils/resolveCopilotToolArgs.js';
 
 export const command = (async ({ prompt, stepVariables = {}, contextRunState, stepIndex, lumpVariables = {} }) => {
-    const model = lumpVariables.model ?? stepVariables.model ?? 'auto';
+    const model = stepVariables.model ?? lumpVariables.model ?? 'auto';
     const { newChat = false, chatIdIndex = null } = stepVariables || {};
 
     const chatState = contextRunState.copilotSetup ?? (contextRunState.copilotSetup = {});

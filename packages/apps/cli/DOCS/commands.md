@@ -28,7 +28,7 @@ This page documents every `lumpcode` subcommand and its options.
 
 Most commands use the current working directory as the project root. Run `lumpcode` from the root of the git repository that contains `.lumpcode/`.
 
-If a lump uses a **workspace copy** under `~/.lumpcode/project-copies/`, you still invoke the CLI from your real repo root; see [Workspace setup](./concepts.md#workspace-setup).
+If a lump uses a **workspace copy** under `~/.lumpcode/project-copies/`, you still invoke the CLI from your real repo root; see [concepts.md § Three workspaces](./concepts.md#three-workspaces).
 
 <h3 id="ref-json-output"><code>--json</code> output</h3>
 
@@ -122,7 +122,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 - Path is not a git work tree
 - `.lumpcode/` already exists
 
-**See also:** [project-config.md](./project-config.md), [get-started.md](./get-started.md#step-2-initialize-the-lumpcode-project).
+**See also:** [project-config.md](./project-config.md), [get-started.md](./get-started.md#step-1-initialize-the-lumpcode-project).
 
 <a id="ref-cmd-lump-create"></a>
 
@@ -189,11 +189,11 @@ Plus global [`--json`](#ref-json-output).
 - **Skipped run** when `maximumNumberOfConcurrentBranches` is reached: still a success but nothing is done.
 - **Skipped run** when the lump config has `disabled: true`: exit 0 with an informational message.
 
-**Fails if:** `local.json` missing or invalid, pre-flight git commands fail, config missing/invalid, engine errors, or **`workspacePathBusy`** (another run or daemon holds the workspace path lock).
+**Fails if:** `local.json` missing or invalid, pre-flight git commands fail, config missing/invalid, engine errors, or **`workspacePathBusy`** (another run or daemon holds the workspace path lock — see [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
 
 With **`--json`**, busy responses include a stable `code` field (`workspacePathBusy`) plus path and optional holder pid/lump name.
 
-**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-5-run-once).
+**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-4-run-once).
 
 <a id="ref-cmd-lump-plan"></a>
 
@@ -293,7 +293,7 @@ Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | 
 
 **Fails if:** No lumps with loadable config (or unknown `--lumpName`), invalid cron, daemon already running per the rules above, cannot write PID/log/meta, or `local.json` missing/invalid.
 
-**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [get-started.md](./get-started.md#step-6-run-continuously-optional).
+**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-5-run-continuously-optional).
 
 <a id="ref-cmd-stop"></a>
 
@@ -314,7 +314,7 @@ When the daemon is **idle** (meta has no `busy` flag, or `busy` is false), sends
 
 When the daemon is **running a lump** (`meta.busy === true`), default stop **does not signal** the process. It exits non-zero with a message that the daemon is busy and to wait for the run to finish or use `lumpcode stop --force`. With **`--json`**, the failure includes `data.code: "daemonBusy"`. PID and meta files are left in place. If the daemon crashed with stale `busy: true` in meta, use `--force` to recover.
 
-**`lumpcode stop --force`** skips the busy check, tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. This is **best-effort**: agent processes that detached from the daemon process tree may survive.
+**`lumpcode stop --force`** skips the busy check, tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. This is **best-effort**: agent processes that detached from the daemon process tree may survive. A force-killed daemon may leave a workspace lock behind; it is removed automatically on the next acquire ([concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
 
 **Fails if:** No PID file, invalid PID, cannot signal process, daemon is busy (default stop only), or process does not exit within the deadline.
 
