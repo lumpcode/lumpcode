@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { appendMissingGitignoreLines, execAsync, failure, nodeErrnoCode, success, Success, Failure } from '@lumpcode/core';
+import { appendMissingGitignoreLines, execAsync, failure, nodeErrnoCode, pathExists, success, Success, Failure } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
@@ -115,7 +115,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
     }
 
     const lumpcodeDir = localConfigFolderPath({ projectRoot });
-    const lumpcodeExists = await fs.access(lumpcodeDir).then(() => true).catch(() => false);
+    const lumpcodeExists = await pathExists(lumpcodeDir);
     if (lumpcodeExists) {
         return failure({
             messages: [`A Lumpcode project already exists at ${lumpcodeDir}`],

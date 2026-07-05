@@ -1,7 +1,5 @@
-import * as fs from 'node:fs/promises';
-
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, readJsonFile, success } from '@lumpcode/core';
+import { failure, pathExists, readJsonFile, success } from '@lumpcode/core';
 
 import type { ProjectConfig } from '../../types/ProjectConfig';
 import { projectJsonPath } from '../projectJsonPath';
@@ -37,7 +35,7 @@ export async function getProjectName(input: {
     const { localConfigFolderPath } = input;
     const projectJsonFilePath = projectJsonPath({ localConfigFolderPath });
 
-    const jsonExists = await fs.access(projectJsonFilePath).then(() => true).catch(() => false);
+    const jsonExists = await pathExists(projectJsonFilePath);
     if (!jsonExists) {
         return failure(
             'Missing .lumpcode/project.json with a projectName. Run lumpcode project-setup in the repository root.',
