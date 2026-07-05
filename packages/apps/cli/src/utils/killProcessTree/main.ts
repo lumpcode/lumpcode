@@ -1,8 +1,7 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import type { Failure, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { failure, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
 
 const execFileAsync = promisify(execFile);
 
@@ -11,10 +10,7 @@ function isPidAlive(pid: number): boolean {
         process.kill(pid, 0);
         return true;
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrnoCode(error);
         if (code === 'ESRCH') {
             return false;
         }
@@ -58,10 +54,7 @@ function killPidSigkill(pid: number): void {
     try {
         process.kill(pid, 'SIGKILL');
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrnoCode(error);
         if (code !== 'ESRCH') {
             throw error;
         }

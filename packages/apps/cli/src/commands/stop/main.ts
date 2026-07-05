@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as z from 'zod';
 
-import { failure, success } from '@lumpcode/core';
+import { failure, nodeErrnoCode, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
@@ -122,8 +122,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     try {
         process.kill(pid, 'SIGTERM');
     } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
+        const code = nodeErrnoCode(e);
         if (code === 'ESRCH') {
             await fs.unlink(pidFilePath).catch(() => {});
             await fs.unlink(metaFilePath).catch(() => {});

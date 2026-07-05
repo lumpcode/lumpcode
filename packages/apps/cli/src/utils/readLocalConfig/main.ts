@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { failure, type Failure, success, type Success } from '@lumpcode/core';
+import { failure, nodeErrnoCode, type Failure, success, type Success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 
@@ -59,10 +59,7 @@ export async function readLocalConfig(input: {
     try {
         raw = await fs.readFile(filePath, 'utf-8');
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrnoCode(error);
         if (code === 'ENOENT') {
             return failure(MISSING_HINT);
         }
