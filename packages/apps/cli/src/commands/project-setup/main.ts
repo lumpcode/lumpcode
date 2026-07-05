@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { execAsync, Failure, failure, Success, success } from '@lumpcode/core';
+import { execAsync, Failure, failure, nodeErrnoCode, Success, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
@@ -101,10 +101,7 @@ async function ensureGitignoreLines({
     try {
         content = await fs.readFile(gitignorePath, 'utf-8');
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrnoCode(error);
         if (code !== 'ENOENT') {
             return failure(`Cannot read .gitignore: ${String(error)}`);
         }
@@ -135,10 +132,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
     try {
         stat = await fs.stat(projectRoot);
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrnoCode(error);
         if (code === 'ENOENT') {
             return failure({ messages: [`Project path does not exist: ${projectRoot}`] });
         }

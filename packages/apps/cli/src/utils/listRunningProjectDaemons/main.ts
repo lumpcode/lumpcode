@@ -1,7 +1,6 @@
 import * as fs from 'node:fs/promises';
 
-import type { Failure, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { failure, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
 
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { daemonFileBaseName } from '../daemonFileBaseName';
@@ -71,10 +70,7 @@ export async function listRunningProjectDaemons(input: {
     try {
         entries = await fs.readdir(daemonsDir);
     } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
+        const code = nodeErrnoCode(error);
         if (code === 'ENOENT') {
             return success(result);
         }
