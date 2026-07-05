@@ -3,7 +3,7 @@ import * as fsSync from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execSync } from 'node:child_process';
-import { appendMissingGitignoreLines } from '@lumpcode/core';
+import { appendMissingGitignoreLines, pathExists } from '@lumpcode/core';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';
@@ -154,7 +154,7 @@ export async function createIntegrationBranch(input: {
 
 async function commitMainLumpsIfPresent(projectRoot: string): Promise<void> {
     const lumpsDir = path.join(projectRoot, '.lumpcode/lumps');
-    if (!(await fs.access(lumpsDir).then(() => true).catch(() => false))) {
+    if (!(await pathExists(lumpsDir))) {
         return;
     }
     gitExec('add .lumpcode/lumps', projectRoot);
@@ -176,10 +176,10 @@ async function commitLumpcodeMetadataOnCurrentBranch(projectRoot: string): Promi
     const gitignorePath = path.join(projectRoot, '.gitignore');
     const projectJsonPath = path.join(projectRoot, '.lumpcode', 'project.json');
 
-    if (await fs.access(projectJsonPath).then(() => true).catch(() => false)) {
+    if (await pathExists(projectJsonPath)) {
         pathsToAdd.push('.lumpcode/project.json');
     }
-    if (await fs.access(gitignorePath).then(() => true).catch(() => false)) {
+    if (await pathExists(gitignorePath)) {
         pathsToAdd.push('.gitignore');
     }
     if (pathsToAdd.length === 0) return;

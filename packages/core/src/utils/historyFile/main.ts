@@ -1,4 +1,4 @@
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, extname } from 'node:path';
 import { dump, load, Style, YAML11_SCHEMA } from 'js-yaml';
 import type { Node } from 'js-yaml';
@@ -6,6 +6,7 @@ import type { Node } from 'js-yaml';
 import type { Failure, Success } from '../../types';
 import type { HistoryEntry } from '../../types/HistoryEntry';
 import { failure } from '../failure';
+import { pathExists } from '../pathExists';
 import { success } from '../success';
 
 export function historyFormatFromPath(
@@ -125,7 +126,7 @@ export async function appendHistoryEntry({
         return formatResult;
     }
 
-    const exists = await stat(filePath).then(() => true).catch(() => false);
+    const exists = await pathExists(filePath);
     let entries: HistoryEntry[];
 
     if (exists) {

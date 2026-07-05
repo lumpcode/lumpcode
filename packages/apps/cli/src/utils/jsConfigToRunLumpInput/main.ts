@@ -18,7 +18,7 @@ import type {
     GetContextListFnOutput,
     Context,
 } from "@lumpcode/core";
-import { success, failure, noopLogger, readJsonFile } from "@lumpcode/core";
+import { success, failure, noopLogger, pathExists, readJsonFile } from "@lumpcode/core";
 import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled";
 import { getCommandPath } from "../getCommandPath";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
@@ -574,9 +574,7 @@ async function loadCommandModule({
 }): Promise<Success<void> | Failure<string>> {
     if (importBasePath) {
         const absolutePath = path.resolve(importBasePath, importPath);
-        try {
-            await fs.access(absolutePath);
-        } catch {
+        if (!(await pathExists(absolutePath))) {
             return failure(`Command module file not found: ${cacheKey}`);
         }
     }

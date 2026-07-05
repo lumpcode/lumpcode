@@ -14,3 +14,4 @@ export * from './isProcessAlive';
 export * from './appendMissingGitignoreLines';
 export * from './readJsonFile';
 export * from './resolveBundledAssetPath';
+export * from './pathExists';
