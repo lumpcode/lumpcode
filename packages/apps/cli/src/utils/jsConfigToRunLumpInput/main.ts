@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { 
     RunLumpInput,
@@ -24,10 +25,12 @@ import { readJson } from "../readJson";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
 
 import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, CommandConfigPaths } from "../../types";
+import { isCommandFileRef } from '../lumpConfigPathRef';
 import { makePromptFnFromTemplate } from '../makePromptFnFromTemplate';
 import { makeGitCommitMessageFnFromLumpName } from '../makeGitCommitMessageFnFromLumpName';
 import { resolveImportable } from '../resolveImportable';
 import { resolveFnOrDefaultImport } from '../resolveFnOrDefaultImport';
+import { resolvePromptTemplateString } from '../resolvePromptTemplateString';
 import { makeLumpWorkspaceFns } from '../makeLumpWorkspaceFns';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import type { LocalConfig } from '../../types/LocalConfig';
@@ -232,9 +235,13 @@ async function preRegisterCommands({
     commandModules: Map<string, CommandModule>;
     configPaths: CommandConfigPaths;
 }): Promise<Success<void> | Failure<string>> {
-    const results = await Promise.all(commandNames.map((name) => {
+    const results = await Promise.all(commandNames.map(async (name) => {
         if (commandModules.has(name)) return success(undefined);
-        return loadCommandModule({ name, commandModules, configPaths });
+        return loadCommandModule({
+            cacheKey: name,
+            commandModules,
+            importPath: await getCommandPath(name, configPaths),
+        });
     }));
     const failed = results.find((r) => !r.success);
     if (failed && !failed.success) return failed;
@@ -456,7 +463,10 @@ async function jsConfigStepToStep({
     const commandFnResult = await resolveCommandFn({
         command: command ?? defaultCommand,
         existingCommandFn: rest.commandFn,
-        commandModules, configPaths, inRecursiveCall,
+        commandModules,
+        configPaths,
+        fnImportOptions,
+        inRecursiveCall,
     });
     if (!commandFnResult.success) return commandFnResult;
 
@@ -490,7 +500,12 @@ async function resolvePromptFn({
     }
 
     if (promptTemplate !== undefined) {
-        const promptFn = makePromptFnFromTemplate(promptTemplate);
+        const templateResult = await resolvePromptTemplateString({
+            value: promptTemplate,
+            importBasePath: fnImportOptions.importBasePath,
+        });
+        if (!templateResult.success) return templateResult;
+        const promptFn = makePromptFnFromTemplate(templateResult.data);
         return success(promptFn);
     }
 
@@ -502,12 +517,14 @@ async function resolveCommandFn({
     existingCommandFn,
     commandModules,
     configPaths,
+    fnImportOptions,
     inRecursiveCall,
 }: {
     command: LumpJsConfigStep['command'] | undefined;
     existingCommandFn: CommandFn | undefined;
     commandModules: Map<string, CommandModule>;
     configPaths: CommandConfigPaths;
+    fnImportOptions: { importBasePath: string };
     inRecursiveCall?: boolean;
 }): Promise<Success<CommandFn> | Failure<string>> {
     if (existingCommandFn) return success(existingCommandFn);
@@ -515,11 +532,26 @@ async function resolveCommandFn({
     if (typeof command === 'function') return success(command);
 
     if (typeof command === 'string') {
-        if (!commandModules.has(command)) {
+        if (isCommandFileRef(command)) {
+            if (!commandModules.has(command)) {
+                const loadResult = await loadCommandModule({
+                    cacheKey: command,
+                    commandModules,
+                    importPath: command,
+                    importBasePath: fnImportOptions.importBasePath,
+                });
+                if (!loadResult.success) return loadResult;
+            }
+        } else if (!commandModules.has(command)) {
             if (inRecursiveCall) {
                 throw new Error(`Command ${command} not registered in recursive call. Please register the command before in the registerCommands field.`);
             }
-            const loadResult = await loadCommandModule({ name: command, commandModules, configPaths });
+            const commandPath = await getCommandPath(command, configPaths);
+            const loadResult = await loadCommandModule({
+                cacheKey: command,
+                commandModules,
+                importPath: commandPath,
+            });
             if (!loadResult.success) return loadResult;
         }
         const resolved = commandModules.get(command)!;
@@ -532,19 +564,33 @@ async function resolveCommandFn({
 }
 
 async function loadCommandModule({
-    name,
+    cacheKey,
     commandModules,
-    configPaths,
+    importPath,
+    importBasePath,
 }: {
-    name: string;
+    cacheKey: string;
     commandModules: Map<string, CommandModule>;
-    configPaths: CommandConfigPaths;
+    importPath: string;
+    importBasePath?: string;
 }): Promise<Success<void> | Failure<string>> {
-    const commandPath = await getCommandPath(name, configPaths);
-    const mod = await resolveImportable<CommandModule>(commandPath, null);
-    if (!mod.success) return failure(`Failed to load command module '${name}': ${mod.data}`);
+    if (importBasePath) {
+        const absolutePath = path.resolve(importBasePath, importPath);
+        try {
+            await fs.access(absolutePath);
+        } catch {
+            return failure(`Command module file not found: ${cacheKey}`);
+        }
+    }
+
+    const mod = await resolveImportable<CommandModule>(
+        importPath,
+        null,
+        importBasePath ? { importBasePath } : undefined,
+    );
+    if (!mod.success) return failure(`Failed to load command module '${cacheKey}': ${mod.data}`);
     const modData = mod.data;
-    commandModules.set(name, {
+    commandModules.set(cacheKey, {
         command: modData.command,
         setup: modData.setup,
         teardown: modData.teardown,

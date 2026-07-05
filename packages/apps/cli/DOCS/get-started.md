@@ -105,11 +105,9 @@ lumpcode lump-create myFirstLump --config ts
 
 ## Step 3: Define contexts
 
-`contextListJson` maps variable names to path **templates** (e.g. `{NAME}`, `{COMPONENT_NAME}`). Lumpcode scans the repo and keeps only combinations where **every** template resolves to a real path; each map **key** is a **`{VAR}`** in `promptTemplate`, or **`@{VAR}`** with a leading `@` for agents that treat `@path` as file context. Substitution rules: [lump-config.md § Prompt template syntax](./lump-config.md#prompt-template-syntax).
+`contextListJson` maps variable names to path **templates**. Lumpcode scans the repo for every value the `{NAME}` placeholder can take such that the template resolves to a real path — each match becomes one **context**. Each map **key** becomes a **`{VAR}`** you can use in `promptTemplate` (write **`@{VAR}`** for agents that treat `@path` as file context).
 
-**Two examples below:** a **minimal** stub (one `{NAME}` pattern) and a **repeat-per-component** pattern (multi-path contexts with `$upperFirst{…}`). Replace paths, prompts, and `command` with your real lump.
-
-Minimal stub (`lump-create` defaults look like this—adjust `FILE`/prompt):
+Edit your scaffolded config (`lump-create` defaults look like this — adjust the path template and prompt to your repo):
 
 ```json
 {
@@ -124,24 +122,9 @@ Minimal stub (`lump-create` defaults look like this—adjust `FILE`/prompt):
 }
 ```
 
-Repeat-per-component variant (multiple paths must exist per context—the prompt is identical in spirit every time Lumpcode discovers the next matched folder/file set):
-
-```json
-{
-  "contextListJson": {
-    "FOLDER": "src/components/{COMPONENT_NAME}/",
-    "COMPONENT": "src/components/{COMPONENT_NAME}/$upperFirst{COMPONENT_NAME}.tsx"
-  },
-  "prompt": {
-    "promptTemplate": "Migrate the component at @{COMPONENT} (folder @{FOLDER}) to Vue 3 <script setup>.",
-    "command": "copilot"
-  }
-}
-```
-
 The base branch comes from `.lumpcode/local.json` (`primaryBranch` or the first entry of `primaryBranches`). Add a per-lump `"baseBranch": "release/2.0"` only if this lump needs to branch off something else.
 
-Transforms (e.g. `$upperFirst{…}`) and **`contextOptionsFn`** for `priority` / `dependsOnContexts` (including cross-lump `otherLumpName/contextName`): [lump-config.md § contextListJson](./lump-config.md#contextlistjson) and [§ Context ordering](./lump-config.md#context-ordering-and-cross-lump-dependencies). Fully custom sourcing: **`getContextListFn`** / **`contextMatchFn`** ([lump-config.md](./lump-config.md), [advanced-config.md](./advanced-config.md)).
+A richer pattern (several files per context, naming-convention transforms) is shown in the [README's React-component example](../README.md#configjson-example-one-branch-per-react-component). More ways to define contexts — transforms, ordering and dependencies, fully custom sourcing: [lump-config.md § contextListJson](./lump-config.md#contextlistjson).
 
 ---
 
