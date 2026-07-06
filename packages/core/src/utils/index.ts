@@ -13,3 +13,4 @@ export * from './nodeErrnoCode';
 export * from './isProcessAlive';
 export * from './appendMissingGitignoreLines';
 export * from './readJsonFile';
+export * from './resolveBundledAssetPath';
