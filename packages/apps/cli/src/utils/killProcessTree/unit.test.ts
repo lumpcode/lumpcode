@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { nodeErrnoCode } from '@lumpcode/core';
+import { isProcessAlive } from '@lumpcode/core';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { killProcessTree } from './main';
@@ -17,14 +17,8 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 async function waitForPidGone(pid: number, timeoutMs = 5000): Promise<void> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
-        try {
-            process.kill(pid, 0);
-        } catch (error) {
-            const code = nodeErrnoCode(error);
-            if (code === 'ESRCH') {
-                return;
-            }
-            throw error;
+        if (!isProcessAlive(pid)) {
+            return;
         }
         await sleep(50);
     }
