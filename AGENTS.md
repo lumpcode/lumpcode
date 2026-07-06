@@ -53,6 +53,7 @@
 - Publishable `package.json` files: include `repository` (link to `lumpcode/lumpcode`) and relevant `keywords`
 - `@lumpcode/cli` `files` must ship the full postinstall chain (`scripts/esbuild-sidecar.mjs`, `scripts/native-binary.mjs`, `scripts/postinstall.mjs`)
 - Before publish: smoke-test the packed tarball (`npm pack --dry-run | rg scripts/`, extract, `import './scripts/native-binary.mjs'`, `LUMPCODE_SKIP_BINARY=1 node scripts/postinstall.mjs`)
+- Release PRs to `main`: use merge commit, not rebase merge — rebase rewrites SHAs so the release branch is not an ancestor of `main` (identical tree, phantom follow-up PR)
 
 ## Learned Workspace Facts
 
@@ -94,7 +95,7 @@
 
 - Project root: directory with both `.lumpcode` and `.git`; engine `projectRoot` = parent of `.lumpcode/` (`jsConfigToRunLumpInput` derives from `localConfigFolderPath`)
 - **`project.json`**: `projectName` (letters, digits, `_`, `-` only); inferred from `git remote get-url origin` or sanitized basename on `project-setup`; used for daemon filenames and `project-copies/<projectName>/`
-- **`.lumpcode/local.json`** (gitignored; scaffolded by `project-setup --mode`): **required** for `run`/`start` — `mode` (`shared` | `dedicated`), `primaryBranch` or `primaryBranches`, optional deprecated `projectBaseBranch` alias (warn once via `resolvePrimaryBranches` when logger passed), optional `workspaceStrategy` (`checkout` | `worktree`, default `checkout`), optional `disabled` (boolean — daemon skips all lumps on machine; manual `run` unaffected). No `--mode`/`--force` on `run`/`start` — edit `local.json`. Read once at daemon startup (restart to pick up changes)
+- **`.lumpcode/local.json`** (gitignored; scaffolded by `project-setup --mode`): **required** for `run`/`start` — `mode` (`shared` | `dedicated`), `primaryBranch` or `primaryBranches`, optional deprecated `projectBaseBranch` alias (warn once via `resolvePrimaryBranches` when logger passed), optional `workspaceStrategy` (`checkout` | `worktree`, default `checkout`), optional `disabled` (boolean — daemon skips all lumps on machine; manual `run` unaffected). No `--mode`/`--force` on `run`/`start` — edit `local.json`. Read once at daemon startup (restart to pick up changes). When the repo integrates on `dev`, set `primaryBranch`/`primaryBranches` to `dev` so lump branches and context status track the integration branch
 
 ### Branch resolution (v0.0.9)
 
@@ -181,7 +182,8 @@
 - `postinstall` reinstalls presets + downloads native binary to gitignored `vendor/` — skips in CI, monorepo dev (`src/root.ts` present), missing `dist/`, or `--ignore-scripts`; `LUMPCODE_SKIP_BINARY=1` skips binary only; `DEFAULT_INSTALL_REPO` in `native-binary.mjs` still `YOUR_ORG/Lumpcode` until wired to `lumpcode/lumpcode`
 - Local debug: `build:dev` (core skips `.d.ts`; CLI ncc with source maps, no minify) then `NODE_OPTIONS='--enable-source-maps' node dist/index.js` from target project cwd — not SEA or npm launcher resolving to `vendor/`
 - SEA: minified `build:bundle` (uncaught errors can dump the one-line bundle); sidecars (`schemas/`, `presets/`, esbuild binary) beside `process.execPath`; `validateLumpJsonConfig` reads schema beside binary; embed static assets when feasible; macOS binaries ad-hoc codesigned only (strip quarantine xattr or sign + notarize for distribution)
-- CI (`.github/workflows/build-cli.yml`): `unit-test` (build core, cli-types, cli-utils first — their `dist/` is gitignored) → OS `build` matrix → aggregating `ci` job; E2E on ubuntu/macOS/windows including arm; isolated `HOME`/`USERPROFILE` per platform
+- Git flow: `dev` integration branch; larger work on `feat/*`; version releases merge `dev` → `main` with annotated `v*` tag (optional `ver/X.Y.Z` stabilization branch from `dev` avoids freezing integration)
+- CI (`.github/workflows/build-cli.yml`): triggers on push/PR to `main` and `dev`; `unit-test` (build core, cli-types, cli-utils first — their `dist/` is gitignored) → OS `build` matrix → aggregating `ci` job; E2E on ubuntu/macOS/windows including arm; isolated `HOME`/`USERPROFILE` per platform; both `main` and `dev` protected via repository rulesets requiring `ci` status check
 - E2E: `packages/apps/cli/src/e2e/` subprocess harness; rerun **`build:bundle` + `build:sea`** after bundle/SEA changes; mock agent via `e2e-mock-agent.cjs` script file (not `node -e`); `pushIntegrationBranch` needs full `writeE2eLumpFixture` (config-only writes wrong lump path)
 - E2E teardown: `stopDaemonSafely` should pass `--force` so teardown does not race daemon `meta.busy` mid-run; treat stale/invalid PID stop messages as already-stopped; `waitForDaemonIdle` polls meta `busy` before graceful-stop assertions
 - `killProcessTree` (win32): `taskkill /T /F` can fail on SEA child trees ("operation not supported") — treat as success when the root PID is already gone (best-effort per PRD)
