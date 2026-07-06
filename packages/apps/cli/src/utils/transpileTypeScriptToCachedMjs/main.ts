@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isSea } from 'node:sea';
 
-import { appendMissingGitignoreLines, failure, Failure, success, Success } from '@lumpcode/core';
+import { appendMissingGitignoreLines, failure, Failure, readJsonFile, success, Success } from '@lumpcode/core';
 
 const execFileAsync = promisify(execFile);
 
@@ -98,12 +98,11 @@ type CacheMeta = {
 };
 
 async function readStoredMeta(metaPath: string): Promise<CacheMeta | null> {
-    try {
-        const raw = await fs.readFile(metaPath, 'utf-8');
-        return JSON.parse(raw) as CacheMeta;
-    } catch {
+    const result = await readJsonFile<CacheMeta>({ filePath: metaPath, ifMissing: 'undefined' });
+    if (!result.success || result.data === undefined) {
         return null;
     }
+    return result.data;
 }
 
 function extractRelativeImportSpecifiers(sourceContent: string): string[] {
