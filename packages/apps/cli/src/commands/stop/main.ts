@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as z from 'zod';
 
-import { failure, nodeErrnoCode, success } from '@lumpcode/core';
+import { failure, isProcessAlive, nodeErrnoCode, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
@@ -98,9 +98,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const deadlineMs = 5000;
         const deadline = Date.now() + deadlineMs;
         while (Date.now() < deadline) {
-            try {
-                process.kill(pid, 0);
-            } catch {
+            if (!isProcessAlive(pid, { onProbeError: 'dead' })) {
                 await fs.unlink(pidFilePath).catch(() => {});
                 await fs.unlink(metaFilePath).catch(() => {});
                 return success({
@@ -140,9 +138,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const deadlineMs = 5000;
     const deadline = Date.now() + deadlineMs;
     while (Date.now() < deadline) {
-        try {
-            process.kill(pid, 0);
-        } catch {
+        if (!isProcessAlive(pid, { onProbeError: 'dead' })) {
             await fs.unlink(pidFilePath).catch(() => {});
             await fs.unlink(metaFilePath).catch(() => {});
             return success({

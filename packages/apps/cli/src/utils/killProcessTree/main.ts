@@ -1,22 +1,9 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { failure, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
+import { failure, isProcessAlive, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
 
 const execFileAsync = promisify(execFile);
-
-function isPidAlive(pid: number): boolean {
-    try {
-        process.kill(pid, 0);
-        return true;
-    } catch (error: unknown) {
-        const code = nodeErrnoCode(error);
-        if (code === 'ESRCH') {
-            return false;
-        }
-        throw error;
-    }
-}
 
 async function listUnixProcessTreePids(rootPid: number): Promise<number[]> {
     const { stdout } = await execFileAsync('ps', ['-eo', 'pid=,ppid=']);
@@ -84,7 +71,7 @@ async function killWindowsProcessTree(rootPid: number): Promise<void> {
             return;
         }
         // taskkill can fail to terminate some descendants while the root exits (SEA/agent trees).
-        if (!isPidAlive(rootPid)) {
+        if (!isProcessAlive(rootPid)) {
             return;
         }
         throw error;

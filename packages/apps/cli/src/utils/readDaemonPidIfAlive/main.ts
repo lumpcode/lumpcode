@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, nodeErrnoCode, success } from '@lumpcode/core';
+import { failure, isProcessAlive, nodeErrnoCode, success } from '@lumpcode/core';
 
 export type DaemonPidAlive = { pid: number };
 export type DaemonPidStale = { stale: true };
@@ -33,13 +33,11 @@ export async function readDaemonPidIfAlive(
     }
 
     try {
-        process.kill(pid, 0);
-        return success({ pid });
-    } catch (e) {
-        const code = nodeErrnoCode(e);
-        if (code === 'ESRCH') {
+        if (!isProcessAlive(pid)) {
             return success(stalePid);
         }
+        return success({ pid });
+    } catch (e) {
         return failure(`Could not inspect process ${pid}: ${String(e)}`);
     }
 }
