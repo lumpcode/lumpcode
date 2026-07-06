@@ -18,10 +18,9 @@ import type {
     GetContextListFnOutput,
     Context,
 } from "@lumpcode/core";
-import { success, failure, noopLogger } from "@lumpcode/core";
+import { success, failure, noopLogger, readJsonFile } from "@lumpcode/core";
 import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled";
 import { getCommandPath } from "../getCommandPath";
-import { readJson } from "../readJson";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
 
 import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, CommandConfigPaths } from "../../types";
@@ -283,10 +282,9 @@ async function resolveGetContextListFn({
             template = contextListJson;
         } else {
             const resolvedPath = path.resolve(configBasePath, contextListJson);
-            const readResult = await readJson<Record<string, string>>(resolvedPath);
+            const readResult = await readJsonFile<Record<string, string>>({ filePath: resolvedPath });
             if (!readResult.success) {
-                const msg = (readResult.data as { message?: string })?.message ?? 'Failed to load contextListJson file';
-                return failure(msg);
+                return readResult;
             }
             template = readResult.data;
         }
