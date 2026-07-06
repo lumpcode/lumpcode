@@ -1,11 +1,10 @@
 import * as fs from 'node:fs/promises';
 
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { failure, readJsonFile, success } from '@lumpcode/core';
 
 import type { ProjectConfig } from '../../types/ProjectConfig';
 import { projectJsonPath } from '../projectJsonPath';
-import { readJson } from '../readJson';
 
 const VALID_PROJECT_NAME = /^[a-zA-Z0-9_-]+$/;
 
@@ -45,9 +44,9 @@ export async function getProjectName(input: {
         );
     }
 
-    const readResult = await readJson<ProjectConfig>(projectJsonFilePath);
+    const readResult = await readJsonFile<ProjectConfig>({ filePath: projectJsonFilePath });
     if (!readResult.success) {
-        return failure(readResult.data.message ?? 'Failed to read project.json');
+        return readResult;
     }
 
     const projectName = readResult.data.projectName?.trim();
