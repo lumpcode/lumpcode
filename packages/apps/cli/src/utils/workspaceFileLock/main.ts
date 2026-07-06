@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { failure, nodeErrnoCode, readJsonFile, type Failure, success, type Success, type Logger } from '@lumpcode/core';
+import { failure, isProcessAlive, nodeErrnoCode, readJsonFile, type Failure, success, type Success, type Logger } from '@lumpcode/core';
 
 export type WorkspaceLockMode = 'wait' | 'fail';
 
@@ -69,16 +69,6 @@ export function isWorkspaceFileBusyError(
         'code' in data &&
         (data as { code: string }).code === busyCode
     );
-}
-
-function isProcessAlive(pid: number): boolean {
-    try {
-        process.kill(pid, 0);
-        return true;
-    } catch (e) {
-        const code = nodeErrnoCode(e);
-        return code !== 'ESRCH';
-    }
 }
 
 function formatBusyMessage(input: {
@@ -161,7 +151,7 @@ async function tryAcquireWorkspaceFileLockOnce(input: {
     }
 
     const holder = await readLockHolder(lockFilePath);
-    if (holder && isProcessAlive(holder.pid)) {
+    if (holder && isProcessAlive(holder.pid, { onProbeError: 'alive' })) {
         return { status: 'busy', holder };
     }
 
