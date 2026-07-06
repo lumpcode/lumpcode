@@ -2,11 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { execAsync, Failure, failure, nodeErrnoCode, Success, success } from '@lumpcode/core';
+import { appendMissingGitignoreLines, execAsync, failure, nodeErrnoCode, success, Success, Failure } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import type { LocalConfig } from '../../types/LocalConfig';
 import type { Mode } from '../../types/Mode';
 import type { ProjectConfig } from '../../types/ProjectConfig';
 import { commandFailure } from '../../utils/commandFailure';
@@ -89,41 +88,6 @@ const WORKTREES_GITIGNORE_LINE = '.lumpcode/worktrees/';
 const CACHE_GITIGNORE_LINE = '.lumpcode/.cache/';
 const LOCAL_CONFIG_GITIGNORE_LINE = `.lumpcode/${LOCAL_CONFIG_FILE_NAME}`;
 
-async function ensureGitignoreLines({
-    projectRoot,
-    lines,
-}: {
-    projectRoot: string;
-    lines: string[];
-}): Promise<Success<void> | Failure<string>> {
-    const gitignorePath = path.join(projectRoot, '.gitignore');
-    let content = '';
-    try {
-        content = await fs.readFile(gitignorePath, 'utf-8');
-    } catch (error: unknown) {
-        const code = nodeErrnoCode(error);
-        if (code !== 'ENOENT') {
-            return failure(`Cannot read .gitignore: ${String(error)}`);
-        }
-    }
-
-    const existingLines = new Set(content.split(/\r?\n/).map((line) => line.trim()));
-    const missing = lines.filter((line) => !existingLines.has(line));
-    if (missing.length === 0) {
-        return success(undefined);
-    }
-
-    const prefix = content.length === 0 ? '' : content.endsWith('\n') ? '' : '\n';
-    const addition = `${prefix}${missing.join('\n')}\n`;
-
-    try {
-        await fs.appendFile(gitignorePath, addition, 'utf-8');
-    } catch (error: unknown) {
-        return failure(`Cannot update .gitignore: ${String(error)}`);
-    }
-    return success(undefined);
-}
-
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async (input) => {
     const projectPathOpt = input.options.projectPath?.trim();
     const projectRoot = path.resolve(process.cwd(), projectPathOpt && projectPathOpt !== '' ? projectPathOpt : '.');
@@ -200,7 +164,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
         });
     }
 
-    const gitignoreResult = await ensureGitignoreLines({
+    const gitignoreResult = await appendMissingGitignoreLines({
         projectRoot,
         lines: [
             CONTEXT_STATUS_RECORD_GITIGNORE_LINE,

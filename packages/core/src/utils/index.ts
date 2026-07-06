@@ -10,3 +10,4 @@ export * from './noopLogger';
 export * from './formatExecFailureMessage';
 export * from './historyFile';
 export * from './nodeErrnoCode';
+export * from './appendMissingGitignoreLines';
