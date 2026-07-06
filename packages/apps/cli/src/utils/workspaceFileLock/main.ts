@@ -2,7 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { failure, nodeErrnoCode, type Failure, success, type Success, type Logger } from '@lumpcode/core';
+import { failure, nodeErrnoCode, readJsonFile, type Failure, success, type Success, type Logger } from '@lumpcode/core';
 
 export type WorkspaceLockMode = 'wait' | 'fail';
 
@@ -121,16 +121,15 @@ export function formatWorkspaceFileWaitMessage(input: {
 }
 
 async function readLockHolder(lockFilePath: string): Promise<WorkspaceLockHolder | undefined> {
-    try {
-        const raw = await fs.readFile(lockFilePath, 'utf8');
-        const parsed = JSON.parse(raw) as WorkspaceLockHolder;
-        if (typeof parsed.pid !== 'number' || Number.isNaN(parsed.pid)) {
-            return undefined;
-        }
-        return parsed;
-    } catch {
+    const result = await readJsonFile<WorkspaceLockHolder>({ filePath: lockFilePath, ifMissing: 'undefined' });
+    if (!result.success || result.data === undefined) {
         return undefined;
     }
+    const parsed = result.data;
+    if (typeof parsed.pid !== 'number' || Number.isNaN(parsed.pid)) {
+        return undefined;
+    }
+    return parsed;
 }
 
 type TryAcquireResult =

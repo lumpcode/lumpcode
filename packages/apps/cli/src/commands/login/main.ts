@@ -9,7 +9,7 @@ const PASSWORD_OPTION_WARNING =
 const NON_INTERACTIVE_ERROR =
     'Cannot prompt for password: not running in an interactive terminal. Use the --password option for non-interactive login (not recommended for security).';
 
-import { failure, success } from '@lumpcode/core';
+import { failure, readJsonFile, success } from '@lumpcode/core';
 
 import { env } from '../../env';
 import { AUTH_FILE_PATH } from '../../consts';
@@ -117,12 +117,11 @@ async function saveAuthData(
 }
 
 async function getAuthData(authFilePath: string = AUTH_FILE_PATH): Promise<AuthData | null> {
-    try {
-        const content = await fs.readFile(authFilePath, 'utf-8');
-        return JSON.parse(content) as AuthData;
-    } catch {
+    const result = await readJsonFile<AuthData>({ filePath: authFilePath, ifMissing: 'undefined' });
+    if (!result.success || result.data === undefined) {
         return null;
     }
+    return result.data;
 }
 
 export interface Injections {
