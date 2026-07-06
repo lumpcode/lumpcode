@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isSea } from 'node:sea';
 
-import { failure, Failure, success, Success } from '@lumpcode/core';
+import { appendMissingGitignoreLines, failure, Failure, success, Success } from '@lumpcode/core';
 
 const execFileAsync = promisify(execFile);
 
@@ -50,26 +50,13 @@ async function findLumpcodeRoot(sourceAbsolutePath: string): Promise<string | nu
 async function resolveCacheRoot(sourceAbsolutePath: string): Promise<string> {
     const lumpcodeRoot = await findLumpcodeRoot(sourceAbsolutePath);
     if (lumpcodeRoot) {
-        await ensureCacheGitignored(lumpcodeRoot);
+        void appendMissingGitignoreLines({
+            projectRoot: path.dirname(lumpcodeRoot),
+            lines: [CACHE_GITIGNORE_LINE],
+        });
         return path.join(lumpcodeRoot, '.cache', 'transpile');
     }
     return path.join(os.tmpdir(), 'lumpcode-transpile');
-}
-
-async function ensureCacheGitignored(lumpcodeRoot: string): Promise<void> {
-    const gitignorePath = path.join(path.dirname(lumpcodeRoot), '.gitignore');
-    let content = '';
-    try {
-        content = await fs.readFile(gitignorePath, 'utf-8');
-    } catch {
-        // create or append below
-    }
-
-    const existingLines = new Set(content.split(/\r?\n/).map((line) => line.trim()));
-    if (existingLines.has(CACHE_GITIGNORE_LINE)) return;
-
-    const prefix = content.length === 0 ? '' : content.endsWith('\n') ? '' : '\n';
-    await fs.writeFile(gitignorePath, `${content}${prefix}${CACHE_GITIGNORE_LINE}\n`, 'utf-8');
 }
 
 function hashSourcePath(sourceAbsolutePath: string): string {
