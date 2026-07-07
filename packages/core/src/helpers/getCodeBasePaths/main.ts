@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import ignore from 'ignore';
 
-import { createConsoleLogger, failure, success } from '../../utils';
+import { createConsoleLogger, failure, pathExists, success } from '../../utils';
 import { CodeBasePath, Logger } from '../../types';
 
 export async function getCodeBasePaths({
@@ -46,7 +46,7 @@ async function getGitignoresMap({
 
     while (currentDir !== stopAtDirParent) {
         const gitignorePath = path.join(currentDir, '.gitignore');
-        const hasGitignore = await fs.access(gitignorePath).then(() => true).catch(() => false);
+        const hasGitignore = await pathExists(gitignorePath);
 
         if (hasGitignore) {
             const gitignoreContent = await fs.readFile(gitignorePath, 'utf-8');

@@ -1,15 +1,12 @@
-import * as fs from 'node:fs/promises';
+import { pathExists } from '@lumpcode/core';
 
 export async function getFirstExistingPath(
     paths: string[],
     defaultPath?: string,
 ) {
-    for (const path of paths) {
-        try {
-            await fs.access(path);
-            return path;
-        } catch {
-            continue;
+    for (const candidate of paths) {
+        if (await pathExists(candidate)) {
+            return candidate;
         }
     }
     return defaultPath || paths[paths.length - 1];

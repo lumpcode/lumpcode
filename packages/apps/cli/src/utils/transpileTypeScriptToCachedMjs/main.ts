@@ -6,7 +6,7 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isSea } from 'node:sea';
 
-import { appendMissingGitignoreLines, failure, Failure, readJsonFile, success, Success } from '@lumpcode/core';
+import { appendMissingGitignoreLines, failure, Failure, pathExists, readJsonFile, success, Success } from '@lumpcode/core';
 
 const execFileAsync = promisify(execFile);
 
@@ -229,12 +229,10 @@ async function isCacheValid(
     if (!(await areStoredDependencyMtimesValid(sourceAbsolutePath, sourceContent, stored.dependencyMtimes))) {
         return null;
     }
-    try {
-        await fs.access(stored.outPath);
-        return stored;
-    } catch {
+    if (!(await pathExists(stored.outPath))) {
         return null;
     }
+    return stored;
 }
 
 function formatEsbuildError(sourceAbsolutePath: string, error: unknown): string {
@@ -283,9 +281,7 @@ async function runEsbuildTranspile(absolutePath: string, outPath: string): Promi
         if (!binaryPath) {
             throw new Error('ESBUILD_BINARY_PATH is not configured');
         }
-        try {
-            await fs.access(binaryPath);
-        } catch {
+        if (!(await pathExists(binaryPath))) {
             throw new Error(`esbuild binary not found at ${binaryPath}`);
         }
         const args = [
