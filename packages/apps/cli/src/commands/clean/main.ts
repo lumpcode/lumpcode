@@ -2,7 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { execAsync, failure, shellBestEffort, shellSingleQuote, success } from '@lumpcode/core';
+import { execAsync, failure, parseGitLogHashSubjectLines, shellSingleQuote, success } from '@lumpcode/core';
+
+import { shellBestEffort } from '../../utils/shellBestEffort';
 
 import { globalConfigFolderPath as defaultGlobalConfigFolderPath } from '../../constants';
 import { REFS_HEADS_PREFIX, LUMP_BRANCH_PREFIX } from '../../consts';
@@ -106,19 +108,9 @@ async function discoverByContext(projectRoot: string, lumpName: string, contextN
         return { remoteBranches: [], localBranches: [] };
     }
 
-    const matchingHashes = logResult.data.stdout
-        .split('\n')
-        .map((line: string) => line.trim())
-        .filter(Boolean)
-        .map((line: string) => {
-            const sp = line.indexOf(' ');
-            return {
-                hash: sp === -1 ? line : line.slice(0, sp),
-                subject: sp === -1 ? '' : line.slice(sp + 1),
-            };
-        })
-        .filter((c: { subject: string }) => c.subject === commitMessage)
-        .map((c: { hash: string }) => c.hash);
+    const matchingHashes = parseGitLogHashSubjectLines(logResult.data.stdout)
+        .filter((entry) => entry.subject === commitMessage)
+        .map((entry) => entry.hash);
 
     const remoteBranchSet = new Set<string>();
     const localBranchSet = new Set<string>();

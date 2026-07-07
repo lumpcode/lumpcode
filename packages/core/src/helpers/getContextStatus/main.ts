@@ -1,6 +1,6 @@
 import { ContextStatus, Logger, LumpVariables } from "../../types";
 import { GitCommitMessageFn } from "../../types/GitCommitMessageFn";
-import { shellSingleQuote } from "../../utils";
+import { parseGitLogHashSubjectLines, shellSingleQuote } from "../../utils";
 import { execAsync } from "../execAsync";
 
 export async function getContextStatus(params: {
@@ -43,19 +43,9 @@ export async function getContextStatus(params: {
 
     const logResultOutput = logResult.data.stdout || logResult.data.stderr || '';
 
-    const matchingHashes = logResultOutput
-        .split('\n')
-        .map((line: string) => line.trim())
-        .filter((line: string) => !!line)
-        .map((line: string) => {
-            const sp = line ? line.indexOf(' ') : -1;
-            return {
-                hash: sp === -1 ? line : line.slice(0, sp),
-                subject: sp === -1 ? '' : line.slice(sp + 1),
-            };
-        })
-        .filter((c: { subject: string }) => c.subject === commitMessage)
-        .map((c: { hash: string }) => c.hash);
+    const matchingHashes = parseGitLogHashSubjectLines(logResultOutput)
+        .filter((entry) => entry.subject === commitMessage)
+        .map((entry) => entry.hash);
 
     logger?.verbose(`remoteName ${remoteName}`);
     logger?.verbose(`baseBranch ${baseBranch}`);

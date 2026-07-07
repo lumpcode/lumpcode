@@ -1,4 +1,4 @@
-import type { Logger } from '../../types/Logger';
+import type { Logger } from '@lumpcode/core';
 
 export const noopLogger: Logger = {
     error: () => {},

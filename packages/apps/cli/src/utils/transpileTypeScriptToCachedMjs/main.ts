@@ -6,7 +6,10 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isSea } from 'node:sea';
 
-import { appendMissingGitignoreLines, failure, Failure, pathExists, readJsonFile, success, Success } from '@lumpcode/core';
+import { failure, Failure, pathExists, success, Success } from '@lumpcode/core';
+
+import { appendMissingGitignoreLines } from '../appendMissingGitignoreLines';
+import { readJsonFile } from '../readJsonFile';
 
 const execFileAsync = promisify(execFile);
 

@@ -1,7 +1,10 @@
 import * as fs from 'node:fs/promises';
 
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, isProcessAlive, nodeErrnoCode, success } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
+
+import { isProcessAlive } from '../isProcessAlive';
+import { nodeErrnoCode } from '../nodeErrnoCode';
 
 export type DaemonPidAlive = { pid: number };
 export type DaemonPidStale = { stale: true };

@@ -1,5 +1,3 @@
-import { Maybe } from "../../types";
-
 export function decision<R>(
     possibilities: [() => boolean, () => R][],
     defaultValue?: R,

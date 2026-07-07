@@ -3,7 +3,9 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { failure, noopLogger, success, type SetupWorkspaceFn } from '@lumpcode/core';
+import { failure, success, type SetupWorkspaceFn } from '@lumpcode/core';
+
+import { noopLogger } from '../noopLogger';
 
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import {

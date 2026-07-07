@@ -9,7 +9,9 @@ const PASSWORD_OPTION_WARNING =
 const NON_INTERACTIVE_ERROR =
     'Cannot prompt for password: not running in an interactive terminal. Use the --password option for non-interactive login (not recommended for security).';
 
-import { failure, readJsonFile, success } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
+
+import { readJsonFile } from '../../utils/readJsonFile';
 
 import { env } from '../../env';
 import { AUTH_FILE_PATH } from '../../consts';

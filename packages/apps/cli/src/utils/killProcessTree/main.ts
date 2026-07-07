@@ -1,7 +1,10 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { failure, isProcessAlive, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
+import { failure, success, type Failure, type Success } from '@lumpcode/core';
+
+import { isProcessAlive } from '../isProcessAlive';
+import { nodeErrnoCode } from '../nodeErrnoCode';
 
 const execFileAsync = promisify(execFile);
 

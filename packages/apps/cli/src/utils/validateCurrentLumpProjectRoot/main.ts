@@ -1,7 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { type Failure, failure, nodeErrnoCode, type Success, success } from '@lumpcode/core';
+import { type Failure, failure, type Success, success } from '@lumpcode/core';
+
+import { nodeErrnoCode } from '../nodeErrnoCode';
 
 import { localConfigFolderPath } from '../localConfigFolderPath';
 
