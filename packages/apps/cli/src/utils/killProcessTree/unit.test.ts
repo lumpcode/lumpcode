@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { isProcessAlive } from '@lumpcode/core';
+import { isProcessAlive } from '../isProcessAlive';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { killProcessTree } from './main';

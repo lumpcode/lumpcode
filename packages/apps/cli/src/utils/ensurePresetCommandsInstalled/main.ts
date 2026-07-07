@@ -1,4 +1,6 @@
-import { failure, resolveBundledAssetPath, success, type Failure, type Success } from '@lumpcode/core';
+import { failure, success, type Failure, type Success } from '@lumpcode/core';
+
+import { resolveBundledAssetPath } from '../resolveBundledAssetPath';
 
 import { installPresetCommands } from './installPresetCommands.mjs';
 

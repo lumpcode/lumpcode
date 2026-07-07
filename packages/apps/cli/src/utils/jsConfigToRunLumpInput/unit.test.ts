@@ -8,7 +8,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import type { CommandFn, GetContextListFn, PromptFn, Step, SetupFn, TeardownFn } from '@lumpcode/core';
 import { load as loadYaml } from 'js-yaml';
-import { runLump, shellBestEffort, shellSingleQuote } from '@lumpcode/core';
+import { runLump, shellSingleQuote } from '@lumpcode/core';
+
+import { shellBestEffort } from '../shellBestEffort';
 
 import type { ContextMatchFn, LumpJsConfig, LumpJsConfigStep, LumpJsConfigSteps } from '../../types';
 import { jsConfigToRunLumpInput } from './main';

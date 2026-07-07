@@ -1,7 +1,9 @@
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { failure, readJsonFile, type Failure, success, type Success } from '@lumpcode/core';
+import { failure, type Failure, success, type Success } from '@lumpcode/core';
+
+import { readJsonFile } from '../readJsonFile';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 

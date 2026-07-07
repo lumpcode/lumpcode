@@ -6,6 +6,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import * as core from '@lumpcode/core';
 
+import { noopLogger } from '../noopLogger';
+
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { writeMinimalLump } from '../../testing';
 import { acquireWorkspacePathLock } from '../workspacePathLock';
@@ -69,7 +71,7 @@ describe('runLumpFromLumpName', () => {
             localConfigFolderPath,
             globalConfigFolderPath,
             sourceProjectRoot: projectRoot,
-            logger: core.noopLogger,
+            logger: noopLogger,
             ...overrides,
         });
     }

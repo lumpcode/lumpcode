@@ -1,6 +1,8 @@
 import * as z from 'zod';
 
-import { failure, readJsonFile, success, type Failure, type Success } from '@lumpcode/core';
+import { failure, success, type Failure, type Success } from '@lumpcode/core';
+
+import { readJsonFile } from '../readJsonFile';
 
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 

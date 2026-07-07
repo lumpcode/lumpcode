@@ -18,7 +18,9 @@ import type {
     GetContextListFnOutput,
     Context,
 } from "@lumpcode/core";
-import { success, failure, noopLogger, pathExists, readJsonFile } from "@lumpcode/core";
+import { success, failure, pathExists } from "@lumpcode/core";
+import { noopLogger } from '../noopLogger';
+import { readJsonFile } from '../readJsonFile';
 import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled";
 import { getCommandPath } from "../getCommandPath";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";

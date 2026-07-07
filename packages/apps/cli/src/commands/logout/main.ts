@@ -2,7 +2,9 @@ import * as fs from 'node:fs/promises';
 
 import * as z from 'zod';
 
-import { failure, nodeErrnoCode, success } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
+
+import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
 
 import { AUTH_FILE_PATH } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';

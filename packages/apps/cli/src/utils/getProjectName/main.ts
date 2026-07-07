@@ -1,5 +1,7 @@
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, pathExists, readJsonFile, success } from '@lumpcode/core';
+import { failure, pathExists, success } from '@lumpcode/core';
+
+import { readJsonFile } from '../readJsonFile';
 
 import type { ProjectConfig } from '../../types/ProjectConfig';
 import { projectJsonPath } from '../projectJsonPath';
