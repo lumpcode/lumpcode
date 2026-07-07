@@ -1,4 +1,4 @@
-import { execAsync, Failure, failure, shellSingleQuote, Success, success } from "@lumpcode/core";
+import { execAsync, Failure, failure, parseGitLogHashSubjectLines, shellSingleQuote, Success, success } from "@lumpcode/core";
 import { ContextStatusRecord } from "../../types";
 import { getContextStatus } from "../getContextStatus";
 import { getGitCommitMessage, getLumpCommitPrefixForLump } from "../getGitCommitMessage";
@@ -29,13 +29,7 @@ export async function buildContextStatusRecord(input: {
     const seen = new Set<string>();
     const matches: { hash: string; contextName: string }[] = [];
 
-    for (const line of logResult.data.stdout.split('\n')) {
-        const trimmed = line.trim();
-        if (!trimmed) continue;
-        const sp = trimmed.indexOf(' ');
-        if (sp === -1) continue;
-        const hash = trimmed.slice(0, sp);
-        const subject = trimmed.slice(sp + 1);
+    for (const { hash, subject } of parseGitLogHashSubjectLines(logResult.data.stdout)) {
         if (!subject.startsWith(lumpPrefix)) continue;
 
         const contextName = subject.slice(lumpPrefix.length);
