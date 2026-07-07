@@ -15,3 +15,4 @@ export * from './appendMissingGitignoreLines';
 export * from './readJsonFile';
 export * from './resolveBundledAssetPath';
 export * from './pathExists';
+export * from './parseGitLogHashSubjectLines';
