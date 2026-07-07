@@ -1,4 +1,6 @@
-import { Failure, readJsonFile, Success } from "@lumpcode/core";
+import { Failure, Success } from "@lumpcode/core";
+
+import { readJsonFile } from "../readJsonFile";
 
 import { contextStatusRecordPath } from "../contextStatusRecordPath";
 import { ContextStatusRecord } from "../../types";

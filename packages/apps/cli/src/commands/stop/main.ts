@@ -1,7 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as z from 'zod';
 
-import { failure, isProcessAlive, nodeErrnoCode, success } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
+
+import { isProcessAlive } from '../../utils/isProcessAlive';
+import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';

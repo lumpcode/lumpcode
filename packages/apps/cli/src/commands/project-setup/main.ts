@@ -2,7 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { appendMissingGitignoreLines, execAsync, failure, nodeErrnoCode, pathExists, success, Success, Failure } from '@lumpcode/core';
+import { execAsync, failure, pathExists, success, Success, Failure } from '@lumpcode/core';
+
+import { appendMissingGitignoreLines } from '../../utils/appendMissingGitignoreLines';
+import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';

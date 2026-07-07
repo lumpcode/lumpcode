@@ -4,7 +4,8 @@ import * as path from 'node:path';
 import { execSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { execAsync, shellBestEffort, shellSingleQuote } from '@lumpcode/core';
+import { execAsync, shellSingleQuote } from '@lumpcode/core';
+import { shellBestEffort } from '../shellBestEffort';
 import { makeLumpWorkspaceFns } from './main';
 import { lumpWorktreePath } from '../getLumpWorktreePath';
 

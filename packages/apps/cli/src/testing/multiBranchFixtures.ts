@@ -3,7 +3,9 @@ import * as fsSync from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execSync } from 'node:child_process';
-import { appendMissingGitignoreLines, pathExists } from '@lumpcode/core';
+import { pathExists } from '@lumpcode/core';
+
+import { appendMissingGitignoreLines } from '../utils/appendMissingGitignoreLines';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';

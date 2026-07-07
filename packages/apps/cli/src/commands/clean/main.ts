@@ -2,7 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { execAsync, failure, parseGitLogHashSubjectLines, shellBestEffort, shellSingleQuote, success } from '@lumpcode/core';
+import { execAsync, failure, parseGitLogHashSubjectLines, shellSingleQuote, success } from '@lumpcode/core';
+
+import { shellBestEffort } from '../../utils/shellBestEffort';
 
 import { globalConfigFolderPath as defaultGlobalConfigFolderPath } from '../../constants';
 import { REFS_HEADS_PREFIX, LUMP_BRANCH_PREFIX } from '../../consts';

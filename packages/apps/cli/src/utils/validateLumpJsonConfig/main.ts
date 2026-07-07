@@ -2,7 +2,9 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 import Ajv, { type ErrorObject } from 'ajv';
-import { failure, type Failure, resolveBundledAssetPath, success, type Success } from '@lumpcode/core';
+import { failure, type Failure, success, type Success } from '@lumpcode/core';
+
+import { resolveBundledAssetPath } from '../resolveBundledAssetPath';
 
 const LUMP_CONFIG_SCHEMA = 'lumpConfig.schema.json';
 

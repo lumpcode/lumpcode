@@ -1,6 +1,8 @@
 import * as fs from 'node:fs/promises';
 
-import { failure, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
+import { failure, success, type Failure, type Success } from '@lumpcode/core';
+
+import { nodeErrnoCode } from '../nodeErrnoCode';
 
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { daemonFileBaseName } from '../daemonFileBaseName';

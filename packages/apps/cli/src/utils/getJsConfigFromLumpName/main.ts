@@ -1,6 +1,8 @@
 import * as path from 'node:path';
 
-import { decision, failure, Failure, pathExists, readJsonFile, success, Success } from "@lumpcode/core";
+import { failure, Failure, pathExists, success, Success } from "@lumpcode/core";
+import { decision } from '../decision';
+import { readJsonFile } from '../readJsonFile';
 import { resolveImportable } from '../resolveImportable';
 import { LumpJsConfig, LumpJsonConfig } from '../../types';
 import { jsonConfigToJsConfig } from '../jsonConfigToJsConfig';
