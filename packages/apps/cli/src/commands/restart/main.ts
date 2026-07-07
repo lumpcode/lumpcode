@@ -7,10 +7,7 @@ import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { command as startCommand, defaultCronPattern } from '../start/main';
 import { command as stopCommand } from '../stop/main';
-import { commandFailure } from '../../utils/commandFailure';
-import { readDaemonMeta } from '../../utils/readDaemonMeta';
-import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
-import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
+import { readDaemonMeta, resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -64,23 +61,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath, waitForShutdownOverride, spawnFn } =
         injections;
     const json = input.options.json === true;
-    const lumpNameFromCli = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
-
-    const lumpNameForPaths = lumpNameFromCli;
-    const pathsResult = await resolveDaemonPaths({
+    const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
-        lumpName: lumpNameForPaths,
+        lumpName: input.options.lumpName,
     });
-    if (!pathsResult.success) return commandFailure(pathsResult.data);
+    if (!scopeResult.success) return scopeResult;
 
-    const meta = await readDaemonMetaForRestart({ metaFilePath: pathsResult.data.metaFilePath });
+    const meta = await readDaemonMetaForRestart({ metaFilePath: scopeResult.data.paths.metaFilePath });
     const cronSetup = meta.cronSetup;
-    const lumpNameOpt = lumpNameFromCli ?? meta.lumpName;
+    const lumpNameOpt = scopeResult.data.lumpName ?? meta.lumpName;
 
     const stopHandle = stopCommand.handlerMaker({
         projectRoot,

@@ -8,9 +8,7 @@ import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure, killProcessTree, readDaemonMeta, readDaemonPidIfAlive } from '../../utils';
-import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
-import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
+import { killProcessTree, readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -40,22 +38,17 @@ const sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeo
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
-    const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
     const force = input.options.force === true;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
-
-    const pathsResult = await resolveDaemonPaths({
+    const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
-        lumpName: lumpNameOpt,
+        lumpName: input.options.lumpName,
     });
-    if (!pathsResult.success) return commandFailure(pathsResult.data);
-
-    const { pidFilePath, metaFilePath, projectName } = pathsResult.data;
-    const scopeLabel = lumpNameOpt ? ` lump "${lumpNameOpt}"` : '';
+    if (!scopeResult.success) return scopeResult;
+    const { lumpName: lumpNameOpt, scopeLabel, paths } = scopeResult.data;
+    const { pidFilePath, metaFilePath, projectName } = paths;
 
     const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
     if (!pidAliveResult.success) {
