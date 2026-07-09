@@ -10,6 +10,7 @@ import {
     waitForDaemonPidFile,
 } from '../../testing';
 import { metaFilePathFromPidFilePath } from '../../utils/readDaemonMeta';
+import { pollUntil } from '../../utils/pollUntil';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
 function git(cmd: string, cwd: string) {
@@ -179,24 +180,12 @@ describe('stop command', () => {
                 throw new Error('spawn did not return a pid');
             }
 
-            const deadline = Date.now() + 5000;
-            let childPids: number[] = [];
-            while (Date.now() < deadline) {
-                try {
-                    const raw = await fs.readFile(readyFile, 'utf8');
-                    const parsed = JSON.parse(raw) as { pids?: number[] };
-                    if (Array.isArray(parsed.pids) && parsed.pids.length >= 2) {
-                        childPids = parsed.pids;
-                        break;
-                    }
-                } catch {
-                    // keep polling
-                }
-                await new Promise((resolve) => setTimeout(resolve, 25));
-            }
-            if (childPids.length < 2) {
-                throw new Error('timed out waiting for sigterm-ignorant tree');
-            }
+            const childPids = await pollUntil({
+                timeoutMs: 5000,
+                intervalMs: 25,
+                timeoutError: 'timed out waiting for sigterm-ignorant tree',
+                poll: async () => { try { const raw = await fs.readFile(readyFile, 'utf8'); const parsed = JSON.parse(raw) as { pids?: number[] }; return Array.isArray(parsed.pids) && parsed.pids.length >= 2 ? parsed.pids : undefined; } catch { return undefined; } },
+            });
 
             await fs.mkdir(path.dirname(pidPath()), { recursive: true });
             await fs.writeFile(pidPath(), `${pid}\n`, 'utf8');
@@ -298,26 +287,25 @@ describe('stop command', () => {
             await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
             await expect(fs.access(metaPath())).rejects.toMatchObject({ code: 'ENOENT' });
 
-            const deadline = Date.now() + 5000;
-            while (Date.now() < deadline) {
-                let allGone = true;
-                for (const fixturePid of [pid, ...childPids]) {
-                    try {
-                        process.kill(fixturePid, 0);
-                        allGone = false;
-                    } catch (e) {
-                        expect(e).toMatchObject({ code: 'ESRCH' });
-                    }
-                }
-                if (allGone) {
+            await pollUntil({
+                timeoutMs: 5000,
+                intervalMs: 50,
+                timeoutError: 'expected fixture tree to be killed',
+                poll: () => {
                     for (const fixturePid of [pid, ...childPids]) {
-                        activeFixturePids.delete(fixturePid);
+                        try {
+                            process.kill(fixturePid, 0);
+                            return undefined;
+                        } catch (e) {
+                            expect(e).toMatchObject({ code: 'ESRCH' });
+                        }
                     }
-                    return;
-                }
-                await new Promise((resolve) => setTimeout(resolve, 50));
+                    return true;
+                },
+            });
+            for (const fixturePid of [pid, ...childPids]) {
+                activeFixturePids.delete(fixturePid);
             }
-            throw new Error('expected fixture tree to be killed');
         }, 15_000);
 
         it('refuses per-lump busy stop without touching the global daemon', async () => {

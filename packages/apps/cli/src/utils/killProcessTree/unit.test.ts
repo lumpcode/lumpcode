@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isProcessAlive } from '../isProcessAlive';
+import { pollUntil } from '../pollUntil';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { killProcessTree } from './main';
@@ -12,34 +13,33 @@ const processTreeChildScript = fileURLToPath(
     new URL('../../testing/processTreeChild.cjs', import.meta.url),
 );
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 async function waitForPidGone(pid: number, timeoutMs = 5000): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        if (!isProcessAlive(pid)) {
-            return;
-        }
-        await sleep(50);
-    }
-    throw new Error(`Timed out waiting for pid ${pid} to exit`);
+    await pollUntil({
+        timeoutMs,
+        intervalMs: 50,
+        timeoutError: `Timed out waiting for pid ${pid} to exit`,
+        poll: () => (!isProcessAlive(pid) ? true : undefined),
+    });
 }
 
 async function waitForReadyFile(readyFile: string, timeoutMs = 5000): Promise<{ pids: number[] }> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        try {
-            const raw = await fs.readFile(readyFile, 'utf8');
-            const parsed = JSON.parse(raw) as { pids?: number[] };
-            if (Array.isArray(parsed.pids) && parsed.pids.length > 0) {
-                return { pids: parsed.pids };
+    return pollUntil({
+        timeoutMs,
+        intervalMs: 25,
+        timeoutError: `Timed out waiting for ready file at ${readyFile}`,
+        poll: async () => {
+            try {
+                const raw = await fs.readFile(readyFile, 'utf8');
+                const parsed = JSON.parse(raw) as { pids?: number[] };
+                if (Array.isArray(parsed.pids) && parsed.pids.length > 0) {
+                    return { pids: parsed.pids };
+                }
+            } catch {
+                // keep polling
             }
-        } catch {
-            // keep polling
-        }
-        await sleep(25);
-    }
-    throw new Error(`Timed out waiting for ready file at ${readyFile}`);
+            return undefined;
+        },
+    });
 }
 
 async function spawnProcessTree(depth: number): Promise<{ rootPid: number; pids: number[]; readyFile: string }> {
