@@ -1,22 +1,9 @@
-import * as fs from 'node:fs/promises';
-
-async function waitForPath(filePath: string, label: string, timeoutMs: number): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        try {
-            await fs.access(filePath);
-            return;
-        } catch {
-            await new Promise((resolve) => setTimeout(resolve, 25));
-        }
-    }
-    throw new Error(`Timed out waiting for daemon ${label} at ${filePath}`);
-}
+import { pollUntilPathExists } from '../utils/pollUntil';
 
 export async function waitForDaemonPidFile(pidFilePath: string, timeoutMs = 5000): Promise<void> {
-    await waitForPath(pidFilePath, 'PID file', timeoutMs);
+    await pollUntilPathExists({ filePath: pidFilePath, timeoutMs, intervalMs: 25, timeoutLabel: 'PID file' });
 }
 
 export async function waitForDaemonMetaFile(metaFilePath: string, timeoutMs = 5000): Promise<void> {
-    await waitForPath(metaFilePath, 'meta file', timeoutMs);
+    await pollUntilPathExists({ filePath: metaFilePath, timeoutMs, intervalMs: 25, timeoutLabel: 'meta file' });
 }

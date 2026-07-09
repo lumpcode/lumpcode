@@ -1,8 +1,7 @@
-import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { spawn, type ChildProcess } from 'node:child_process';
 
-import { daemonMetaPath, daemonPidPath, daemonsDirPath, readDaemonMeta } from '../../utils';
+import { daemonMetaPath, daemonPidPath, daemonsDirPath, pollUntil, pollUntilPathExists, readDaemonMeta } from '../../utils';
 import type { E2eProject } from './createE2eProject';
 import { e2eCliInvocation, runE2eCli } from './e2eCli';
 import { waitForRemoteMarker } from './markerAssertions';
@@ -21,16 +20,7 @@ export function daemonPathsForProject(project: E2eProject, lumpName?: string) {
 
 /** Polls until a file exists or the timeout elapses. */
 export async function waitForPath(filePath: string, timeoutMs = 60_000): Promise<void> {
-    const deadline = Date.now() + timeoutMs;
-    while (Date.now() < deadline) {
-        try {
-            await fs.access(filePath);
-            return;
-        } catch {
-            await new Promise((r) => setTimeout(r, 100));
-        }
-    }
-    throw new Error(`Timed out waiting for ${filePath}`);
+    await pollUntilPathExists({ filePath, timeoutMs, intervalMs: 100 });
 }
 
 /** Guards against accidentally pointing e2e runs at the real user profile directory. */
@@ -52,15 +42,15 @@ export async function waitForDaemonIdle(input: {
     metaFilePath: string;
     timeoutMs?: number;
 }): Promise<void> {
-    const deadline = Date.now() + (input.timeoutMs ?? 120_000);
-    while (Date.now() < deadline) {
-        const metaResult = await readDaemonMeta(input.metaFilePath);
-        if (metaResult.success && metaResult.data.busy !== true) {
-            return;
-        }
-        await new Promise((r) => setTimeout(r, 100));
-    }
-    throw new Error(`Timed out waiting for daemon idle at ${input.metaFilePath}`);
+    await pollUntil({
+        timeoutMs: input.timeoutMs ?? 120_000,
+        intervalMs: 100,
+        timeoutError: `Timed out waiting for daemon idle at ${input.metaFilePath}`,
+        poll: async () => {
+            const metaResult = await readDaemonMeta(input.metaFilePath);
+            return metaResult.success && metaResult.data.busy !== true ? true : undefined;
+        },
+    });
 }
 
 /** Treats `stop` responses that mean no daemon is running as success during teardown. */

@@ -8,7 +8,7 @@ import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { killProcessTree, readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
+import { killProcessTree, pollUntil, readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -33,8 +33,6 @@ export interface Injections {
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
 }
-
-const sleep: (ms: number) => Promise<void> = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
@@ -71,6 +69,9 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     const pid = pidAlive.pid;
+    const pollDead = () =>
+        pollUntil({ timeoutMs: 5000, intervalMs: 50, poll: () => (!isProcessAlive(pid, { onProbeError: 'dead' }) ? true : undefined) });
+    const unlinkArtifacts = async () => { await fs.unlink(pidFilePath).catch(() => {}); await fs.unlink(metaFilePath).catch(() => {}); };
 
     const metaResult = await readDaemonMeta(metaFilePath);
     if (!metaResult.success) {
@@ -91,24 +92,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             return failure({ messages: [killResult.data] });
         }
 
-        const deadlineMs = 5000;
-        const deadline = Date.now() + deadlineMs;
-        while (Date.now() < deadline) {
-            if (!isProcessAlive(pid, { onProbeError: 'dead' })) {
-                await fs.unlink(pidFilePath).catch(() => {});
-                await fs.unlink(metaFilePath).catch(() => {});
-                return success({
-                    messages: [
-                        `Force-stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
-                    ],
-                });
-            }
-            await sleep(50);
+        if (await pollDead()) {
+            await unlinkArtifacts();
+            return success({
+                messages: [
+                    `Force-stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
+                ],
+            });
         }
 
         return failure({
             messages: [
-                `Force-killed pid ${pid} but it did not exit within ${deadlineMs / 1000}s. PID file left at ${pidFilePath}.`,
+                `Force-killed pid ${pid} but it did not exit within 5s. PID file left at ${pidFilePath}.`,
             ],
         });
     }
@@ -131,24 +126,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         });
     }
 
-    const deadlineMs = 5000;
-    const deadline = Date.now() + deadlineMs;
-    while (Date.now() < deadline) {
-        if (!isProcessAlive(pid, { onProbeError: 'dead' })) {
-            await fs.unlink(pidFilePath).catch(() => {});
-            await fs.unlink(metaFilePath).catch(() => {});
-            return success({
-                messages: [
-                    `Stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
-                ],
-            });
-        }
-        await sleep(50);
+    if (await pollDead()) {
+        await unlinkArtifacts();
+        return success({
+            messages: [
+                `Stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
+            ],
+        });
     }
 
     return failure({
         messages: [
-            `Sent SIGTERM to pid ${pid} but it did not exit within ${deadlineMs / 1000}s. PID file left at ${pidFilePath}.`,
+            `Sent SIGTERM to pid ${pid} but it did not exit within 5s. PID file left at ${pidFilePath}.`,
         ],
     });
 };
