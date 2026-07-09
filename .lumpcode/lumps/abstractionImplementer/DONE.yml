@@ -1,0 +1,41 @@
+# Completed abstractions (migrated from findAbstraction).
+- name: appendMissingGitignoreLines
+  task: >-
+    Extract appendMissingGitignoreLines util for repeated .gitignore line-append patterns in the CLI.
+  priority: 1
+  completedAt: '2026-07-09T12:00:00.000Z'
+- name: isProcessAlive
+  task: >-
+    Extract isProcessAlive util for repeated process liveness checks in the CLI.
+  priority: 2
+  completedAt: '2026-07-09T12:00:00.000Z'
+- name: nodeErrnoCode
+  task: >-
+    Extract nodeErrnoCode util for repeated Node.js errno code extraction patterns in the CLI.
+  priority: 3
+  completedAt: '2026-07-09T12:00:00.000Z'
+- name: parseGitLogHashSubjectLines
+  task: >-
+    Extract parseGitLogHashSubjectLines util for repeated git log hash/subject parsing in the CLI.
+  priority: 4
+  completedAt: '2026-07-09T12:00:00.000Z'
+- name: pathExists
+  task: >-
+    Extract pathExists util for repeated fs.access existence probe patterns in the CLI and core.
+  priority: 5
+  completedAt: '2026-07-09T12:00:00.000Z'
+- name: readJsonFile
+  task: >-
+    Extract readJsonFile util for repeated JSON file read/parse patterns in the CLI.
+  priority: 6
+  completedAt: '2026-07-09T12:00:00.000Z'
+- name: resolveBundledAssetPath
+  task: >-
+    Extract resolveBundledAssetPath util for repeated bundled asset path resolution in the CLI.
+  priority: 7
+  completedAt: '2026-07-09T12:00:00.000Z'
+- name: resolveDaemonCommandScope
+  task: >-
+    Extract resolveDaemonCommandScope util for repeated daemon command scope resolution in the CLI.
+  priority: 8
+  completedAt: '2026-07-09T12:00:00.000Z'

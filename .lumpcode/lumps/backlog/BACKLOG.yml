@@ -1,0 +1,22 @@
+# Backlog of tasks to do. Everything listed here is pending.
+# Finished tasks are moved to DONE.yml automatically after implementation.
+#
+# Each item:
+#   name: unique-kebab-name         # required, ^[a-zA-Z0-9_-]+$
+#   type: feature | documentation | misc
+#   task: >-                        # free-form description
+#     ...
+#   priority: 1                     # lower runs sooner
+#   dependsOn:                      # optional, other item names
+#     - some-other-task
+#
+# feature items flow: prd -> testPlan -> tests_impl -> impl
+# documentation / misc items run a single step.
+- name: parallel-global-daemon-worktree
+  type: feature
+  task: >-
+    Enable parallel lump runs in the global daemon when workspaceStrategy is
+    worktree (maxParallelRun in local.json), add ignoredByGlobalDaemon per-lump
+    opt-out for side-managed lumps, and replace daemon meta busy with
+    inFlightLumpCount. See prds/parallel-global-daemon-worktree.prd.md.
+  priority: 1

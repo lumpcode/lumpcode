@@ -1,0 +1,10 @@
+# Pending CLI util abstractions. Finished items move to DONE.yml automatically.
+#
+# Each item:
+#   name: uniqueUtilName              # required, ^[a-zA-Z0-9_-]+$
+#   task: >-
+#     ...
+#   priority: 1                      # lower runs sooner
+#   dependsOn:                         # optional, other item names
+#     - some-other-util
+[]
