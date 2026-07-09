@@ -55,6 +55,7 @@ export * from './readDaemonMeta';
 export * from './readDaemonPidIfAlive';
 export * from './readLocalConfig';
 export * from './readJsonFile';
+export * from './readYamlList';
 export * from './resolveDaemonCommandScope';
 export * from './resolveDaemonPaths';
 export * from './resolveLumpDisabled';
