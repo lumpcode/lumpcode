@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { failure, success, type Failure, type Success } from '@lumpcode/core';
+import { failure, pathExists, success, type Failure, type Success } from '@lumpcode/core';
 
 import { isPromptTemplateFileRef } from '../lumpConfigPathRef';
 
@@ -17,9 +17,7 @@ export async function resolvePromptTemplateString({
     }
 
     const absolutePath = path.resolve(importBasePath, value);
-    try {
-        await fs.access(absolutePath);
-    } catch {
+    if (!(await pathExists(absolutePath))) {
         return failure(`Prompt template file not found: ${value}`);
     }
 

@@ -4,6 +4,10 @@ import * as path from 'node:path';
 
 import { failure, type Failure, success, type Success, type Logger } from '@lumpcode/core';
 
+import { isProcessAlive } from '../isProcessAlive';
+import { nodeErrnoCode } from '../nodeErrnoCode';
+import { readJsonFile } from '../readJsonFile';
+
 export type WorkspaceLockMode = 'wait' | 'fail';
 
 export type WorkspaceFileLockSpec = {
@@ -71,17 +75,6 @@ export function isWorkspaceFileBusyError(
     );
 }
 
-function isProcessAlive(pid: number): boolean {
-    try {
-        process.kill(pid, 0);
-        return true;
-    } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
-        return code !== 'ESRCH';
-    }
-}
-
 function formatBusyMessage(input: {
     spec: WorkspaceFileLockSpec;
     workspacePath: string;
@@ -122,16 +115,15 @@ export function formatWorkspaceFileWaitMessage(input: {
 }
 
 async function readLockHolder(lockFilePath: string): Promise<WorkspaceLockHolder | undefined> {
-    try {
-        const raw = await fs.readFile(lockFilePath, 'utf8');
-        const parsed = JSON.parse(raw) as WorkspaceLockHolder;
-        if (typeof parsed.pid !== 'number' || Number.isNaN(parsed.pid)) {
-            return undefined;
-        }
-        return parsed;
-    } catch {
+    const result = await readJsonFile<WorkspaceLockHolder>({ filePath: lockFilePath, ifMissing: 'undefined' });
+    if (!result.success || result.data === undefined) {
         return undefined;
     }
+    const parsed = result.data;
+    if (typeof parsed.pid !== 'number' || Number.isNaN(parsed.pid)) {
+        return undefined;
+    }
+    return parsed;
 }
 
 type TryAcquireResult =
@@ -156,15 +148,14 @@ async function tryAcquireWorkspaceFileLockOnce(input: {
         }
         return { status: 'acquired' };
     } catch (e) {
-        const code =
-            e && typeof e === 'object' && 'code' in e ? (e as NodeJS.ErrnoException).code : undefined;
+        const code = nodeErrnoCode(e);
         if (code !== 'EEXIST') {
             throw e;
         }
     }
 
     const holder = await readLockHolder(lockFilePath);
-    if (holder && isProcessAlive(holder.pid)) {
+    if (holder && isProcessAlive(holder.pid, { onProbeError: 'alive' })) {
         return { status: 'busy', holder };
     }
 

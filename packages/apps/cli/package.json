@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli",
-  "version": "0.0.10",
+  "version": "0.0.11",
   "description": "CLI for running agent loops over your codebase. Run agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
   "keywords": [
     "lumpcode",
@@ -47,6 +47,7 @@
   },
   "scripts": {
     "clean": "rm -rf dist && rm -f bin/lumpcode-darwin-* bin/lumpcode-linux-* bin/lumpcode-windows-* bin/esbuild bin/esbuild.exe && rm -rf bin/schemas bin/presets",
+    "prebuild:bundle": "npm run build -w=@lumpcode/core",
     "build:bundle": "node scripts/build.js",
     "build:dev": "node scripts/build.js --dev",
     "build:npm": "npm run build:bundle",
@@ -56,6 +57,7 @@
     "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build:bundle",
     "check-types": "tsc --noEmit",
+    "pretest": "npm run build -w=@lumpcode/core",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:node": "node scripts/run-e2e.mjs --node",
@@ -64,7 +66,7 @@
     "install-bin:local:beta": "sh scripts/install-local.sh"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.10",
+    "@lumpcode/core": "^0.0.11",
     "ajv": "^8.20.0",
     "esbuild": "^0.25.5",
     "commander": "^9.5.0",

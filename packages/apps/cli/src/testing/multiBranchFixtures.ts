@@ -3,6 +3,9 @@ import * as fsSync from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execSync } from 'node:child_process';
+import { pathExists } from '@lumpcode/core';
+
+import { appendMissingGitignoreLines } from '../utils/appendMissingGitignoreLines';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';
@@ -51,17 +54,7 @@ export async function writeLocalJson(
     config: Partial<LocalConfig> & Pick<LocalConfig, 'mode'>,
 ): Promise<void> {
     const projectRoot = path.dirname(localConfigFolderPath);
-    const gitignorePath = path.join(projectRoot, '.gitignore');
-    let gitignore = '';
-    try {
-        gitignore = await fs.readFile(gitignorePath, 'utf-8');
-    } catch {
-        gitignore = '';
-    }
-    if (!gitignore.split(/\r?\n/).includes('.lumpcode/local.json')) {
-        const prefix = gitignore.length === 0 ? '' : gitignore.endsWith('\n') ? '' : '\n';
-        await fs.appendFile(gitignorePath, `${prefix}.lumpcode/local.json\n`, 'utf-8');
-    }
+    await appendMissingGitignoreLines({ projectRoot, lines: ['.lumpcode/local.json'] });
 
     await fs.writeFile(
         path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
@@ -163,7 +156,7 @@ export async function createIntegrationBranch(input: {
 
 async function commitMainLumpsIfPresent(projectRoot: string): Promise<void> {
     const lumpsDir = path.join(projectRoot, '.lumpcode/lumps');
-    if (!(await fs.access(lumpsDir).then(() => true).catch(() => false))) {
+    if (!(await pathExists(lumpsDir))) {
         return;
     }
     gitExec('add .lumpcode/lumps', projectRoot);
@@ -185,10 +178,10 @@ async function commitLumpcodeMetadataOnCurrentBranch(projectRoot: string): Promi
     const gitignorePath = path.join(projectRoot, '.gitignore');
     const projectJsonPath = path.join(projectRoot, '.lumpcode', 'project.json');
 
-    if (await fs.access(projectJsonPath).then(() => true).catch(() => false)) {
+    if (await pathExists(projectJsonPath)) {
         pathsToAdd.push('.lumpcode/project.json');
     }
-    if (await fs.access(gitignorePath).then(() => true).catch(() => false)) {
+    if (await pathExists(gitignorePath)) {
         pathsToAdd.push('.gitignore');
     }
     if (pathsToAdd.length === 0) return;

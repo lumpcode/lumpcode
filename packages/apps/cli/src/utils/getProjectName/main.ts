@@ -1,11 +1,10 @@
-import * as fs from 'node:fs/promises';
-
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { failure, pathExists, success } from '@lumpcode/core';
+
+import { readJsonFile } from '../readJsonFile';
 
 import type { ProjectConfig } from '../../types/ProjectConfig';
 import { projectJsonPath } from '../projectJsonPath';
-import { readJson } from '../readJson';
 
 const VALID_PROJECT_NAME = /^[a-zA-Z0-9_-]+$/;
 
@@ -38,16 +37,16 @@ export async function getProjectName(input: {
     const { localConfigFolderPath } = input;
     const projectJsonFilePath = projectJsonPath({ localConfigFolderPath });
 
-    const jsonExists = await fs.access(projectJsonFilePath).then(() => true).catch(() => false);
+    const jsonExists = await pathExists(projectJsonFilePath);
     if (!jsonExists) {
         return failure(
             'Missing .lumpcode/project.json with a projectName. Run lumpcode project-setup in the repository root.',
         );
     }
 
-    const readResult = await readJson<ProjectConfig>(projectJsonFilePath);
+    const readResult = await readJsonFile<ProjectConfig>({ filePath: projectJsonFilePath });
     if (!readResult.success) {
-        return failure(readResult.data.message ?? 'Failed to read project.json');
+        return readResult;
     }
 
     const projectName = readResult.data.projectName?.trim();

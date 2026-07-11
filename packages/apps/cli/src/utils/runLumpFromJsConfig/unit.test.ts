@@ -6,6 +6,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import * as core from '@lumpcode/core';
 
+import { noopLogger } from '../noopLogger';
+
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import * as runProjectPreflightModule from '../runProjectPreflight';
 import {
@@ -90,7 +92,7 @@ describe('runLumpFromJsConfig', () => {
             localConfigFolderPath,
             globalConfigFolderPath,
             sourceProjectRoot: projectRoot,
-            logger: core.noopLogger,
+            logger: noopLogger,
             ...overrides,
         });
     }

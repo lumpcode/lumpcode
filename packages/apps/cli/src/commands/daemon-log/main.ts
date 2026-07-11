@@ -6,9 +6,7 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure } from '../../utils';
-import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
-import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
+import { resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -108,23 +106,18 @@ function runTailFollow(
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath, spawnFn } = injections;
     const spawnImpl = spawnFn ?? nodeSpawn;
-    const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
     const linesOpt = input.options.lines;
     const noFollow = input.options.noFollow === true;
 
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
-
-    const pathsResult = await resolveDaemonPaths({
+    const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
-        lumpName: lumpNameOpt,
+        lumpName: input.options.lumpName,
     });
-    if (!pathsResult.success) return commandFailure(pathsResult.data);
-
-    const { logFilePath, projectName } = pathsResult.data;
-    const scopeLabel = lumpNameOpt ? ` lump "${lumpNameOpt}"` : '';
+    if (!scopeResult.success) return scopeResult;
+    const { lumpName: lumpNameOpt, scopeLabel, paths } = scopeResult.data;
+    const { logFilePath, projectName } = paths;
 
     try {
         await access(logFilePath);

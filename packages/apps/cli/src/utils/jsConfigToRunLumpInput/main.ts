@@ -18,10 +18,11 @@ import type {
     GetContextListFnOutput,
     Context,
 } from "@lumpcode/core";
-import { success, failure, noopLogger } from "@lumpcode/core";
+import { success, failure, pathExists } from "@lumpcode/core";
+import { noopLogger } from '../noopLogger';
+import { readJsonFile } from '../readJsonFile';
 import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled";
 import { getCommandPath } from "../getCommandPath";
-import { readJson } from "../readJson";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
 
 import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, CommandConfigPaths } from "../../types";
@@ -283,10 +284,9 @@ async function resolveGetContextListFn({
             template = contextListJson;
         } else {
             const resolvedPath = path.resolve(configBasePath, contextListJson);
-            const readResult = await readJson<Record<string, string>>(resolvedPath);
+            const readResult = await readJsonFile<Record<string, string>>({ filePath: resolvedPath });
             if (!readResult.success) {
-                const msg = (readResult.data as { message?: string })?.message ?? 'Failed to load contextListJson file';
-                return failure(msg);
+                return readResult;
             }
             template = readResult.data;
         }
@@ -576,9 +576,7 @@ async function loadCommandModule({
 }): Promise<Success<void> | Failure<string>> {
     if (importBasePath) {
         const absolutePath = path.resolve(importBasePath, importPath);
-        try {
-            await fs.access(absolutePath);
-        } catch {
+        if (!(await pathExists(absolutePath))) {
             return failure(`Command module file not found: ${cacheKey}`);
         }
     }

@@ -6,7 +6,10 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import { isSea } from 'node:sea';
 
-import { failure, Failure, success, Success } from '@lumpcode/core';
+import { failure, Failure, pathExists, success, Success } from '@lumpcode/core';
+
+import { appendMissingGitignoreLines } from '../appendMissingGitignoreLines';
+import { readJsonFile } from '../readJsonFile';
 
 const execFileAsync = promisify(execFile);
 
@@ -50,26 +53,13 @@ async function findLumpcodeRoot(sourceAbsolutePath: string): Promise<string | nu
 async function resolveCacheRoot(sourceAbsolutePath: string): Promise<string> {
     const lumpcodeRoot = await findLumpcodeRoot(sourceAbsolutePath);
     if (lumpcodeRoot) {
-        await ensureCacheGitignored(lumpcodeRoot);
+        void appendMissingGitignoreLines({
+            projectRoot: path.dirname(lumpcodeRoot),
+            lines: [CACHE_GITIGNORE_LINE],
+        });
         return path.join(lumpcodeRoot, '.cache', 'transpile');
     }
     return path.join(os.tmpdir(), 'lumpcode-transpile');
-}
-
-async function ensureCacheGitignored(lumpcodeRoot: string): Promise<void> {
-    const gitignorePath = path.join(path.dirname(lumpcodeRoot), '.gitignore');
-    let content = '';
-    try {
-        content = await fs.readFile(gitignorePath, 'utf-8');
-    } catch {
-        // create or append below
-    }
-
-    const existingLines = new Set(content.split(/\r?\n/).map((line) => line.trim()));
-    if (existingLines.has(CACHE_GITIGNORE_LINE)) return;
-
-    const prefix = content.length === 0 ? '' : content.endsWith('\n') ? '' : '\n';
-    await fs.writeFile(gitignorePath, `${content}${prefix}${CACHE_GITIGNORE_LINE}\n`, 'utf-8');
 }
 
 function hashSourcePath(sourceAbsolutePath: string): string {
@@ -111,12 +101,11 @@ type CacheMeta = {
 };
 
 async function readStoredMeta(metaPath: string): Promise<CacheMeta | null> {
-    try {
-        const raw = await fs.readFile(metaPath, 'utf-8');
-        return JSON.parse(raw) as CacheMeta;
-    } catch {
+    const result = await readJsonFile<CacheMeta>({ filePath: metaPath, ifMissing: 'undefined' });
+    if (!result.success || result.data === undefined) {
         return null;
     }
+    return result.data;
 }
 
 function extractRelativeImportSpecifiers(sourceContent: string): string[] {
@@ -243,12 +232,10 @@ async function isCacheValid(
     if (!(await areStoredDependencyMtimesValid(sourceAbsolutePath, sourceContent, stored.dependencyMtimes))) {
         return null;
     }
-    try {
-        await fs.access(stored.outPath);
-        return stored;
-    } catch {
+    if (!(await pathExists(stored.outPath))) {
         return null;
     }
+    return stored;
 }
 
 function formatEsbuildError(sourceAbsolutePath: string, error: unknown): string {
@@ -297,9 +284,7 @@ async function runEsbuildTranspile(absolutePath: string, outPath: string): Promi
         if (!binaryPath) {
             throw new Error('ESBUILD_BINARY_PATH is not configured');
         }
-        try {
-            await fs.access(binaryPath);
-        } catch {
+        if (!(await pathExists(binaryPath))) {
             throw new Error(`esbuild binary not found at ${binaryPath}`);
         }
         const args = [

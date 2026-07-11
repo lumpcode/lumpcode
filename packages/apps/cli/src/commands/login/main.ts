@@ -11,6 +11,8 @@ const NON_INTERACTIVE_ERROR =
 
 import { failure, success } from '@lumpcode/core';
 
+import { readJsonFile } from '../../utils/readJsonFile';
+
 import { env } from '../../env';
 import { AUTH_FILE_PATH } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
@@ -117,12 +119,11 @@ async function saveAuthData(
 }
 
 async function getAuthData(authFilePath: string = AUTH_FILE_PATH): Promise<AuthData | null> {
-    try {
-        const content = await fs.readFile(authFilePath, 'utf-8');
-        return JSON.parse(content) as AuthData;
-    } catch {
+    const result = await readJsonFile<AuthData>({ filePath: authFilePath, ifMissing: 'undefined' });
+    if (!result.success || result.data === undefined) {
         return null;
     }
+    return result.data;
 }
 
 export interface Injections {

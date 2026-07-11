@@ -1,8 +1,8 @@
-import * as fs from 'node:fs/promises';
 import * as z from 'zod';
 
-import type { Failure, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { failure, success, type Failure, type Success } from '@lumpcode/core';
+
+import { readJsonFile } from '../readJsonFile';
 
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 
@@ -36,28 +36,15 @@ const defaultMeta: DaemonMeta = { workspaceStrategy: 'checkout' };
 export async function readDaemonMeta(
     metaFilePath: string,
 ): Promise<Success<DaemonMeta> | Failure<string>> {
-    let raw: string;
-    try {
-        raw = await fs.readFile(metaFilePath, 'utf8');
-    } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error  // TODO : we have this pattern everywhere, abstract it
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
-        if (code === 'ENOENT') {
-            return success(defaultMeta);
-        }
-        return failure(`Cannot read daemon metadata "${metaFilePath}": ${String(error)}`);
+    const readResult = await readJsonFile<unknown>({
+        filePath: metaFilePath,
+        ifMissing: { defaultValue: defaultMeta },
+    });
+    if (!readResult.success) {
+        return readResult;
     }
 
-    let parsed: unknown;
-    try {
-        parsed = JSON.parse(raw);
-    } catch (error) {
-        return failure(`Invalid JSON in daemon metadata "${metaFilePath}": ${String(error)}`);
-    }
-
-    const validated = daemonMetaSchema.safeParse(parsed);
+    const validated = daemonMetaSchema.safeParse(readResult.data);
     if (!validated.success) {
         return success(defaultMeta);
     }

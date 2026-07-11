@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 
-import { shellBestEffort, shellSingleQuote } from '@lumpcode/core';
+import { shellSingleQuote } from '@lumpcode/core';
 import type {
     SetupWorkspaceAfterExecFn,
     SetupWorkspaceFn,
@@ -10,6 +10,7 @@ import type {
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { atDirectory } from '../atDirectory';
 import { lumpWorktreePath } from '../getLumpWorktreePath';
+import { shellBestEffort } from '../shellBestEffort';
 
 export interface MakeLumpWorkspaceFnsInput {
     /** Execution workspace (absolute): git repo root — project copy in shared mode, checkout in dedicated. */

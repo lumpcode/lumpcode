@@ -1,7 +1,8 @@
-import { failure, Failure, Success } from "@lumpcode/core";
+import { Failure, Success } from "@lumpcode/core";
+
+import { readJsonFile } from "../readJsonFile";
 
 import { contextStatusRecordPath } from "../contextStatusRecordPath";
-import { readJson } from "../readJson";
 import { ContextStatusRecord } from "../../types";
 
 export async function getContextStatusRecordFromLumpName(input: {
@@ -10,7 +11,7 @@ export async function getContextStatusRecordFromLumpName(input: {
 }): Promise<Success<ContextStatusRecord> | Failure<string>> {
     const { lumpName, projectRoot } = input;
     const csrPath = contextStatusRecordPath({ projectRoot, lumpName });
-    const contextStatusRecordRes = await readJson<ContextStatusRecord>(csrPath);
-    if (!contextStatusRecordRes.success) return failure(contextStatusRecordRes.data.message);
+    const contextStatusRecordRes = await readJsonFile<ContextStatusRecord>({ filePath: csrPath });
+    if (!contextStatusRecordRes.success) return contextStatusRecordRes;
     return contextStatusRecordRes;
 }

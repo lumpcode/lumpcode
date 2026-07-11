@@ -1,8 +1,8 @@
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 
-import { decision, failure, Failure, success, Success } from "@lumpcode/core";
-import { readJson } from '../readJson';
+import { failure, Failure, pathExists, success, Success } from "@lumpcode/core";
+import { decision } from '../decision';
+import { readJsonFile } from '../readJsonFile';
 import { resolveImportable } from '../resolveImportable';
 import { LumpJsConfig, LumpJsonConfig } from '../../types';
 import { jsonConfigToJsConfig } from '../jsonConfigToJsConfig';
@@ -20,9 +20,7 @@ export async function getJsConfigFromLumpName(input: {
     const lumpConfigTsPath = path.join(lumpDir, 'config.ts');
 
     const [jsonConfigExists, jsConfigExists, tsConfigExists] = await Promise.all(
-        [lumpConfigJsonPath, lumpConfigJsPath, lumpConfigTsPath].map((p) =>
-            fs.access(p).then(() => true).catch(() => false),
-        ),
+        [lumpConfigJsonPath, lumpConfigJsPath, lumpConfigTsPath].map(pathExists),
     );
 
     if (!jsonConfigExists && !jsConfigExists && !tsConfigExists) {
@@ -49,8 +47,8 @@ export async function getJsConfigFromLumpName(input: {
         [ 
             () => jsonConfigExists,
             async () => {
-                const jsonConfigResult = await readJson<LumpJsonConfig>(lumpConfigJsonPath);
-                if (!jsonConfigResult.success) return failure(jsonConfigResult.data.message);
+                const jsonConfigResult = await readJsonFile<LumpJsonConfig>({ filePath: lumpConfigJsonPath });
+                if (!jsonConfigResult.success) return jsonConfigResult;
                 const jsonConfigData = jsonConfigResult.data;
                 const schemaResult = validateLumpJsonConfig(jsonConfigData);
                 if (!schemaResult.success) return schemaResult;

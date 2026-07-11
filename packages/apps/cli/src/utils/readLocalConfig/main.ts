@@ -1,8 +1,9 @@
-import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
 import { failure, type Failure, success, type Success } from '@lumpcode/core';
+
+import { readJsonFile } from '../readJsonFile';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 
@@ -55,28 +56,15 @@ export async function readLocalConfig(input: {
 }): Promise<Success<LocalConfig> | Failure<string>> {
     const filePath = path.join(input.localConfigFolderPath, LOCAL_CONFIG_FILE_NAME);
 
-    let raw: string;
-    try {
-        raw = await fs.readFile(filePath, 'utf-8');
-    } catch (error: unknown) {
-        const code =
-            error && typeof error === 'object' && 'code' in error
-                ? (error as NodeJS.ErrnoException).code
-                : undefined;
-        if (code === 'ENOENT') {
-            return failure(MISSING_HINT);
-        }
-        return failure(`Cannot read ${filePath}: ${String(error)}`);
+    const readResult = await readJsonFile<unknown>({
+        filePath,
+        missingFileFailure: MISSING_HINT,
+    });
+    if (!readResult.success) {
+        return readResult;
     }
 
-    let parsed: unknown;
-    try {
-        parsed = JSON.parse(raw);
-    } catch (error) {
-        return failure(`Invalid JSON in ${filePath}: ${String(error)}`);
-    }
-
-    const validated = localConfigSchema.safeParse(parsed);
+    const validated = localConfigSchema.safeParse(readResult.data);
     if (!validated.success) {
         const messages = validated.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`).join('; ');
         return failure(`Invalid .lumpcode/local.json: ${messages}`);

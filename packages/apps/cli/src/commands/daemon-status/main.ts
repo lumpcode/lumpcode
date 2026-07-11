@@ -4,9 +4,7 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { commandFailure, readDaemonMeta, readDaemonPidIfAlive } from '../../utils';
-import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
-import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
+import { readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -59,22 +57,17 @@ async function readMetaFromFile(metaFilePath: string): Promise<{
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
-    const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
-
-    const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
-    if (!validationResult.success) return commandFailure(validationResult.data);
-
-    const pathsResult = await resolveDaemonPaths({
+    const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
-        lumpName: lumpNameOpt,
+        lumpName: input.options.lumpName,
     });
-    if (!pathsResult.success) return commandFailure(pathsResult.data);
+    if (!scopeResult.success) return scopeResult;
+    const { lumpName: lumpNameOpt, scopeLabel, paths } = scopeResult.data;
+    const { pidFilePath, logFilePath, metaFilePath, projectName } = paths;
 
-    const { pidFilePath, logFilePath, metaFilePath, projectName } = pathsResult.data;
     const meta = await readMetaFromFile(metaFilePath);
-    const scopeLabel = lumpNameOpt ? ` lump "${lumpNameOpt}"` : '';
 
     const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
     if (!pidAliveResult.success) {
