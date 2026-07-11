@@ -48,6 +48,7 @@ export * from './makePromptFnFromTemplate';
 export * from './nodeErrnoCode';
 export * from './noopLogger';
 export * from './planLumpFromJsConfig';
+export * from './pollUntil';
 export * from './projectCopiesRootPath';
 export * from './projectJsonPath';
 export * from './readDaemonMeta';

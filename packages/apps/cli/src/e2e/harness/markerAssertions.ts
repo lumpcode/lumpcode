@@ -1,3 +1,5 @@
+import { pollUntil } from '../../utils';
+
 import { lumpBranchName, markerPathInRepo, remoteHasMarkerFile } from './gitHelpers';
 
 /** Asserts the e2e completion marker file exists on the lump branch in the bare remote. */
@@ -20,16 +22,10 @@ export async function waitForRemoteMarker(input: {
     contextName: string;
     timeoutMs?: number;
 }): Promise<void> {
-    const deadline = Date.now() + (input.timeoutMs ?? 90_000);
-    while (Date.now() < deadline) {
-        try {
-            expectMarkerOnRemote(input);
-            return;
-        } catch {
-            await new Promise((r) => setTimeout(r, 200));
-        }
-    }
-    throw new Error(
-        `Timed out waiting for marker on ${lumpBranchName(input.lumpName, input.contextName)}`,
-    );
+    await pollUntil({
+        timeoutMs: input.timeoutMs ?? 90_000,
+        intervalMs: 200,
+        timeoutError: `Timed out waiting for marker on ${lumpBranchName(input.lumpName, input.contextName)}`,
+        poll: () => { try { expectMarkerOnRemote(input); return true; } catch { return undefined; } },
+    });
 }
