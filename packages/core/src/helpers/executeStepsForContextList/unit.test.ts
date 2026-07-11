@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm, readFile, access, writeFile, mkdir } from 'node:fs/promises';
 import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
 import { load as loadYaml } from 'js-yaml';
 
-import type { BranchFn, CommandFn, Context, SetupFn, Steps } from '../../types';
+import type { BranchFn, CommandFn, Context, Logger, SetupFn, Steps } from '../../types';
 import { executeStepsForContextList } from './main';
 
 const stubBranchFn: BranchFn = async () => 'lump/test/ctx';
@@ -285,20 +285,43 @@ describe('executeStepsForContextList keepHistory', () => {
         expect(history[1].prompt).toBe('nested step');
     });
 
-    it('fails the step walk when appending to invalid YAML', async () => {
+    it('continues the step walk when appending to invalid YAML', async () => {
         const historyPath = join(projectRoot, 'history', 'ctx.yaml');
         await mkdir(dirname(historyPath), { recursive: true });
         await writeFile(historyPath, '{{invalid', 'utf-8');
 
-        const result = await runWithHistory({
+        const warn = vi.fn();
+        const logger: Logger = {
+            error: vi.fn(),
+            warn,
+            info: vi.fn(),
+            verbose: vi.fn(),
+            child: () => logger,
+        };
+
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommandFn: stubGitAdd,
+            gitCommitCommandFn: stubGitCommit,
+            gitPushCommandFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
-            getKeepHistoryFilePathFn: () => historyPath,
             steps: makeSteps(['only step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => historyPath,
+            logger,
         });
 
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain(historyPath);
+        expect(result.success).toBe(true);
+        expect(warn).toHaveBeenCalledOnce();
+        expect(warn.mock.calls[0]?.[0]).toContain(historyPath);
+        await expect(readFile(historyPath, 'utf-8')).resolves.toBe('{{invalid');
     });
 });
 

@@ -264,8 +264,10 @@ export async function executeStepsForContextList({
                         entry: postCommandExecFnInput,
                     });
                     if (!appendResult.success) {
-                        stepWalkFailure = failure({ message: appendResult.data });
-                        return;
+                        // TODO: sanitize history appending to avoid this warning for certain commands outputs
+                        logger.warn(
+                            `Failed to append history entry to ${keepHistoryFilePath}: ${appendResult.data}`,
+                        );
                     }
                 }
 
