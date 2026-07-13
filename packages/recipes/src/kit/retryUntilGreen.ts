@@ -1,4 +1,4 @@
-import type { LumpJsConfig, LumpJsConfigSteps } from '@lumpcode/cli-types';
+import type { LumpJsConfig, LumpJsConfigSteps } from '@lumpcode/cli-utils';
 import type { CommandDescriptor } from '@lumpcode/core';
 import { shellSingleQuote } from '@lumpcode/core';
 

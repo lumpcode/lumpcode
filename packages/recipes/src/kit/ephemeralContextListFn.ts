@@ -1,4 +1,4 @@
-import type { GetContextListFn, GetContextListFnInput, MaybePromise } from '@lumpcode/cli-types';
+import type { GetContextListFn, GetContextListFnInput } from '@lumpcode/cli-utils';
 import { MaybePromGetter, normalizeMaybePromGetter } from '../types/MaybePromGetter';
 
 type ContextVariables = Record<string, string | number | boolean>;

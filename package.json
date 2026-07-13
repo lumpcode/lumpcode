@@ -29,7 +29,7 @@
     "vue-tsc": "^3.1.4"
   },
   "dependencies": {
-    "@lumpcode/cli-types": "^0.0.10",
+    "@lumpcode/cli-types": "^0.0.11",
     "@lumpcode/cli-utils": "*",
     "@lumpcode/recipes": "*"
   }

@@ -1,8 +1,22 @@
 # @lumpcode/cli-utils
 
-Private monorepo workspace — **not published to npm yet**. Rollup re-exports curated runtime helpers from `@lumpcode/cli` sources (same pattern as `@lumpcode/cli-types`).
+Published npm package: **types**, **`define*` helpers**, and **runtime utilities** for authoring Lumpcode lump configs and recipes.
 
-Source of truth stays under `packages/apps/cli/src/utils/`. The CLI does not depend on this package.
+Re-exports all of [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) plus runtime helpers bundled from `@lumpcode/cli` sources at build time (`cli-types` stays an external dependency at publish).
+
+During the transition both `@lumpcode/cli-types` and `@lumpcode/cli-utils` are supported; new work should prefer `@lumpcode/cli-utils`.
+
+## Install
+
+```bash
+npm install @lumpcode/cli-utils
+```
+
+## Usage
+
+```ts
+import { defineConfig, normalizeSteps, type LumpJsConfig } from '@lumpcode/cli-utils';
+```
 
 ## Build
 
@@ -10,16 +24,14 @@ From the monorepo root:
 
 ```bash
 npm run build -w=@lumpcode/core
+npm run build -w=@lumpcode/cli-types
 npm run build -w=@lumpcode/cli-utils
 ```
 
-## Current exports
+## Runtime exports
 
 - `getContextStatus` — remote marker-commit status for a context
 - `makeGitCommitMessageFnFromLumpName` — default `LUMP:<lump> - <context>` messages
 - `getGitCommitMessage`, `getLumpCommitPrefixForLump` — commit message helpers
 - `readYamlList` — read a YAML file as a flat list (`[]` when missing or not an array)
-
-`planLumpFromJsConfig` remains CLI-only for now (heavy runner dependencies).
-
-Add new helpers by extending `src/utils.ts` with a re-export from the CLI util path.
+- `normalizeSteps` — normalize lump `steps` to an array

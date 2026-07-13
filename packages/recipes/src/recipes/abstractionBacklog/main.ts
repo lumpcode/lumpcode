@@ -1,4 +1,4 @@
-import { type LumpJsConfig } from '@lumpcode/cli-types';
+import { type LumpJsConfig } from '@lumpcode/cli-utils';
 import { pathExists } from '@lumpcode/core';
 import path from 'node:path';
 

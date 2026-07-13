@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import { load as loadYaml } from 'js-yaml';
-import type { Context, GetContextListFn, MaybePromise } from '@lumpcode/cli-types';
+import type { Context, GetContextListFn, MaybePromise } from '@lumpcode/cli-utils';
 
 import type { BaseBacklogItem } from '../types';
 import { validateBaseBacklogItem } from './validateBaseBacklogItem';

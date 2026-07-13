@@ -1,4 +1,4 @@
-import type { LumpJsConfig, LumpVariables } from '@lumpcode/cli-types';
+import type { LumpJsConfig, LumpVariables } from '@lumpcode/cli-utils';
 
 export type Recipe<Options, V extends LumpVariables = LumpVariables> = (
     options: Options,
