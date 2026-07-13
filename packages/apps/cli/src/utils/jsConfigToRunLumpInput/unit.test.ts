@@ -453,6 +453,30 @@ describe('jsConfigToRunLumpInput', () => {
                 'At least one prompt or step must be provided');
         });
 
+        it('should treat a solo steps string like prompt', async () => {
+            const data = assertSuccess(await resolveJsConf({ prompt: undefined, steps: 'Refactor @{FILE} to Vue', command: stubCommandFn }));
+            const item = data.steps[0] as Step;
+            expect(await item.promptFn?.(promptFnInput({ FILE: 'Button.tsx' }))).toBe('Refactor @Button.tsx to Vue');
+        });
+
+        it('should treat a solo steps object like prompt', async () => {
+            const data = assertSuccess(await resolveJsConf({
+                prompt: undefined,
+                steps: { promptFn: stubPromptFn, commandFn: stubCommandFn },
+            }));
+            expect((data.steps[0] as Step).promptFn).toBe(stubPromptFn);
+        });
+
+        it('should prefer solo steps over prompt when both are set', async () => {
+            const data = assertSuccess(await resolveJsConf({
+                prompt: 'From prompt',
+                steps: 'From steps',
+                command: stubCommandFn,
+            }));
+            expect(data.steps).toHaveLength(1);
+            expect(await (data.steps[0] as Step).promptFn?.(promptFnInput())).toBe('From steps');
+        });
+
         it('should resolve a step with commandFn only and no prompt fields', async () => {
             const data = assertSuccess(await resolveJsConf({
                 prompt: undefined,

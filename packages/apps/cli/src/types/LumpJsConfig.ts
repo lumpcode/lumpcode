@@ -7,6 +7,8 @@ import { FilePath } from "./FilePath";
 import { LumpJsConfigSteps } from "./LumpJsConfigSteps";
 import { MergeObjs } from "./MergeObjs";
 
+type LumpJsConfigSoloStep = LumpJsConfigStep | LumpJsConfigStep['promptTemplate'] | LumpJsConfigStep['promptFn'];
+
 export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Omit<{
     [K in keyof RunLumpInput<V>]?: NonNullable<RunLumpInput<V>[K]> extends Function ? (RunLumpInput<V>[K] | FilePath) : RunLumpInput<V>[K];
 }, 
@@ -29,9 +31,10 @@ export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Om
     contextOptionsFn?: FilePath | ContextOptionsFn;
     disabled?: boolean | (() => MaybePromise<boolean>) | FilePath;
     maximumNumberOfConcurrentBranches?: number;
-    prompt?: LumpJsConfigStep | LumpJsConfigStep['promptTemplate'] | LumpJsConfigStep['promptFn'];
-    steps?: LumpJsConfigSteps;
+    prompt?: LumpJsConfigSoloStep;
+    steps?: LumpJsConfigSteps | LumpJsConfigSoloStep;
     registerCommands?: string[];
     keepHistory?: boolean;
     verbose?: boolean;
 }>;
+

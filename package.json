@@ -12,6 +12,7 @@
   },
   "workspaces": [
     "packages/core",
+    "packages/recipes",
     "packages/apps/cli/cli-types",
     "packages/apps/cli/cli-utils",
     "packages/apps/*",
@@ -28,6 +29,8 @@
     "vue-tsc": "^3.1.4"
   },
   "dependencies": {
-    "@lumpcode/cli-types": "^0.0.9"
+    "@lumpcode/cli-types": "^0.0.10",
+    "@lumpcode/cli-utils": "*",
+    "@lumpcode/recipes": "*"
   }
 }
