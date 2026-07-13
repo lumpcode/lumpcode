@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing/tsLumpFixtures';
 import { planLumpFromJsConfig } from './main';
+import { execGit } from '../execGit';
 
 const FIXTURES_GLOBAL = path.resolve(__dirname, '../jsConfigToRunLumpInput/__fixtures__/global-config');
 
@@ -18,9 +19,6 @@ const LUMP_CONFIG_JS = `export default {
 };
 `;
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 describe('planLumpFromJsConfig', () => {
     let projectRoot: string;
@@ -43,10 +41,10 @@ describe('planLumpFromJsConfig', () => {
             'utf-8',
         );
 
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
 
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),

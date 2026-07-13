@@ -1,23 +1,20 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { command } from './main';
+import { execGit } from '../../utils/execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 describe('project-setup command', () => {
     let projectRoot: string;
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-project-setup-'));
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
     });
 
     afterEach(async () => {
@@ -98,9 +95,9 @@ describe('project-setup command', () => {
         const bareDireBaseName = 'lump-project-setup-bare-';
         const bareDir = await fs.mkdtemp(path.join(os.tmpdir(), bareDireBaseName));
 
-        git('init --bare', bareDir);
-        git(`remote add origin ${bareDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', bareDir);
+        execGit(`remote add origin ${bareDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
 
         const handle = makeHandler();
         const prev = process.cwd();
@@ -173,10 +170,10 @@ describe('project-setup command', () => {
         const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-project-setup-parent-'));
         const nestedRoot = path.join(parent, 'my silly app');
         await fs.mkdir(nestedRoot, { recursive: true });
-        git('init -b main', nestedRoot);
-        git('config user.email "test@test.com"', nestedRoot);
-        git('config user.name "Test"', nestedRoot);
-        git('commit --allow-empty -m "init"', nestedRoot);
+        execGit('init -b main', nestedRoot);
+        execGit('config user.email "test@test.com"', nestedRoot);
+        execGit('config user.name "Test"', nestedRoot);
+        execGit('commit --allow-empty -m "init"', nestedRoot);
 
         const handle = makeHandler();
         const prev = process.cwd();

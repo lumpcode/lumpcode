@@ -1,13 +1,13 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { LUMP_PLAN_COMMAND_CONFIG_TS } from '../../testing/tsLumpFixtures';
 import { command } from './main';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { gitCurrentBranch } from '../../testing';
+import { execGit } from '../../utils/execGit';
 
 const LUMP_CONFIG_JS = `export default {
   getContextListFn: () => [{ name: 'alpha', variables: {} }],
@@ -18,9 +18,6 @@ const LUMP_CONFIG_JS = `export default {
 };
 `;
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 describe('lump-plan command', () => {
     let projectRoot: string;
@@ -43,10 +40,10 @@ describe('lump-plan command', () => {
             'utf-8',
         );
 
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
 
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),

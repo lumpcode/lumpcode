@@ -1,11 +1,10 @@
-import { execSync } from 'node:child_process';
-
 import { getGitCommitMessage, lumpBranchName as lumpBranchNameUtil } from '../../utils';
+import { execGit } from '../../utils/execGit';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 
-/** Runs a git subcommand synchronously in `cwd` and returns trimmed stdout. */
+/** Stable e2e alias; thin wrapper avoids Vitest breakage from `export { execGit as git }` re-exports. */
 export function git(cmd: string, cwd: string): string {
-    return execSync(`git ${cmd}`, { cwd, stdio: 'pipe' }).toString().trim();
+    return execGit(cmd, cwd);
 }
 
 /** Returns whether `refs/heads/<branch>` exists in a bare remote repository. */

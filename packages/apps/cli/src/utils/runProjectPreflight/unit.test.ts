@@ -1,12 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { LOCAL_CONFIG_FILE_NAME } from '../readLocalConfig';
 import { runProjectPreflight } from './main';
 import { createIntegrationBranch, gitCurrentBranch, initBareRemoteAndCheckout, writeLocalJson } from '../../testing';
+import { execGit } from '../execGit';
 
 describe('runProjectPreflight', () => {
     let projectRoot: string;
@@ -110,10 +110,10 @@ describe('runProjectPreflight', () => {
             mode: 'dedicated',
             primaryBranches: ['main', 'ver/0.0.9'],
         });
-        git('checkout -b ver/0.0.9', projectRoot);
-        git('commit --allow-empty -m "ver"', projectRoot);
-        git('push -u origin ver/0.0.9', projectRoot);
-        git('checkout main', projectRoot);
+        execGit('checkout -b ver/0.0.9', projectRoot);
+        execGit('commit --allow-empty -m "ver"', projectRoot);
+        execGit('push -u origin ver/0.0.9', projectRoot);
+        execGit('checkout main', projectRoot);
 
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
@@ -192,6 +192,3 @@ describe('runProjectPreflight', () => {
 
 });
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}

@@ -1,15 +1,12 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { countOpenLumpBranches } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
+import { execGit } from '../execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 describe('countOpenLumpBranches', () => {
     let projectRoot: string;
@@ -18,13 +15,13 @@ describe('countOpenLumpBranches', () => {
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-count-branches-'));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-count-branches-remote-'));
-        git('init --bare', remoteDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${remoteDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${remoteDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
     });
 
     afterEach(async () => {
@@ -34,17 +31,17 @@ describe('countOpenLumpBranches', () => {
 
     function createAndPushLumpBranch(lumpName: string, contextName: string) {
         const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        git('checkout main', projectRoot);
-        git(`checkout -b ${branch}`, projectRoot);
-        git(`commit --allow-empty -m "lump work"`, projectRoot);
-        git(`push origin ${branch}`, projectRoot);
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, projectRoot);
+        execGit(`commit --allow-empty -m "lump work"`, projectRoot);
+        execGit(`push origin ${branch}`, projectRoot);
     }
 
     function createLocalOnlyLumpBranch(lumpName: string, contextName: string) {
         const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        git('checkout main', projectRoot);
-        git(`checkout -b ${branch}`, projectRoot);
-        git(`commit --allow-empty -m "lump work"`, projectRoot);
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, projectRoot);
+        execGit(`commit --allow-empty -m "lump work"`, projectRoot);
     }
 
     it('returns 0 when no lump branches exist', async () => { // TODO : need a test with worktree strategy
@@ -55,7 +52,7 @@ describe('countOpenLumpBranches', () => {
     it('counts remote branches matching the lump prefix', async () => {
         createAndPushLumpBranch('my-lump', 'ctx-a');
         createAndPushLumpBranch('my-lump', 'ctx-b');
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
 
         const count = await countOpenLumpBranches({ executionWorkspacePath: projectRoot, lumpName: 'my-lump' });
         expect(count).toBe(2);
@@ -63,14 +60,14 @@ describe('countOpenLumpBranches', () => {
 
     it('ignores local-only branches matching the lump prefix', async () => {
         createLocalOnlyLumpBranch('my-lump', 'local-ctx');
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
 
         const count = await countOpenLumpBranches({ executionWorkspacePath: projectRoot, lumpName: 'my-lump' });
         expect(count).toBe(0);
     });
 
     it('returns 0 when the remote query fails', async () => {
-        git('remote remove origin', projectRoot);
+        execGit('remote remove origin', projectRoot);
 
         const count = await countOpenLumpBranches({ executionWorkspacePath: projectRoot, lumpName: 'my-lump' });
         expect(count).toBe(0);
@@ -80,7 +77,7 @@ describe('countOpenLumpBranches', () => {
         createAndPushLumpBranch('my-lump', 'ctx-a');
         createAndPushLumpBranch('other-lump', 'ctx-b');
         createAndPushLumpBranch('other-lump', 'ctx-c');
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
 
         const count = await countOpenLumpBranches({ executionWorkspacePath: projectRoot, lumpName: 'my-lump' });
         expect(count).toBe(1);
@@ -88,7 +85,7 @@ describe('countOpenLumpBranches', () => {
 
     it('does not treat a lump name as a prefix of another (e.g. "my" vs "my-lump")', async () => {
         createAndPushLumpBranch('my-lump', 'ctx-a');
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
 
         const count = await countOpenLumpBranches({ executionWorkspacePath: projectRoot, lumpName: 'my' });
         expect(count).toBe(0);

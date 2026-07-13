@@ -2,10 +2,10 @@ import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
 import { pathExists } from '@lumpcode/core';
 
 import { appendMissingGitignoreLines } from '../utils/appendMissingGitignoreLines';
+import { execGit } from '../utils/execGit';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';
@@ -22,18 +22,14 @@ export type MultiBranchLumpSpec = {
     configOverrides?: Record<string, unknown>;
 };
 
-function gitExec(cmd: string, cwd: string): string {
-    return execSync(`git ${cmd}`, { cwd, stdio: 'pipe', encoding: 'utf-8' }).trim();
-}
-
 export function initBareRemoteAndCheckout(projectRoot: string, remoteDir: string): void {
-    gitExec('init --bare', remoteDir);
-    gitExec('init -b main', projectRoot);
-    gitExec('config user.email "test@test.com"', projectRoot);
-    gitExec('config user.name "Test"', projectRoot);
-    gitExec('commit --allow-empty -m "init"', projectRoot);
-    gitExec(`remote add origin ${remoteDir}`, projectRoot);
-    gitExec('push -u origin main', projectRoot);
+    execGit('init --bare', remoteDir);
+    execGit('init -b main', projectRoot);
+    execGit('config user.email "test@test.com"', projectRoot);
+    execGit('config user.name "Test"', projectRoot);
+    execGit('commit --allow-empty -m "init"', projectRoot);
+    execGit(`remote add origin ${remoteDir}`, projectRoot);
+    execGit('push -u origin main', projectRoot);
     // Mirror project-setup: keep machine-local config out of integration-branch commits.
     const gitignorePath = path.join(projectRoot, '.gitignore');
     try {
@@ -78,7 +74,7 @@ export async function writeMinimalLump(
 }
 
 export function gitCurrentBranch(cwd: string): string {
-    return gitExec('rev-parse --abbrev-ref HEAD', cwd);
+    return execGit('rev-parse --abbrev-ref HEAD', cwd);
 }
 
 export function assertCheckoutBranch(cwd: string, expected: string): void {
@@ -103,8 +99,8 @@ export async function createIntegrationBranch(input: {
     await commitLumpcodeMetadataOnCurrentBranch(projectRoot);
     await commitMainLumpsIfPresent(projectRoot);
 
-    gitExec('fetch origin main', projectRoot);
-    gitExec(`checkout -b ${branchName} origin/main`, projectRoot);
+    execGit('fetch origin main', projectRoot);
+    execGit(`checkout -b ${branchName} origin/main`, projectRoot);
 
     for (const [rel, content] of Object.entries(extraFiles)) {
         const filePath = path.join(projectRoot, rel);
@@ -133,15 +129,15 @@ export async function createIntegrationBranch(input: {
         ...lumpSpecs.map((spec) => `.lumpcode/lumps/${spec.name}`),
     ];
     if (pathsToStage.length > 0) {
-        gitExec(`add -- ${pathsToStage.join(' ')}`, projectRoot);
+        execGit(`add -- ${pathsToStage.join(' ')}`, projectRoot);
     }
     try {
-        gitExec(`commit -m "integration branch ${branchName}"`, projectRoot);
+        execGit(`commit -m "integration branch ${branchName}"`, projectRoot);
     } catch {
-        gitExec(`commit --allow-empty -m "integration branch ${branchName}"`, projectRoot);
+        execGit(`commit --allow-empty -m "integration branch ${branchName}"`, projectRoot);
     }
-    gitExec(`push -u origin ${branchName}`, projectRoot);
-    gitExec('checkout main', projectRoot);
+    execGit(`push -u origin ${branchName}`, projectRoot);
+    execGit('checkout main', projectRoot);
 
     await fs.mkdir(lumpcodeDir, { recursive: true });
     if (savedProjectJson !== null) {
@@ -159,17 +155,17 @@ async function commitMainLumpsIfPresent(projectRoot: string): Promise<void> {
     if (!(await pathExists(lumpsDir))) {
         return;
     }
-    gitExec('add .lumpcode/lumps', projectRoot);
-    const porcelain = gitExec('status --porcelain .lumpcode/lumps', projectRoot);
+    execGit('add .lumpcode/lumps', projectRoot);
+    const porcelain = execGit('status --porcelain .lumpcode/lumps', projectRoot);
     if (!porcelain) {
         return;
     }
-    gitExec('commit -m "lump configs"', projectRoot);
+    execGit('commit -m "lump configs"', projectRoot);
     const branch = gitCurrentBranch(projectRoot);
     try {
-        gitExec(`push origin ${branch}`, projectRoot);
+        execGit(`push origin ${branch}`, projectRoot);
     } catch {
-        gitExec('push -u origin HEAD', projectRoot);
+        execGit('push -u origin HEAD', projectRoot);
     }
 }
 
@@ -186,16 +182,16 @@ async function commitLumpcodeMetadataOnCurrentBranch(projectRoot: string): Promi
     }
     if (pathsToAdd.length === 0) return;
 
-    gitExec(`add ${pathsToAdd.join(' ')}`, projectRoot);
-    const porcelain = gitExec('status --porcelain', projectRoot);
+    execGit(`add ${pathsToAdd.join(' ')}`, projectRoot);
+    const porcelain = execGit('status --porcelain', projectRoot);
     if (!porcelain) return;
 
-    gitExec('commit -m "lumpcode metadata"', projectRoot);
+    execGit('commit -m "lumpcode metadata"', projectRoot);
     const branch = gitCurrentBranch(projectRoot);
     try {
-        gitExec(`push origin ${branch}`, projectRoot);
+        execGit(`push origin ${branch}`, projectRoot);
     } catch {
-        gitExec('push -u origin HEAD', projectRoot);
+        execGit('push -u origin HEAD', projectRoot);
     }
 }
 
@@ -236,9 +232,9 @@ export async function scaffoldMultiBranchProject(input: {
     }
 
     if ((input.mainLumps ?? []).length > 0 || Object.keys(input.localConfig).length > 0) {
-        gitExec('add -A', projectRoot);
-        gitExec('commit -m "main lumps"', projectRoot);
-        gitExec('push origin main', projectRoot);
+        execGit('add -A', projectRoot);
+        execGit('commit -m "main lumps"', projectRoot);
+        execGit('push origin main', projectRoot);
     }
 
     for (const branch of input.integrationBranches ?? []) {

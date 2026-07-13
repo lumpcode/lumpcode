@@ -20,6 +20,7 @@ export * from './decision';
 export * from './discoverDedicatedLumpsForScanBranch';
 export * from './discoverLoadableLumpNames';
 export * from './ensurePresetCommandsInstalled';
+export * from './execGit';
 export * from './extractPattern';
 export * from './formatDeamonLumpScopeCliOutput';
 export * from './getCommandPath';
