@@ -4,7 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { GetContextListFn } from '@lumpcode/cli-types';
+import type { GetContextListFn } from '@lumpcode/cli-utils';
 import { getContextStatus } from '@lumpcode/cli-utils';
 
 import { resolveFeatureBacklogItem } from './main';

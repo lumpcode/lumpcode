@@ -1,7 +1,6 @@
 import path from 'node:path';
 
-import { defineConfig, type Context, type LumpJsConfig, type LumpJsConfigSteps } from '@lumpcode/cli-types';
-import { normalizeSteps } from '@lumpcode/cli-utils';
+import { defineConfig, normalizeSteps, type Context, type LumpJsConfig, type LumpJsConfigSteps } from '@lumpcode/cli-utils';
 
 import {
     projectRootFromConfigUrl,

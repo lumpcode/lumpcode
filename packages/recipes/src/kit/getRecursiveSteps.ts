@@ -1,5 +1,4 @@
-import type { LumpJsConfig, CommandFn, LumpJsConfigSteps } from '@lumpcode/cli-types';
-import { normalizeSteps } from '@lumpcode/cli-utils';
+import { normalizeSteps, type LumpJsConfig, type CommandFn, type LumpJsConfigSteps } from '@lumpcode/cli-utils';
 import type { CommandDescriptor, MaybePromise, PostCommandExecFn } from '@lumpcode/core';
 
 const GET_RECURSIVE_STEPS_IS_OK_FLAG_KEY = '__getRecursiveSteps_isOk__';

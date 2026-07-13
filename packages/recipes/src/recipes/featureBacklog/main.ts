@@ -1,8 +1,7 @@
 import path from 'node:path';
 
-import { getContextStatus } from '@lumpcode/cli-utils';
+import { getContextStatus, type LumpJsConfig } from '@lumpcode/cli-utils';
 import { pathExists } from '@lumpcode/core';
-import type { LumpJsConfig } from '@lumpcode/cli-types';
 
 import {
     projectRootFromConfigUrl,

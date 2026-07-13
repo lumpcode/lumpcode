@@ -1,4 +1,4 @@
-import { defineConfig, LumpJsConfig } from '@lumpcode/cli-types';
+import { defineConfig, LumpJsConfig } from '@lumpcode/cli-utils';
 
 import { defineRecipe, type Recipe } from '../../types';
 

@@ -1,4 +1,4 @@
-import type { LumpJsConfig, LumpVariables } from '@lumpcode/cli-types';
+import type { LumpJsConfig, LumpVariables } from '@lumpcode/cli-utils';
 import type { MaybePromise } from '@lumpcode/core';
 import type { BaseBacklogItem } from '../../types';
 

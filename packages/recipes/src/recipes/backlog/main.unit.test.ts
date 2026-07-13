@@ -4,7 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import type { GetContextListFn, LumpJsConfigSteps } from '@lumpcode/cli-types';
+import type { GetContextListFn, LumpJsConfigSteps } from '@lumpcode/cli-utils';
 import { normalizeSteps } from '@lumpcode/cli-utils';
 
 import { backlog } from './main';
