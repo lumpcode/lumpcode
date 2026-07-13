@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import * as core from '@lumpcode/core';
@@ -17,10 +16,8 @@ import {
 } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import type { LumpJsConfig } from '../../types';
+import { execGit } from '../execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -53,13 +50,13 @@ describe('runLumpFromJsConfig', () => {
             'utf-8',
         );
 
-        git('init --bare', remoteDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${remoteDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${remoteDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
 
         vi.mocked(core.runLump).mockReset();
     });
@@ -120,19 +117,19 @@ describe('runLumpFromJsConfig', () => {
 
     function createAndPushLumpBranch(lumpName: string, contextName: string) {
         const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        git('checkout main', projectRoot);
-        git(`checkout -b ${branch}`, projectRoot);
-        git(`commit --allow-empty -m "lump work"`, projectRoot);
-        git(`push origin ${branch}`, projectRoot);
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, projectRoot);
+        execGit(`commit --allow-empty -m "lump work"`, projectRoot);
+        execGit(`push origin ${branch}`, projectRoot);
+        execGit('checkout main', projectRoot);
     }
 
     function createLocalOnlyLumpBranch(lumpName: string, contextName: string) {
         const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        git('checkout main', projectRoot);
-        git(`checkout -b ${branch}`, projectRoot);
-        git(`commit --allow-empty -m "lump work"`, projectRoot);
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, projectRoot);
+        execGit(`commit --allow-empty -m "lump work"`, projectRoot);
+        execGit('checkout main', projectRoot);
     }
 
     it('skips running when the number of open branches meets maximumNumberOfConcurrentBranches', async () => {
@@ -404,9 +401,9 @@ describe('runLumpFromJsConfig', () => {
             JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
             'utf-8',
         );
-        git('checkout -b ver/0.0.9', projectRoot);
-        git('push -u origin ver/0.0.9', projectRoot);
-        git('checkout main', projectRoot);
+        execGit('checkout -b ver/0.0.9', projectRoot);
+        execGit('push -u origin ver/0.0.9', projectRoot);
+        execGit('checkout main', projectRoot);
 
         mockRunLumpInvokingSetup();
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');

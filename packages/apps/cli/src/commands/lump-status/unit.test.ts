@@ -1,17 +1,14 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { command } from './main';
 import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { gitCurrentBranch } from '../../testing';
+import { execGit } from '../../utils/execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 describe('lump-status command', () => {
     let projectRoot: string;
@@ -22,13 +19,13 @@ describe('lump-status command', () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-'));
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-bare-'));
 
-        git('init --bare', bareDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${bareDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', bareDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${bareDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
 
         await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');

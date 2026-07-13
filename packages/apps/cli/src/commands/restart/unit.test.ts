@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync, spawn as nodeSpawn } from 'node:child_process';
+import { spawn as nodeSpawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import {
@@ -12,10 +12,8 @@ import {
 } from '../../testing';
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
+import { execGit } from '../../utils/execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 const minimalLumpConfigJson = `{
   "baseBranch": "main",
@@ -42,10 +40,10 @@ describe('restart command', () => {
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-global-'));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'project.json'),

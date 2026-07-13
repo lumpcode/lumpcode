@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import * as core from '@lumpcode/core';
@@ -12,6 +11,7 @@ import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { writeMinimalLump } from '../../testing';
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import { runLumpFromLumpName } from './main';
+import { execGit } from '../execGit';
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -21,9 +21,6 @@ vi.mock('@lumpcode/core', async () => {
     };
 });
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 describe('runLumpFromLumpName', () => {
     let projectRoot: string;
@@ -48,13 +45,13 @@ describe('runLumpFromLumpName', () => {
             'utf-8',
         );
 
-        git('init --bare', remoteDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${remoteDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${remoteDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
 
         vi.mocked(core.runLump).mockReset();
     });
@@ -84,11 +81,11 @@ describe('runLumpFromLumpName', () => {
 
     function createAndPushLumpBranch(lumpName: string, contextName: string) {
         const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        git('checkout main', projectRoot);
-        git(`checkout -b ${branch}`, projectRoot);
-        git('commit --allow-empty -m "lump work"', projectRoot);
-        git(`push origin ${branch}`, projectRoot);
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, projectRoot);
+        execGit('commit --allow-empty -m "lump work"', projectRoot);
+        execGit(`push origin ${branch}`, projectRoot);
+        execGit('checkout main', projectRoot);
     }
 
     it('releases the execution path lock when a dedicated lump is disabled', async () => {

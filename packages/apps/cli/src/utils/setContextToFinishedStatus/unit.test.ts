@@ -1,19 +1,13 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { setContextToFinishedStatus } from './main';
 import { getContextStatus } from '../getContextStatus';
 import { getGitCommitMessage } from '../getGitCommitMessage';
+import { execGit } from '../execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
-function gitOutput(cmd: string, cwd: string): string {
-    return execSync(`git ${cmd}`, { cwd, stdio: 'pipe' }).toString().trim();
-}
 
 describe('setContextToFinishedStatus', () => {
     let tmpDir: string;
@@ -25,13 +19,13 @@ describe('setContextToFinishedStatus', () => {
     beforeEach(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-set-finished-${dateId}-`));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-set-finished-remote-${dateId}-`));
-        git('init --bare', remoteDir);
-        git('init -b main', tmpDir);
-        git('config user.email "test@test.com"', tmpDir);
-        git('config user.name "Test"', tmpDir);
-        git('commit --allow-empty -m "init"', tmpDir);
-        git(`remote add origin ${remoteDir}`, tmpDir);
-        git('push -u origin main', tmpDir);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', tmpDir);
+        execGit('config user.email "test@test.com"', tmpDir);
+        execGit('config user.name "Test"', tmpDir);
+        execGit('commit --allow-empty -m "init"', tmpDir);
+        execGit(`remote add origin ${remoteDir}`, tmpDir);
+        execGit('push -u origin main', tmpDir);
     });
 
     afterEach(async () => {
@@ -53,10 +47,10 @@ describe('setContextToFinishedStatus', () => {
         expect(status).toBe('finished');
 
         const expectedMessage = getGitCommitMessage({ contextName: 'button', lumpName });
-        const lastSubject = gitOutput('log -1 --format=%s main', tmpDir);
+        const lastSubject = execGit('log -1 --format=%s main', tmpDir);
         expect(lastSubject).toBe(expectedMessage);
 
-        const remoteSubject = gitOutput('log -1 --format=%s origin/main', tmpDir);
+        const remoteSubject = execGit('log -1 --format=%s origin/main', tmpDir);
         expect(remoteSubject).toBe(expectedMessage);
     });
 
@@ -68,7 +62,7 @@ describe('setContextToFinishedStatus', () => {
             baseBranch,
         });
 
-        const before = gitOutput('rev-parse main', tmpDir);
+        const before = execGit('rev-parse main', tmpDir);
 
         const result = await setContextToFinishedStatus({
             projectRoot: tmpDir,
@@ -79,7 +73,7 @@ describe('setContextToFinishedStatus', () => {
 
         expect(result.success).toBe(true);
 
-        const after = gitOutput('rev-parse main', tmpDir);
+        const after = execGit('rev-parse main', tmpDir);
         expect(after).toBe(before);
     });
 
@@ -104,9 +98,9 @@ describe('setContextToFinishedStatus', () => {
         const depLumpName = 'depLump';
         const contextName = 'button';
         const message = getGitCommitMessage({ contextName, lumpName: depLumpName });
-        git('checkout main', tmpDir);
-        git(`commit --allow-empty -m "${message}"`, tmpDir);
-        git('push origin main', tmpDir);
+        execGit('checkout main', tmpDir);
+        execGit(`commit --allow-empty -m "${message}"`, tmpDir);
+        execGit('push origin main', tmpDir);
 
         const status = await getContextStatus({
             projectRoot: tmpDir,
