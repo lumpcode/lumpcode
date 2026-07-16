@@ -15,7 +15,6 @@ import type {
     SetupFn,
     Success,
     TeardownFn,
-    GetContextListFnOutput,
     Context,
 } from "@lumpcode/core";
 import { success, failure, pathExists } from "@lumpcode/core";
@@ -25,7 +24,7 @@ import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled"
 import { getCommandPath } from "../getCommandPath";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
 
-import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, CommandConfigPaths } from "../../types";
+import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, LumpJsConfigSteps, CommandConfigPaths } from "../../types";
 import { isCommandFileRef } from '../lumpConfigPathRef';
 import { makePromptFnFromTemplate } from '../makePromptFnFromTemplate';
 import { makeGitCommitMessageFnFromLumpName } from '../makeGitCommitMessageFnFromLumpName';
@@ -40,6 +39,7 @@ import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { lumpBranchName } from '../lumpBranchName';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { lumpHistoryFilePath } from '../lumpHistoryFilePath';
+import { normalizeSteps } from './normalizeSteps';
 
 export async function jsConfigToRunLumpInput({
     config,
@@ -357,11 +357,7 @@ async function resolveSteps({
 }): Promise<Success<Steps> | Failure<string>> {
     const result: Steps = [];
 
-    if (prompt) {
-        const stepResult = await resolvePromptShorthand({ prompt, defaultCommand, commandModules, configPaths, fnImportOptions });
-        if (!stepResult.success) return stepResult;
-        result.push(stepResult.data);
-    }
+    jsSteps = normalizeSteps({ prompt, jsSteps });
 
     if (jsSteps) {
         for (const item of jsSteps) {
@@ -409,35 +405,6 @@ async function resolveSteps({
     }
 
     return success(result);
-}
-
-async function resolvePromptShorthand({
-    prompt,
-    defaultCommand,
-    commandModules,
-    configPaths,
-    fnImportOptions,
-}: {
-    prompt: NonNullable<LumpJsConfig['prompt']>;
-    defaultCommand: LumpJsConfig['command'];
-    commandModules: Map<string, CommandModule>;
-    configPaths: CommandConfigPaths;
-    fnImportOptions: { importBasePath: string };
-}): Promise<Success<Step> | Failure<string>> {
-    const configStep: LumpJsConfigStep =
-        typeof prompt === 'function'
-            ? ({ promptFn: prompt } as LumpJsConfigStep)
-            : typeof prompt === 'string'
-                ? ({ promptTemplate: prompt } as LumpJsConfigStep)
-                : (prompt as LumpJsConfigStep);
-
-    return jsConfigStepToStep({
-        item: configStep,
-        defaultCommand,
-        commandModules,
-        configPaths,
-        fnImportOptions,
-    });
 }
 
 async function jsConfigStepToStep({

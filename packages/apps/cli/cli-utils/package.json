@@ -1,20 +1,50 @@
 {
   "name": "@lumpcode/cli-utils",
-  "version": "0.0.6",
-  "private": true,
-  "description": "Internal runtime helpers re-exported from CLI sources (not published yet)",
+  "version": "0.0.12",
+  "description": "Types, defineX helpers, and runtime utilities for Lumpcode lump configs and recipes",
+  "keywords": [
+    "lumpcode",
+    "loop-engineering",
+    "agent-loop",
+    "lump-config",
+    "typescript",
+    "types"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lumpcode/lumpcode.git",
+    "directory": "packages/apps/cli/cli-utils"
+  },
   "license": "Apache-2.0",
   "author": "",
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
   "scripts": {
+    "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
     "build": "rollup -c"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.6"
+    "@lumpcode/cli-types": "^0.0.12",
+    "@lumpcode/core": "^0.0.12",
+    "js-yaml": "^5.0.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.1",

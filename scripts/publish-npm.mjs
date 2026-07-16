@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Build and publish @lumpcode/core, @lumpcode/cli-types, @lumpcode/cli, and lumpcode to npm
+ * Build and publish @lumpcode/core, @lumpcode/cli-types, @lumpcode/cli-utils,
+ * @lumpcode/recipes, @lumpcode/cli, and lumpcode to npm
  * on the `latest` dist-tag (npm default). Does not bump versions.
  * Skips publish when the package version is already on the registry.
  *
@@ -21,6 +22,8 @@ const dryRun = process.argv.includes("--dry-run");
 const packages = [
   { workspace: "@lumpcode/core", packageJson: "packages/core/package.json" },
   { workspace: "@lumpcode/cli-types", packageJson: "packages/apps/cli/cli-types/package.json" },
+  { workspace: "@lumpcode/cli-utils", packageJson: "packages/apps/cli/cli-utils/package.json" },
+  { workspace: "@lumpcode/recipes", packageJson: "packages/recipes/package.json" },
   { workspace: "@lumpcode/cli", packageJson: "packages/apps/cli/package.json" },
   { workspace: "lumpcode", packageJson: "packages/apps/cli-meta/package.json" },
 ];
@@ -93,6 +96,12 @@ npmRun(["run", "build", "-w=@lumpcode/core"]);
 console.log("Building @lumpcode/cli-types...");
 npmRun(["run", "build", "-w=@lumpcode/cli-types"]);
 
+console.log("Building @lumpcode/cli-utils...");
+npmRun(["run", "build", "-w=@lumpcode/cli-utils"]);
+
+console.log("Building @lumpcode/recipes...");
+npmRun(["run", "build", "-w=@lumpcode/recipes"]);
+
 console.log("Building @lumpcode/cli bundle...");
 npmRun(["run", "build:bundle", "-w=@lumpcode/cli"]);
 
@@ -129,6 +138,8 @@ if (published.length > 0) {
   console.log("\nInstall with:");
   console.log("  npm i -g @lumpcode/cli");
   console.log("  npm i -D @lumpcode/cli-types");
+  console.log("  npm i @lumpcode/cli-utils");
+  console.log("  npm i @lumpcode/recipes");
   console.log("  (optional alias package lumpcode also published for npm i -g lumpcode)");
 } else {
   console.log("Nothing published — all package versions are already on npm.");

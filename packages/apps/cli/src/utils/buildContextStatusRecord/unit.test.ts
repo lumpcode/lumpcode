@@ -1,15 +1,12 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { buildContextStatusRecord } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { getGitCommitMessage } from '../getGitCommitMessage';
+import { execGit } from '../execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 const lumpName = 'myLump';
 
@@ -25,13 +22,13 @@ describe('buildContextStatusRecord', () => {
     beforeEach(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-build-bcsr-${dateId}-`));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-build-bcsr-remote-${dateId}-`));
-        git('init --bare', remoteDir);
-        git('init -b main', tmpDir);
-        git('config user.email "test@test.com"', tmpDir);
-        git('config user.name "Test"', tmpDir);
-        git('commit --allow-empty -m "init"', tmpDir);
-        git(`remote add origin ${remoteDir}`, tmpDir);
-        git('push -u origin main', tmpDir);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', tmpDir);
+        execGit('config user.email "test@test.com"', tmpDir);
+        execGit('config user.name "Test"', tmpDir);
+        execGit('commit --allow-empty -m "init"', tmpDir);
+        execGit(`remote add origin ${remoteDir}`, tmpDir);
+        execGit('push -u origin main', tmpDir);
     });
 
     afterEach(async () => {
@@ -47,9 +44,9 @@ describe('buildContextStatusRecord', () => {
 
     it('should return branchPushed for commits on a remote branch', async () => {
         const branchName = `${LUMP_BRANCH_PREFIX}myLump/button`;
-        git(`checkout -b ${branchName}`, tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('button')}"`, tmpDir);
-        git(`push origin ${branchName}`, tmpDir);
+        execGit(`checkout -b ${branchName}`, tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('button')}"`, tmpDir);
+        execGit(`push origin ${branchName}`, tmpDir);
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
@@ -65,12 +62,12 @@ describe('buildContextStatusRecord', () => {
     });
 
     it('should return finished for commits merged into base branch', async () => {
-        git('checkout -b temp-branch', tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('form')}"`, tmpDir);
-        git('checkout main', tmpDir);
-        git('merge temp-branch', tmpDir);
-        git('branch -d temp-branch', tmpDir);
-        git('push origin main', tmpDir);
+        execGit('checkout -b temp-branch', tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('form')}"`, tmpDir);
+        execGit('checkout main', tmpDir);
+        execGit('merge temp-branch', tmpDir);
+        execGit('branch -d temp-branch', tmpDir);
+        execGit('push origin main', tmpDir);
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         if (!result.success) throw new Error('unreachable');
@@ -79,9 +76,9 @@ describe('buildContextStatusRecord', () => {
     });
 
     it('should ignore commits that exist only locally (never pushed)', async () => {
-        git('checkout -b local-only', tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('button')}"`, tmpDir);
-        git('checkout main', tmpDir);
+        execGit('checkout -b local-only', tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('button')}"`, tmpDir);
+        execGit('checkout main', tmpDir);
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
@@ -92,17 +89,17 @@ describe('buildContextStatusRecord', () => {
 
     it('should handle multiple contexts with different statuses', async () => {
         const cardBranch = `${LUMP_BRANCH_PREFIX}myLump/card`;
-        git(`checkout -b ${cardBranch}`, tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('card')}"`, tmpDir);
-        git(`push origin ${cardBranch}`, tmpDir);
+        execGit(`checkout -b ${cardBranch}`, tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('card')}"`, tmpDir);
+        execGit(`push origin ${cardBranch}`, tmpDir);
 
-        git('checkout main', tmpDir);
-        git('checkout -b merge-branch', tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('form')}"`, tmpDir);
-        git('checkout main', tmpDir);
-        git('merge merge-branch', tmpDir);
-        git('branch -d merge-branch', tmpDir);
-        git('push origin main', tmpDir);
+        execGit('checkout main', tmpDir);
+        execGit('checkout -b merge-branch', tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('form')}"`, tmpDir);
+        execGit('checkout main', tmpDir);
+        execGit('merge merge-branch', tmpDir);
+        execGit('branch -d merge-branch', tmpDir);
+        execGit('push origin main', tmpDir);
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
@@ -116,13 +113,13 @@ describe('buildContextStatusRecord', () => {
     it('should only include commits matching the given lump name', async () => {
         const branch1 = `${LUMP_BRANCH_PREFIX}myLump/button`;
         const branch2 = `${LUMP_BRANCH_PREFIX}otherLump/form`;
-        git(`checkout -b ${branch1}`, tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('button', 'myLump')}"`, tmpDir);
-        git(`push origin ${branch1}`, tmpDir);
-        git('checkout main', tmpDir);
-        git(`checkout -b ${branch2}`, tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('form', 'otherLump')}"`, tmpDir);
-        git(`push origin ${branch2}`, tmpDir);
+        execGit(`checkout -b ${branch1}`, tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('button', 'myLump')}"`, tmpDir);
+        execGit(`push origin ${branch1}`, tmpDir);
+        execGit('checkout main', tmpDir);
+        execGit(`checkout -b ${branch2}`, tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('form', 'otherLump')}"`, tmpDir);
+        execGit(`push origin ${branch2}`, tmpDir);
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
@@ -133,9 +130,9 @@ describe('buildContextStatusRecord', () => {
 
     it('should handle context names containing slashes', async () => {
         const branchName = `${LUMP_BRANCH_PREFIX}myLump/components/button`;
-        git(`checkout -b ${branchName}`, tmpDir);
-        git(`commit --allow-empty -m "${commitMsg('components/button')}"`, tmpDir);
-        git(`push origin ${branchName}`, tmpDir);
+        execGit(`checkout -b ${branchName}`, tmpDir);
+        execGit(`commit --allow-empty -m "${commitMsg('components/button')}"`, tmpDir);
+        execGit(`push origin ${branchName}`, tmpDir);
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);

@@ -1,9 +1,10 @@
 {
   "name": "@lumpcode/core",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Core engine for Lumpcode agent loops — runLump orchestrates prompts across contexts with git-tracked progress",
   "keywords": [
     "lumpcode",
+    "loop-engineering",
     "agent-loop",
     "coding-agent",
     "ai-agent",

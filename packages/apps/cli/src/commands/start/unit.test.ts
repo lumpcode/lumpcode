@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { failure, success } from '@lumpcode/core';
 
@@ -17,10 +16,8 @@ import { resolveDaemonPaths } from '../../utils/resolveDaemonPaths';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { command as stopCommand } from '../stop/main';
 import { command } from './main';
+import { execGit } from '../../utils/execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 const minimalLumpConfigJson = `{
   "contextListJson": {
@@ -61,13 +58,13 @@ describe('start command', () => {
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-remote-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-global-'));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        git('init --bare', remoteDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${remoteDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${remoteDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
         await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
     });
@@ -628,13 +625,13 @@ describe('start command — multi discovery branches', () => {
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-mbb-remote-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-mbb-global-'));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        git('init --bare', remoteDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${remoteDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${remoteDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
         await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         await writeDefaultProjectJson(projectRoot, 'mbb-daemon-project');
@@ -694,9 +691,9 @@ describe('start command — multi discovery branches', () => {
     it('succeeds launch when the same lumpName exists on two discovery branches (sharedName)', async () => {
         await writeMultiLocal();
         await writeMinimalLump(projectRoot, 'sharedName', { discoveryBranch: 'main' });
-        git('add -A', projectRoot);
-        git('commit -m "same on main"', projectRoot);
-        git('push origin main', projectRoot);
+        execGit('add -A', projectRoot);
+        execGit('commit -m "same on main"', projectRoot);
+        execGit('push origin main', projectRoot);
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
@@ -714,9 +711,9 @@ describe('start command — multi discovery branches', () => {
     it('fails launch when a discovery branch in primaryBranches is missing on remote', async () => {
         await writeMultiLocal();
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
-        git('add -A', projectRoot);
-        git('commit -m "mainLine on main"', projectRoot);
-        git('push origin main', projectRoot);
+        execGit('add -A', projectRoot);
+        execGit('commit -m "mainLine on main"', projectRoot);
+        execGit('push origin main', projectRoot);
 
         const result = await makeStartHandler()({
             options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -851,9 +848,9 @@ describe('start command — multi discovery branches', () => {
     it('runs branch-only releaseLine when daemon starts on main checkout', async () => {
         await writeMultiLocal();
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
-        git('add -A', projectRoot);
-        git('commit -m "mainLine on main"', projectRoot);
-        git('push origin main', projectRoot);
+        execGit('add -A', projectRoot);
+        execGit('commit -m "mainLine on main"', projectRoot);
+        execGit('push origin main', projectRoot);
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
@@ -893,9 +890,9 @@ describe('start command — multi discovery branches', () => {
             primaryBranches: ['ver/0.0.9', 'main'],
         });
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
-        git('add -A', projectRoot);
-        git('commit -m "mainLine on main"', projectRoot);
-        git('push origin main', projectRoot);
+        execGit('add -A', projectRoot);
+        execGit('commit -m "mainLine on main"', projectRoot);
+        execGit('push origin main', projectRoot);
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
@@ -985,13 +982,13 @@ describe('start command — daemon busy meta toggle', () => {
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-busy-remote-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-busy-global-'));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        git('init --bare', remoteDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${remoteDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', remoteDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${remoteDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
         await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
     });
@@ -1027,9 +1024,9 @@ describe('start command — daemon busy meta toggle', () => {
         const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'alpha');
         await fs.mkdir(lumpDir, { recursive: true });
         await fs.writeFile(path.join(lumpDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
-        git('add -A', projectRoot);
-        git('commit -m "add alpha lump"', projectRoot);
-        git('push origin main', projectRoot);
+        execGit('add -A', projectRoot);
+        execGit('commit -m "add alpha lump"', projectRoot);
+        execGit('push origin main', projectRoot);
     }
 
     function metaPath() {
@@ -1230,9 +1227,9 @@ describe('start command — daemon busy meta toggle', () => {
         const betaDir = path.join(projectRoot, '.lumpcode', 'lumps', 'beta');
         await fs.mkdir(betaDir, { recursive: true });
         await fs.writeFile(path.join(betaDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
-        git('add -A', projectRoot);
-        git('commit -m "add beta lump"', projectRoot);
-        git('push origin main', projectRoot);
+        execGit('add -A', projectRoot);
+        execGit('commit -m "add beta lump"', projectRoot);
+        execGit('push origin main', projectRoot);
 
         const busySnapshots: boolean[] = [];
         const releaseQueue: Array<() => void> = [];

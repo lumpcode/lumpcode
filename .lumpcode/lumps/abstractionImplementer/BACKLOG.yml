@@ -1,0 +1,44 @@
+# CLI util abstractions — implement each PRD under prds/; move finished entries to DONE.yml.
+- name: pollUntil
+  task: >-
+    Extract repeated deadline polling loops (`Date.now() + timeoutMs`, `while` + `setTimeout` sleep)
+    into util `pollUntil`; refactor `commands/stop/main.ts` (force + SIGTERM exit wait),
+    `testing/waitForDaemonPidFile.ts`, `e2e/harness/daemonHelpers.ts` (`waitForPath`, `waitForDaemonIdle`),
+    `e2e/harness/markerAssertions.ts` (`waitForRemoteMarker`), and test helpers in
+    `commands/stop/unit.test.ts` and `utils/killProcessTree/unit.test.ts`.
+  priority: 1
+- name: writeJsonFile
+  task: >-
+    Extract repeated `fs.writeFile` + `JSON.stringify` patterns (optional pretty-print, trailing
+    newline, parent `mkdir`, file `mode`, try/catch → `Failure`) into util `writeJsonFile` as the
+    write-side counterpart to `readJsonFile`; refactor `updateContextStatusRecord`,
+    `transpileTypeScriptToCachedMjs`, `commands/start`, `commands/login`, `commands/project-setup`,
+    `workspaceFileLock` JSON serialization, and JSON fixture writes across `testing/`, `e2e/harness/`,
+    and unit tests that duplicate the same write boilerplate.
+  priority: 2
+- name: execGit
+  task: >-
+    Extract repeated synchronous git test helpers (execSync with git subcommand, cwd, stdio pipe,
+    optional trimmed stdout return) into util `execGit`; refactor the private `git` / `gitOutput` /
+    `gitExec` copies in 20 unit test modules, `testing/multiBranchFixtures.ts`, and
+    `e2e/harness/gitHelpers.ts` to import the shared util (re-export as `git` from gitHelpers for
+    e2e stability).
+  priority: 3
+- name: initLocalGitRepo
+  task: >-
+    Extract repeated local git repo bootstrap (`init -b`, `user.email`/`user.name`,
+    empty initial commit) into util `initLocalGitRepo` built on `execGit`; refactor
+    `beforeEach` / fixture setup in 20+ unit test modules, `testing/multiBranchFixtures.ts`
+    (`initBareRemoteAndCheckout`), `utils/runPreflight/unit.test.ts` (`initRepoWithRemote`),
+    and `e2e/harness/createE2eProject.ts`.
+  priority: 4
+  dependsOn:
+    - execGit
+- name: writeLumpConfigJson
+  task: >-
+    Extract duplicated minimal lump `config.json` scaffold (shared default JSON body,
+    `mkdir` lump dir, `fs.writeFile`) into util `writeLumpConfigJson` with exported
+    `MINIMAL_RUNNABLE_LUMP_CONFIG`; refactor eight test modules that redefine
+    `minimalLumpConfigJson`, `commands/start/unit.test.ts` (15+ write blocks),
+    and delegate `testing/multiBranchFixtures.ts` `writeMinimalLump` to the util.
+  priority: 5

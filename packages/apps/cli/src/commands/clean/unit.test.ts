@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { command } from './main';
 import { LUMP_BRANCH_PREFIX, REFS_HEADS_PREFIX } from '../../consts';
@@ -9,14 +8,9 @@ import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { gitCurrentBranch, writeLocalJson } from '../../testing';
 import { runProjectPreflight } from '../../utils/runProjectPreflight';
+import { execGit } from '../../utils/execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
-function gitOutput(cmd: string, cwd: string): string {
-    return execSync(`git ${cmd}`, { cwd, stdio: 'pipe' }).toString().trim();
-}
 
 describe('clean command', () => {
     let projectRoot: string;
@@ -28,13 +22,13 @@ describe('clean command', () => {
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-bare-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-global-'));
 
-        git('init --bare', bareDir);
-        git('init -b main', projectRoot);
-        git('config user.email "test@test.com"', projectRoot);
-        git('config user.name "Test"', projectRoot);
-        git('commit --allow-empty -m "init"', projectRoot);
-        git(`remote add origin ${bareDir}`, projectRoot);
-        git('push -u origin main', projectRoot);
+        execGit('init --bare', bareDir);
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        execGit(`remote add origin ${bareDir}`, projectRoot);
+        execGit('push -u origin main', projectRoot);
 
         const lumpcodeDir = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(lumpcodeDir);
@@ -66,13 +60,13 @@ describe('clean command', () => {
     function setupLumpBranch(lumpName: string, contextName: string, opts: { push?: boolean } = { push: true }) {
         const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
         const message = getGitCommitMessage({ contextName, lumpName });
-        git('checkout main', projectRoot);
-        git(`checkout -b ${branch}`, projectRoot);
-        git(`commit --allow-empty -m "${message}"`, projectRoot);
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, projectRoot);
+        execGit(`commit --allow-empty -m "${message}"`, projectRoot);
         if (opts.push) {
-            git(`push origin ${branch}`, projectRoot);
+            execGit(`push origin ${branch}`, projectRoot);
         }
-        git('checkout main', projectRoot);
+        execGit('checkout main', projectRoot);
         return branch;
     }
 
@@ -88,11 +82,11 @@ describe('clean command', () => {
 
         expect(result.data.data!.deletedBranches).toHaveLength(2);
 
-        const remoteBranches = gitOutput('ls-remote --heads origin', projectRoot);
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
         expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}main`);
         expect(remoteBranches).not.toContain(LUMP_BRANCH_PREFIX);
 
-        const localBranches = gitOutput(`branch --list "${LUMP_BRANCH_PREFIX}*"`, projectRoot);
+        const localBranches = execGit(`branch --list "${LUMP_BRANCH_PREFIX}*"`, projectRoot);
         expect(localBranches).toBe('');
     });
 
@@ -108,7 +102,7 @@ describe('clean command', () => {
 
         expect(result.data.data!.deletedBranches).toEqual([`${LUMP_BRANCH_PREFIX}alpha/ctx1`]);
 
-        const remoteBranches = gitOutput('ls-remote --heads origin', projectRoot);
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
         expect(remoteBranches).not.toContain(`${LUMP_BRANCH_PREFIX}alpha/`);
         expect(remoteBranches).toContain(`${LUMP_BRANCH_PREFIX}beta/ctx2`);
     });
@@ -134,7 +128,7 @@ describe('clean command', () => {
 
         expect(result.data.data!.deletedBranches).toContain(`${LUMP_BRANCH_PREFIX}myLump/local-only`);
 
-        const localBranches = gitOutput(`branch --list "${LUMP_BRANCH_PREFIX}*"`, projectRoot);
+        const localBranches = execGit(`branch --list "${LUMP_BRANCH_PREFIX}*"`, projectRoot);
         expect(localBranches).toBe('');
     });
 
@@ -151,7 +145,7 @@ describe('clean command', () => {
         expect(result.data.data!.deletedBranches).toContain(`${LUMP_BRANCH_PREFIX}myLump/button`);
         expect(result.data.data!.deletedBranches).not.toContain(`${LUMP_BRANCH_PREFIX}myLump/form`);
 
-        const remoteBranches = gitOutput('ls-remote --heads origin', projectRoot);
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
         expect(remoteBranches).not.toContain(`${LUMP_BRANCH_PREFIX}myLump/button`);
         expect(remoteBranches).toContain(`${LUMP_BRANCH_PREFIX}myLump/form`);
     });
@@ -223,11 +217,11 @@ describe('clean command', () => {
         const copyRoot = preflight.data.executionWorkspacePath;
         const branch = `${LUMP_BRANCH_PREFIX}myLump/shared-copy`;
         const message = getGitCommitMessage({ contextName: 'shared-copy', lumpName: 'myLump' });
-        git(`checkout -b ${branch}`, copyRoot);
-        git(`commit --allow-empty -m "${message}"`, copyRoot);
-        git(`push origin ${branch}`, copyRoot);
-        git('checkout main', copyRoot);
-        git('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, copyRoot);
+        execGit(`commit --allow-empty -m "${message}"`, copyRoot);
+        execGit(`push origin ${branch}`, copyRoot);
+        execGit('checkout main', copyRoot);
+        execGit('checkout main', projectRoot);
 
         const handle = command.handlerMaker({ projectRoot, globalConfigFolderPath });
         const result = await handle({ options: {}, arguments: {} });
@@ -235,7 +229,7 @@ describe('clean command', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.data!.deletedBranches).toContain(branch);
 
-        const copyBranches = gitOutput(`branch --list "${LUMP_BRANCH_PREFIX}*"`, copyRoot);
+        const copyBranches = execGit(`branch --list "${LUMP_BRANCH_PREFIX}*"`, copyRoot);
         expect(copyBranches).toBe('');
     });
 

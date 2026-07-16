@@ -5,19 +5,17 @@ import { execSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { runPreflight } from './main';
+import { execGit } from '../execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 function initRepoWithRemote(projectRoot: string, remoteDir: string) {
-    git('init --bare', remoteDir);
-    git('init -b main', projectRoot);
-    git('config user.email "test@test.com"', projectRoot);
-    git('config user.name "Test"', projectRoot);
-    git('commit --allow-empty -m "init"', projectRoot);
-    git(`remote add origin ${remoteDir}`, projectRoot);
-    git('push -u origin main', projectRoot);
+    execGit('init --bare', remoteDir);
+    execGit('init -b main', projectRoot);
+    execGit('config user.email "test@test.com"', projectRoot);
+    execGit('config user.name "Test"', projectRoot);
+    execGit('commit --allow-empty -m "init"', projectRoot);
+    execGit(`remote add origin ${remoteDir}`, projectRoot);
+    execGit('push -u origin main', projectRoot);
 }
 
 describe('runPreflight', () => {
@@ -55,9 +53,9 @@ describe('runPreflight', () => {
         it('discards uncommitted local changes via git reset --hard', async () => {
             const filePath = path.join(projectRoot, 'README.md');
             await fs.writeFile(filePath, '# initial\n', 'utf-8');
-            git('add README.md', projectRoot);
-            git('commit -m "add readme"', projectRoot);
-            git('push origin main', projectRoot);
+            execGit('add README.md', projectRoot);
+            execGit('commit -m "add readme"', projectRoot);
+            execGit('push origin main', projectRoot);
 
             await fs.writeFile(filePath, '# dirty\n', 'utf-8');
             const before = await fs.readFile(filePath, 'utf-8');
@@ -171,11 +169,11 @@ describe('runPreflight', () => {
                     remoteDir,
                 );
 
-                git('init --bare', remoteDirB);
-                git(`remote set-url origin ${remoteDirB}`, projectRoot);
-                git('push -u origin main', projectRoot);
-                git('branch release/2.0', projectRoot);
-                git('push -u origin release/2.0', projectRoot);
+                execGit('init --bare', remoteDirB);
+                execGit(`remote set-url origin ${remoteDirB}`, projectRoot);
+                execGit('push -u origin main', projectRoot);
+                execGit('branch release/2.0', projectRoot);
+                execGit('push -u origin release/2.0', projectRoot);
 
                 const second = await runPreflight({
                     mode: 'shared',
@@ -191,7 +189,7 @@ describe('runPreflight', () => {
                     remoteDirB,
                 );
 
-                git('fetch origin release/2.0', copyPath);
+                execGit('fetch origin release/2.0', copyPath);
                 expect(
                     execSync('git rev-parse --verify origin/release/2.0', { cwd: copyPath, encoding: 'utf-8' }).trim(),
                 ).toMatch(/^[0-9a-f]{40}$/);

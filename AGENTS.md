@@ -12,6 +12,7 @@
 - Return `Success<T>` / `Failure<string>` for expected failures (`success()` / `failure()` from `@lumpcode/core`); resolve costly dynamic `import()` eagerly at configuration time, not during execution
 - Use `cwd` with `execAsync`/`child_process` instead of `cd ... &&`; command functions return only the command string, pass `cwd` at the call site
 - Limit change scope to specified packages; note follow-up work for other packages separately
+- `@lumpcode/recipes` kit: reuse `@lumpcode/core` and exported `@lumpcode/cli-utils` helpers (`normalizeSteps`, `readYamlList`, …); lift CLI-only shared utils into `cli-utils` rather than duplicating in recipes — async-only when sync wrappers add no call-site value; recipe step types use CLI `LumpJsConfigSteps`, not core `Steps`
 - CLI utils live flat under `packages/apps/cli/src/utils/` (one util per directory: `main.ts` + `index.ts`, barrel-exported from `utils/index.ts` — no nested subdirs). Shared test-only helpers go under `packages/apps/cli/src/testing/` with a barrel `index.ts`. Prefer a private inline helper in the calling module over a new util directory for small single-caller logic
 - Name path-lock release callbacks `releaseLock`, not phase-specific names (e.g. `phase1Lock`); enforce each guard/skip at one canonical layer — do not duplicate the same check in both `runLumpFromLumpName` and `runLumpFromJsConfig`
 
@@ -25,7 +26,7 @@
 
 ### CLI docs and vocabulary
 
-- Keep user-facing docs (`README`, `DOCS/`) aligned with real CLI behavior; avoid internal implementation detail unless an operator truly needs it
+- Keep user-facing docs (`README`, `DOCS/`) aligned with real CLI behavior; avoid internal implementation detail unless an operator truly needs it. Position Lumpcode as a **loop engineering** tool (term woven once into root/CLI READMEs + `concepts.md`; `loop-engineering` npm keyword on cli/core/cli-types) — one mention per surface, not keyword stuffing
 - **Lump**: configured long-running agent loop campaign (`.lumpcode/lumps/`, `lumpcode run`); large body of work too big for one chat — both repetitive edits (migrations, codemods) **and** planned feature roadmaps; avoid "set up once" framing (project setup is followed by recurring per-lump authoring)
 - **LUMP** backronym: Loop Using Multiple Prompts
 - Human review via **PR merge**, not vague "human review"
@@ -46,6 +47,7 @@
 - Unregistered `login`/`logout` command modules are **implementation-only** — do not document in user-facing README/DOCS (`npm login` in `DOCS/publishing.md` is npm registry auth only)
 - Arguments before options in usage; long option names in camelCase (e.g. `--lumpName`, `--contextName`, `--lines`) to match Commander/schema — avoid single-char keys needing special `addCommand` handling
 - Lump-config `command` field: registered tag (`"copilot"`, `"cursor"`, …) **or** lump-relative `.ts`/`.js` path (no whitespace; same `CommandModule` exports as `commands/<name>`); never shell flags — agent flags belong in the module's `CommandFn` (`executable` + `args`)
+- Lump configs: omit CLI-default fields (`numberOfContextsPerBranch: 1`, `verbose`/`keepHistory` off); keep only intentional overrides
 - Omit boolean flags for defaults; pass once for the non-default — no `--<name> true|false` or legacy two-token boolean argv
 
 ### npm publish
@@ -59,7 +61,8 @@
 
 ### Monorepo layout
 
-- npm workspaces (**not** pnpm): `packages/core` (`@lumpcode/core`, Apache 2.0 — `runLump` executes one agent loop per invocation), `packages/apps/cli` (`@lumpcode/cli`, Apache 2.0 — ncc bundle from `root.ts` only, **no programmatic library entry**), `packages/apps/cli/cli-types` (`@lumpcode/cli-types`, pins `@lumpcode/core` semver range), `packages/apps/cli/cli-utils` (private, not on npm), `packages/libs/ui` (private WIP)
+- npm workspaces (**not** pnpm): `packages/core` (`@lumpcode/core`, Apache 2.0 — `runLump` executes one agent loop per invocation), `packages/apps/cli` (`@lumpcode/cli`, Apache 2.0 — ncc bundle from `root.ts` only, **no programmatic library entry**), `packages/apps/cli/cli-types` (`@lumpcode/cli-types`, published — canonical types + `define*` during transition), `packages/apps/cli/cli-utils` (`@lumpcode/cli-utils`, publishing — single root barrel re-exporting `cli-types` + runtime helpers; utils bundled from CLI src at build, `cli-types` external at publish), `packages/recipes` (`@lumpcode/recipes`, publishing — single root barrel: recipes + kit + recipe types; monorepo imports `@lumpcode/cli-utils` only), `packages/libs/ui` (private WIP)
+- Authoring stack transition: `cli-types` and `cli-utils` coexist on npm; `cli-types` stays canonical types source unchanged until follow-up deprecation PR; `.lumpcode/lumps` remain on `cli-types` until docs branch; both `cli-utils` and `recipes` publish for beta without doc updates this work
 - Core layout: `types/` (barrel via `index.ts`), `usages/runLump/`, `helpers/`, `utils/`
 - Stack: TypeScript, Commander.js, Zod, Vitest; agent-agnostic (Claude, Codex, Aider, Copilot CLI, etc.)
 
@@ -85,8 +88,9 @@
 - `contextRunState`: single plain object per context (`setupResult?.contextRunState ?? {}`); engine never freezes/clones/replaces it; command-module `setup` seeds at `<commandName>Setup`
 - `PostCommandExecFn` gets `commandSucceeded: boolean`; `Step.continueOnError` (default false) allows non-zero exit to continue; `CommandDescriptor.env` merges over `process.env`
 - `collectStepsForContext` is plan-preview only (`planLumpFromJsConfig`); `*-on-copy` presets keep `projectRoot` as source repo and use an absolute copy path as branch `workspacePath`
+- A `steps` item need not be an agent prompt: `promptTemplate`/`promptFn` are optional (omit → command runs with an empty prompt string); an inline `commandFn` returns `{ executable, args, env? }` (or `null` to skip) for plain shell/build/validation commands — the basis for verification/retry loops (`loop-example`, `getRecursiveSteps`)
 - `runLump` calls `getToDoContextList` once before workspace setup; `getContextListFn`/`getContextStatus` read source `projectRoot` before `setupWorkspaceFn` switches branch — shared mode pre-flight never touches source
-- `keepHistory: true` → `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`; `fs.mkdir` before initial `[]` write; `project-setup` gitignores `.lumpcode/**/history/` and `.lumpcode/.cache/`
+- `keepHistory: true` → `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`; `fs.mkdir` before initial `[]` write; `project-setup` gitignores `.lumpcode/**/history/` and `.lumpcode/.cache/`; append failures log `logger.warn` and do not abort the step walk; writes sanitize ANSI/C0 controls from `prompt`/`commandResult` (read-side recovery for corrupt files)
 - Default branch prefix: `lump/${lumpName}/` (`LUMP_BRANCH_PREFIX`); custom naming via `branchFn` (CLI default: one context → `lump/<lumpName>/<contextName>`; multiple → sorted names + SHA-256, first 12 hex)
 - Default git: push branch only (no tags); `git commit --allow-empty`; messages/branches wrapped with `shellSingleQuote`; only `gitCommitMessageFn` is a surfaced user knob (`LumpJsConfig` omits it; CLI defaults via `getGitCommitMessage`)
 - `execBinary`: `resolveSpawnExecutable` on Windows; handles spawn `error` events for structured failures
@@ -174,6 +178,7 @@
 - Logger: `error` always prints (even with `--json`); `--json` suppresses other operational lines; CLI `--verbose` OR-merges lump-config `verbose`; `createCliLogger` prefixes `[lumpcode]`
 - Shell escaping: `shellSingleQuote` from `@lumpcode/core` for user-controlled values; `shellBestEffort` for best-effort fragments
 - Lump config has **no** user-facing workspace setup hooks — CLI generates workspace fns from `local.json` + per-lump `baseBranch`
+- `LumpJsConfig.steps` may be a solo step (`LumpJsConfigSoloStep`: step object, `promptTemplate`, or `promptFn`) or an array; `jsConfigToRunLumpInput` `normalizeSteps` promotes solo `steps` to a one-element array and solo `steps` wins over top-level `prompt`; JSON schema still requires an array
 
 ### Distribution, build, and CI
 
@@ -182,19 +187,29 @@
 - `postinstall` reinstalls presets + downloads native binary to gitignored `vendor/` — skips in CI, monorepo dev (`src/root.ts` present), missing `dist/`, or `--ignore-scripts`; `LUMPCODE_SKIP_BINARY=1` skips binary only; `DEFAULT_INSTALL_REPO` in `native-binary.mjs` still `YOUR_ORG/Lumpcode` until wired to `lumpcode/lumpcode`
 - Local debug: `build:dev` (core skips `.d.ts`; CLI ncc with source maps, no minify) then `NODE_OPTIONS='--enable-source-maps' node dist/index.js` from target project cwd — not SEA or npm launcher resolving to `vendor/`
 - SEA: minified `build:bundle` (uncaught errors can dump the one-line bundle); sidecars (`schemas/`, `presets/`, esbuild binary) beside `process.execPath`; `validateLumpJsonConfig` reads schema beside binary; embed static assets when feasible; macOS binaries ad-hoc codesigned only (strip quarantine xattr or sign + notarize for distribution)
-- Git flow: `dev` integration branch; larger work on `feat/*`; version releases merge `dev` → `main` with annotated `v*` tag (optional `ver/X.Y.Z` stabilization branch from `dev` avoids freezing integration)
-- CI (`.github/workflows/build-cli.yml`): triggers on push/PR to `main` and `dev`; `unit-test` (build core, cli-types, cli-utils first — their `dist/` is gitignored) → OS `build` matrix → aggregating `ci` job; E2E on ubuntu/macOS/windows including arm; isolated `HOME`/`USERPROFILE` per platform; both `main` and `dev` protected via repository rulesets requiring `ci` status check
+- Git flow: canonical operator doc `GIT-FLOW.md` at repo root; `dev` integration branch; larger work on `feat/*`; version releases merge `dev` → `main` with annotated `v*` tag (optional `ver/X.Y.Z` stabilization branch from `dev` avoids freezing integration); rebase feature branches onto `dev` only — merge commits (not rebase) across the `dev`/`main` boundary
+- CI (`.github/workflows/build-cli.yml`): triggers on push/PR to `main` and `dev`; `unit-test` build order core → cli-types → cli-utils → recipes (their `dist/` is gitignored), each followed by `npm run test -w=...` (recipes included) → OS `build` matrix → aggregating `ci` job; E2E on ubuntu/macOS/windows including arm; isolated `HOME`/`USERPROFILE` per platform; both `main` and `dev` protected via repository rulesets requiring `ci` status check
 - E2E: `packages/apps/cli/src/e2e/` subprocess harness; rerun **`build:bundle` + `build:sea`** after bundle/SEA changes; mock agent via `e2e-mock-agent.cjs` script file (not `node -e`); `pushIntegrationBranch` needs full `writeE2eLumpFixture` (config-only writes wrong lump path)
 - E2E teardown: `stopDaemonSafely` should pass `--force` so teardown does not race daemon `meta.busy` mid-run; treat stale/invalid PID stop messages as already-stopped; `waitForDaemonIdle` polls meta `busy` before graceful-stop assertions
 - `killProcessTree` (win32): `taskkill /T /F` can fail on SEA child trees ("operation not supported") — treat as success when the root PID is already gone (best-effort per PRD)
 - ncc emits CJS — use `lodash/camelCase` not `lodash-es`; `build:bundle` externalizes `esbuild`; SEA spawns esbuild sidecar via `execFile` (`esbuildPlatformBinaryRelativePath`: Windows `@esbuild/win32-x64/esbuild.exe`, Unix `bin/esbuild`)
-- **OSS**: Apache 2.0 at `lumpcode/lumpcode`; no feature gates or account required; ICLA/CLA Assistant before external contributions; publish order: core → cli-types → cli → optional `lumpcode` via `scripts/publish-npm.mjs`; release branches `ver/X.Y.Z`, annotated tags `vX.Y.Z` — tag push (`push: tags: ['v*']`) triggers Build CLI Binaries and the `release` job uploads binaries to a GitHub Release (`softprops/action-gh-release`); npm publish is separate
+- **OSS**: Apache 2.0 at `lumpcode/lumpcode`; no feature gates or account required; ICLA/CLA Assistant before external contributions; publish order: core → cli-types → cli-utils → recipes → cli → optional `lumpcode` via `scripts/publish-npm.mjs`; release branches `ver/X.Y.Z`, annotated tags `vX.Y.Z` — tag push (`push: tags: ['v*']`) triggers Build CLI Binaries and the `release` job uploads binaries to a GitHub Release (`softprops/action-gh-release`); npm publish is separate
 
 ### Repo backlog
 
+- `backlog` lump (`.lumpcode/lumps/backlog/`): uses `featureBacklog` recipe — phased feature flow `makePrd` → `makeTestPlan` → `testImpl` → `implementation`; `BACKLOG.yml` / `DONE.yml` / `prds/` / `testPlans/` under lump dir
 - `todoStackPrds` lump: `TODO.yml` / `DONE.yml` under `.lumpcode/lumps/todoStackPrds/`
 - Version planning: `.lumpcode/lumps/v0.0.7/`, `v0.0.8/`, `v0.0.9/`; long-horizon ideas in root `IDEAS.yaml`
-- Tasks: `name`, `task`, `priority` (lower = sooner), `dependsOn`; `prds/<name>.prd.md` existence drives PRD-write vs implement contexts
+- Tasks: `name`, `task`, `priority` (lower = sooner), optional `dependsOn`, optional `manualPrd`; `prds/<name>.prd.md` and `testPlans/<name>.test.md` gate stages; item names must not end in `_prd`, `_testPlan`, or `_tests_impl`
+- `@lumpcode/recipes` two layers: **recipes** (`backlog`, `featureBacklog`, `abstractionFinder`, `abstractionBacklog` — config from params) and **kit** (flat `src/kit/` — shared plumbing, barrel-exported); path-resolving recipes need lump `configUrl: import.meta.url` (derive lump dir via `fileURLToPath` + `lumpPathAndName` — never `path.join(import.meta.url, …)`); `defineRecipe`/`defineConfig` and engine hooks do not expose caller `lumpName` to recipe factories or `getContextListFn`
+- `backlog` recipe: typed stage map (`stages` + `resolveItem`); injects `TASK_NAME`, `TASK`, `BACKLOG_FILE`, `DONE_FILE`, `BACKLOG_STAGE`; `moveToDone` stages append `setTaskDoneStep`; reserves `getContextListFn`/`steps`; optional project-root-relative `backlogFilePath`/`doneFilePath` overrides
+- `featureBacklog`: requires `configUrl: import.meta.url`, `baseBranch`, `implValidateCommand`; legacy context names `<name>_prd`, `<name>_testPlan`, `<name>_tests_impl`, then unsuffixed `<name>`; `manualPrd: true` waits for human PRD; only merged `tests_impl` unlocks implementation; artifact stages hard-check output files via `requireArtifactStep`
+- `retryUntilGreen`: kit wrapper over `getRecursiveSteps` — iteration 0 runs `steps`, retries run optional `fixSteps` resolver (`GetFirstStepsInput` → steps) or default fix prompt (formatted `prevValidateCommandDescriptor` + output); `validationCommandFn` required; barrel-exported; `abstractionBacklog` and `featureBacklog` use it
+- `findAbstraction` lump (`.lumpcode/lumps/findAbstraction/`): ephemeral contexts hunt duplicated CLI logic; each run adds one util under `packages/apps/cli/src/utils/<name>/` (`main.ts`, `index.ts`, `unit.test.ts`, barrel) and refactors call sites so net line count drops; writes `<utilName>.abstraction.md` in the lump dir; validates with `npm run build -w=@lumpcode/cli && npm run test -w=@lumpcode/cli`
+- `abstractionFinder` + `abstractionBacklog` (two-lump CLI-util pipeline): finder uses `ephemeralContextListFn` + prompt to append one implementer backlog item + PRD per ephemeral context; finder lump passes explicit implementer `backlogFilePath`/`doneFilePath`/`prdDirPath` (no `implementerLumpName` recipe default); implementer delegates to generic `backlog` with single `implementation` stage (items without PRD skipped); flat kit (`validateBaseBacklogItem`, `resolveBacklogPaths`, `ymlBacklogContexts`, `setTaskDoneStep`, `getRecursiveSteps`, `retryUntilGreen`, `requireArtifactStep`, `shellCommand`, `resolveImplValidateCommand`); `getRecursiveSteps` `ValidationCommandFn` is `MaybePromise<CommandDescriptor | null | undefined>`; `.lumpcode/lumps/abstractionFinder/` + `abstractionImplementer/` use abstraction recipes
+- Abstraction backlog (`abstractionImplementer` `BACKLOG.yml`/`DONE.yml`): items are `name`, `task`, `priority`, optional `dependsOn` only — **no `type` field**; finder ephemeral context names via ISO-8601 timestamp in `ephemeralContextListFn` default naming (`:` stripped for valid context names)
+- PRD authoring (`write-prd` skill; committed project skills live in `.agents/skills/`, not `.cursor/skills/`): write to `.lumpcode/lumps/<lumpName>/prds/<kebab-name>.prd.md`; specify contracts (signatures, schemas, config/data shapes, CLI syntax, JSON envelopes), not code snippets; PRD must be a fully decided plan with **no "Open questions" section** — ask the user to resolve ambiguity before writing
+- Agent skills: author **user-facing** (omit internal "assume the agent lacks the codebase/AGENTS.md" framing); commit project skills to `.agents/skills/<name>/SKILL.md` (Cursor scans `.agents/skills/`; prefer over personal `~/.cursor/skills/`; never `.cursor/skills/` or reserved `~/.cursor/skills-cursor/`); self-contained skills link to GitHub docs (`https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/...`); prefer directing users to `lumpcode lump-plan` for config validation over shipping bundled validator scripts; project `grilling` skill stress-tests plans one question at a time and drives toward precise interfaces (types, schemas) before implementation
 
 ### Cleanup
 

@@ -1,0 +1,61 @@
+{
+  "name": "@lumpcode/recipes",
+  "version": "0.0.12",
+  "description": "Lumpcode lump recipes and kit helpers",
+  "keywords": [
+    "lumpcode",
+    "loop-engineering",
+    "agent-loop",
+    "coding-agent",
+    "lump-config",
+    "recipes"
+  ],
+  "license": "Apache-2.0",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lumpcode/lumpcode.git",
+    "directory": "packages/recipes"
+  },
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf dist",
+    "build": "rollup -c",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "dependencies": {
+    "@lumpcode/cli-utils": "^0.0.12",
+    "@lumpcode/core": "^0.0.12",
+    "js-yaml": "^5.0.0"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-typescript": "^12.1.0",
+    "rollup": "^4.52.5",
+    "rollup-plugin-dts": "^6.1.1",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
+  }
+}

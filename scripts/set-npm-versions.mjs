@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Align versions across @lumpcode/core, @lumpcode/cli-types, @lumpcode/cli, and lumpcode (cli-meta).
+ * Align versions across @lumpcode/core, @lumpcode/cli-types, @lumpcode/cli-utils,
+ * @lumpcode/recipes, @lumpcode/cli, and lumpcode (cli-meta).
  *
  * Usage:
  *   node scripts/set-npm-versions.mjs              # print current versions
@@ -22,8 +23,17 @@ const repoRoot = resolve(__dirname, "..");
 const PACKAGE_PATHS = [
   "packages/core/package.json",
   "packages/apps/cli/cli-types/package.json",
+  "packages/apps/cli/cli-utils/package.json",
+  "packages/recipes/package.json",
   "packages/apps/cli/package.json",
   "packages/apps/cli-meta/package.json",
+];
+
+const INTERNAL_DEP_NAMES = [
+  "@lumpcode/core",
+  "@lumpcode/cli-types",
+  "@lumpcode/cli-utils",
+  "@lumpcode/cli",
 ];
 
 function readPackageJson(relativePath) {
@@ -117,11 +127,10 @@ function updatePackages(targetVersion) {
   for (const relativePath of PACKAGE_PATHS) {
     const { absolutePath, data } = readPackageJson(relativePath);
     data.version = targetVersion;
-    if (data.dependencies?.["@lumpcode/core"] !== undefined) {
-      data.dependencies["@lumpcode/core"] = `^${targetVersion}`;
-    }
-    if (data.dependencies?.["@lumpcode/cli"] !== undefined) {
-      data.dependencies["@lumpcode/cli"] = `^${targetVersion}`;
+    for (const depName of INTERNAL_DEP_NAMES) {
+      if (data.dependencies?.[depName] !== undefined) {
+        data.dependencies[depName] = `^${targetVersion}`;
+      }
     }
     writePackageJson(absolutePath, data);
     console.log(`Updated ${data.name} → ${targetVersion}`);
@@ -160,7 +169,11 @@ function main() {
     process.exit(0);
   }
 
-  if (targetVersion === corePkg.version) {
+  const allAtTarget = PACKAGE_PATHS.every((relativePath) => {
+    const { data } = readPackageJson(relativePath);
+    return data.version === targetVersion;
+  });
+  if (allAtTarget) {
     console.log(`Version already ${targetVersion}; nothing to change.`);
     process.exit(0);
   }
@@ -172,7 +185,9 @@ function main() {
   }
 
   console.log(`\nDone. All publishable packages are at ${targetVersion}.`);
-  console.log("Publish: node scripts/publish-npm.mjs (order: core → cli-types → cli → lumpcode)");
+  console.log(
+    "Publish: node scripts/publish-npm.mjs (order: core → cli-types → cli-utils → recipes → cli → lumpcode)"
+  );
 }
 
 main();

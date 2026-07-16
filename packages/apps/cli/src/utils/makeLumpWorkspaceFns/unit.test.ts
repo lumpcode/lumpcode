@@ -8,10 +8,8 @@ import { execAsync, shellSingleQuote } from '@lumpcode/core';
 import { shellBestEffort } from '../shellBestEffort';
 import { makeLumpWorkspaceFns } from './main';
 import { lumpWorktreePath } from '../getLumpWorktreePath';
+import { execGit } from '../execGit';
 
-function git(cmd: string, cwd: string) {
-    execSync(`git ${cmd}`, { cwd, stdio: 'pipe' });
-}
 
 describe('makeLumpWorkspaceFns', () => {
     const executionWorkspacePath = '/wk';
@@ -160,13 +158,13 @@ describe('makeLumpWorkspaceFns', () => {
             gitExecutionWorkspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-wt-int-'));
             remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-wt-int-remote-'));
 
-            git('init --bare', remoteDir);
-            git('init -b main', gitExecutionWorkspacePath);
-            git('config user.email "test@test.com"', gitExecutionWorkspacePath);
-            git('config user.name "Test"', gitExecutionWorkspacePath);
-            git('commit --allow-empty -m "init"', gitExecutionWorkspacePath);
-            git(`remote add origin ${remoteDir}`, gitExecutionWorkspacePath);
-            git('push -u origin main', gitExecutionWorkspacePath);
+            execGit('init --bare', remoteDir);
+            execGit('init -b main', gitExecutionWorkspacePath);
+            execGit('config user.email "test@test.com"', gitExecutionWorkspacePath);
+            execGit('config user.name "Test"', gitExecutionWorkspacePath);
+            execGit('commit --allow-empty -m "init"', gitExecutionWorkspacePath);
+            execGit(`remote add origin ${remoteDir}`, gitExecutionWorkspacePath);
+            execGit('push -u origin main', gitExecutionWorkspacePath);
         });
 
         afterEach(async () => {
@@ -292,7 +290,7 @@ describe('makeLumpWorkspaceFns', () => {
                 (await execAsync(`git push origin ${shellSingleQuote(branchName)}`, { cwd: branchWorkspacePath })).success,
             ).toBe(true);
 
-            expect(() => git(`show ${branchName}:${markerRelPath}`, remoteDir)).not.toThrow();
+            expect(() => execGit(`show ${branchName}:${markerRelPath}`, remoteDir)).not.toThrow();
         });
     });
 });

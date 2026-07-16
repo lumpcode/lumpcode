@@ -1,12 +1,13 @@
 {
   "name": "@lumpcode/cli-types",
-  "version": "0.0.11",
+  "version": "0.0.12",
   "description": "Types and defineX helpers for Lumpcode CLI lump config and command modules",
   "keywords": [
     "lumpcode",
     "typescript",
     "types",
     "cli",
+    "loop-engineering",
     "agent-loop",
     "coding-agent",
     "lump-config"
@@ -36,7 +37,7 @@
     "build": "rollup -c"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.11"
+    "@lumpcode/core": "^0.0.12"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.1",

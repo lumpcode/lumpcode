@@ -20,7 +20,7 @@ export default defineConfig([
         sourcemap: false,
       },
     ],
-    external: ['@lumpcode/core'],
+    external: ['@lumpcode/cli-types', '@lumpcode/core', 'js-yaml'],
     plugins: [
       nodeResolve(),
       commonjs(),
@@ -34,7 +34,7 @@ export default defineConfig([
   {
     input: 'src/index.ts',
     output: [{ file: 'dist/index.d.ts', format: 'es' }],
-    external: ['@lumpcode/core'],
+    external: ['@lumpcode/cli-types', '@lumpcode/core', 'js-yaml'],
     plugins: [dts()],
   },
 ]);
