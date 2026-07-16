@@ -8,7 +8,8 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build:all": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils && npm run build -w=@lumpcode/recipes"
   },
   "workspaces": [
     "packages/core",
