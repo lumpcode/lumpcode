@@ -15,38 +15,35 @@ export type AbstractionBacklogOptions = {
     implValidateCommand?: ValidationCommandFn | string;
     /** Lump config module URL — pass `import.meta.url` from `config.ts`. */
     configUrl: string | URL;
+    implSteps?: LumpJsConfig['steps'];
 } & Omit<
     LumpJsConfig,
     'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps'
 >;
 
-const DEFAULT_IMPL_VALIDATE_COMMAND = [
-    'npm run build -w=@lumpcode/cli',
-    'npm run test -w=@lumpcode/cli',
-].join(' && ');
-
 type AbstractionBacklogContextVariables = {
     TASK_NAME: string;
     TASK: string;
-    BACKLOG_FILE: string;
-    DONE_FILE: string;
+    BACKLOG_ITEMS_DIR: string;
+    BACKLOG_ITEM_DIR: string;
     PRD_FILE?: string;
 };
 
 export const abstractionBacklog: Recipe<AbstractionBacklogOptions> = defineRecipe((options) => {
     const {
-        implValidateCommand = DEFAULT_IMPL_VALIDATE_COMMAND,
+        implValidateCommand,
         configUrl,
+        implSteps,
         ...rest
     } = options;
 
     const projectRoot = projectRootFromConfigUrl(configUrl);
-    const runImplValidation = resolveImplValidateCommand(implValidateCommand);
+    const runImplValidation = resolveImplValidateCommand(implValidateCommand ?? 'echo "No implementation validation command provided. I say, trust but verify, but well..."');
 
     return backlog({
         configUrl,
         async resolveItem({ item, paths }) {
-            const itemPrdPath = path.join(paths.lumpPath, 'prds', `${item.name}.prd.md`);
+            const itemPrdPath = path.join(paths.backlogItemsDir, 'todo', item.name, 'prd.md');
             const hasPrd = await pathExists(path.join(projectRoot, itemPrdPath));
             if (!hasPrd) {
                 return { ignored: true };
@@ -63,7 +60,7 @@ export const abstractionBacklog: Recipe<AbstractionBacklogOptions> = defineRecip
             implementation: {
                 completion: 'moveToDone',
                 steps: retryUntilGreen({
-                    steps: [{
+                    steps: implSteps ?? [{
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as AbstractionBacklogContextVariables;
                             const { PRD_FILE, TASK_NAME, TASK } = vars;
@@ -75,10 +72,10 @@ export const abstractionBacklog: Recipe<AbstractionBacklogOptions> = defineRecip
                         ${TASK}
                         
                         Requirements:
-                        - Materialize the abstraction as a new util under packages/apps/cli/src/utils/<utilName>/ following existing conventions: main.ts (implementation), index.ts (re-export), unit.test.ts (unit tests), and a barrel export from packages/apps/cli/src/utils/index.ts.
-                        - Refactor all call sites in packages/apps/cli to import the new util.
+                        - Materialize the abstraction as a new util following existing conventions in the codebase.
+                        - Refactor all call sites to import the new util.
                         - Net line count must go down after the refactor (removed duplication minus new util code, excluding the new unit test file). Do not extract one-off logic or move code without deleting repetition.
-                        - Include unit tests in unit.test.ts (match sibling utils in packages/apps/cli/src/utils/).
+                        - Include unit tests for the new util.
                         `.trim();
                         },
                     }],

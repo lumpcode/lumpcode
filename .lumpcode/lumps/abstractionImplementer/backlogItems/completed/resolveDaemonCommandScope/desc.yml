@@ -1,0 +1,5 @@
+name: resolveDaemonCommandScope
+task: >-
+  Extract resolveDaemonCommandScope util for repeated daemon command scope resolution in the CLI.
+priority: 8
+completedAt: '2026-07-09T12:00:00.000Z'

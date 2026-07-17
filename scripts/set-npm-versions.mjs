@@ -5,10 +5,12 @@
  *
  * Usage:
  *   node scripts/set-npm-versions.mjs              # print current versions
- *   node scripts/set-npm-versions.mjs 0.0.1          # set exact version
- *   node scripts/set-npm-versions.mjs --patch        # bump patch
- *   node scripts/set-npm-versions.mjs --minor        # bump minor
- *   node scripts/set-npm-versions.mjs --major        # bump major
+ *   node scripts/set-npm-versions.mjs 0.0.1          # set exact version (all)
+ *   node scripts/set-npm-versions.mjs --patch        # bump patch (all)
+ *   node scripts/set-npm-versions.mjs --minor        # bump minor (all)
+ *   node scripts/set-npm-versions.mjs --major        # bump major (all)
+ *   node scripts/set-npm-versions.mjs --patch --packages recipes
+ *   node scripts/set-npm-versions.mjs 0.0.12 --packages core,cli
  *   node scripts/set-npm-versions.mjs 0.0.1 --no-install
  */
 
@@ -16,25 +18,22 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  packageSelectionHelp,
+  takePackageSelection,
+} from "./npm-packages.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
 
-const PACKAGE_PATHS = [
-  "packages/core/package.json",
-  "packages/apps/cli/cli-types/package.json",
-  "packages/apps/cli/cli-utils/package.json",
-  "packages/recipes/package.json",
-  "packages/apps/cli/package.json",
-  "packages/apps/cli-meta/package.json",
-];
-
-const INTERNAL_DEP_NAMES = [
+const INTERNAL_DEP_NAMES = new Set([
   "@lumpcode/core",
   "@lumpcode/cli-types",
   "@lumpcode/cli-utils",
+  "@lumpcode/recipes",
   "@lumpcode/cli",
-];
+  "lumpcode",
+]);
 
 function readPackageJson(relativePath) {
   const absolutePath = resolve(repoRoot, relativePath);
@@ -81,7 +80,7 @@ function bumpSemver(version, kind) {
   return formatSemver(parts);
 }
 
-function resolveTargetVersion(argv) {
+function resolveVersionAction(argv) {
   const flags = argv.filter((arg) => arg.startsWith("--"));
   const positional = argv.filter((arg) => !arg.startsWith("--"));
 
@@ -97,44 +96,92 @@ function resolveTargetVersion(argv) {
     throw new Error("Pass at most one explicit version (x.y.z)");
   }
 
-  const { data: corePkg } = readPackageJson(PACKAGE_PATHS[0]);
-  const currentVersion = corePkg.version;
-
   if (positional.length === 1) {
     parseSemver(positional[0]);
-    return positional[0];
+    return { kind: "exact", version: positional[0] };
   }
 
   if (bumpFlags.length === 1) {
-    return bumpSemver(currentVersion, bumpFlags[0].slice(2));
+    return { kind: "bump", bump: bumpFlags[0].slice(2) };
   }
 
   return null;
 }
 
-function printUsage(currentVersion) {
-  console.log(`Current @lumpcode/* version: ${currentVersion}`);
+function printUsage(packages) {
+  console.log("Current publishable package versions:");
+  for (const pkg of packages) {
+    const { data } = readPackageJson(pkg.packageJson);
+    console.log(`  ${data.name}: ${data.version}`);
+  }
   console.log("");
   console.log("Usage:");
   console.log("  node scripts/set-npm-versions.mjs <x.y.z>");
   console.log("  node scripts/set-npm-versions.mjs --patch|--minor|--major");
   console.log("");
   console.log("Options:");
-  console.log("  --no-install   skip npm install after updating package.json files");
+  console.log(
+    `  --packages <ids>  only update these packages (${packageSelectionHelp()})`
+  );
+  console.log("  --no-install      skip npm install after updating package.json files");
 }
 
-function updatePackages(targetVersion) {
-  for (const relativePath of PACKAGE_PATHS) {
-    const { absolutePath, data } = readPackageJson(relativePath);
+function targetVersionForPackage(pkg, action) {
+  const { data } = readPackageJson(pkg.packageJson);
+  if (action.kind === "exact") {
+    return action.version;
+  }
+  return bumpSemver(data.version, action.bump);
+}
+
+function updatePackages(selectedPackages, action) {
+  const selectedWorkspaces = new Set(
+    selectedPackages.map((pkg) => pkg.workspace)
+  );
+  const versionByWorkspace = new Map();
+
+  for (const pkg of selectedPackages) {
+    versionByWorkspace.set(pkg.workspace, targetVersionForPackage(pkg, action));
+  }
+
+  let changed = 0;
+  for (const pkg of selectedPackages) {
+    const targetVersion = versionByWorkspace.get(pkg.workspace);
+    const { absolutePath, data } = readPackageJson(pkg.packageJson);
+    const before = JSON.stringify(data);
+    const previousVersion = data.version;
     data.version = targetVersion;
-    for (const depName of INTERNAL_DEP_NAMES) {
-      if (data.dependencies?.[depName] !== undefined) {
-        data.dependencies[depName] = `^${targetVersion}`;
+
+    if (data.dependencies) {
+      for (const depName of Object.keys(data.dependencies)) {
+        if (!INTERNAL_DEP_NAMES.has(depName)) {
+          continue;
+        }
+        if (!selectedWorkspaces.has(depName)) {
+          continue;
+        }
+        const depVersion = versionByWorkspace.get(depName);
+        if (depVersion !== undefined) {
+          data.dependencies[depName] = `^${depVersion}`;
+        }
       }
     }
+
+    if (JSON.stringify(data) === before) {
+      console.log(`Unchanged ${data.name} @ ${targetVersion}`);
+      continue;
+    }
+
     writePackageJson(absolutePath, data);
-    console.log(`Updated ${data.name} → ${targetVersion}`);
+    if (previousVersion === targetVersion) {
+      console.log(`Updated ${data.name} dependencies @ ${targetVersion}`);
+    } else {
+      console.log(`Updated ${data.name}: ${previousVersion} → ${targetVersion}`);
+    }
+    changed += 1;
   }
+
+  return changed;
 }
 
 function runNpmInstall() {
@@ -152,41 +199,49 @@ function runNpmInstall() {
 function main() {
   const argv = process.argv.slice(2);
   const noInstall = argv.includes("--no-install");
-  const filteredArgv = argv.filter((arg) => arg !== "--no-install");
+  const withoutNoInstall = argv.filter((arg) => arg !== "--no-install");
 
-  let targetVersion;
+  let packages;
+  let rest;
+  let selected;
   try {
-    targetVersion = resolveTargetVersion(filteredArgv);
+    ({ packages, rest, selected } = takePackageSelection(withoutNoInstall));
   } catch (error) {
     console.error(error instanceof Error ? error.message : error);
     process.exit(1);
   }
 
-  const { data: corePkg } = readPackageJson(PACKAGE_PATHS[0]);
+  let action;
+  try {
+    action = resolveVersionAction(rest);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  }
 
-  if (targetVersion === null) {
-    printUsage(corePkg.version);
+  if (action === null) {
+    printUsage(packages);
     process.exit(0);
   }
 
-  const allAtTarget = PACKAGE_PATHS.every((relativePath) => {
-    const { data } = readPackageJson(relativePath);
-    return data.version === targetVersion;
-  });
-  if (allAtTarget) {
-    console.log(`Version already ${targetVersion}; nothing to change.`);
+  const changed = updatePackages(packages, action);
+
+  if (changed === 0) {
+    console.log("Nothing to change.");
     process.exit(0);
   }
-
-  updatePackages(targetVersion);
 
   if (!noInstall) {
     runNpmInstall();
   }
 
-  console.log(`\nDone. All publishable packages are at ${targetVersion}.`);
+  const scope = selected
+    ? packages.map((pkg) => pkg.id).join(", ")
+    : "all publishable packages";
+  console.log(`\nDone. Updated: ${scope}.`);
   console.log(
-    "Publish: node scripts/publish-npm.mjs (order: core → cli-types → cli-utils → recipes → cli → lumpcode)"
+    "Publish: node scripts/publish-npm.mjs" +
+      (selected ? ` --packages ${packages.map((pkg) => pkg.id).join(",")}` : "")
   );
 }
 

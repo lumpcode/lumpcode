@@ -1,0 +1,5 @@
+name: appendMissingGitignoreLines
+task: >-
+  Extract appendMissingGitignoreLines util for repeated .gitignore line-append patterns in the CLI.
+priority: 1
+completedAt: '2026-07-09T12:00:00.000Z'

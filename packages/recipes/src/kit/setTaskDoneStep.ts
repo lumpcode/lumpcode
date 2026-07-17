@@ -6,6 +6,19 @@ import { readYamlList } from '@lumpcode/cli-utils';
 
 import type { BaseBacklogItem, DoneBacklogItem } from '../types';
 
+let setTaskDoneDeprecatedWarned = false;
+
+function warnSetTaskDoneDeprecated(): void {
+    if (setTaskDoneDeprecatedWarned) {
+        return;
+    }
+    setTaskDoneDeprecatedWarned = true;
+    console.warn(
+        '[lumpcode/recipes] setTaskDoneStep is deprecated; use folderSetTaskDoneStep. ' +
+            'YAML backlog helpers will be removed in a future major version.',
+    );
+}
+
 /** Moves a finished backlog item from BACKLOG.yml to DONE.yml after the context completes. */
 export const setTaskDoneStep = (input: {
     backlogVarName: string;
@@ -13,6 +26,7 @@ export const setTaskDoneStep = (input: {
 }): Step => {
     return {    
         async commandFn({ context, workspacePath }) {
+            warnSetTaskDoneDeprecated();
             const variables = context.variables as Record<string, string>;
             const { backlogVarName, doneVarName } = input;
 

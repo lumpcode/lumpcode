@@ -1,0 +1,103 @@
+import fs from 'fs/promises';
+import path from 'node:path';
+import { load as loadYaml } from 'js-yaml';
+import type { Context, GetContextListFn, MaybePromise } from '@lumpcode/cli-utils';
+
+import type { BaseBacklogItem } from '../../types';
+import { validateBaseBacklogItem } from '../validateBaseBacklogItem';
+
+export type FolderBacklogContextsOptions<Item extends BaseBacklogItem = BaseBacklogItem> = {
+    backlogItemsDir: string;
+    parseItem?: (item: BaseBacklogItem, folderName: string, raw: unknown) => Item;
+    parseContext?: (
+        item: Item,
+        folderName: string,
+    ) => MaybePromise<{
+        parsed?: Partial<Context>;
+        ignored?: boolean;
+    }>;
+};
+
+async function listTodoFolderNames(todoDir: string): Promise<string[]> {
+    try {
+        const entries = await fs.readdir(todoDir, { withFileTypes: true });
+        return entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name);
+    } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === 'ENOENT') {
+            return [];
+        }
+        throw error;
+    }
+}
+
+export function folderBacklogContexts<Item extends BaseBacklogItem = BaseBacklogItem>({
+    backlogItemsDir,
+    parseItem,
+    parseContext,
+}: FolderBacklogContextsOptions<Item>): GetContextListFn {
+    return async () => {
+        const todoDir = path.join(backlogItemsDir, 'todo');
+        const folderNames = await listTodoFolderNames(todoDir);
+
+        const discovered = await Promise.all(
+            folderNames.map(async (folderName) => {
+                const descPath = path.join(todoDir, folderName, 'desc.yml');
+                let rawText: string;
+                try {
+                    rawText = await fs.readFile(descPath, 'utf-8');
+                } catch (error) {
+                    const err = error as NodeJS.ErrnoException;
+                    if (err.code === 'ENOENT') {
+                        throw new Error(
+                            `Backlog item folder "${folderName}" is missing desc.yml at ${descPath}`,
+                        );
+                    }
+                    throw error;
+                }
+
+                const raw = loadYaml(rawText);
+                const baseItem = validateBaseBacklogItem(raw, `in folder "${folderName}"`);
+                if (baseItem.name !== folderName) {
+                    throw new Error(
+                        `Backlog item folder "${folderName}" desc.yml name "${baseItem.name}" must match folder name`,
+                    );
+                }
+
+                const item = parseItem ? parseItem(baseItem, folderName, raw) : (baseItem as Item);
+                return { item, folderName };
+            }),
+        );
+
+        discovered.sort((a, b) => {
+            if (a.item.priority !== b.item.priority) {
+                return a.item.priority - b.item.priority;
+            }
+            return a.item.name.localeCompare(b.item.name);
+        });
+
+        const allCtxs = await Promise.all(
+            discovered.map(async ({ item, folderName }): Promise<Context | null> => {
+                const { parsed, ignored } = parseContext
+                    ? await parseContext(item, folderName)
+                    : { parsed: undefined, ignored: false };
+
+                if (ignored) {
+                    return null;
+                }
+
+                return {
+                    name: item.name,
+                    options: {
+                        priority: item.priority,
+                        dependsOnContexts: item.dependsOn,
+                    },
+                    variables: parsed?.variables ?? {},
+                    ...parsed,
+                };
+            }),
+        );
+
+        return allCtxs.filter((ctx): ctx is Context => !!ctx);
+    };
+}

@@ -3,10 +3,10 @@ import path from 'node:path';
 import { defineConfig, normalizeSteps, type Context, type LumpJsConfig, type LumpJsConfigSteps } from '@lumpcode/cli-utils';
 
 import {
+    folderBacklogContexts,
+    folderSetTaskDoneStep,
     projectRootFromConfigUrl,
     resolveBacklogPaths,
-    setTaskDoneStep,
-    ymlBacklogContexts,
 } from '../../kit';
 import { BaseBacklogItem, defineRecipe, type Recipe } from '../../types';
 
@@ -16,8 +16,8 @@ import type {
     BacklogStageDefinition,
 } from './types';
 import {
-    BACKLOG_DONE_FILE_VAR,
-    BACKLOG_FILE_VAR,
+    BACKLOG_ITEM_DIR_VAR,
+    BACKLOG_ITEMS_DIR_VAR,
     BACKLOG_STAGE_VAR,
     BACKLOG_TASK_NAME_VAR,
     BACKLOG_TASK_VAR,
@@ -25,8 +25,8 @@ import {
 
 export type { BacklogOptions, BacklogStageDefinition, BacklogItemResolution } from './types';
 export {
-    BACKLOG_DONE_FILE_VAR,
-    BACKLOG_FILE_VAR,
+    BACKLOG_ITEM_DIR_VAR,
+    BACKLOG_ITEMS_DIR_VAR,
     BACKLOG_STAGE_VAR,
     BACKLOG_TASK_NAME_VAR,
     BACKLOG_TASK_VAR,
@@ -55,9 +55,8 @@ function buildStageSteps<Stages extends Record<string, BacklogStageDefinition>>(
     if (stageDef.completion === 'moveToDone') {
         return [
             ...normalized,
-            setTaskDoneStep({
-                backlogVarName: BACKLOG_FILE_VAR,
-                doneVarName: BACKLOG_DONE_FILE_VAR,
+            folderSetTaskDoneStep({
+                itemsDirVarName: BACKLOG_ITEMS_DIR_VAR,
             }),
         ];
     }
@@ -71,8 +70,7 @@ export function backlog<
 >(options: BacklogOptions<Item, Stages>): LumpJsConfig {
     const {
         configUrl,
-        backlogFilePath: backlogFilePathOverride,
-        doneFilePath: doneFilePathOverride,
+        backlogItemsDir: backlogItemsDirOverride,
         stages,
         parseItem,
         resolveItem,
@@ -80,18 +78,17 @@ export function backlog<
     } = options;
 
     const paths = resolveBacklogPaths(configUrl, {
-        backlogFilePath: backlogFilePathOverride,
-        doneFilePath: doneFilePathOverride,
+        backlogItemsDir: backlogItemsDirOverride,
     });
 
     const projectRoot = projectRootFromConfigUrl(configUrl);
-    const absoluteBacklogPath = path.join(projectRoot, paths.backlogFilePath);
+    const absoluteBacklogItemsDir = path.join(projectRoot, paths.backlogItemsDir);
 
     return defineConfig({
-        getContextListFn: ymlBacklogContexts<Item>({
-            backlogFilePath: absoluteBacklogPath,
+        getContextListFn: folderBacklogContexts<Item>({
+            backlogItemsDir: absoluteBacklogItemsDir,
             parseItem,
-            async parseContext(item) {
+            async parseContext(item, folderName) {
                 const resolution = await resolveItem({ item, paths });
 
                 if (isIgnoredResolution(resolution)) {
@@ -110,14 +107,20 @@ export function backlog<
                     ...(additionalDependsOnContexts ?? []),
                 ];
 
+                const backlogItemDir = path.join(
+                    paths.backlogItemsDir,
+                    'todo',
+                    folderName,
+                );
+
                 return {
                     parsed: {
                         name: contextName ?? item.name,
                         variables: {
                             [BACKLOG_TASK_NAME_VAR]: item.name,
                             [BACKLOG_TASK_VAR]: item.task,
-                            [BACKLOG_FILE_VAR]: paths.backlogFilePath,
-                            [BACKLOG_DONE_FILE_VAR]: paths.doneFilePath,
+                            [BACKLOG_ITEMS_DIR_VAR]: paths.backlogItemsDir,
+                            [BACKLOG_ITEM_DIR_VAR]: backlogItemDir,
                             [BACKLOG_STAGE_VAR]: stage,
                             ...variables,
                         },
