@@ -12,7 +12,7 @@ Turn the **full context of the current conversation** into one precise, concise 
 1. **Synthesize the conversation.** Extract the feature, the decisions already made, constraints, and any open threads from everything discussed so far. The PRD documents *this* feature, not a generic template.
 2. **Resolve unknowns cheaply.** Read the files/code referenced in the conversation to state real contracts (types, schemas, paths, function names). Do not invent APIs.
 3. **Ask when unclear.** This skill normally runs once the feature is fully decided, but you never know — if anything material is still ambiguous, contradictory, or missing after synthesizing, ask the user to clarify before writing. The PRD must read as fully decided: never leave open questions in it. Resolve every gap with the user first so everything is entirely clear.
-4. **Confirm the output path.** Repo convention: `.lumpcode/lumps/<lumpName>/prds/<kebab-name>.prd.md`. Infer `<lumpName>` and `<kebab-name>` from context; if the target lump/location is ambiguous, ask once, otherwise proceed with the most relevant `prds/` folder.
+4. **Confirm the output path.** Repo convention: `.lumpcode/lumps/<lumpName>/backlogItems/todo/<kebab-name>/prd.md`. Infer `<lumpName>` and `<kebab-name>` from context; if the target lump/item is ambiguous, ask once, otherwise proceed with the matching backlog item folder (create it with `desc.yml` if missing).
 
 
 
@@ -20,7 +20,7 @@ Turn the **full context of the current conversation** into one precise, concise 
 
 - **Contracts, not code.** Specify implementation *decisions* as contracts: API/function signatures, Zod/JSON schemas, config shapes, data shapes, file paths, CLI syntax, exit/JSON envelopes. Use tables and minimal signature sketches. Do **not** paste implementation, function bodies, or precise code snippets.
 - **Most concise possible.** Straight to the point, easy to understand. Every line earns its place. Prefer tables over prose. Cut restating the obvious.
-- **Match the repo.** Reuse the section set, the metadata table, and the tone of existing PRDs (e.g. `.lumpcode/lumps/**/prds/*.prd.md`). Periods/commas over em dashes. Reference real files with relative links where helpful.
+- **Match the repo.** Reuse the section set, the metadata table, and the tone of existing PRDs (e.g. `.lumpcode/lumps/**/backlogItems/**/prd.md`). Periods/commas over em dashes. Reference real files with relative links where helpful.
 
 
 
@@ -82,7 +82,7 @@ Optional trailing `## Reference:` sections (tables, mermaid diagrams) are fine w
 
 ## After writing
 
-- Verify the file is at a valid `prds/` path with the `.prd.md` suffix.
+- Verify the file is at a valid backlog item path: `backlogItems/todo/<name>/prd.md`.
 - Re-read for concision: remove duplicated prose, collapse repeated ideas into one canonical spot, ensure headings match the structure above.
 - Confirm no full code snippets slipped in — contracts and signatures only.
 

@@ -5,6 +5,19 @@ import type { Context, GetContextListFn, MaybePromise } from '@lumpcode/cli-util
 import type { BaseBacklogItem } from '../types';
 import { validateBaseBacklogItem } from './validateBaseBacklogItem';
 
+let ymlBacklogDeprecatedWarned = false;
+
+function warnYmlBacklogDeprecated(): void {
+    if (ymlBacklogDeprecatedWarned) {
+        return;
+    }
+    ymlBacklogDeprecatedWarned = true;
+    console.warn(
+        '[lumpcode/recipes] ymlBacklogContexts is deprecated; use folderBacklogContexts. ' +
+            'YAML backlog helpers will be removed in a future major version.',
+    );
+}
+
 export type YmlBacklogContextsOptions<Item extends BaseBacklogItem = BaseBacklogItem> = {
     backlogFilePath: string;
     parseItem?: (item: BaseBacklogItem, index: number, raw: unknown) => Item;
@@ -23,6 +36,7 @@ export function ymlBacklogContexts<Item extends BaseBacklogItem = BaseBacklogIte
     parseContext,
 }: YmlBacklogContextsOptions<Item>): GetContextListFn {
     return async () => {
+        warnYmlBacklogDeprecated();
         const raw = await fs.readFile(backlogFilePath, 'utf-8');
         const doc = loadYaml(raw);
 
@@ -32,7 +46,7 @@ export function ymlBacklogContexts<Item extends BaseBacklogItem = BaseBacklogIte
 
         const allCtxs = await Promise.all(
             doc.map(async (rawItem, index): Promise<Context | null> => {
-                const baseItem = validateBaseBacklogItem(rawItem, index);
+                const baseItem = validateBaseBacklogItem(rawItem, `at index ${index}`);
                 const item = parseItem ? parseItem(baseItem, index, rawItem) : (baseItem as Item);
 
                 const { parsed, ignored } = parseContext

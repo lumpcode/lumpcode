@@ -5,7 +5,13 @@ import { randomUUID } from 'node:crypto';
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { resolveCopilotToolArgs } from './utils/resolveCopilotToolArgs.js';
 
-export const command = (async ({ prompt, stepVariables = {}, contextRunState, stepIndex, lumpVariables = {} }) => {
+export const command = (async ({ 
+    prompt, 
+    stepVariables = {}, 
+    contextRunState, 
+    stepIndex, 
+    lumpVariables = {}, 
+}) => {
     const model = stepVariables.model ?? lumpVariables.model ?? 'auto';
     const { newChat = false, chatIdIndex = null } = stepVariables || {};
 

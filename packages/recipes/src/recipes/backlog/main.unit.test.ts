@@ -2,20 +2,40 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { GetContextListFn, LumpJsConfigSteps } from '@lumpcode/cli-utils';
 import { normalizeSteps } from '@lumpcode/cli-utils';
 
 import { backlog } from './main';
 
+async function writeTodoItem(
+    projectRoot: string,
+    lumpRelativePath: string,
+    name: string,
+    fields: Record<string, unknown>,
+) {
+    const itemDir = path.join(projectRoot, lumpRelativePath, 'backlogItems', 'todo', name);
+    await mkdir(itemDir, { recursive: true });
+    const body = { name, ...fields };
+    const lines = Object.entries(body).map(([key, value]) => {
+        if (typeof value === 'string' && value.includes('\n')) {
+            return `${key}: >-\n  ${value.replace(/\n/g, '\n  ')}`;
+        }
+        if (Array.isArray(value)) {
+            return `${key}:\n${value.map((entry) => `  - ${entry}`).join('\n')}`;
+        }
+        return `${key}: ${value}`;
+    });
+    await writeFile(path.join(itemDir, 'desc.yml'), `${lines.join('\n')}\n`);
+}
+
 async function scaffoldLump(projectRoot: string) {
     const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'sample');
     await mkdir(lumpPath, { recursive: true });
     const configPath = path.join(lumpPath, 'config.ts');
     await writeFile(configPath, 'export default {};\n');
-    await writeFile(path.join(lumpPath, 'DONE.yml'), '[]\n');
-    return { configPath };
+    return { configPath, lumpRelativePath: '.lumpcode/lumps/sample' };
 }
 
 function asGetContextListFn(fn: unknown): GetContextListFn {
@@ -35,10 +55,11 @@ function asDynamicStep(step: LumpJsConfigSteps[number]) {
 describe('backlog recipe', () => {
     let projectRoot: string;
     let configPath: string;
+    let lumpRelativePath: string;
 
     beforeEach(async () => {
         projectRoot = await mkdtemp(path.join(tmpdir(), 'backlog-recipe-'));
-        ({ configPath } = await scaffoldLump(projectRoot));
+        ({ configPath, lumpRelativePath } = await scaffoldLump(projectRoot));
     });
 
     afterEach(async () => {
@@ -46,10 +67,10 @@ describe('backlog recipe', () => {
     });
 
     it('emits stage variables and dispatches stage steps', async () => {
-        await writeFile(
-            path.join(projectRoot, '.lumpcode/lumps/sample/BACKLOG.yml'),
-            `- name: alpha\n  task: Alpha task\n  priority: 2\n`,
-        );
+        await writeTodoItem(projectRoot, lumpRelativePath, 'alpha', {
+            task: 'Alpha task',
+            priority: 2,
+        });
 
         const config = backlog({
             configUrl: pathToFileURL(configPath),
@@ -81,8 +102,8 @@ describe('backlog recipe', () => {
             variables: {
                 TASK_NAME: 'alpha',
                 TASK: 'Alpha task',
-                BACKLOG_FILE: '.lumpcode/lumps/sample/BACKLOG.yml',
-                DONE_FILE: '.lumpcode/lumps/sample/DONE.yml',
+                BACKLOG_ITEMS_DIR: '.lumpcode/lumps/sample/backlogItems',
+                BACKLOG_ITEM_DIR: '.lumpcode/lumps/sample/backlogItems/todo/alpha',
                 BACKLOG_STAGE: 'draft',
             },
             options: { priority: 2 },
@@ -104,11 +125,11 @@ describe('backlog recipe', () => {
         expect(resolvedSteps[0]).toMatchObject({ promptTemplate: 'Draft @{TASK}' });
     });
 
-    it('appends setTaskDoneStep only for moveToDone stages', async () => {
-        await writeFile(
-            path.join(projectRoot, '.lumpcode/lumps/sample/BACKLOG.yml'),
-            `- name: beta\n  task: Beta task\n  priority: 1\n`,
-        );
+    it('appends folderSetTaskDoneStep only for moveToDone stages', async () => {
+        await writeTodoItem(projectRoot, lumpRelativePath, 'beta', {
+            task: 'Beta task',
+            priority: 1,
+        });
 
         const config = backlog({
             configUrl: pathToFileURL(configPath),
@@ -146,9 +167,11 @@ describe('backlog recipe', () => {
     });
 
     it('fails discovery for malformed backlog entries', async () => {
+        const itemDir = path.join(projectRoot, lumpRelativePath, 'backlogItems', 'todo', 'bad-name');
+        await mkdir(itemDir, { recursive: true });
         await writeFile(
-            path.join(projectRoot, '.lumpcode/lumps/sample/BACKLOG.yml'),
-            `- name: bad/name\n  task: x\n  priority: 1\n`,
+            path.join(itemDir, 'desc.yml'),
+            'name: bad/name\ntask: x\npriority: 1\n',
         );
 
         const config = backlog({
@@ -166,17 +189,18 @@ describe('backlog recipe', () => {
         ).rejects.toThrow(/invalid name/);
     });
 
-    it('supports project-root-relative backlog path overrides', async () => {
-        const customBacklog = '.lumpcode/lumps/sample/CUSTOM_BACKLOG.yml';
+    it('supports project-root-relative backlogItemsDir overrides', async () => {
+        const customItemsDir = '.lumpcode/lumps/sample/customBacklogItems';
+        const itemDir = path.join(projectRoot, customItemsDir, 'todo', 'custom');
+        await mkdir(itemDir, { recursive: true });
         await writeFile(
-            path.join(projectRoot, customBacklog),
-            `- name: custom\n  task: Custom\n  priority: 1\n`,
+            path.join(itemDir, 'desc.yml'),
+            'name: custom\ntask: Custom\npriority: 1\n',
         );
 
         const config = backlog({
             configUrl: pathToFileURL(configPath),
-            backlogFilePath: customBacklog,
-            doneFilePath: '.lumpcode/lumps/sample/CUSTOM_DONE.yml',
+            backlogItemsDir: customItemsDir,
             stages: {
                 ship: { completion: 'keepPending', steps: [] },
             },
@@ -190,15 +214,17 @@ describe('backlog recipe', () => {
             lumpVariables: {},
         });
 
-        expect(contexts[0]?.variables.BACKLOG_FILE).toBe(customBacklog);
-        expect(contexts[0]?.variables.DONE_FILE).toBe('.lumpcode/lumps/sample/CUSTOM_DONE.yml');
+        expect(contexts[0]?.variables.BACKLOG_ITEMS_DIR).toBe(customItemsDir);
+        expect(contexts[0]?.variables.BACKLOG_ITEM_DIR).toBe(
+            '.lumpcode/lumps/sample/customBacklogItems/todo/custom',
+        );
     });
 
-    it('rejects absolute backlog path overrides', () => {
+    it('rejects absolute backlogItemsDir overrides', () => {
         expect(() =>
             backlog({
                 configUrl: pathToFileURL(configPath),
-                backlogFilePath: '/tmp/BACKLOG.yml',
+                backlogItemsDir: '/tmp/backlogItems',
                 stages: {
                     ship: { completion: 'keepPending', steps: [] },
                 },
@@ -213,14 +239,15 @@ describe('backlog recipe', () => {
 describe('abstractionBacklog compatibility', () => {
     let projectRoot: string;
     let configPath: string;
+    let lumpRelativePath: string;
 
     beforeEach(async () => {
         projectRoot = await mkdtemp(path.join(tmpdir(), 'abstraction-backlog-'));
         const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'abstractionImplementer');
+        lumpRelativePath = '.lumpcode/lumps/abstractionImplementer';
         await mkdir(path.join(lumpPath, 'prds'), { recursive: true });
         configPath = path.join(lumpPath, 'config.ts');
         await writeFile(configPath, 'export default {};\n');
-        await writeFile(path.join(lumpPath, 'DONE.yml'), '[]\n');
     });
 
     afterEach(async () => {
@@ -228,12 +255,18 @@ describe('abstractionBacklog compatibility', () => {
     });
 
     it('ignores items without PRDs and emits implementation contexts for ready items', async () => {
-        const lumpPath = path.join(projectRoot, '.lumpcode/lumps/abstractionImplementer');
+        await writeTodoItem(projectRoot, lumpRelativePath, 'ready', {
+            task: 'Ready task',
+            priority: 1,
+        });
+        await writeTodoItem(projectRoot, lumpRelativePath, 'waiting', {
+            task: 'Waiting task',
+            priority: 2,
+        });
         await writeFile(
-            path.join(lumpPath, 'BACKLOG.yml'),
-            `- name: ready\n  task: Ready task\n  priority: 1\n- name: waiting\n  task: Waiting task\n  priority: 2\n`,
+            path.join(projectRoot, lumpRelativePath, 'backlogItems', 'todo', 'ready', 'prd.md'),
+            '# PRD',
         );
-        await writeFile(path.join(lumpPath, 'prds', 'ready.prd.md'), '# PRD');
 
         const { abstractionBacklog } = await import('../abstractionBacklog/main');
         const config = abstractionBacklog({
@@ -251,9 +284,35 @@ describe('abstractionBacklog compatibility', () => {
             name: 'ready',
             variables: {
                 TASK_NAME: 'ready',
-                PRD_FILE: '.lumpcode/lumps/abstractionImplementer/prds/ready.prd.md',
+                PRD_FILE: '.lumpcode/lumps/abstractionImplementer/backlogItems/todo/ready/prd.md',
                 BACKLOG_STAGE: 'implementation',
             },
         });
+    });
+});
+
+describe('deprecated YAML helpers', () => {
+    it('warns once for ymlBacklogContexts and still discovers items', async () => {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'deprecated-yml-'));
+        const backlogFilePath = path.join(projectRoot, 'BACKLOG.yml');
+        await writeFile(
+            backlogFilePath,
+            `- name: alpha\n  task: Alpha\n  priority: 1\n`,
+        );
+
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const { ymlBacklogContexts } = await import('../../kit/ymlBacklogContexts');
+
+        const getContextListFn = ymlBacklogContexts({ backlogFilePath });
+        const first = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+        const second = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+
+        expect(first).toHaveLength(1);
+        expect(second).toHaveLength(1);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy.mock.calls[0]?.[0]).toContain('ymlBacklogContexts is deprecated');
+
+        warnSpy.mockRestore();
+        await rm(projectRoot, { recursive: true, force: true });
     });
 });

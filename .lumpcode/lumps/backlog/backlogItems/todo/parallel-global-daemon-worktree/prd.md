@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | TBD — add to `BACKLOG.yml` when scheduled |
+| **Backlog** | `parallel-global-daemon-worktree` · priority **1** · `manualPrd` |
 | **Type** | feature |
 | **Packages** | `packages/apps/cli` only; `packages/core` unchanged |
 

@@ -1,17 +1,11 @@
 import type { LumpJsConfig, LumpVariables } from '@lumpcode/cli-utils';
 import type { MaybePromise } from '@lumpcode/core';
 import type { BaseBacklogItem } from '../../types';
+import type { BacklogPaths } from '../../kit';
 
 export type BacklogStageDefinition = {
     steps: NonNullable<LumpJsConfig['steps']>;
     completion: 'keepPending' | 'moveToDone';
-};
-
-export type BacklogPaths = {
-    lumpPath: string;
-    lumpName: string;
-    backlogFilePath: string;
-    doneFilePath: string;
 };
 
 export type BacklogItemResolution<StageName extends string> =
@@ -28,10 +22,9 @@ export type BacklogOptions<
     Stages extends Record<string, BacklogStageDefinition>,
 > = {
     configUrl: string | URL;
-    backlogFilePath?: string;
-    doneFilePath?: string;
+    backlogItemsDir?: string;
     stages: Stages;
-    parseItem?: (item: BaseBacklogItem, index: number, raw: unknown) => Item;
+    parseItem?: (item: BaseBacklogItem, folderName: string, raw: unknown) => Item;
     resolveItem(input: {
         item: Item;
         paths: BacklogPaths;
@@ -44,5 +37,5 @@ export type BacklogOptions<
 export const BACKLOG_STAGE_VAR = 'BACKLOG_STAGE';
 export const BACKLOG_TASK_NAME_VAR = 'TASK_NAME';
 export const BACKLOG_TASK_VAR = 'TASK';
-export const BACKLOG_FILE_VAR = 'BACKLOG_FILE';
-export const BACKLOG_DONE_FILE_VAR = 'DONE_FILE';
+export const BACKLOG_ITEMS_DIR_VAR = 'BACKLOG_ITEMS_DIR';
+export const BACKLOG_ITEM_DIR_VAR = 'BACKLOG_ITEM_DIR';

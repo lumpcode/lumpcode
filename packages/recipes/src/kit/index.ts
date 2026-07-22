@@ -20,6 +20,11 @@ export { lumpPathAndName } from './lumpPathAndName';
 export { projectRootFromConfigUrl } from './projectRootFromConfigUrl';
 export { requireArtifactStep } from './requireArtifactStep';
 export { resolveBacklogPaths, type BacklogPaths } from './resolveBacklogPaths';
+export {
+    folderBacklogContexts,
+    type FolderBacklogContextsOptions,
+} from './folderBacklogContexts';
+export { folderSetTaskDoneStep } from './folderSetTaskDoneStep';
 export { setTaskDoneStep } from './setTaskDoneStep';
 export {
     resolveImplValidateCommand,

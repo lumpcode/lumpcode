@@ -8,10 +8,26 @@ Private monorepo workspace for now (same rollout path as `@lumpcode/cli-utils`).
 
 | Recipe | Export | Use when |
 |--------|--------|----------|
-| **backlog** | `backlog` | Generic YAML backlog with a typed stage map and per-item stage resolution |
+| **backlog** | `backlog` | Generic folder backlog with a typed stage map and per-item stage resolution |
 | **featureBacklog** | `featureBacklog` | Feature items with PRD → test plan → test implementation → implementation |
 | **abstractionFinder** | `abstractionFinder` | Ephemeral contexts that scan for duplicated CLI utils and append one backlog item + PRD per run |
-| **abstractionBacklog** | `abstractionBacklog` | YAML backlog items with PRDs — implement abstraction with verify-until-green, then move item to DONE |
+| **abstractionBacklog** | `abstractionBacklog` | Folder backlog items with PRDs — implement abstraction with verify-until-green, then move item to completed/ |
+
+## Backlog layout
+
+Each lump stores backlog items under `backlogItems/`:
+
+```
+.lumpcode/lumps/<lump>/backlogItems/
+  todo/<name>/desc.yml
+  todo/<name>/prd.md          # optional until makePrd / finder writes it
+  todo/<name>/testPlan.md     # featureBacklog only; optional until makeTestPlan
+  completed/<name>/desc.yml   # includes completedAt after move-to-done
+  completed/<name>/prd.md     # moves with the folder
+  completed/<name>/testPlan.md
+```
+
+`desc.yml` is a single YAML object with `name`, `task`, `priority`, optional `dependsOn`, and recipe-specific fields (e.g. `manualPrd` for featureBacklog).
 
 ## Kit
 
@@ -21,8 +37,9 @@ Flat helpers under `src/kit/` (re-exported from the package root):
 - `getRecursiveSteps` — agent step(s) + validation command, retry until pass
 - `retryUntilGreen` — opinionated wrapper over `getRecursiveSteps` with default fix prompt
 - `ephemeralContextListFn` — N fresh synthetic contexts per run (`contextCount`, index-aware names)
-- `ymlBacklogContexts` — `getContextListFn` from a YAML backlog file with optional per-item parsing
-- `setTaskDoneStep` — move finished item from BACKLOG to DONE after a context completes
+- `folderBacklogContexts` — `getContextListFn` from `backlogItems/todo/` with optional per-item parsing
+- `folderSetTaskDoneStep` — move finished item folder from `todo/` to `completed/` after a context completes
+- `ymlBacklogContexts` / `setTaskDoneStep` — **deprecated** YAML-list helpers (warn once, still work)
 - `resolveImplValidateCommand` — string, descriptor, or fn → `ValidationCommandFn`
 - `shellCommand` — `sh -c` helper for validation commands
 
@@ -47,7 +64,9 @@ export default backlog({
 });
 ```
 
-`resolveItem` returns `{ stage, contextName?, variables?, additionalDependsOnContexts? }` or `{ ignored: true }`. Terminal stages with `completion: 'moveToDone'` append `setTaskDoneStep`.
+`resolveItem` returns `{ stage, contextName?, variables?, additionalDependsOnContexts? }` or `{ ignored: true }`. Terminal stages with `completion: 'moveToDone'` append `folderSetTaskDoneStep`.
+
+Context variables injected by `backlog`: `TASK_NAME`, `TASK`, `BACKLOG_ITEMS_DIR`, `BACKLOG_ITEM_DIR`, `BACKLOG_STAGE`.
 
 ## Examples
 
@@ -90,9 +109,7 @@ export default {
     ...abstractionFinder({
         maxPendingAbstractions: 5,
         scanDirectories: ['packages/apps/cli'],
-        backlogFilePath: '.lumpcode/lumps/abstractionImplementer/BACKLOG.yml',
-        doneFilePath: '.lumpcode/lumps/abstractionImplementer/DONE.yml',
-        prdDirPath: '.lumpcode/lumps/abstractionImplementer/prds',
+        backlogItemsDir: '.lumpcode/lumps/abstractionImplementer/backlogItems',
         command: 'cursor',
         lumpVariables: { model: 'composer-2.5' },
         discoveryBranch: 'dev',

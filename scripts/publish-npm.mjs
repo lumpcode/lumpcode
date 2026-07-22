@@ -6,27 +6,24 @@
  * Skips publish when the package version is already on the registry.
  *
  * Usage:
- *   node scripts/publish-npm.mjs           # build + publish
- *   node scripts/publish-npm.mjs --dry-run # build + npm pack only
+ *   node scripts/publish-npm.mjs                      # build + publish all
+ *   node scripts/publish-npm.mjs --dry-run             # build + npm pack only
+ *   node scripts/publish-npm.mjs --packages recipes
+ *   node scripts/publish-npm.mjs --packages core,cli --dry-run
  */
 
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import {
+  packageSelectionHelp,
+  packagesNeededForBuild,
+  takePackageSelection,
+} from "./npm-packages.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "..");
-const dryRun = process.argv.includes("--dry-run");
-
-const packages = [
-  { workspace: "@lumpcode/core", packageJson: "packages/core/package.json" },
-  { workspace: "@lumpcode/cli-types", packageJson: "packages/apps/cli/cli-types/package.json" },
-  { workspace: "@lumpcode/cli-utils", packageJson: "packages/apps/cli/cli-utils/package.json" },
-  { workspace: "@lumpcode/recipes", packageJson: "packages/recipes/package.json" },
-  { workspace: "@lumpcode/cli", packageJson: "packages/apps/cli/package.json" },
-  { workspace: "lumpcode", packageJson: "packages/apps/cli-meta/package.json" },
-];
 
 function npm(args, options = {}) {
   return spawnSync("npm", args, {
@@ -81,6 +78,43 @@ function isVersionPublishedOnRegistry(packageName, version) {
   }
 }
 
+function printUsage() {
+  console.log("Usage:");
+  console.log("  node scripts/publish-npm.mjs [--dry-run] [--packages <ids>]");
+  console.log("");
+  console.log("Options:");
+  console.log("  --dry-run         build + npm pack only (no publish)");
+  console.log(
+    `  --packages <ids>  only publish these packages (${packageSelectionHelp()})`
+  );
+  console.log("                    Builds selected packages plus their build deps.");
+}
+
+const argv = process.argv.slice(2);
+if (argv.includes("--help") || argv.includes("-h")) {
+  printUsage();
+  process.exit(0);
+}
+
+const dryRun = argv.includes("--dry-run");
+const withoutDryRun = argv.filter((arg) => arg !== "--dry-run");
+
+let packages;
+let rest;
+let selected;
+try {
+  ({ packages, rest, selected } = takePackageSelection(withoutDryRun));
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}
+
+if (rest.length > 0) {
+  console.error(`Unknown argument(s): ${rest.join(" ")}`);
+  printUsage();
+  process.exit(1);
+}
+
 if (!dryRun) {
   const whoami = npm(["whoami"]);
   if (whoami.status !== 0 || !whoami.stdout?.trim()) {
@@ -90,20 +124,20 @@ if (!dryRun) {
   console.log(`Publishing as npm user: ${whoami.stdout.trim()}`);
 }
 
-console.log("Building @lumpcode/core...");
-npmRun(["run", "build", "-w=@lumpcode/core"]);
+if (selected) {
+  console.log(
+    `Package selection: ${packages.map((pkg) => pkg.workspace).join(", ")}`
+  );
+}
 
-console.log("Building @lumpcode/cli-types...");
-npmRun(["run", "build", "-w=@lumpcode/cli-types"]);
-
-console.log("Building @lumpcode/cli-utils...");
-npmRun(["run", "build", "-w=@lumpcode/cli-utils"]);
-
-console.log("Building @lumpcode/recipes...");
-npmRun(["run", "build", "-w=@lumpcode/recipes"]);
-
-console.log("Building @lumpcode/cli bundle...");
-npmRun(["run", "build:bundle", "-w=@lumpcode/cli"]);
+const buildPackages = packagesNeededForBuild(packages);
+for (const pkg of buildPackages) {
+  if (!pkg.buildScript) {
+    continue;
+  }
+  console.log(`Building ${pkg.workspace}...`);
+  npmRun(["run", pkg.buildScript, `-w=${pkg.workspace}`]);
+}
 
 if (dryRun) {
   console.log("Dry run — packing tarballs (no publish):");

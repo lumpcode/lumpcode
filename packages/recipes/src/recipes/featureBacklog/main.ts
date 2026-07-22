@@ -26,8 +26,8 @@ export type FeatureBacklogStage = 'makePrd' | 'makeTestPlan' | 'testImpl' | 'imp
 export type FeatureBacklogContextVariables = {
     TASK_NAME: string;
     TASK: string;
-    BACKLOG_FILE: string;
-    DONE_FILE: string;
+    BACKLOG_ITEMS_DIR: string;
+    BACKLOG_ITEM_DIR: string;
     BACKLOG_STAGE: FeatureBacklogStage;
     PRD_FILE?: string;
     TEST_PLAN_FILE?: string;
@@ -36,9 +36,8 @@ export type FeatureBacklogContextVariables = {
 export type FeatureBacklogOptions = {
     configUrl: string | URL;
     baseBranch: string;
-    implValidateCommand: ValidationCommandFn | string;
-    backlogFilePath?: string;
-    doneFilePath?: string;
+    implValidateCommand?: ValidationCommandFn | string;
+    backlogItemsDir?: string;
 } & Omit<
     LumpJsConfig,
     'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps' | 'baseBranch'
@@ -78,8 +77,8 @@ export async function resolveFeatureBacklogItem(
     lumpName: string,
     baseBranch: string,
 ): Promise<BacklogItemResolution<FeatureBacklogStage>> {
-    const prdFilePath = path.join(paths.lumpPath, 'prds', `${item.name}.prd.md`);
-    const testPlanFilePath = path.join(paths.lumpPath, 'testPlans', `${item.name}.test.md`);
+    const prdFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'prd.md');
+    const testPlanFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'testPlan.md');
 
     const hasPrd = await pathExists(path.join(projectRoot, prdFilePath));
     if (!hasPrd) {
@@ -144,20 +143,18 @@ export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((optio
         configUrl,
         baseBranch,
         implValidateCommand,
-        backlogFilePath,
-        doneFilePath,
+        backlogItemsDir,
         ...rest
     } = options;
 
     const projectRoot = projectRootFromConfigUrl(configUrl);
-    const runImplValidation = resolveImplValidateCommand(implValidateCommand);
+    const runImplValidation = resolveImplValidateCommand(implValidateCommand ?? 'echo "No implementation validation command provided. I say, trust but verify, but well..."');
 
     return backlog({
         configUrl,
-        backlogFilePath,
-        doneFilePath,
+        backlogItemsDir,
         baseBranch,
-        parseItem(baseItem, _index, raw) {
+        parseItem(baseItem, _folderName, raw) {
             assertValidFeatureItemName(baseItem.name);
             const record = raw as Record<string, unknown>;
             if (record.manualPrd !== undefined && typeof record.manualPrd !== 'boolean') {
@@ -184,17 +181,17 @@ export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((optio
                     {
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_FILE, TASK_NAME, TASK, PRD_FILE } = vars;
+                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, PRD_FILE } = vars;
 
                             return `
-Write a product requirements document (PRD) for the following Lumpcode backlog item from @${BACKLOG_FILE}.
+Write a product requirements document (PRD) for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
 Task name: ${TASK_NAME}
 
 Task:
 ${TASK}
 
-Save the PRD to @${PRD_FILE}. Do not edit @${BACKLOG_FILE}.
+Save the PRD to @${PRD_FILE}. Do not edit @${BACKLOG_ITEM_DIR}/desc.yml.
 
 The PRD should be self-contained and implementation-ready. Include:
 - Problem statement and motivation
@@ -219,10 +216,10 @@ The PRD should not contain any testing strategy details.
                     {
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_FILE, TASK_NAME, TASK, PRD_FILE, TEST_PLAN_FILE } = vars;
+                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, PRD_FILE, TEST_PLAN_FILE } = vars;
 
                             return `
-Write a test plan for the following Lumpcode backlog item from @${BACKLOG_FILE}.
+Write a test plan for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
 Task name: ${TASK_NAME}
 Task:
@@ -230,7 +227,7 @@ ${TASK}
 
 The PRD for this task is @${PRD_FILE}. The test plan should match the requirements of the PRD.
 
-Save the test plan to @${TEST_PLAN_FILE}. Do not edit @${BACKLOG_FILE} nor @${PRD_FILE}.
+Save the test plan to @${TEST_PLAN_FILE}. Do not edit @${BACKLOG_ITEM_DIR}/desc.yml nor @${PRD_FILE}.
 
 The test plan should be self-contained and implementation-ready. Include:
 - Test cases
@@ -249,10 +246,10 @@ The test plan should be self-contained and implementation-ready. Include:
                     {
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_FILE, TASK_NAME, TASK, PRD_FILE, TEST_PLAN_FILE } = vars;
+                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, PRD_FILE, TEST_PLAN_FILE } = vars;
 
                             return `
-Write a test implementation for the following Lumpcode backlog item from @${BACKLOG_FILE}.
+Write a test implementation for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
 Task name: ${TASK_NAME}
 Task:

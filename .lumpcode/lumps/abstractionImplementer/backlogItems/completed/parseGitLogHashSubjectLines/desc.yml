@@ -1,0 +1,5 @@
+name: parseGitLogHashSubjectLines
+task: >-
+  Extract parseGitLogHashSubjectLines util for repeated git log hash/subject parsing in the CLI.
+priority: 4
+completedAt: '2026-07-09T12:00:00.000Z'
