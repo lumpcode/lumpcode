@@ -3,7 +3,8 @@ import { ContextRunState } from "./ContextRunState";
 import { LumpVariables } from "./LumpVariables";
 import { MaybePromise } from "./MaybePromise";
 
-export type BranchFn = (params: {
+// testImpl stub: accept <V>; lumpVariables not refined until implementation
+export type BranchFn<_V extends LumpVariables = LumpVariables> = (params: {
     contextList: Context[];
     contextRunStateList: ContextRunState[];
     lumpVariables: LumpVariables;

@@ -1,4 +1,8 @@
-import type { GetContextListFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { GetContextListFn, LumpVariables } from '@lumpcode/core';
 
-export const defineGetContextListFn = identity<GetContextListFn>;
+// testImpl stub: lump-only <V>
+export function defineGetContextListFn<V extends LumpVariables = LumpVariables>(
+  fn: GetContextListFn<V>,
+): GetContextListFn<V> {
+  return fn;
+}

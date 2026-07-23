@@ -39,7 +39,8 @@
   "scripts": {
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
-    "build": "rollup -c"
+    "build": "rollup -c",
+    "test": "vitest run"
   },
   "dependencies": {
     "@lumpcode/cli-types": "^0.0.13",
@@ -53,6 +54,7 @@
     "rollup": "^4.52.5",
     "rollup-plugin-dts": "^6.1.1",
     "tslib": "^2.8.1",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.4"
   }
 }

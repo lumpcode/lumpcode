@@ -10,7 +10,11 @@ export type CommandDescriptor = {
     env?: Record<string, string>;
 };
 
-export type CommandFn = ((params: {
+// testImpl stub: accept <V, SV>; bags not threaded until implementation
+export type CommandFn<
+    _V extends LumpVariables = LumpVariables,
+    _SV extends StepVariables = StepVariables,
+> = ((params: {
     context: Context;
     prompt: string;
     stepIndex: number | number[];

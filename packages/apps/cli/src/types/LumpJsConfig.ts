@@ -1,4 +1,4 @@
-import type { LumpVariables, MaybePromise, RunLumpInput } from "@lumpcode/core";
+import type { LumpVariables, MaybePromise, RunLumpInput, StepVariables } from "@lumpcode/core";
 
 import { LumpJsConfigStep } from "./LumpJsConfigStep";
 import type { ContextMatchFn } from "./ContextMatchFn";
@@ -12,7 +12,11 @@ type LumpJsConfigSoloStep =
     | LumpJsConfigStep['promptTemplate']
     | LumpJsConfigStep['promptFn'];
 
-export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Omit<{
+// testImpl stub: accept <V, SV>; step bag not threaded until implementation
+export type LumpJsConfig<
+    V extends LumpVariables = LumpVariables,
+    _SV extends StepVariables = StepVariables,
+> = MergeObjs<Omit<{
     [K in keyof RunLumpInput<V>]?: NonNullable<RunLumpInput<V>[K]> extends Function ? (RunLumpInput<V>[K] | FilePath) : RunLumpInput<V>[K];
 }, 
     | 'gitCommitMessageFn' 

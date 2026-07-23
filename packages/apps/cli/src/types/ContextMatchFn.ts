@@ -1,6 +1,7 @@
-import type { CodeBasePath, Context, Maybe, MaybePromise } from "@lumpcode/core";
+import type { CodeBasePath, Context, LumpVariables, Maybe, MaybePromise } from "@lumpcode/core";
 
-export type ContextMatchFn = (params: {
+// testImpl stub: accept <V>; lumpVariables not refined until implementation
+export type ContextMatchFn<_V extends LumpVariables = LumpVariables> = (params: {
     codeBasePath: CodeBasePath;
     codeBasePaths: CodeBasePath[];
     lumpVariables: Record<string, unknown>;

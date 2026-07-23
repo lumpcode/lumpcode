@@ -4,7 +4,11 @@ import { StepVariables } from "./StepVariables";
 import { ContextRunState } from "./ContextRunState";
 import { MaybePromise } from "./MaybePromise";
 
-export interface PromptFnInput { 
+// testImpl stub: accept <V, SV> so type tests compile; bags not threaded until implementation
+export interface PromptFnInput<
+    _V extends LumpVariables = LumpVariables,
+    _SV extends StepVariables = StepVariables,
+> { 
     context: Context;
     stepIndex: number | number[];
     contextRunState: ContextRunState;
@@ -14,4 +18,7 @@ export interface PromptFnInput {
 
 export type PromptFnOutput = MaybePromise<string>;
 
-export type PromptFn = (params: PromptFnInput) => PromptFnOutput;
+export type PromptFn<
+    _V extends LumpVariables = LumpVariables,
+    _SV extends StepVariables = StepVariables,
+> = (params: PromptFnInput) => PromptFnOutput;

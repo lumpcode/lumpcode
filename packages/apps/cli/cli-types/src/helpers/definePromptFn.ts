@@ -1,4 +1,9 @@
-import type { PromptFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { LumpVariables, PromptFn, StepVariables } from '@lumpcode/core';
 
-export const definePromptFn = identity<PromptFn>;
+// testImpl stub: dual generics; bags not threaded until core implementation
+export function definePromptFn<
+  V extends LumpVariables = LumpVariables,
+  SV extends StepVariables = StepVariables,
+>(fn: PromptFn<V, SV>): PromptFn<V, SV> {
+  return fn;
+}

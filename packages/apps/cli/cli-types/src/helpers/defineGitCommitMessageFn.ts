@@ -1,4 +1,8 @@
-import type { GitCommitMessageFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { GitCommitMessageFn, LumpVariables } from '@lumpcode/core';
 
-export const defineGitCommitMessageFn = identity<GitCommitMessageFn>;
+// testImpl stub: lump-only <V>
+export function defineGitCommitMessageFn<V extends LumpVariables = LumpVariables>(
+  fn: GitCommitMessageFn<V>,
+): GitCommitMessageFn<V> {
+  return fn;
+}
