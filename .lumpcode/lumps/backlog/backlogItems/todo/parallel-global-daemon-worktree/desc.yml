@@ -5,4 +5,4 @@ task: >-
   worktree (maxParallelRun in local.json), add ignoredByGlobalDaemon per-lump
   opt-out for side-managed lumps, and replace daemon meta busy with
   inFlightLumpCount. See requirements.md in this item folder.
-priority: 1
+priority: 2
