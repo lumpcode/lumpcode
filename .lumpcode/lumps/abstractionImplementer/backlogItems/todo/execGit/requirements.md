@@ -1,4 +1,4 @@
-# PRD: `execGit` — synchronous git subprocess util
+# Requirements: `execGit` — synchronous git subprocess util
 
 | Field | Value |
 | --- | --- |

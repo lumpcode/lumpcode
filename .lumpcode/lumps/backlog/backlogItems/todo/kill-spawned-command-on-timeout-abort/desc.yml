@@ -5,5 +5,5 @@ task: >-
   Move killProcessTree, isProcessAlive, and nodeErrnoCode into @lumpcode/core;
   refactor execBinary to an object API with signal and reason; thread signal
   through runLump; change default lumpcode stop to abort busy daemons (remove
-  daemonBusy). See prd.md in this item folder.
+  daemonBusy). See requirements.md in this item folder.
 priority: 1

@@ -30,12 +30,12 @@ function asGetContextListFn(fn: unknown): GetContextListFn {
 async function writeFeatureArtifact(
     lumpPath: string,
     name: string,
-    files: { prd?: boolean; testPlan?: boolean },
+    files: { requirements?: boolean; testPlan?: boolean },
 ) {
     const itemDir = path.join(lumpPath, 'backlogItems', 'todo', name);
     await mkdir(itemDir, { recursive: true });
-    if (files.prd) {
-        await writeFile(path.join(itemDir, 'prd.md'), '# PRD');
+    if (files.requirements) {
+        await writeFile(path.join(itemDir, 'requirements.md'), '# Requirements');
     }
     if (files.testPlan) {
         await writeFile(path.join(itemDir, 'testPlan.md'), '# Plan');
@@ -58,7 +58,7 @@ describe('resolveFeatureBacklogItem', () => {
         backlogItemsDir: '.lumpcode/lumps/backlog/backlogItems',
     };
 
-    const prdPath = '.lumpcode/lumps/backlog/backlogItems/todo/my-feature/prd.md';
+    const reqPath = '.lumpcode/lumps/backlog/backlogItems/todo/my-feature/requirements.md';
     const testPlanPath = '.lumpcode/lumps/backlog/backlogItems/todo/my-feature/testPlan.md';
 
     beforeEach(async () => {
@@ -72,7 +72,7 @@ describe('resolveFeatureBacklogItem', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
-    it('routes to makePrd when no PRD exists', async () => {
+    it('routes to makeReq when no requirements document exists', async () => {
         const resolution = await resolveFeatureBacklogItem(
             item,
             paths,
@@ -82,17 +82,17 @@ describe('resolveFeatureBacklogItem', () => {
         );
 
         expect(resolution).toEqual({
-            stage: 'makePrd',
-            contextName: 'my-feature_prd',
+            stage: 'makeReq',
+            contextName: 'my-feature_req',
             variables: {
-                PRD_FILE: prdPath,
+                REQ_FILE: reqPath,
             },
         });
     });
 
-    it('waits for a human PRD when manualPrd is true', async () => {
+    it('waits for a human requirements document when manualReq is true', async () => {
         const resolution = await resolveFeatureBacklogItem(
-            { ...item, manualPrd: true },
+            { ...item, manualReq: true },
             paths,
             projectRoot,
             'backlog',
@@ -102,8 +102,8 @@ describe('resolveFeatureBacklogItem', () => {
         expect(resolution).toEqual({ ignored: true });
     });
 
-    it('routes to makeTestPlan when PRD exists but test plan does not', async () => {
-        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true });
+    it('routes to makeTestPlan when requirements exist but test plan does not', async () => {
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
 
         const resolution = await resolveFeatureBacklogItem(
             item,
@@ -117,14 +117,14 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'makeTestPlan',
             contextName: 'my-feature_testPlan',
             variables: {
-                PRD_FILE: prdPath,
+                REQ_FILE: reqPath,
                 TEST_PLAN_FILE: testPlanPath,
             },
         });
     });
 
     it('routes to testImpl when test plan exists and tests are toDo', async () => {
-        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true, testPlan: true });
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true, testPlan: true });
         mockedGetContextStatus.mockResolvedValue('toDo');
 
         const resolution = await resolveFeatureBacklogItem(
@@ -139,14 +139,14 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'testImpl',
             contextName: 'my-feature_tests_impl',
             variables: {
-                PRD_FILE: prdPath,
+                REQ_FILE: reqPath,
                 TEST_PLAN_FILE: testPlanPath,
             },
         });
     });
 
     it('ignores the item while test implementation is branchPushed', async () => {
-        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true, testPlan: true });
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true, testPlan: true });
         mockedGetContextStatus.mockResolvedValue('branchPushed');
 
         const resolution = await resolveFeatureBacklogItem(
@@ -161,7 +161,7 @@ describe('resolveFeatureBacklogItem', () => {
     });
 
     it('routes to implementation when test implementation is finished', async () => {
-        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true, testPlan: true });
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true, testPlan: true });
         mockedGetContextStatus.mockResolvedValue('finished');
 
         const resolution = await resolveFeatureBacklogItem(
@@ -176,7 +176,7 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'implementation',
             contextName: 'my-feature',
             variables: {
-                PRD_FILE: prdPath,
+                REQ_FILE: reqPath,
                 TEST_PLAN_FILE: testPlanPath,
             },
         });
@@ -187,12 +187,12 @@ describe('featureBacklog parseItem reserved suffixes', () => {
     it('rejects item names ending in reserved suffixes via featureBacklog config', async () => {
         const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-config-'));
         const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
-        await mkdir(path.join(lumpPath, 'backlogItems', 'todo', 'bad_prd'), { recursive: true });
+        await mkdir(path.join(lumpPath, 'backlogItems', 'todo', 'bad_req'), { recursive: true });
         const configPath = path.join(lumpPath, 'config.ts');
         await writeFile(configPath, 'export default {};\n');
         await writeFile(
-            path.join(lumpPath, 'backlogItems', 'todo', 'bad_prd', 'desc.yml'),
-            'name: bad_prd\ntask: x\npriority: 1\n',
+            path.join(lumpPath, 'backlogItems', 'todo', 'bad_req', 'desc.yml'),
+            'name: bad_req\ntask: x\npriority: 1\n',
         );
 
         const { featureBacklog } = await import('./main');
@@ -204,7 +204,7 @@ describe('featureBacklog parseItem reserved suffixes', () => {
 
         await expect(
             asGetContextListFn(config.getContextListFn)({ codeBasePaths: [], lumpVariables: {} }),
-        ).rejects.toThrow(/reserved suffix _prd/);
+        ).rejects.toThrow(/reserved suffix _req/);
 
         await rm(projectRoot, { recursive: true, force: true });
     });

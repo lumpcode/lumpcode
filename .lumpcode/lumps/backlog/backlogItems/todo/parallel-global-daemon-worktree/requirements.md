@@ -1,8 +1,8 @@
-# PRD: Parallel global daemon (worktree) and `ignoredByGlobalDaemon`
+# Requirements: Parallel global daemon (worktree) and `ignoredByGlobalDaemon`
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `parallel-global-daemon-worktree` · priority **1** · `manualPrd` |
+| **Backlog** | `parallel-global-daemon-worktree` · priority **1** · `manualReq` |
 | **Type** | feature |
 | **Packages** | `packages/apps/cli` only; `packages/core` unchanged |
 

@@ -1,0 +1,9 @@
+name: claude-code-opencode-codex-presets
+task: >-
+  Ship built-in preset command modules for claude-code, opencode, and codex
+  (same shape as cursor/copilot: headless, resumable sessions in
+  contextRunState, model + agentPermissions from lump/step variables,
+  whitespace-only prompts → null). Install via ensurePresetCommandsInstalled /
+  reset-presets; document registered tags and PATH binaries in CLI DOCS /
+  schema examples alongside cursor and copilot.
+priority: 2
