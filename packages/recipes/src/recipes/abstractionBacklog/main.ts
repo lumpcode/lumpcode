@@ -26,7 +26,7 @@ type AbstractionBacklogContextVariables = {
     TASK: string;
     BACKLOG_ITEMS_DIR: string;
     BACKLOG_ITEM_DIR: string;
-    PRD_FILE?: string;
+    REQ_FILE?: string;
 };
 
 export const abstractionBacklog: Recipe<AbstractionBacklogOptions> = defineRecipe((options) => {
@@ -43,16 +43,16 @@ export const abstractionBacklog: Recipe<AbstractionBacklogOptions> = defineRecip
     return backlog({
         configUrl,
         async resolveItem({ item, paths }) {
-            const itemPrdPath = path.join(paths.backlogItemsDir, 'todo', item.name, 'prd.md');
-            const hasPrd = await pathExists(path.join(projectRoot, itemPrdPath));
-            if (!hasPrd) {
+            const itemReqPath = path.join(paths.backlogItemsDir, 'todo', item.name, 'requirements.md');
+            const hasReq = await pathExists(path.join(projectRoot, itemReqPath));
+            if (!hasReq) {
                 return { ignored: true };
             }
 
             return {
                 stage: 'implementation',
                 variables: {
-                    PRD_FILE: itemPrdPath,
+                    REQ_FILE: itemReqPath,
                 },
             };
         },
@@ -63,9 +63,9 @@ export const abstractionBacklog: Recipe<AbstractionBacklogOptions> = defineRecip
                     steps: implSteps ?? [{
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as AbstractionBacklogContextVariables;
-                            const { PRD_FILE, TASK_NAME, TASK } = vars;
+                            const { REQ_FILE, TASK_NAME, TASK } = vars;
                             return `
-                        Implement the abstraction described in @${PRD_FILE}.
+                        Implement the abstraction described in @${REQ_FILE}.
                         
                         Backlog item: ${TASK_NAME}
                         Task summary:

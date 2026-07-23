@@ -1,4 +1,4 @@
-# PRD: `initLocalGitRepo` — local git repository bootstrap util
+# Requirements: `initLocalGitRepo` — local git repository bootstrap util
 
 | Field | Value |
 | --- | --- |
@@ -63,7 +63,7 @@ Larger helpers (`initBareRemoteAndCheckout`, `initRepoWithRemote`) embed this bl
 - Async git (`execAsync`) or production command-handler git usage.
 - Moving the util to `@lumpcode/core`.
 - Collapsing unrelated test fixture prose (`minimalLumpConfigJson`, `writeLocalJson`, daemon spawn helpers) — only the four-command bootstrap.
-- Implementing before `execGit` lands; this PRD assumes `execGit` is available.
+- Implementing before `execGit` lands; these requirements assume `execGit` is available.
 
 ## Proposed util API
 

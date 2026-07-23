@@ -59,13 +59,13 @@ Create exactly one new backlog item folder at @${backlogItemsDir}/todo/<utilName
   - task: a concise summary of the repeated pattern, proposed util name, and affected areas
   - priority: max existing priority in todo/ plus 1 (or 1 if todo/ is empty)
   - dependsOn: optional list of util names from todo/ or completed/ that must land first (only when clearly needed)
-- prd.md: an implementation-ready PRD for the same util name. The PRD should be self-contained and include:
+- requirements.md: an implementation-ready requirements document for the same util name. It should be self-contained and include:
   - Problem statement and repeated pattern
   - Goals and non-goals
   - Proposed util API and affected files
   - Acceptance criteria (including net line reduction and unit tests)
 
-Do not implement code. Only create @${backlogItemsDir}/todo/<utilName>/desc.yml and @${backlogItemsDir}/todo/<utilName>/prd.md.
+Do not implement code. Only create @${backlogItemsDir}/todo/<utilName>/desc.yml and @${backlogItemsDir}/todo/<utilName>/requirements.md.
 
 Do not take too much time looking for every possible abstraction. Once you found a good abstraction, stop and create the backlog item.
     `.trim();

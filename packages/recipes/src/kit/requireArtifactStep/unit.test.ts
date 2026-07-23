@@ -21,12 +21,12 @@ describe('requireArtifactStep', () => {
     });
 
     it('fails when the artifact file was not created', async () => {
-        const step = requireArtifactStep('PRD_FILE');
+        const step = requireArtifactStep('REQ_FILE');
         await expect(
             step.commandFn!({
                 context: {
                     name: 'ctx',
-                    variables: { PRD_FILE: 'missing/prd.md' },
+                    variables: { REQ_FILE: 'missing/requirements.md' },
                 },
                 workspacePath,
                 projectRoot,
@@ -39,15 +39,15 @@ describe('requireArtifactStep', () => {
     });
 
     it('succeeds when the artifact file exists', async () => {
-        const relativePath = 'artifacts/prd.md';
+        const relativePath = 'artifacts/requirements.md';
         await mkdir(path.join(workspacePath, 'artifacts'), { recursive: true });
-        await writeFile(path.join(workspacePath, relativePath), '# PRD');
+        await writeFile(path.join(workspacePath, relativePath), '# Requirements');
 
-        const step = requireArtifactStep('PRD_FILE');
+        const step = requireArtifactStep('REQ_FILE');
         const descriptor = await step.commandFn!({
             context: {
                 name: 'ctx',
-                variables: { PRD_FILE: relativePath },
+                variables: { REQ_FILE: relativePath },
             },
             workspacePath,
             projectRoot,

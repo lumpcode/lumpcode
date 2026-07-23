@@ -89,19 +89,19 @@ describe('folderBacklogContexts', () => {
         await writeTodoItem(backlogItemsDir, 'alpha', {
             task: 'Alpha',
             priority: 1,
-            manualPrd: true,
+            manualReq: true,
         });
 
         const getContextListFn = folderBacklogContexts({
             backlogItemsDir,
             parseItem(baseItem, folderName, raw) {
                 expect(folderName).toBe('alpha');
-                expect(raw).toMatchObject({ manualPrd: true });
-                return { ...baseItem, manualPrd: true };
+                expect(raw).toMatchObject({ manualReq: true });
+                return { ...baseItem, manualReq: true };
             },
             async parseContext(item, folderName) {
                 expect(folderName).toBe('alpha');
-                expect(item.manualPrd).toBe(true);
+                expect(item.manualReq).toBe(true);
                 return {
                     parsed: {
                         variables: { FLAG: 'yes' },

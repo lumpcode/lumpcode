@@ -18,10 +18,10 @@ import {
 } from '../backlog';
 
 export type FeatureBacklogItem = BaseBacklogItem & {
-    manualPrd?: boolean;
+    manualReq?: boolean;
 };
 
-export type FeatureBacklogStage = 'makePrd' | 'makeTestPlan' | 'testImpl' | 'implementation';
+export type FeatureBacklogStage = 'makeReq' | 'makeTestPlan' | 'testImpl' | 'implementation';
 
 export type FeatureBacklogContextVariables = {
     TASK_NAME: string;
@@ -29,7 +29,7 @@ export type FeatureBacklogContextVariables = {
     BACKLOG_ITEMS_DIR: string;
     BACKLOG_ITEM_DIR: string;
     BACKLOG_STAGE: FeatureBacklogStage;
-    PRD_FILE?: string;
+    REQ_FILE?: string;
     TEST_PLAN_FILE?: string;
 };
 
@@ -43,7 +43,7 @@ export type FeatureBacklogOptions = {
     'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps' | 'baseBranch'
 >;
 
-const RESERVED_NAME_SUFFIXES = ['_prd', '_testPlan', '_tests_impl'] as const;
+const RESERVED_NAME_SUFFIXES = ['_req', '_testPlan', '_tests_impl'] as const;
 
 function assertValidFeatureItemName(name: string): void {
     for (const suffix of RESERVED_NAME_SUFFIXES) {
@@ -55,8 +55,8 @@ function assertValidFeatureItemName(name: string): void {
 
 function featureContextName(itemName: string, stage: FeatureBacklogStage): string {
     switch (stage) {
-        case 'makePrd':
-            return `${itemName}_prd`;
+        case 'makeReq':
+            return `${itemName}_req`;
         case 'makeTestPlan':
             return `${itemName}_testPlan`;
         case 'testImpl':
@@ -77,19 +77,19 @@ export async function resolveFeatureBacklogItem(
     lumpName: string,
     baseBranch: string,
 ): Promise<BacklogItemResolution<FeatureBacklogStage>> {
-    const prdFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'prd.md');
+    const reqFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'requirements.md');
     const testPlanFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'testPlan.md');
 
-    const hasPrd = await pathExists(path.join(projectRoot, prdFilePath));
-    if (!hasPrd) {
-        if (item.manualPrd === true) {
+    const hasReq = await pathExists(path.join(projectRoot, reqFilePath));
+    if (!hasReq) {
+        if (item.manualReq === true) {
             return { ignored: true };
         }
 
         return {
-            stage: 'makePrd',
-            contextName: featureContextName(item.name, 'makePrd'),
-            variables: { PRD_FILE: prdFilePath },
+            stage: 'makeReq',
+            contextName: featureContextName(item.name, 'makeReq'),
+            variables: { REQ_FILE: reqFilePath },
         };
     }
 
@@ -99,7 +99,7 @@ export async function resolveFeatureBacklogItem(
             stage: 'makeTestPlan',
             contextName: featureContextName(item.name, 'makeTestPlan'),
             variables: {
-                PRD_FILE: prdFilePath,
+                REQ_FILE: reqFilePath,
                 TEST_PLAN_FILE: testPlanFilePath,
             },
         };
@@ -118,7 +118,7 @@ export async function resolveFeatureBacklogItem(
             stage: 'implementation',
             contextName: featureContextName(item.name, 'implementation'),
             variables: {
-                PRD_FILE: prdFilePath,
+                REQ_FILE: reqFilePath,
                 TEST_PLAN_FILE: testPlanFilePath,
             },
         };
@@ -132,7 +132,7 @@ export async function resolveFeatureBacklogItem(
         stage: 'testImpl',
         contextName: testsImplContextName,
         variables: {
-            PRD_FILE: prdFilePath,
+            REQ_FILE: reqFilePath,
             TEST_PLAN_FILE: testPlanFilePath,
         },
     };
@@ -157,12 +157,12 @@ export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((optio
         parseItem(baseItem, _folderName, raw) {
             assertValidFeatureItemName(baseItem.name);
             const record = raw as Record<string, unknown>;
-            if (record.manualPrd !== undefined && typeof record.manualPrd !== 'boolean') {
-                throw new Error(`Backlog item "${baseItem.name}" field "manualPrd" must be a boolean`);
+            if (record.manualReq !== undefined && typeof record.manualReq !== 'boolean') {
+                throw new Error(`Backlog item "${baseItem.name}" field "manualReq" must be a boolean`);
             }
             return {
                 ...baseItem,
-                manualPrd: record.manualPrd === true ? true : undefined,
+                manualReq: record.manualReq === true ? true : undefined,
             };
         },
         async resolveItem({ item, paths }) {
@@ -175,25 +175,25 @@ export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((optio
             );
         },
         stages: {
-            makePrd: {
+            makeReq: {
                 completion: 'keepPending',
                 steps: [
                     {
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, PRD_FILE } = vars;
+                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE } = vars;
 
                             return `
-Write a product requirements document (PRD) for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
+Write a requirements document for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
 Task name: ${TASK_NAME}
 
 Task:
 ${TASK}
 
-Save the PRD to @${PRD_FILE}. Do not edit @${BACKLOG_ITEM_DIR}/desc.yml.
+Save the requirements document to @${REQ_FILE}. Do not edit @${BACKLOG_ITEM_DIR}/desc.yml.
 
-The PRD should be self-contained and implementation-ready. Include:
+The requirements document should be self-contained and implementation-ready. Include:
 - Problem statement and motivation
 - Goals and non-goals
 - User stories / use cases
@@ -202,12 +202,12 @@ The PRD should be self-contained and implementation-ready. Include:
 - Technical approach and affected packages or docs
 - Acceptance criteria
 
-Do not implement the feature — only create the PRD markdown file.
-The PRD should not contain any testing strategy details.
+Do not implement the feature — only create the requirements markdown file.
+The requirements document should not contain any testing strategy details.
                             `.trim();
                         },
                     },
-                    requireArtifactStep('PRD_FILE'),
+                    requireArtifactStep('REQ_FILE'),
                 ],
             },
             makeTestPlan: {
@@ -216,7 +216,7 @@ The PRD should not contain any testing strategy details.
                     {
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, PRD_FILE, TEST_PLAN_FILE } = vars;
+                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE, TEST_PLAN_FILE } = vars;
 
                             return `
 Write a test plan for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
@@ -225,9 +225,9 @@ Task name: ${TASK_NAME}
 Task:
 ${TASK}
 
-The PRD for this task is @${PRD_FILE}. The test plan should match the requirements of the PRD.
+The requirements for this task are in @${REQ_FILE}. The test plan should match those requirements.
 
-Save the test plan to @${TEST_PLAN_FILE}. Do not edit @${BACKLOG_ITEM_DIR}/desc.yml nor @${PRD_FILE}.
+Save the test plan to @${TEST_PLAN_FILE}. Do not edit @${BACKLOG_ITEM_DIR}/desc.yml nor @${REQ_FILE}.
 
 The test plan should be self-contained and implementation-ready. Include:
 - Test cases
@@ -246,7 +246,7 @@ The test plan should be self-contained and implementation-ready. Include:
                     {
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, PRD_FILE, TEST_PLAN_FILE } = vars;
+                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE, TEST_PLAN_FILE } = vars;
 
                             return `
 Write a test implementation for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
@@ -256,7 +256,7 @@ Task:
 ${TASK}
 
 Follow the test plan in @${TEST_PLAN_FILE}.
-The PRD for this task is @${PRD_FILE}.
+The requirements for this task are in @${REQ_FILE}.
                             `.trim();
                         },
                     },
@@ -269,10 +269,10 @@ The PRD for this task is @${PRD_FILE}.
                         {
                             promptFn({ context: ctx }) {
                                 const vars = ctx.variables as FeatureBacklogContextVariables;
-                                const { PRD_FILE, TEST_PLAN_FILE } = vars;
+                                const { REQ_FILE, TEST_PLAN_FILE } = vars;
 
                                 return `
-Implement the feature described in @${PRD_FILE}.
+Implement the feature described in @${REQ_FILE}.
 The tests have already been implemented according to the test plan in @${TEST_PLAN_FILE}.
 The implementation should make the tests pass. Do not edit any test file.
                                 `.trim();
