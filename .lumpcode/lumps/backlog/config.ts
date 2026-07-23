@@ -10,7 +10,7 @@ export default {
         maximumNumberOfConcurrentBranches: 5,
         verbose: true,
         keepHistory: true,
-        lumpVariables: { model: 'composer-2.5' },
+        lumpVariables: { model: 'cursor-grok-4.5' },
         discoveryBranch: 'dev',
         implValidateCommand: [
             'npm run build -w=@lumpcode/cli',

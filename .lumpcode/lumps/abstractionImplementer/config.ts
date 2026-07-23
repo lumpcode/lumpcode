@@ -10,7 +10,7 @@ export default {
         maximumNumberOfConcurrentBranches: 3,
         verbose: true,
         keepHistory: true,
-        lumpVariables: { model: 'composer-2.5' },
+        lumpVariables: { model: 'cursor-grok-4.5' },
         discoveryBranch: 'dev',
     }),
 } satisfies LumpJsConfig;
