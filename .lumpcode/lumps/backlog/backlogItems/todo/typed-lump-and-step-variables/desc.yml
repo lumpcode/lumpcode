@@ -1,0 +1,8 @@
+name: typed-lump-and-step-variables
+task: >-
+  Parameterize lumpVariables/stepVariables through @lumpcode/core and CLI
+  authoring types (defineConfig / define* with V and SV), export closed
+  cursor/copilot preset variable contracts from @lumpcode/cli-utils, and
+  document the consumer pattern (including & Extra extendability). Soft-align
+  @lumpcode/cli-types signatures; do not delete cli-types in this item.
+priority: 1

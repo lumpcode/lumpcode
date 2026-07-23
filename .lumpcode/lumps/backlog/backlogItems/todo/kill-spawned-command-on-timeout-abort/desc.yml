@@ -6,4 +6,4 @@ task: >-
   refactor execBinary to an object API with signal and reason; thread signal
   through runLump; change default lumpcode stop to abort busy daemons (remove
   daemonBusy). See requirements.md in this item folder.
-priority: 1
+priority: 2
