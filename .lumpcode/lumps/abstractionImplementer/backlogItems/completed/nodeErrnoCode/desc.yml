@@ -1,0 +1,5 @@
+name: nodeErrnoCode
+task: >-
+  Extract nodeErrnoCode util for repeated Node.js errno code extraction patterns in the CLI.
+priority: 3
+completedAt: '2026-07-09T12:00:00.000Z'

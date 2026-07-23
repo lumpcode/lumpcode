@@ -1,0 +1,9 @@
+name: execute-steps-teardown-on-failure
+task: >-
+  On stepWalkFailure (including abort) in executeStepsForContextList, still run
+  per-context teardownFn and teardownWorkspaceFn via try/finally so workspace
+  cleanup is not skipped when a command fails or is cancelled. Follow-up to
+  kill-spawned-command-on-timeout-abort (agent kill is separate).
+priority: 2
+dependsOn:
+  - kill-spawned-command-on-timeout-abort

@@ -12,7 +12,7 @@ describe('validateBaseBacklogItem', () => {
                     priority: 1,
                     dependsOn: ['other-task'],
                 },
-                0,
+                'at index 0',
             ),
         ).toEqual({
             name: 'my-task',
@@ -24,21 +24,21 @@ describe('validateBaseBacklogItem', () => {
 
     it('rejects invalid names', () => {
         expect(() =>
-            validateBaseBacklogItem({ name: 'bad/name', task: 'x', priority: 1 }, 0),
+            validateBaseBacklogItem({ name: 'bad/name', task: 'x', priority: 1 }, 'at index 0'),
         ).toThrow(/invalid name/);
     });
 
-    it('rejects missing priority', () => {
+    it('includes the location string in errors', () => {
         expect(() =>
-            validateBaseBacklogItem({ name: 'task', task: 'x' }, 2),
-        ).toThrow(/index 2.*priority/);
+            validateBaseBacklogItem({ name: 'task', task: 'x' }, 'in folder "alpha"'),
+        ).toThrow(/in folder "alpha".*priority/);
     });
 
     it('rejects non-array dependsOn', () => {
         expect(() =>
             validateBaseBacklogItem(
                 { name: 'task', task: 'x', priority: 1, dependsOn: 'other' },
-                0,
+                'at index 0',
             ),
         ).toThrow(/dependsOn.*array/);
     });

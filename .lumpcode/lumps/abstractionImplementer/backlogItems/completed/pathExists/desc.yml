@@ -1,0 +1,5 @@
+name: pathExists
+task: >-
+  Extract pathExists util for repeated fs.access existence probe patterns in the CLI and core.
+priority: 5
+completedAt: '2026-07-09T12:00:00.000Z'

@@ -27,6 +27,21 @@ function asGetContextListFn(fn: unknown): GetContextListFn {
     return fn as GetContextListFn;
 }
 
+async function writeFeatureArtifact(
+    lumpPath: string,
+    name: string,
+    files: { prd?: boolean; testPlan?: boolean },
+) {
+    const itemDir = path.join(lumpPath, 'backlogItems', 'todo', name);
+    await mkdir(itemDir, { recursive: true });
+    if (files.prd) {
+        await writeFile(path.join(itemDir, 'prd.md'), '# PRD');
+    }
+    if (files.testPlan) {
+        await writeFile(path.join(itemDir, 'testPlan.md'), '# Plan');
+    }
+}
+
 describe('resolveFeatureBacklogItem', () => {
     let projectRoot: string;
     let lumpPath: string;
@@ -40,15 +55,16 @@ describe('resolveFeatureBacklogItem', () => {
     const paths = {
         lumpPath: '.lumpcode/lumps/backlog',
         lumpName: 'backlog',
-        backlogFilePath: '.lumpcode/lumps/backlog/BACKLOG.yml',
-        doneFilePath: '.lumpcode/lumps/backlog/DONE.yml',
+        backlogItemsDir: '.lumpcode/lumps/backlog/backlogItems',
     };
+
+    const prdPath = '.lumpcode/lumps/backlog/backlogItems/todo/my-feature/prd.md';
+    const testPlanPath = '.lumpcode/lumps/backlog/backlogItems/todo/my-feature/testPlan.md';
 
     beforeEach(async () => {
         projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-'));
         lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
-        await mkdir(path.join(lumpPath, 'prds'), { recursive: true });
-        await mkdir(path.join(lumpPath, 'testPlans'), { recursive: true });
+        await mkdir(lumpPath, { recursive: true });
         mockedGetContextStatus.mockReset();
     });
 
@@ -69,7 +85,7 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'makePrd',
             contextName: 'my-feature_prd',
             variables: {
-                PRD_FILE: '.lumpcode/lumps/backlog/prds/my-feature.prd.md',
+                PRD_FILE: prdPath,
             },
         });
     });
@@ -87,10 +103,7 @@ describe('resolveFeatureBacklogItem', () => {
     });
 
     it('routes to makeTestPlan when PRD exists but test plan does not', async () => {
-        await writeFile(
-            path.join(lumpPath, 'prds', 'my-feature.prd.md'),
-            '# PRD',
-        );
+        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true });
 
         const resolution = await resolveFeatureBacklogItem(
             item,
@@ -104,15 +117,14 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'makeTestPlan',
             contextName: 'my-feature_testPlan',
             variables: {
-                PRD_FILE: '.lumpcode/lumps/backlog/prds/my-feature.prd.md',
-                TEST_PLAN_FILE: '.lumpcode/lumps/backlog/testPlans/my-feature.test.md',
+                PRD_FILE: prdPath,
+                TEST_PLAN_FILE: testPlanPath,
             },
         });
     });
 
     it('routes to testImpl when test plan exists and tests are toDo', async () => {
-        await writeFile(path.join(lumpPath, 'prds', 'my-feature.prd.md'), '# PRD');
-        await writeFile(path.join(lumpPath, 'testPlans', 'my-feature.test.md'), '# Plan');
+        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true, testPlan: true });
         mockedGetContextStatus.mockResolvedValue('toDo');
 
         const resolution = await resolveFeatureBacklogItem(
@@ -127,15 +139,14 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'testImpl',
             contextName: 'my-feature_tests_impl',
             variables: {
-                PRD_FILE: '.lumpcode/lumps/backlog/prds/my-feature.prd.md',
-                TEST_PLAN_FILE: '.lumpcode/lumps/backlog/testPlans/my-feature.test.md',
+                PRD_FILE: prdPath,
+                TEST_PLAN_FILE: testPlanPath,
             },
         });
     });
 
     it('ignores the item while test implementation is branchPushed', async () => {
-        await writeFile(path.join(lumpPath, 'prds', 'my-feature.prd.md'), '# PRD');
-        await writeFile(path.join(lumpPath, 'testPlans', 'my-feature.test.md'), '# Plan');
+        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true, testPlan: true });
         mockedGetContextStatus.mockResolvedValue('branchPushed');
 
         const resolution = await resolveFeatureBacklogItem(
@@ -150,8 +161,7 @@ describe('resolveFeatureBacklogItem', () => {
     });
 
     it('routes to implementation when test implementation is finished', async () => {
-        await writeFile(path.join(lumpPath, 'prds', 'my-feature.prd.md'), '# PRD');
-        await writeFile(path.join(lumpPath, 'testPlans', 'my-feature.test.md'), '# Plan');
+        await writeFeatureArtifact(lumpPath, 'my-feature', { prd: true, testPlan: true });
         mockedGetContextStatus.mockResolvedValue('finished');
 
         const resolution = await resolveFeatureBacklogItem(
@@ -166,8 +176,8 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'implementation',
             contextName: 'my-feature',
             variables: {
-                PRD_FILE: '.lumpcode/lumps/backlog/prds/my-feature.prd.md',
-                TEST_PLAN_FILE: '.lumpcode/lumps/backlog/testPlans/my-feature.test.md',
+                PRD_FILE: prdPath,
+                TEST_PLAN_FILE: testPlanPath,
             },
         });
     });
@@ -177,14 +187,13 @@ describe('featureBacklog parseItem reserved suffixes', () => {
     it('rejects item names ending in reserved suffixes via featureBacklog config', async () => {
         const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-config-'));
         const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
-        await mkdir(lumpPath, { recursive: true });
+        await mkdir(path.join(lumpPath, 'backlogItems', 'todo', 'bad_prd'), { recursive: true });
         const configPath = path.join(lumpPath, 'config.ts');
         await writeFile(configPath, 'export default {};\n');
         await writeFile(
-            path.join(lumpPath, 'BACKLOG.yml'),
-            `- name: bad_prd\n  task: x\n  priority: 1\n`,
+            path.join(lumpPath, 'backlogItems', 'todo', 'bad_prd', 'desc.yml'),
+            'name: bad_prd\ntask: x\npriority: 1\n',
         );
-        await writeFile(path.join(lumpPath, 'DONE.yml'), '[]\n');
 
         const { featureBacklog } = await import('./main');
         const config = featureBacklog({

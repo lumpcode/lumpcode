@@ -1,0 +1,5 @@
+name: readJsonFile
+task: >-
+  Extract readJsonFile util for repeated JSON file read/parse patterns in the CLI.
+priority: 6
+completedAt: '2026-07-09T12:00:00.000Z'

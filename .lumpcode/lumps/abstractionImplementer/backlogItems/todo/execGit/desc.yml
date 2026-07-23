@@ -1,0 +1,8 @@
+name: execGit
+task: >-
+  Extract repeated synchronous git test helpers (execSync with git subcommand, cwd, stdio pipe,
+  optional trimmed stdout return) into util `execGit`; refactor the private `git` / `gitOutput` /
+  `gitExec` copies in 20 unit test modules, `testing/multiBranchFixtures.ts`, and
+  `e2e/harness/gitHelpers.ts` to import the shared util (re-export as `git` from gitHelpers for
+  e2e stability).
+priority: 3

@@ -5,8 +5,7 @@ import { lumpPathAndName } from './lumpPathAndName';
 export type BacklogPaths = {
     lumpPath: string;
     lumpName: string;
-    backlogFilePath: string;
-    doneFilePath: string;
+    backlogItemsDir: string;
 };
 
 function assertProjectRelativePath(filePath: string, label: string): void {
@@ -18,21 +17,17 @@ function assertProjectRelativePath(filePath: string, label: string): void {
 export function resolveBacklogPaths(
     configUrl: string | URL,
     overrides?: {
-        backlogFilePath?: string;
-        doneFilePath?: string;
+        backlogItemsDir?: string;
     },
 ): BacklogPaths {
     const [lumpPath, lumpName] = lumpPathAndName(configUrl);
-    const backlogFilePath = overrides?.backlogFilePath ?? path.join(lumpPath, 'BACKLOG.yml');
-    const doneFilePath = overrides?.doneFilePath ?? path.join(lumpPath, 'DONE.yml');
+    const backlogItemsDir = overrides?.backlogItemsDir ?? path.join(lumpPath, 'backlogItems');
 
-    assertProjectRelativePath(backlogFilePath, 'backlogFilePath');
-    assertProjectRelativePath(doneFilePath, 'doneFilePath');
+    assertProjectRelativePath(backlogItemsDir, 'backlogItemsDir');
 
     return {
         lumpPath,
         lumpName,
-        backlogFilePath,
-        doneFilePath,
+        backlogItemsDir,
     };
 }
