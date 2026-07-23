@@ -254,7 +254,7 @@ describe('abstractionBacklog compatibility', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
-    it('ignores items without PRDs and emits implementation contexts for ready items', async () => {
+    it('ignores items without requirements and emits implementation contexts for ready items', async () => {
         await writeTodoItem(projectRoot, lumpRelativePath, 'ready', {
             task: 'Ready task',
             priority: 1,
@@ -264,8 +264,8 @@ describe('abstractionBacklog compatibility', () => {
             priority: 2,
         });
         await writeFile(
-            path.join(projectRoot, lumpRelativePath, 'backlogItems', 'todo', 'ready', 'prd.md'),
-            '# PRD',
+            path.join(projectRoot, lumpRelativePath, 'backlogItems', 'todo', 'ready', 'requirements.md'),
+            '# Requirements',
         );
 
         const { abstractionBacklog } = await import('../abstractionBacklog/main');
@@ -284,7 +284,7 @@ describe('abstractionBacklog compatibility', () => {
             name: 'ready',
             variables: {
                 TASK_NAME: 'ready',
-                PRD_FILE: '.lumpcode/lumps/abstractionImplementer/backlogItems/todo/ready/prd.md',
+                REQ_FILE: '.lumpcode/lumps/abstractionImplementer/backlogItems/todo/ready/requirements.md',
                 BACKLOG_STAGE: 'implementation',
             },
         });

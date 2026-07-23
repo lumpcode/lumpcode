@@ -1,4 +1,4 @@
-# PRD: `pollUntil` — deadline polling util
+# Requirements: `pollUntil` — deadline polling util
 
 | Field | Value |
 | --- | --- |

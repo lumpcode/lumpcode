@@ -1,6 +1,6 @@
 # @lumpcode/cli-utils
 
-Published npm package: **types**, **`define*` helpers**, and **runtime utilities** for authoring Lumpcode lump configs and recipes.
+**Types**, **`define*` helpers**, and **runtime utilities** for authoring Lumpcode lump configs and recipes.
 
 Re-exports all of [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) plus runtime helpers bundled from `@lumpcode/cli` sources at build time (`cli-types` stays an external dependency at publish).
 

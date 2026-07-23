@@ -1,4 +1,4 @@
-# PRD: Kill spawned command on timeout and abort
+# Requirements: Kill spawned command on timeout and abort
 
 | Field | Value |
 | --- | --- |

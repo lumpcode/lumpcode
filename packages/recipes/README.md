@@ -2,32 +2,38 @@
 
 Lumpcode **recipes** and **kit** helpers for authoring lump configs without boilerplate.
 
-Private monorepo workspace for now (same rollout path as `@lumpcode/cli-utils`).
+Install [`@lumpcode/cli`](https://www.npmjs.com/package/@lumpcode/cli) for the Lumpcode CLI. Add this package when you want the recipes and kit helpers. Built on [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils) and [`@lumpcode/core`](https://www.npmjs.com/package/@lumpcode/core).
+
+## Install
+
+```bash
+npm install @lumpcode/recipes
+```
 
 ## Recipes
 
 | Recipe | Export | Use when |
 |--------|--------|----------|
 | **backlog** | `backlog` | Generic folder backlog with a typed stage map and per-item stage resolution |
-| **featureBacklog** | `featureBacklog` | Feature items with PRD → test plan → test implementation → implementation |
-| **abstractionFinder** | `abstractionFinder` | Ephemeral contexts that scan for duplicated CLI utils and append one backlog item + PRD per run |
-| **abstractionBacklog** | `abstractionBacklog` | Folder backlog items with PRDs — implement abstraction with verify-until-green, then move item to completed/ |
+| **featureBacklog** | `featureBacklog` | Feature items with requirements → test plan → test implementation → implementation |
+| **abstractionFinder** | `abstractionFinder` | Ephemeral contexts that scan for duplicated CLI utils and append one backlog item + requirements doc per run |
+| **abstractionBacklog** | `abstractionBacklog` | Folder backlog items with requirements — implement abstraction with verify-until-green, then move item to completed/ |
 
 ## Backlog layout
 
-Each lump stores backlog items under `backlogItems/`:
+The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a folder backlog under `backlogItems/`:
 
 ```
 .lumpcode/lumps/<lump>/backlogItems/
   todo/<name>/desc.yml
-  todo/<name>/prd.md          # optional until makePrd / finder writes it
+  todo/<name>/requirements.md # optional until makeReq / finder writes it
   todo/<name>/testPlan.md     # featureBacklog only; optional until makeTestPlan
   completed/<name>/desc.yml   # includes completedAt after move-to-done
-  completed/<name>/prd.md     # moves with the folder
+  completed/<name>/requirements.md # moves with the folder
   completed/<name>/testPlan.md
 ```
 
-`desc.yml` is a single YAML object with `name`, `task`, `priority`, optional `dependsOn`, and recipe-specific fields (e.g. `manualPrd` for featureBacklog).
+`desc.yml` is a single YAML object with `name`, `task`, `priority`, optional `dependsOn`, and recipe-specific fields (e.g. `manualReq` for featureBacklog).
 
 ## Kit
 
@@ -98,7 +104,7 @@ export default {
 
 ### abstractionFinder + abstractionBacklog
 
-Two-lump pipeline: finder tops up the implementer backlog; implementer runs items that already have PRDs.
+Two-lump pipeline: finder tops up the implementer backlog; implementer runs items that already have requirements documents.
 
 ```ts
 // .lumpcode/lumps/abstractionFinder/config.ts

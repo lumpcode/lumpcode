@@ -1,4 +1,4 @@
-# PRD: `writeLumpConfigJson` — lump `config.json` scaffold util
+# Requirements: `writeLumpConfigJson` — lump `config.json` scaffold util
 
 | Field | Value |
 | --- | --- |

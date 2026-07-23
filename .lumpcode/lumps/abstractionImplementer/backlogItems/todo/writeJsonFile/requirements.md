@@ -1,4 +1,4 @@
-# PRD: `writeJsonFile` — atomic JSON file write util
+# Requirements: `writeJsonFile` — atomic JSON file write util
 
 | Field | Value |
 | --- | --- |
