@@ -64,7 +64,7 @@
 ### Monorepo layout
 
 - npm workspaces (**not** pnpm): `packages/core` (`@lumpcode/core`, Apache 2.0 — `runLump` executes one agent loop per invocation), `packages/apps/cli` (`@lumpcode/cli`, Apache 2.0 — ncc bundle from `root.ts` only, **no programmatic library entry**; primary user install), `packages/apps/cli/cli-types` (`@lumpcode/cli-types`, published — canonical types + `define*`), `packages/apps/cli/cli-utils` (`@lumpcode/cli-utils`, published — single root barrel re-exporting `cli-types` + runtime helpers; utils bundled from CLI src at build, `cli-types` external at publish), `packages/recipes` (`@lumpcode/recipes`, published — single root barrel: recipes + kit + recipe types; monorepo imports `@lumpcode/cli-utils` only), `packages/libs/ui` (private WIP)
-- Authoring stack: `cli-types` and `cli-utils` coexist on npm; `cli-types` stays canonical types source until a follow-up deprecation; `.lumpcode/lumps` remain on `cli-types` until the docs branch updates them
+- Authoring stack: `cli-types` and `cli-utils` coexist on npm; prefer `@lumpcode/cli-utils` for new consumer-facing types (`cli-types` soft-aligned until a later deprecation); `.lumpcode/lumps` remain on `cli-types` until the docs branch updates them
 - Core layout: `types/` (barrel via `index.ts`), `usages/runLump/`, `helpers/`, `utils/`
 - Stack: TypeScript, Commander.js, Zod, Vitest; agent-agnostic (Claude, Codex, Aider, Copilot CLI, etc.)
 
@@ -165,10 +165,10 @@
 - Lump-local `.ts` transpiles via **`transpileTypeScriptToCachedMjs`** (esbuild → `.lumpcode/.cache/transpile/<sha256>/<cacheKeyMs>/out.mjs`); bundle relative imports with `packages: 'external'`; post-process rewrites `import.meta.url`; **`ensureCacheGitignored`** on first transpile
 - Use **resumable** (not "idempotent") for run behavior; presets persist chat/session id in `contextRunState` and `keepHistory`
 - **Cursor/Copilot presets**: headless (`-p`, no user prompts); `.trim()` prompts, `null` for whitespace-only; resumable sessions in `<commandName>Setup`; Copilot denies agent `git commit`/`git push`
-- Preset options (**`model`**, **`agentPermissions`**) on `lumpVariables`/`stepVariables`: **step overrides lump**, `model` defaults to `auto`; Cursor `cursorConfigDir`; Copilot `writablePaths`/`denyShell` → `--allow-tool`/`--deny-tool`; callback `stepIndex` is `number` at depth 1 or `number[]` when nested
+- Preset options (**`model`**, **`agentPermissions`**) on `lumpVariables`/`stepVariables`: **step overrides lump**, `model` defaults to `auto`; step-only session keys `newChat`/`chatIdIndex`; Cursor `cursorConfigDir`; Copilot `writablePaths`/`denyShell` → `--allow-tool`/`--deny-tool`; callback `stepIndex` is `number` at depth 1 or `number[]` when nested
 - `resolveImportable`: Vitest uses native `import(fileUrl)`; bundled code uses `dynamicImportForBundle` (Windows SEA requires `file://` URLs)
 - Lump-config `*Fn` paths resolve relative to `.lumpcode/lumps/<lumpName>/`
-- `promptTemplate` (`FilePathOrString`): resolve relative to `.lumpcode/lumps/<lumpName>/`; file ref only when entire string has no whitespace and ends with `.txt`, `.template`, `.prompt`, or `.md` and path exists (read once at config load; missing → fail); otherwise inline template text (`{VAR}` / `@{VAR}` unchanged). `command` file ref: no whitespace, ends with `.ts` or `.js`, exists under lump dir → `CommandModule` import; else tag lookup; `commandName` = literal config string; `registerCommands` tag-only
+- `promptTemplate` (`FilePathOrString`): resolve relative to `.lumpcode/lumps/<lumpName>/`; file ref only when entire string has no whitespace and ends with `.txt`, `.template`, `.prompt`, or `.md` and path exists (read once at config load; missing → fail); otherwise inline template text (`{VAR}` / `@{VAR}` unchanged). Prompt placeholders resolve from **context** variables, not from `lumpVariables`/`stepVariables` (those carry preset options and hook inputs). `command` file ref: no whitespace, ends with `.ts` or `.js`, exists under lump dir → `CommandModule` import; else tag lookup; `commandName` = literal config string; `registerCommands` tag-only
 - `getCommandPath`: explicit local/global config paths only (no implicit `~/.lumpcode` fallback)
 - `getContextStatus` CLI wrapper wires `makeGitCommitMessageFnFromLumpName(lumpName)`
 
@@ -180,7 +180,7 @@
 - Logger: `error` always prints (even with `--json`); `--json` suppresses other operational lines; CLI `--verbose` OR-merges lump-config `verbose`; `createCliLogger` prefixes `[lumpcode]`
 - Shell escaping: `shellSingleQuote` from `@lumpcode/core` for user-controlled values; `shellBestEffort` for best-effort fragments
 - Lump config has **no** user-facing workspace setup hooks — CLI generates workspace fns from `local.json` + per-lump `baseBranch`
-- `LumpJsConfig.steps` may be a solo step (`LumpJsConfigSoloStep`: step object, `promptTemplate`, or `promptFn`) or an array; `jsConfigToRunLumpInput` `normalizeSteps` promotes solo `steps` to a one-element array and solo `steps` wins over top-level `prompt`; JSON schema still requires an array
+- `LumpJsConfigSteps` is always an array of `LumpJsConfigStepsItem` (step object | `StepFn`/`LumpJsConfigStepsFn` | `promptTemplate` — no bare `promptFn`; those only via `prompt` or a step object); config `steps?: LumpJsConfigSteps | LumpJsConfigStepsItem` allows a solo item in JS/TS; private `prompt` solo type stays step | template | `promptFn`; `StepFn` exported via `cli-types`/`cli-utils`, input `Omit<PromptFnInput, 'stepVariables'>`, may return array or solo item; `normalizeSteps` always returns an array (solo fn → `[fn]`; other solos promote via the `prompt` wrap path; solo `steps` wins over `prompt`); JSON schema still requires an array
 
 ### Distribution, build, and CI
 

@@ -24,7 +24,7 @@ import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled"
 import { getCommandPath } from "../getCommandPath";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
 
-import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, LumpJsConfigSteps, CommandConfigPaths } from "../../types";
+import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, CommandConfigPaths } from "../../types";
 import { isCommandFileRef } from '../lumpConfigPathRef';
 import { makePromptFnFromTemplate } from '../makePromptFnFromTemplate';
 import { makeGitCommitMessageFnFromLumpName } from '../makeGitCommitMessageFnFromLumpName';
@@ -357,46 +357,44 @@ async function resolveSteps({
 }): Promise<Success<Steps> | Failure<string>> {
     const result: Steps = [];
 
-    jsSteps = normalizeSteps({ prompt, jsSteps });
+    const normalizedSteps = normalizeSteps({ prompt, jsSteps });
 
-    if (jsSteps) {
-        for (const item of jsSteps) {
-            if (typeof item === 'function') {
-                const fn = item;
-                result.push(async (input: Exclude<PromptFnInput, 'stepVariables'>): Promise<Steps> => {
-                    const resolved = await fn(input);
-                    if (!Array.isArray(resolved) || resolved.length === 0) {
-                        return [];
-                    }
-                    const subResult = await resolveSteps({
-                        prompt: undefined,
-                        jsSteps: resolved,
-                        defaultCommand,
-                        commandModules,
-                        configPaths,
-                        fnImportOptions,
-                        inRecursiveCall: true,
-                    });
-                    if (!subResult.success) throw new Error(subResult.data);
-                    return subResult.data;
-                });
-            } else if (item) {
-                const normalizedItem =
-                    typeof item === 'string'
-                        ? ({ promptTemplate: item } as LumpJsConfigStep)
-                        : item;
-
-                const resolved = await jsConfigStepToStep({
-                    item: normalizedItem,
+    for (const item of normalizedSteps) {
+        if (typeof item === 'function') {
+            const fn = item;
+            result.push(async (input: Omit<PromptFnInput, 'stepVariables'>): Promise<Steps> => {
+                const resolved = await fn(input);
+                if (resolved == null || (Array.isArray(resolved) && resolved.length === 0)) {
+                    return [];
+                }
+                const subResult = await resolveSteps({
+                    prompt: undefined,
+                    jsSteps: resolved,
                     defaultCommand,
                     commandModules,
                     configPaths,
                     fnImportOptions,
-                    inRecursiveCall,
+                    inRecursiveCall: true,
                 });
-                if (!resolved.success) return resolved;
-                result.push(resolved.data);
-            }
+                if (!subResult.success) throw new Error(subResult.data);
+                return subResult.data;
+            });
+        } else if (item) {
+            const normalizedItem =
+                typeof item === 'string'
+                    ? ({ promptTemplate: item } as LumpJsConfigStep)
+                    : item;
+
+            const resolved = await jsConfigStepToStep({
+                item: normalizedItem,
+                defaultCommand,
+                commandModules,
+                configPaths,
+                fnImportOptions,
+                inRecursiveCall,
+            });
+            if (!resolved.success) return resolved;
+            result.push(resolved.data);
         }
     }
 
