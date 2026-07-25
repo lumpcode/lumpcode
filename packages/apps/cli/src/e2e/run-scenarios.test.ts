@@ -5,6 +5,7 @@ import { lumpWorktreePath } from '../utils/getLumpWorktreePath';
 import {
     createE2eLoopLumpConfigJs,
     e2eMarkerPath,
+    e2ePathAgentPromptReceivedPath,
     expectCliOk,
     expectRunContextNames,
     expectRunSkippedTooManyOpenBranches,
@@ -166,16 +167,65 @@ describe('E2E run scenarios', () => {
         expectRunSkippedTooManyOpenBranches(run);
     });
 
-    it.skipIf(process.platform !== 'win32')('RUN-S8 run-cmd-shim-agent-on-path', async () => {
-        const lumpName = 'cmdLump';
+    it('RUN-S8 path-agent-on-path', async () => {
+        const lumpName = 'pathAgentLump';
         const ctx = 'README';
         const project = await createProject({
-            lumps: [{ name: lumpName, useCmdShimAgent: true }],
+            lumps: [{ name: lumpName, usePathAgent: true }],
         });
         expect(project.pathPrefix).toBeTruthy();
         expectCliOk(await runE2eCli({ project, args: ['run', lumpName, '--json'] }), 'run');
         expect(remoteHasBranch({ remoteDir: project.remoteDir, branch: lumpBranchName(lumpName, ctx) })).toBe(true);
         expectLumpMarkerCommit({ remoteDir: project.remoteDir, lumpName, contextName: ctx });
         expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName, contextName: ctx });
+    });
+
+    it('RUN-S9 path-agent-preserves-multiline-backtick-prompt', async () => {
+        const lumpName = 'pathPromptLump';
+        const ctx = 'README';
+        // `{NAME}` is substituted; backticks/fences must reach the agent argv intact
+        // (Windows: via npm-cmd-shim unwrap; POSIX: direct shebang spawn).
+        const promptTemplate = [
+            'Look at `README.md:1`',
+            '',
+            '```md',
+            '# e2e',
+            '```',
+            'NAME={NAME}',
+        ].join('\n');
+        // contextListJson `{ NAME: '{NAME}.md' }` sets variable NAME to the matched file.
+        const expectedPrompt = [
+            'Look at `README.md:1`',
+            '',
+            '```md',
+            '# e2e',
+            '```',
+            'NAME=README.md',
+        ].join('\n');
+
+        const project = await createProject({
+            lumps: [{
+                name: lumpName,
+                usePathAgent: true,
+                configJson: {
+                    prompt: {
+                        promptTemplate,
+                        command: 'e2e-path-agent',
+                    },
+                },
+            }],
+        });
+
+        expectCliOk(await runE2eCli({ project, args: ['run', lumpName, '--json'] }), 'run');
+        const branch = lumpBranchName(lumpName, ctx);
+        expect(remoteHasBranch({ remoteDir: project.remoteDir, branch })).toBe(true);
+        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName, contextName: ctx });
+        expect(
+            remoteBranchFileContent({
+                remoteDir: project.remoteDir,
+                branch,
+                filePath: e2ePathAgentPromptReceivedPath(lumpName),
+            }),
+        ).toBe(expectedPrompt);
     });
 });
