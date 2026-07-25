@@ -83,12 +83,15 @@ Defaults on every new type parameter remain the current unbound bags so call sit
 ### CLI authoring types
 
 
-| Type                                                    | Type params                                                                                        |
-| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `LumpJsConfig`, `LumpJsConfigStep`, `LumpJsConfigSteps` | `<V, SV>`                                                                                          |
-| `LumpJsonConfig`, `LumpJsonConfigStep`                  | `<V, SV>` (`stepVariables?: SV` on JSON steps; function fields still excluded from JSON config)    |
-| `CommandModule`                                         | `<V, SV>` — `command: CommandFn<V, SV>`; `setup?` / `teardown?` use `SetupFn<V>` / `TeardownFn<V>` |
-| `ContextMatchFn`                                        | `<V>` — `lumpVariables: V` (replace hardcoded `Record<string, unknown>`)                           |
+| Type                                                                                     | Type params                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `LumpJsConfig`, `LumpJsConfigStep`, `LumpJsConfigSteps`, `LumpJsConfigStepsItem`         | `<V, SV>`                                                                                                                                                                                                   |
+| `LumpJsConfigStepsFn` / `StepFn`                                                         | `<V, SV>` on return (`Steps \| StepsItem`); **input is lump-bag only** — `Omit<PromptFnInput<V, SV>, 'stepVariables'>` (no `SV` on input; expanders are not leaf steps)                                     |
+| `LumpJsonConfig`, `LumpJsonConfigStep`                                                   | `<V, SV>` (`stepVariables?: SV` on JSON steps; function fields still excluded from JSON config)                                                                                                             |
+| `CommandModule`                                                                          | `<V, SV>` — `command: CommandFn<V, SV>`; `setup?` / `teardown?` use `SetupFn<V>` / `TeardownFn<V>`                                                                                                          |
+| `ContextMatchFn`                                                                         | `<V>` — `lumpVariables: V` (replace hardcoded `Record<string, unknown>`)                                                                                                                                    |
+
+Dynamic `StepFn` expanders omit `stepVariables`; do not thread `SV` into their input.
 
 
 
@@ -197,7 +200,7 @@ Existing tests that import `defineConfig` / core types must still typecheck with
 
 1. `runLump` / `RunLumpInput` / `Step` / `Steps` and both-bag hooks accept `<V, SV>` with defaults preserving today’s assignability.
 2. Lump-only hooks listed above accept `<V>` with the same default behavior.
-3. `LumpJsConfig`, `LumpJsonConfig`, `CommandModule`, and `ContextMatchFn` expose the agreed generics.
+3. `LumpJsConfig`, `LumpJsConfigSteps` / `LumpJsConfigStepsItem`, `LumpJsConfigStepsFn`/`StepFn` (V-only input), `LumpJsonConfig`, `CommandModule`, and `ContextMatchFn` expose the agreed generics.
 4. All variable-carrying `define*` helpers (including `defineCommandModule` / setup / teardown) are generic and do not erase `V`/`SV`.
 5. Preset contracts listed above are exported from `@lumpcode/cli-utils` (source under `cli-utils/src/presets/`).
 6. `@lumpcode/cli-types` exposes matching `define*` / config type signatures (soft align); package is not removed.
@@ -220,6 +223,7 @@ flowchart LR
     RunLumpInput
     HistoryEntry
     LumpJsConfig
+    LumpJsConfigStepsItem
     CommandModule
   end
   subgraph lumpOnly ["V only"]
@@ -229,6 +233,7 @@ flowchart LR
     GetContextListFn
     GitCommitMessageFn
     ContextMatchFn
+    StepFnInput["StepFn input (no stepVariables)"]
   end
   subgraph presets ["cli-utils presets"]
     CursorPresetLumpVariables

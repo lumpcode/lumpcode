@@ -122,7 +122,7 @@ export default {
 
 ## Dynamic `steps`
 
-In `config.js` or `config.ts`, an element of `steps` may be a **function** that receives the same inputs as a `promptFn` and returns **another** `steps` array (possibly empty) to expand inline.
+In `config.js` or `config.ts`, an element of `steps` may be a **function** (`StepFn`, alias of `LumpJsConfigStepsFn`) that receives the same inputs as a `promptFn` (without `stepVariables`) and returns **another** `steps` value — an array, or a solo item (object, string, or nested dynamic function), or an empty array to expand to nothing. A solo `steps: fn` (not wrapped in an array) is also valid in JS/TS configs and is normalized to `[fn]`.
 
 This enables branching workflows:
 

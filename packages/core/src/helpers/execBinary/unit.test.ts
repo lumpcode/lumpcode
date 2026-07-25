@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { windowsNpmCmdShimBody } from '../../utils/resolveSpawnExecutable/windowsNpmCmdShimBody';
 import { execBinary } from './main';
 
 describe('execBinary', () => {
@@ -70,5 +71,29 @@ describe('execBinary (win32 cmd shim)', () => {
             expect(result.data.stdout).toMatch(/mock-agent 1\.0\.0/i);
         }
     });
+
+    it.skipIf(process.platform !== 'win32')(
+        'preserves multiline backtick prompts through an unwrapped Windows npm-cmd-shim',
+        async () => {
+            const scriptRel = path.join('node_modules', 'echo-agent', 'bin.js');
+            await fs.mkdir(path.join(tmpDir, 'node_modules', 'echo-agent'), { recursive: true });
+            await fs.writeFile(
+                path.join(tmpDir, scriptRel),
+                'process.stdout.write(JSON.stringify(process.argv.slice(2)));\n',
+            );
+            await fs.writeFile(
+                path.join(tmpDir, 'echo-agent.cmd'),
+                windowsNpmCmdShimBody(scriptRel),
+            );
+
+            const prompt = 'Look at `src/foo.ts:42`\n```ts\nconst x = 1;\n```';
+            const result = await execBinary('echo-agent', ['-p', prompt]);
+
+            expect(result.success).toBe(true);
+            if (result.success) {
+                expect(JSON.parse(result.data.stdout)).toEqual(['-p', prompt]);
+            }
+        },
+    );
 });
 

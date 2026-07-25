@@ -11,10 +11,10 @@ import {
     E2E_MOCK_AGENT_SCRIPT_BASENAME,
 } from './createE2eAgentCommandModule';
 import {
-    createE2eCmdShimAgentCommandModule,
-    createE2eCmdShimBatchFile,
-    e2eCmdShimAgentCommandModuleName,
-} from './createE2eCmdShimAgent';
+    createE2ePathAgentCommandModule,
+    e2ePathAgentCommandModuleName,
+    installE2ePathAgent,
+} from './createE2ePathAgent';
 import { git } from './gitHelpers';
 
 export type E2eLumpSpec = {
@@ -28,8 +28,12 @@ export type E2eLumpSpec = {
     baseBranch?: string;
     discoveryBranch?: string;
     useE2eAgent?: boolean;
-    /** When true (Windows E2E), use a `.cmd` shim on PATH instead of the Node mock agent. */
-    useCmdShimAgent?: boolean;
+    /**
+     * Use a PATH agent that receives `-p` prompt argv (like presets).
+     * Windows: npm-style `.cmd` + sibling `.js` (exercises unwrap).
+     * POSIX: chmod +x shebang script with the same basename.
+     */
+    usePathAgent?: boolean;
     /** When set with `configJs` or `configTs`, writes `<name>.js` or `.ts` under `.lumpcode/commands/`. */
     e2eCommandModule?: string;
     e2eCommandModuleExt?: 'ts' | 'js';
@@ -125,10 +129,10 @@ export async function createE2eProject(input: {
     );
 
     const agentLumps = input.lumps
-        .filter((l) => l.useE2eAgent !== false && !l.useCmdShimAgent && !l.e2eCommandModule)
+        .filter((l) => l.useE2eAgent !== false && !l.usePathAgent && !l.e2eCommandModule)
         .map((l) => l.name);
-    const cmdShimLumps = input.lumps
-        .filter((l) => l.useCmdShimAgent && l.useE2eAgent !== false && !l.configJs && !l.configTs)
+    const pathAgentLumps = input.lumps
+        .filter((l) => l.usePathAgent && l.useE2eAgent !== false && !l.configJs && !l.configTs)
         .map((l) => l.name);
     const configJsCommandModules = input.lumps
         .filter((l) => (l.configJs || l.configTs) && l.e2eCommandModule)
@@ -139,7 +143,7 @@ export async function createE2eProject(input: {
         }));
     if (
         (input.useE2eAgent ?? true) &&
-        (agentLumps.length > 0 || configJsCommandModules.length > 0 || cmdShimLumps.length > 0)
+        (agentLumps.length > 0 || configJsCommandModules.length > 0 || pathAgentLumps.length > 0)
     ) {
         await fs.mkdir(path.join(lumpcodeDir, 'commands'), { recursive: true });
         for (const lumpName of agentLumps) {
@@ -150,11 +154,11 @@ export async function createE2eProject(input: {
                 'utf-8',
             );
         }
-        for (const lumpName of cmdShimLumps) {
-            const moduleName = e2eCmdShimAgentCommandModuleName(lumpName, cmdShimLumps);
+        for (const lumpName of pathAgentLumps) {
+            const moduleName = e2ePathAgentCommandModuleName(lumpName, pathAgentLumps);
             await fs.writeFile(
                 path.join(lumpcodeDir, 'commands', `${moduleName}.js`),
-                createE2eCmdShimAgentCommandModule({ lumpName, cmdShimLumpNames: cmdShimLumps }),
+                createE2ePathAgentCommandModule({ lumpName, pathAgentLumpNames: pathAgentLumps }),
                 'utf-8',
             );
         }
@@ -186,7 +190,7 @@ export async function createE2eProject(input: {
     }
 
     async function writeE2eMockAgentScript(lumpDir: string, lump: E2eLumpSpec): Promise<void> {
-        const usesNamedAgent = lump.useE2eAgent !== false && !lump.useCmdShimAgent && !lump.e2eCommandModule
+        const usesNamedAgent = lump.useE2eAgent !== false && !lump.usePathAgent && !lump.e2eCommandModule
             && agentLumps.includes(lump.name);
         const usesInlineMock = Boolean(lump.configJs || lump.configTs) && !usesNamedAgent;
         if (!usesInlineMock && !usesNamedAgent) return;
@@ -203,8 +207,8 @@ export async function createE2eProject(input: {
     for (const lump of input.lumps) {
         const lumpDir = path.join(lumpcodeDir, 'lumps', lump.name);
         await fs.mkdir(lumpDir, { recursive: true });
-        const cmd = lump.useCmdShimAgent
-            ? e2eCmdShimAgentCommandModuleName(lump.name, cmdShimLumps)
+        const cmd = lump.usePathAgent
+            ? e2ePathAgentCommandModuleName(lump.name, pathAgentLumps)
             : e2eAgentCommandModuleName(lump.name, agentLumps);
         await writeE2eMockAgentScript(lumpDir, lump);
         if (lump.hookFiles) {
@@ -223,16 +227,15 @@ export async function createE2eProject(input: {
     git('push -u origin main', projectRoot);
 
     let pathPrefix: string | undefined;
-    if (cmdShimLumps.length > 0) {
+    if (pathAgentLumps.length > 0) {
         const agentBinDir = path.join(homeDir, 'e2e-agent-bin');
         await fs.mkdir(agentBinDir, { recursive: true });
-        for (const lumpName of cmdShimLumps) {
-            const executable = e2eCmdShimAgentCommandModuleName(lumpName, cmdShimLumps);
-            await fs.writeFile(
-                path.join(agentBinDir, `${executable}.cmd`),
-                createE2eCmdShimBatchFile({ lumpName }),
-                'utf-8',
-            );
+        for (const lumpName of pathAgentLumps) {
+            await installE2ePathAgent({
+                agentBinDir,
+                executable: e2ePathAgentCommandModuleName(lumpName, pathAgentLumps),
+                lumpName,
+            });
         }
         pathPrefix = agentBinDir;
     }

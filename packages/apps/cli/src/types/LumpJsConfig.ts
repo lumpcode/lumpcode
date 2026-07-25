@@ -4,10 +4,13 @@ import { LumpJsConfigStep } from "./LumpJsConfigStep";
 import type { ContextMatchFn } from "./ContextMatchFn";
 import type { ContextOptionsFn } from "./ContextOptionsFn";
 import { FilePath } from "./FilePath";
-import { LumpJsConfigSteps } from "./LumpJsConfigSteps";
+import { LumpJsConfigSteps, LumpJsConfigStepsItem } from "./LumpJsConfigSteps";
 import { MergeObjs } from "./MergeObjs";
 
-type LumpJsConfigSoloStep = LumpJsConfigStep | LumpJsConfigStep['promptTemplate'] | LumpJsConfigStep['promptFn'];
+type LumpJsConfigSoloStep =
+    | LumpJsConfigStep
+    | LumpJsConfigStep['promptTemplate']
+    | LumpJsConfigStep['promptFn'];
 
 export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Omit<{
     [K in keyof RunLumpInput<V>]?: NonNullable<RunLumpInput<V>[K]> extends Function ? (RunLumpInput<V>[K] | FilePath) : RunLumpInput<V>[K];
@@ -32,9 +35,8 @@ export type LumpJsConfig<V extends LumpVariables = LumpVariables> = MergeObjs<Om
     disabled?: boolean | (() => MaybePromise<boolean>) | FilePath;
     maximumNumberOfConcurrentBranches?: number;
     prompt?: LumpJsConfigSoloStep;
-    steps?: LumpJsConfigSteps | LumpJsConfigSoloStep;
+    steps?: LumpJsConfigSteps | LumpJsConfigStepsItem;
     registerCommands?: string[];
     keepHistory?: boolean;
     verbose?: boolean;
 }>;
-
