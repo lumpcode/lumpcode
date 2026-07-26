@@ -251,6 +251,8 @@ The test plan should be self-contained and implementation-ready. Include:
                             return `
 Write a test implementation for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
+The new tests should be skipped in order to not break the whole test suite.
+
 Task name: ${TASK_NAME}
 Task:
 ${TASK}
@@ -274,7 +276,8 @@ The requirements for this task are in @${REQ_FILE}.
                                 return `
 Implement the feature described in @${REQ_FILE}.
 The tests have already been implemented according to the test plan in @${TEST_PLAN_FILE}.
-The implementation should make the tests pass. Do not edit any test file.
+Unskip all the tests that were skipped in the tests implementation.
+The implementation should make the tests pass. Do not edit any test file except to unskip them or if absolutely necessary.
                                 `.trim();
                             },
                         },

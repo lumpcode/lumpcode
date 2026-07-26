@@ -1,4 +1,4 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger } from "../../types";
 import { createConsoleLogger, set, success } from "../../utils";
 import { 
     getToDoContextList,
@@ -7,7 +7,11 @@ import {
 } from "../../helpers";
 import { defaultGitAddCommandFn, defaultGitCommitCommandFn, defaultGitCommitMessageFn, defaultGitPushCommandFn, defaultSetupWorkspaceFn, defaultTeardownWorkspaceFn } from "./defaultInjectedFns";
 
-export async function runLump<V extends LumpVariables = LumpVariables>(input: RunLumpInput<V>): Promise<
+// testImpl stub: accept <V, SV>; steps / hooks not refined until implementation
+export async function runLump<
+    V extends LumpVariables = LumpVariables,
+    _SV extends StepVariables = StepVariables,
+>(input: RunLumpInput<V>): Promise<
 Success<RunLumpOutput> | 
 Failure<{ message: string; }>
 > {
@@ -104,7 +108,11 @@ Failure<{ message: string; }>
     });
 }
 
-export interface RunLumpInput<V extends LumpVariables = LumpVariables> {
+// testImpl stub: accept <V, SV>; steps stay unbound until implementation
+export interface RunLumpInput<
+    V extends LumpVariables = LumpVariables,
+    _SV extends StepVariables = StepVariables,
+> {
     projectRoot: string;
     baseBranch: string;
     branchFn: BranchFn;

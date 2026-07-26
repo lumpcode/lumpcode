@@ -1,4 +1,8 @@
-import type { SetupFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { LumpVariables, SetupFn } from '@lumpcode/core';
 
-export const defineCommandSetup = identity<SetupFn>;
+// testImpl stub: lump-only <V>
+export function defineCommandSetup<V extends LumpVariables = LumpVariables>(
+  fn: SetupFn<V>,
+): SetupFn<V> {
+  return fn;
+}

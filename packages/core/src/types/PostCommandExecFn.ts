@@ -4,7 +4,11 @@ import { LumpVariables } from "./LumpVariables";
 import { MaybePromise } from "./MaybePromise";
 import { StepVariables } from "./StepVariables";
 
-export type PostCommandExecFn = (input: {
+// testImpl stub: accept <V, SV>; bags not threaded until implementation
+export type PostCommandExecFn<
+    _V extends LumpVariables = LumpVariables,
+    _SV extends StepVariables = StepVariables,
+> = (input: {
     commandResult: string;
     commandSucceeded: boolean;
     context: Context;

@@ -1,4 +1,10 @@
-import type { ContextMatchFn } from '../../../src/types/ContextMatchFn';
-import { identity } from './identity';
+import type { LumpVariables } from '@lumpcode/core';
 
-export const defineContextMatchFn = identity<ContextMatchFn>;
+import type { ContextMatchFn } from '../../../src/types/ContextMatchFn';
+
+// testImpl stub: lump-only <V>
+export function defineContextMatchFn<V extends LumpVariables = LumpVariables>(
+  fn: ContextMatchFn<V>,
+): ContextMatchFn<V> {
+  return fn;
+}
