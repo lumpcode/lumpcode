@@ -8,9 +8,9 @@ export function normalizeSteps({
     jsSteps: LumpJsConfig['steps'];
 }): LumpJsConfigSteps {
 
-    const { prompt, jsSteps } = normalizePromptAndSteps({ 
-        prompt: originalPrompt, 
-        jsSteps: originalJsSteps 
+    const { prompt, jsSteps } = normalizePromptAndSteps({
+        prompt: originalPrompt,
+        jsSteps: originalJsSteps,
     });
 
 
@@ -36,6 +36,10 @@ function normalizePromptAndSteps({
     jsSteps: LumpJsConfig['steps'];
 }): { prompt: LumpJsConfig['prompt']; jsSteps: LumpJsConfigSteps | undefined } {
     if (jsSteps !== undefined && !Array.isArray(jsSteps)) {
+        // Solo dynamic steps fn must stay in the steps walk, not become promptFn.
+        if (typeof jsSteps === 'function') {
+            return { prompt, jsSteps: [jsSteps] };
+        }
         return { prompt: jsSteps, jsSteps: undefined };
     }
     return { prompt, jsSteps };

@@ -30,8 +30,8 @@ Every runnable lump has **two required parts**:
 
    | Field | Purpose |
    |-------|---------|
-   | `prompt` | Single prompt step. Object (full item), or string shorthand (same `promptTemplate` rules: inline text or lump-relative template file) |
-   | `steps` | Ordered list of steps (mix objects, strings, or dynamic functions — see [advanced-config.md](./advanced-config.md#dynamic-steps)) |
+   | `prompt` | Single prompt step. Object (full item), string shorthand (same `promptTemplate` rules: inline text or lump-relative template file), or a bare `promptFn` in `config.js` / `config.ts` |
+   | `steps` | Ordered list of steps (mix objects, strings, or dynamic functions — see [advanced-config.md](./advanced-config.md#dynamic-steps)). In `config.js` / `config.ts`, may also be a **solo** item (one object, string, or dynamic function) instead of an array. JSON configs must use an array. |
 
 Minimal shape:
 
@@ -205,6 +205,8 @@ Each element may be:
 - **String** — Same as shorthand template above.
 - **Object** — Full `LumpJsonConfigStep`.
 - **Function** (`config.js` or `config.ts` only) — A function-form item that returns more items dynamically (see [advanced-config.md](./advanced-config.md#dynamic-steps)).
+
+In `config.js` / `config.ts`, `steps` itself may be a single item of any of those forms (not only an array). The CLI normalizes a solo value to a one-element list before running. JSON configs must still pass an array.
 
 ### Per-item fields (`LumpJsonConfigStep`)
 

@@ -477,6 +477,44 @@ describe('jsConfigToRunLumpInput', () => {
             expect(await (data.steps[0] as Step).promptFn?.(promptFnInput())).toBe('From steps');
         });
 
+        it('should treat a solo dynamic steps function as a steps expander', async () => {
+            const recursiveFn = vi.fn(async () => ['Solo dynamic for {FILE}']);
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                prompt: undefined,
+                steps: recursiveFn,
+            }));
+            expect(data.steps).toHaveLength(1);
+            expect(typeof data.steps[0]).toBe('function');
+
+            const subItems = await (data.steps[0] as Function)({
+                context: { name: 'ctx', variables: { FILE: 'app.ts' } },
+                stepIndex: [0],
+                contextRunState: {},
+                lumpVariables: {},
+            }) as Step[];
+            expect(subItems).toHaveLength(1);
+            expect(await subItems[0].promptFn?.(promptFnInput({ FILE: 'app.ts' }))).toBe('Solo dynamic for app.ts');
+            expect(subItems[0].commandFn).toBe(stubCommandFn);
+            expect(recursiveFn).toHaveBeenCalledOnce();
+        });
+
+        it('should expand a dynamic steps function that returns a solo step object', async () => {
+            const recursiveFn = vi.fn(async () => ({
+                promptTemplate: 'Solo object for {FILE}',
+            }));
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                prompt: undefined,
+                steps: [recursiveFn],
+            }));
+            const subItems = await (data.steps[0] as Function)(promptFnInput({ FILE: 'lib.ts' })) as Step[];
+            expect(subItems).toHaveLength(1);
+            expect(await subItems[0].promptFn?.(promptFnInput({ FILE: 'lib.ts' }))).toBe('Solo object for lib.ts');
+            expect(subItems[0].commandFn).toBe(stubCommandFn);
+            expect(recursiveFn).toHaveBeenCalledOnce();
+        });
+
         it('should resolve a step with commandFn only and no prompt fields', async () => {
             const data = assertSuccess(await resolveJsConf({
                 prompt: undefined,

@@ -7,7 +7,7 @@ export default {
         scanDirectories: ['packages/apps/cli'],
         backlogItemsDir: '.lumpcode/lumps/abstractionImplementer/backlogItems',
         command: 'cursor',
-        lumpVariables: { model: 'composer-2.5' },
+        lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
         discoveryBranch: 'dev',
     }),
 } satisfies LumpJsConfig;

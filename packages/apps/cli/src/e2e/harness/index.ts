@@ -1,6 +1,6 @@
 export * from './resolveE2eCliInvocation';
 export * from './createE2eAgentCommandModule';
-export * from './createE2eCmdShimAgent';
+export * from './createE2ePathAgent';
 export * from './createE2eLoopMock';
 export * from './createE2eProject';
 export * from './gitHelpers';

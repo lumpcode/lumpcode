@@ -15,7 +15,7 @@ npm install @lumpcode/cli-utils
 ## Usage
 
 ```ts
-import { defineConfig, normalizeSteps, type LumpJsConfig } from '@lumpcode/cli-utils';
+import { defineConfig, normalizeSteps, type LumpJsConfig, type StepFn } from '@lumpcode/cli-utils';
 ```
 
 ## Build
