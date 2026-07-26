@@ -1,6 +1,11 @@
 import path from 'node:path';
 
-import { getContextStatus, type LumpJsConfig } from '@lumpcode/cli-utils';
+import {
+    getContextStatus,
+    type LumpJsConfig,
+    type LumpVariables,
+    type StepVariables,
+} from '@lumpcode/cli-utils';
 import { pathExists } from '@lumpcode/core';
 
 import {
@@ -11,7 +16,7 @@ import {
     type BacklogPaths,
     type ValidationCommandFn,
 } from '../../kit';
-import { defineRecipe, type Recipe, type BaseBacklogItem } from '../../types';
+import { defineRecipe, type BaseBacklogItem } from '../../types';
 import {
     backlog,
     type BacklogItemResolution,
@@ -33,13 +38,16 @@ export type FeatureBacklogContextVariables = {
     TEST_PLAN_FILE?: string;
 };
 
-export type FeatureBacklogOptions = {
+export type FeatureBacklogOptions<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = {
     configUrl: string | URL;
     baseBranch: string;
-    implValidateCommand?: ValidationCommandFn | string;
+    implValidateCommand?: ValidationCommandFn<V, SV> | string;
     backlogItemsDir?: string;
 } & Omit<
-    LumpJsConfig,
+    LumpJsConfig<V, SV>,
     'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps' | 'baseBranch'
 >;
 
@@ -138,7 +146,10 @@ export async function resolveFeatureBacklogItem(
     };
 }
 
-export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((options) => {
+export const featureBacklog = defineRecipe(function featureBacklog<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(options: FeatureBacklogOptions<V, SV>): LumpJsConfig<V, SV> {
     const {
         configUrl,
         baseBranch,
@@ -148,9 +159,12 @@ export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((optio
     } = options;
 
     const projectRoot = projectRootFromConfigUrl(configUrl);
-    const runImplValidation = resolveImplValidateCommand(implValidateCommand ?? 'echo "No implementation validation command provided. I say, trust but verify, but well..."');
+    const runImplValidation = resolveImplValidateCommand<V, SV>(
+        implValidateCommand ??
+            'echo "No implementation validation command provided. I say, trust but verify, but well..."',
+    );
 
-    return backlog({
+    return backlog<FeatureBacklogItem, V, SV>({
         configUrl,
         backlogItemsDir,
         baseBranch,
@@ -207,7 +221,7 @@ The requirements document should not contain any testing strategy details.
                             `.trim();
                         },
                     },
-                    requireArtifactStep('REQ_FILE'),
+                    requireArtifactStep<V, SV>('REQ_FILE'),
                 ],
             },
             makeTestPlan: {
@@ -237,7 +251,7 @@ The test plan should be self-contained and implementation-ready. Include:
                             `.trim();
                         },
                     },
-                    requireArtifactStep('TEST_PLAN_FILE'),
+                    requireArtifactStep<V, SV>('TEST_PLAN_FILE'),
                 ],
             },
             testImpl: {
@@ -266,7 +280,7 @@ The requirements for this task are in @${REQ_FILE}.
             },
             implementation: {
                 completion: 'moveToDone',
-                steps: retryUntilGreen({
+                steps: retryUntilGreen<V, SV>({
                     steps: [
                         {
                             promptFn({ context: ctx }) {

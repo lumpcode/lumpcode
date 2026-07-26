@@ -1,7 +1,5 @@
 /**
  * define* helpers from @lumpcode/cli-utils (canonical consumer home) — D1–D10.
- *
- * Skipped until implementation makes define* helpers generic over <V, SV>.
  */
 import { describe, it, expectTypeOf } from 'vitest';
 import type {
@@ -45,7 +43,7 @@ import {
 type V = { model?: string; myHookFlag: boolean };
 type SV = { model?: string; newChat?: boolean; stepOnly: number };
 
-describe.skip('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
+describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
   it('D1: defineConfig<V, SV> returns LumpJsConfig<V, SV>; excess keys error', () => {
     const cfg = defineConfig<V, SV>({
       baseBranch: 'main',
@@ -55,10 +53,12 @@ describe.skip('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
     expectTypeOf(cfg).toEqualTypeOf<LumpJsConfig<V, SV>>();
     expectTypeOf(cfg.lumpVariables).toEqualTypeOf<V | undefined>();
 
-    // @ts-expect-error — closed SV
     defineConfig<V, SV>({
       lumpVariables: { myHookFlag: true },
-      steps: [{ stepVariables: { stepOnly: 1, notAStepKey: true } }],
+      steps: [{
+        // @ts-expect-error — closed SV
+        stepVariables: { stepOnly: 1, notAStepKey: true },
+      }],
     });
   });
 

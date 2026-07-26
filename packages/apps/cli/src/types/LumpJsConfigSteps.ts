@@ -2,13 +2,12 @@ import { LumpJsConfigStep } from "./LumpJsConfigStep";
 import { MaybePromise, LumpVariables, StepVariables } from "@lumpcode/core";
 import { PromptFnInput } from "@lumpcode/core";
 
-// testImpl stub: accept <V, SV>; not threaded until implementation
 export type LumpJsConfigStepsFn<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
 > = (
-    input: Omit<PromptFnInput, 'stepVariables'>
-) => MaybePromise<LumpJsConfigSteps | LumpJsConfigStepsItem>;
+    input: Omit<PromptFnInput<V, SV>, 'stepVariables'>
+) => MaybePromise<LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>>;
 
 export type StepFn<
     V extends LumpVariables = LumpVariables,
@@ -16,14 +15,14 @@ export type StepFn<
 > = LumpJsConfigStepsFn<V, SV>;
 
 export type LumpJsConfigStepsItem<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
 > =
-    | LumpJsConfigStep
-    | LumpJsConfigStepsFn
-    | LumpJsConfigStep['promptTemplate'];
+    | LumpJsConfigStep<V, SV>
+    | LumpJsConfigStepsFn<V, SV>
+    | LumpJsConfigStep<V, SV>['promptTemplate'];
 
 export type LumpJsConfigSteps<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
-> = Array<LumpJsConfigStepsItem>;
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = Array<LumpJsConfigStepsItem<V, SV>>;

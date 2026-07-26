@@ -1,35 +1,38 @@
-import type { GetContextListFn, GetContextListFnInput } from '@lumpcode/cli-utils';
+import type {
+    GetContextListFn,
+    GetContextListFnInput,
+    LumpVariables,
+} from '@lumpcode/cli-utils';
 import { MaybePromGetter, normalizeMaybePromGetter } from '../types/MaybePromGetter';
 
 type ContextVariables = Record<string, string | number | boolean>;
 
-export type EphemeralContextListFnOptions = {
-    contextCount?: MaybePromGetter<number, GetContextListFnInput>;
+export type EphemeralContextListFnOptions<V extends LumpVariables = LumpVariables> = {
+    contextCount?: MaybePromGetter<number, GetContextListFnInput<V>>;
     contextName?: MaybePromGetter<string, { index: number, count: number }>;
     variables?: MaybePromGetter<ContextVariables, { contextName: string, index: number, count: number }>;
 };
 
-
-async function resolveContextName(
+async function resolveContextName<V extends LumpVariables>(
     index: number,
     count: number,
-    contextName: EphemeralContextListFnOptions['contextName'],
+    contextName: EphemeralContextListFnOptions<V>['contextName'],
 ): Promise<string> {
     return normalizeMaybePromGetter(
-        contextName, 
-        (new Date()).toISOString().slice(0, 23).replace(/:/g, '').replace('.', '-')
+        contextName,
+        (new Date()).toISOString().slice(0, 23).replace(/:/g, '').replace('.', '-'),
     )({
         index,
         count,
     });
 }
 
-export function ephemeralContextListFn(
-    options: EphemeralContextListFnOptions = {},
-): GetContextListFn {
+export function ephemeralContextListFn<V extends LumpVariables = LumpVariables>(
+    options: EphemeralContextListFnOptions<V> = {},
+): GetContextListFn<V> {
     return async (input) => {
         const count = await (normalizeMaybePromGetter(options.contextCount, 1)(input));
-        
+
         if (count <= 0) {
             return [];
         }

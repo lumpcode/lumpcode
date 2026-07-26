@@ -1,8 +1,6 @@
 /**
  * Type-level contracts for CLI authoring types (A1–A6).
  * Source of truth: backlog typed-lump-and-step-variables testPlan §5.3.
- *
- * Skipped until implementation threads <V, SV> through authoring types.
  */
 import { describe, it, expectTypeOf } from 'vitest';
 import type { CommandFn, PromptFn, SetupFn, TeardownFn } from '@lumpcode/core';
@@ -22,7 +20,7 @@ import type { LumpJsonConfigStep } from './LumpJsonConfigStep';
 type V = { model?: string; myHookFlag: boolean };
 type SV = { model?: string; newChat?: boolean; stepOnly: number };
 
-describe.skip('CLI authoring types <V, SV> (A1–A6)', () => {
+describe('CLI authoring types <V, SV> (A1–A6)', () => {
   it('A1: LumpJsConfig<V, SV> accepts refined bags; excess step key errors', () => {
     const config: LumpJsConfig<V, SV> = {
       baseBranch: 'main',
@@ -38,8 +36,8 @@ describe.skip('CLI authoring types <V, SV> (A1–A6)', () => {
     const step = (config.steps as LumpJsConfigStep<V, SV>[])[0];
     expectTypeOf(step.stepVariables).toEqualTypeOf<SV | undefined>();
 
-    // @ts-expect-error — closed SV rejects excess keys once stepVariables is SV
     const badStep: LumpJsConfigStep<V, SV> = {
+      // @ts-expect-error — closed SV rejects excess keys once stepVariables is SV
       stepVariables: { stepOnly: 1, notAStepKey: true },
     };
     void badStep;

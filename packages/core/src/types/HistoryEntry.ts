@@ -3,10 +3,9 @@ import { ContextRunState } from './ContextRunState';
 import { LumpVariables } from './LumpVariables';
 import { StepVariables } from './StepVariables';
 
-// testImpl stub: accept <V, SV>; bags not threaded until implementation
 export type HistoryEntry<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
 > = {
     commandResult: string;
     commandSucceeded: boolean;
@@ -14,7 +13,7 @@ export type HistoryEntry<
     prompt: string;
     stepIndex: number | number[];
     contextRunState: ContextRunState;
-    lumpVariables: LumpVariables;
-    stepVariables?: StepVariables;
+    lumpVariables: V;
+    stepVariables?: SV;
     projectRoot: string;
 };

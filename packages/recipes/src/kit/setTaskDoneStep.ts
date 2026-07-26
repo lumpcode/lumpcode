@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { dump as dumpYaml } from 'js-yaml';
+import type { LumpVariables, StepVariables } from '@lumpcode/cli-utils';
 import type { Step } from '@lumpcode/core';
 import { readYamlList } from '@lumpcode/cli-utils';
 
@@ -20,11 +21,14 @@ function warnSetTaskDoneDeprecated(): void {
 }
 
 /** Moves a finished backlog item from BACKLOG.yml to DONE.yml after the context completes. */
-export const setTaskDoneStep = (input: {
+export function setTaskDoneStep<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(input: {
     backlogVarName: string;
     doneVarName: string;
-}): Step => {
-    return {    
+}): Step<V, SV> {
+    return {
         async commandFn({ context, workspacePath }) {
             warnSetTaskDoneDeprecated();
             const variables = context.variables as Record<string, string>;
@@ -58,5 +62,5 @@ export const setTaskDoneStep = (input: {
             };
         },
         continueOnError: true,
-    }
-};
+    };
+}

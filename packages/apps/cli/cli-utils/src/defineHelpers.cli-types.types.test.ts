@@ -1,8 +1,6 @@
 /**
  * Soft-align: same define* call patterns against @lumpcode/cli-types (S1–S2).
  * Package must remain importable; signatures match cli-utils.
- *
- * Skipped until implementation soft-aligns cli-types define* generics.
  */
 import { describe, it, expectTypeOf } from 'vitest';
 import type { CommandFn, PromptFn, SetupFn } from '@lumpcode/core';
@@ -20,7 +18,7 @@ import {
 type V = { model?: string; myHookFlag: boolean };
 type SV = { model?: string; newChat?: boolean; stepOnly: number };
 
-describe.skip('soft-align @lumpcode/cli-types define* (S1–S2)', () => {
+describe('soft-align @lumpcode/cli-types define* (S1–S2)', () => {
   it('S2: package remains importable', async () => {
     await expect(import('@lumpcode/cli-types')).resolves.toBeTypeOf('object');
   });

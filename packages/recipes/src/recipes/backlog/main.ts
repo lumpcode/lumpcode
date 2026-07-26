@@ -1,6 +1,14 @@
 import path from 'node:path';
 
-import { defineConfig, normalizeSteps, type Context, type LumpJsConfig, type LumpJsConfigSteps } from '@lumpcode/cli-utils';
+import {
+    defineConfig,
+    normalizeSteps,
+    type Context,
+    type LumpJsConfig,
+    type LumpJsConfigSteps,
+    type LumpVariables,
+    type StepVariables,
+} from '@lumpcode/cli-utils';
 
 import {
     folderBacklogContexts,
@@ -8,7 +16,7 @@ import {
     projectRootFromConfigUrl,
     resolveBacklogPaths,
 } from '../../kit';
-import { BaseBacklogItem, defineRecipe, type Recipe } from '../../types';
+import { BaseBacklogItem, defineRecipe } from '../../types';
 
 import type {
     BacklogItemResolution,
@@ -38,16 +46,20 @@ function isIgnoredResolution<StageName extends string>(
     return 'ignored' in resolution && resolution.ignored === true;
 }
 
-function buildStageSteps<Stages extends Record<string, BacklogStageDefinition>>(
+function buildStageSteps<
+    V extends LumpVariables,
+    SV extends StepVariables,
+    Stages extends Record<string, BacklogStageDefinition<V, SV>>,
+>(
     stages: Stages,
     stageName: Extract<keyof Stages, string>,
-): LumpJsConfigSteps {
+): LumpJsConfigSteps<V, SV> {
     const stageDef = stages[stageName];
     if (!stageDef) {
         return [];
     }
 
-    const normalized = normalizeSteps({
+    const normalized = normalizeSteps<V, SV>({
         prompt: undefined,
         jsSteps: stageDef.steps,
     });
@@ -55,7 +67,7 @@ function buildStageSteps<Stages extends Record<string, BacklogStageDefinition>>(
     if (stageDef.completion === 'moveToDone') {
         return [
             ...normalized,
-            folderSetTaskDoneStep({
+            folderSetTaskDoneStep<V, SV>({
                 itemsDirVarName: BACKLOG_ITEMS_DIR_VAR,
             }),
         ];
@@ -66,8 +78,13 @@ function buildStageSteps<Stages extends Record<string, BacklogStageDefinition>>(
 
 export function backlog<
     Item extends BaseBacklogItem,
-    Stages extends Record<string, BacklogStageDefinition>,
->(options: BacklogOptions<Item, Stages>): LumpJsConfig {
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+    Stages extends Record<string, BacklogStageDefinition<V, SV>> = Record<
+        string,
+        BacklogStageDefinition<V, SV>
+    >,
+>(options: BacklogOptions<Item, V, SV, Stages>): LumpJsConfig<V, SV> {
     const {
         configUrl,
         backlogItemsDir: backlogItemsDirOverride,
@@ -84,8 +101,8 @@ export function backlog<
     const projectRoot = projectRootFromConfigUrl(configUrl);
     const absoluteBacklogItemsDir = path.join(projectRoot, paths.backlogItemsDir);
 
-    return defineConfig({
-        getContextListFn: folderBacklogContexts<Item>({
+    return defineConfig<V, SV>({
+        getContextListFn: folderBacklogContexts<Item, V>({
             backlogItemsDir: absoluteBacklogItemsDir,
             parseItem,
             async parseContext(item, folderName) {
@@ -139,13 +156,14 @@ export function backlog<
                 if (typeof stageName !== 'string') {
                     return [];
                 }
-                return buildStageSteps(stages, stageName as Extract<keyof Stages, string>);
+                return buildStageSteps<V, SV, Stages>(
+                    stages,
+                    stageName as Extract<keyof Stages, string>,
+                );
             },
         ],
         ...rest,
     });
 }
 
-export const backlogRecipe: Recipe<
-    BacklogOptions<BaseBacklogItem, Record<string, BacklogStageDefinition>>
-> = defineRecipe((options) => backlog(options));
+export const backlogRecipe = defineRecipe(backlog);

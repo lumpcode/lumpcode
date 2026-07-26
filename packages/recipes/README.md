@@ -19,6 +19,8 @@ npm install @lumpcode/recipes
 | **abstractionFinder** | `abstractionFinder` | Ephemeral contexts that scan for duplicated CLI utils and append one backlog item + requirements doc per run |
 | **abstractionBacklog** | `abstractionBacklog` | Folder backlog items with requirements — implement abstraction with verify-until-green, then move item to completed/ |
 
+Recipe factories and variable-carrying kit helpers accept the same dual generics as `defineConfig` from `@lumpcode/cli-utils`: `<V extends LumpVariables, SV extends StepVariables>`, with defaults equal to the unbound bags. Pass explicit type args when refining preset contracts; omit them for classic untyped configs.
+
 ## Backlog layout
 
 The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a folder backlog under `backlogItems/`:
@@ -80,26 +82,30 @@ Context variables injected by `backlog`: `TASK_NAME`, `TASK`, `BACKLOG_ITEMS_DIR
 
 ```ts
 // .lumpcode/lumps/backlog/config.ts
-import { LumpJsConfig } from '@lumpcode/cli-types';
+import {
+    type CursorPresetLumpVariables,
+    type CursorPresetStepVariables,
+} from '@lumpcode/cli-utils';
 import { featureBacklog } from '@lumpcode/recipes';
 
-export default {
-    ...featureBacklog({
-        baseBranch: 'dev',
-        command: 'cursor',
-        configUrl: import.meta.url,
-        registerCommands: ['cursor'],
-        maximumNumberOfConcurrentBranches: 5,
-        verbose: true,
-        keepHistory: true,
-        lumpVariables: { model: 'composer-2.5' },
-        discoveryBranch: 'dev',
-        implValidateCommand: [
-            'npm run build -w=@lumpcode/cli',
-            'npm run test -w=@lumpcode/cli',
-        ].join(' && '),
-    }),
-} satisfies LumpJsConfig;
+export default featureBacklog<
+    CursorPresetLumpVariables,
+    CursorPresetStepVariables
+>({
+    baseBranch: 'dev',
+    command: 'cursor',
+    configUrl: import.meta.url,
+    registerCommands: ['cursor'],
+    maximumNumberOfConcurrentBranches: 5,
+    verbose: true,
+    keepHistory: true,
+    lumpVariables: { model: 'composer-2.5' },
+    discoveryBranch: 'dev',
+    implValidateCommand: [
+        'npm run build -w=@lumpcode/cli',
+        'npm run test -w=@lumpcode/cli',
+    ].join(' && '),
+});
 ```
 
 ### abstractionFinder + abstractionBacklog
@@ -108,45 +114,53 @@ Two-lump pipeline: finder tops up the implementer backlog; implementer runs item
 
 ```ts
 // .lumpcode/lumps/abstractionFinder/config.ts
-import { LumpJsConfig } from '@lumpcode/cli-types';
+import {
+    type CursorPresetLumpVariables,
+    type CursorPresetStepVariables,
+} from '@lumpcode/cli-utils';
 import { abstractionFinder } from '@lumpcode/recipes';
 
-export default {
-    ...abstractionFinder({
-        maxPendingAbstractions: 5,
-        scanDirectories: ['packages/apps/cli'],
-        backlogItemsDir: '.lumpcode/lumps/abstractionImplementer/backlogItems',
-        command: 'cursor',
-        lumpVariables: { model: 'composer-2.5' },
-        discoveryBranch: 'dev',
-    }),
-} satisfies LumpJsConfig;
+export default abstractionFinder<
+    CursorPresetLumpVariables,
+    CursorPresetStepVariables
+>({
+    maxPendingAbstractions: 5,
+    scanDirectories: ['packages/apps/cli'],
+    backlogItemsDir: '.lumpcode/lumps/abstractionImplementer/backlogItems',
+    command: 'cursor',
+    lumpVariables: { model: 'composer-2.5' },
+    discoveryBranch: 'dev',
+});
 ```
 
 ```ts
 // .lumpcode/lumps/abstractionImplementer/config.ts
-import { LumpJsConfig } from '@lumpcode/cli-types';
+import {
+    type CursorPresetLumpVariables,
+    type CursorPresetStepVariables,
+} from '@lumpcode/cli-utils';
 import { abstractionBacklog } from '@lumpcode/recipes';
 
-export default {
-    ...abstractionBacklog({
-        baseBranch: 'dev',
-        command: 'cursor',
-        configUrl: import.meta.url,
-        registerCommands: ['cursor'],
-        maximumNumberOfConcurrentBranches: 3,
-        verbose: true,
-        keepHistory: true,
-        lumpVariables: { model: 'composer-2.5' },
-        discoveryBranch: 'dev',
-    }),
-} satisfies LumpJsConfig;
+export default abstractionBacklog<
+    CursorPresetLumpVariables,
+    CursorPresetStepVariables
+>({
+    baseBranch: 'dev',
+    command: 'cursor',
+    configUrl: import.meta.url,
+    registerCommands: ['cursor'],
+    maximumNumberOfConcurrentBranches: 3,
+    verbose: true,
+    keepHistory: true,
+    lumpVariables: { model: 'composer-2.5' },
+    discoveryBranch: 'dev',
+});
 ```
 
 ### Custom config with kit helpers
 
 ```ts
-import { defineConfig } from '@lumpcode/cli-types';
+import { defineConfig } from '@lumpcode/cli-utils';
 import { retryUntilGreen, shellCommand } from '@lumpcode/recipes';
 
 export default defineConfig({
