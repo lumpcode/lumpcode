@@ -7,17 +7,19 @@ import { FilePath } from "./FilePath";
 import { LumpJsConfigSteps, LumpJsConfigStepsItem } from "./LumpJsConfigSteps";
 import { MergeObjs } from "./MergeObjs";
 
-type LumpJsConfigSoloStep =
-    | LumpJsConfigStep
-    | LumpJsConfigStep['promptTemplate']
-    | LumpJsConfigStep['promptFn'];
+type LumpJsConfigSoloStep<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> =
+    | LumpJsConfigStep<V, SV>
+    | LumpJsConfigStep<V, SV>['promptTemplate']
+    | LumpJsConfigStep<V, SV>['promptFn'];
 
-// testImpl stub: accept <V, SV>; step bag not threaded until implementation
 export type LumpJsConfig<
     V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    SV extends StepVariables = StepVariables,
 > = MergeObjs<Omit<{
-    [K in keyof RunLumpInput<V>]?: NonNullable<RunLumpInput<V>[K]> extends Function ? (RunLumpInput<V>[K] | FilePath) : RunLumpInput<V>[K];
+    [K in keyof RunLumpInput<V, SV>]?: NonNullable<RunLumpInput<V, SV>[K]> extends Function ? (RunLumpInput<V, SV>[K] | FilePath) : RunLumpInput<V, SV>[K];
 }, 
     | 'gitCommitMessageFn' 
     | 'projectRoot' 
@@ -29,17 +31,17 @@ export type LumpJsConfig<
     | 'gitCommitCommandFn' 
     | 'gitPushCommandFn'
 >, {
-    baseBranch?: RunLumpInput<V>['baseBranch'];
+    baseBranch?: RunLumpInput<V, SV>['baseBranch'];
     /** Which integration line this lump is discovered and scheduled on (defaults to primary branch from local.json). */
     discoveryBranch?: string;
-    command?: LumpJsConfigStep['command'];
+    command?: LumpJsConfigStep<V, SV>['command'];
     contextListJson?: FilePath | Record<string, string>;
-    contextMatchFn?: FilePath | ContextMatchFn;
+    contextMatchFn?: FilePath | ContextMatchFn<V>;
     contextOptionsFn?: FilePath | ContextOptionsFn;
     disabled?: boolean | (() => MaybePromise<boolean>) | FilePath;
     maximumNumberOfConcurrentBranches?: number;
-    prompt?: LumpJsConfigSoloStep;
-    steps?: LumpJsConfigSteps | LumpJsConfigStepsItem;
+    prompt?: LumpJsConfigSoloStep<V, SV>;
+    steps?: LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>;
     registerCommands?: string[];
     keepHistory?: boolean;
     verbose?: boolean;

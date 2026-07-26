@@ -6,3 +6,4 @@ task: >-
   document the consumer pattern (including & Extra extendability). Soft-align
   @lumpcode/cli-types signatures; do not delete cli-types in this item.
 priority: 1
+completedAt: '2026-07-26T19:12:20.692Z'

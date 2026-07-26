@@ -1,21 +1,37 @@
-import { normalizeSteps, type LumpJsConfig, type CommandFn, type LumpJsConfigSteps } from '@lumpcode/cli-utils';
+import {
+    normalizeSteps,
+    type LumpJsConfig,
+    type CommandFn,
+    type LumpJsConfigSteps,
+    type LumpVariables,
+    type StepVariables,
+} from '@lumpcode/cli-utils';
 import type { CommandDescriptor, MaybePromise, PostCommandExecFn } from '@lumpcode/core';
 
 const GET_RECURSIVE_STEPS_IS_OK_FLAG_KEY = '__getRecursiveSteps_isOk__';
 
 export type StepIndex = number | number[];
 
-export type ValidationCommandFnInput = Parameters<CommandFn>[0] & {
+export type ValidationCommandFnInput<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = Parameters<CommandFn<V, SV>>[0] & {
     currentIteration: number;
     prevValidateCommandResult: string | null;
     contextRunStateIsOkFlagKey: string;
 };
 
-export type ValidationCommandFn = (
-    input: ValidationCommandFnInput,
+export type ValidationCommandFn<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = (
+    input: ValidationCommandFnInput<V, SV>,
 ) => MaybePromise<CommandDescriptor | null | undefined>;
 
-export type IsValidationCommandResultOkInput = Parameters<PostCommandExecFn>[0] & {
+export type IsValidationCommandResultOkInput<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = Parameters<PostCommandExecFn<V, SV>>[0] & {
     currentIteration: number;
 };
 
@@ -25,11 +41,14 @@ export type GetFirstStepsInput = {
     prevValidateCommandDescriptor: CommandDescriptor | null;
 };
 
-export type GetRecursiveStepsOptions = {
+export type GetRecursiveStepsOptions<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = {
     maxIterations?: number;
-    validationCommandFn?: ValidationCommandFn;
-    isValidationCommandResultOk?: (input: IsValidationCommandResultOkInput) => boolean;
-    getFirstSteps?: (input: GetFirstStepsInput) => LumpJsConfig['steps'];
+    validationCommandFn?: ValidationCommandFn<V, SV>;
+    isValidationCommandResultOk?: (input: IsValidationCommandResultOkInput<V, SV>) => boolean;
+    getFirstSteps?: (input: GetFirstStepsInput) => LumpJsConfig<V, SV>['steps'];
     currentIteration?: number;
     prevValidateCommandResult?: string | null;
     prevValidateCommandDescriptor?: CommandDescriptor | null;
@@ -41,7 +60,10 @@ function stepIndexDepth(stepIndex: StepIndex): number {
 }
 
 /** Agent prompt(s) followed by a validation command, retried until checks pass or `maxIterations` is reached. */
-export function getRecursiveSteps({
+export function getRecursiveSteps<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>({
     maxIterations = 5,
     validationCommandFn = () => null,
     isValidationCommandResultOk = ({ commandSucceeded }) => commandSucceeded,
@@ -50,9 +72,9 @@ export function getRecursiveSteps({
     prevValidateCommandResult = null,
     prevValidateCommandDescriptor = null,
     contextRunStateIsOkFlagKey = GET_RECURSIVE_STEPS_IS_OK_FLAG_KEY,
-}: GetRecursiveStepsOptions): LumpJsConfigSteps {
-    const firstSteps = getFirstSteps({ 
-        currentIteration, 
+}: GetRecursiveStepsOptions<V, SV>): LumpJsConfigSteps<V, SV> {
+    const firstSteps = getFirstSteps({
+        currentIteration,
         prevValidateCommandResult,
         prevValidateCommandDescriptor,
     });
@@ -61,7 +83,7 @@ export function getRecursiveSteps({
     let thisIterValidateCommandDescriptor: CommandDescriptor | null = null;
 
     return [
-        ...normalizeSteps({
+        ...normalizeSteps<V, SV>({
             prompt: undefined,
             jsSteps: firstSteps,
         }),
@@ -99,7 +121,7 @@ export function getRecursiveSteps({
                 return [];
             }
             return !contextRunState[contextRunStateIsOkFlagKey]
-                ? getRecursiveSteps({
+                ? getRecursiveSteps<V, SV>({
                       maxIterations,
                       validationCommandFn,
                       isValidationCommandResultOk,

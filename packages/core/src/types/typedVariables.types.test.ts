@@ -1,8 +1,6 @@
 /**
  * Type-level contracts for dual-bag `<V, SV>` and lump-only `<V>` generics.
  * Source of truth: backlog typed-lump-and-step-variables testPlan §5.1–5.2.
- *
- * Skipped until implementation threads <V, SV> through core hooks.
  */
 import { describe, it, expectTypeOf } from 'vitest';
 import type {
@@ -31,7 +29,7 @@ type V = { model?: string; myHookFlag: boolean };
 /** Refined step bag — intentionally different from V (proves independence) */
 type SV = { model?: string; newChat?: boolean; stepOnly: number };
 
-describe.skip('core dual-bag <V, SV> (C1–C8)', () => {
+describe('core dual-bag <V, SV> (C1–C8)', () => {
   it('C1: PromptFn<V, SV> refines both bags', () => {
     const fn: PromptFn<V, SV> = (params) => {
       expectTypeOf(params.lumpVariables).toEqualTypeOf<V>();
@@ -131,7 +129,7 @@ describe.skip('core dual-bag <V, SV> (C1–C8)', () => {
   });
 });
 
-describe.skip('core lump-only <V> (C9–C12)', () => {
+describe('core lump-only <V> (C9–C12)', () => {
   it('C9: BranchFn / SetupFn / TeardownFn expose lumpVariables: V only', () => {
     const branch: BranchFn<V> = (params) => {
       expectTypeOf(params.lumpVariables).toEqualTypeOf<V>();

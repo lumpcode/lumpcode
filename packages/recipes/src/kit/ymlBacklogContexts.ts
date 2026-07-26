@@ -1,6 +1,11 @@
 import fs from 'fs/promises';
 import { load as loadYaml } from 'js-yaml';
-import type { Context, GetContextListFn, MaybePromise } from '@lumpcode/cli-utils';
+import type {
+    Context,
+    GetContextListFn,
+    LumpVariables,
+    MaybePromise,
+} from '@lumpcode/cli-utils';
 
 import type { BaseBacklogItem } from '../types';
 import { validateBaseBacklogItem } from './validateBaseBacklogItem';
@@ -30,11 +35,14 @@ export type YmlBacklogContextsOptions<Item extends BaseBacklogItem = BaseBacklog
     }>;
 };
 
-export function ymlBacklogContexts<Item extends BaseBacklogItem = BaseBacklogItem>({
+export function ymlBacklogContexts<
+    Item extends BaseBacklogItem = BaseBacklogItem,
+    V extends LumpVariables = LumpVariables,
+>({
     backlogFilePath,
     parseItem,
     parseContext,
-}: YmlBacklogContextsOptions<Item>): GetContextListFn {
+}: YmlBacklogContextsOptions<Item>): GetContextListFn<V> {
     return async () => {
         warnYmlBacklogDeprecated();
         const raw = await fs.readFile(backlogFilePath, 'utf-8');

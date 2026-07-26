@@ -80,7 +80,7 @@ Mutable bag shared across prompt items for one context execution. Seed from `set
 type LumpVariables = Record<string, unknown>;
 ```
 
-Top-level **`lumpVariables`** object from lump config, forwarded into every hook.
+Top-level **`lumpVariables`** object from lump config, forwarded into every hook. Authoring types and hooks are generic over `V extends LumpVariables` (default = this unbound bag) so you can refine keys at compile time via `defineConfig<V, SV>` from [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils).
 
 ### `StepVariables`
 
@@ -88,7 +88,17 @@ Top-level **`lumpVariables`** object from lump config, forwarded into every hook
 type StepVariables = Record<string, unknown>;
 ```
 
-Per–prompt-step bag from `stepVariables` on a prompt item.
+Per–prompt-step bag from `stepVariables` on a prompt item. Independent of `V`: hooks and config types take a second type param `SV extends StepVariables` (no `SV extends V`). Defaults keep untyped configs assignable.
+
+### Typed variables (`V` / `SV`)
+
+| Surface | Type params | Notes |
+| ------- | ----------- | ----- |
+| `PromptFn` / `PromptFnInput`, `CommandFn`, `PostCommandExecFn`, `Step`, `Steps`, `LumpJsConfig`, `LumpJsConfigStep` / `Steps` / `StepsItem`, `LumpJsonConfig`, `CommandModule` | `<V, SV>` | Both bags on leaf steps and both-bag hooks |
+| `LumpJsConfigStepsFn` / `StepFn` | `<V, SV>` on return; **input is lump-bag only** (`Omit<PromptFnInput<V, SV>, 'stepVariables'>`) | Dynamic expanders are not leaf steps |
+| `BranchFn`, `SetupFn`, `TeardownFn`, `GetContextListFn`, `GitCommitMessageFn`, `ContextMatchFn` | `<V>` | Lump bag only |
+| Cursor / Copilot preset contracts | — | Closed option shapes exported from `@lumpcode/cli-utils`: `CursorPresetLumpVariables`, `CursorPresetStepVariables`, `CopilotPresetLumpVariables`, `CopilotPresetStepVariables`, plus `PresetSessionStepVariables`, `CursorAgentPermissions`, `CopilotAgentPermissions`. Extend with `& { myFlag: boolean }` — no open index signature. |
+| `@lumpcode/recipes` factories (`featureBacklog`, `backlog`, …) and variable-carrying kit | `<V, SV>` (context-list kit `<V>` only) | Same dual generics as `defineConfig`; omit type args for default bags. See the [`@lumpcode/recipes` README](https://github.com/lumpcode/lumpcode/blob/main/packages/recipes/README.md). |
 
 ### `ContextStatus`
 
@@ -124,13 +134,13 @@ The on-disk JSON uses the same keys as `contextName`.
 ### `GetContextListFn`
 
 ```ts
-interface GetContextListFnInput {
+interface GetContextListFnInput<V extends LumpVariables = LumpVariables> {
   codeBasePaths: CodeBasePath[];
-  lumpVariables: LumpVariables;
+  lumpVariables: V;
 }
 
-type GetContextListFn = (
-  params: GetContextListFnInput,
+type GetContextListFn<V extends LumpVariables = LumpVariables> = (
+  params: GetContextListFnInput<V>,
 ) => MaybePromise<ContextList>;
 ```
 
@@ -141,10 +151,10 @@ Called once per scanned `CodeBasePath`. `codeBasePath` is the current entry; `co
 Every returned `contextName` must be unique in the final context list. Lumpcode enforces that by **merging** all matches that share a `contextName` into one `Context`: `variables` keys accumulate (same key from a later file overwrites), and `contextOptions` from a later match replace earlier ones. For one file per context, give each match a distinct `contextName` (path-based names are common—see [examples.md](./examples.md#3-test-coverage-sweep--add-a-test-next-to-every-untested-module)).
 
 ```ts
-type ContextMatchFn = (params: {
+type ContextMatchFn<V extends LumpVariables = LumpVariables> = (params: {
   codeBasePath: CodeBasePath;
   codeBasePaths: CodeBasePath[];
-  lumpVariables: Record<string, unknown>;
+  lumpVariables: V;
 }) => MaybePromise<
   Maybe<{
     contextName: string;
@@ -166,10 +176,10 @@ Zero-argument function accepted by the top-level [`disabled`](./lump-config.md#o
 ### `BranchFn`
 
 ```ts
-type BranchFn = (params: {
+type BranchFn<V extends LumpVariables = LumpVariables> = (params: {
   contextList: Context[];
   contextRunStateList: ContextRunState[];
-  lumpVariables: LumpVariables;
+  lumpVariables: V;
 }) => MaybePromise<string>;
 ```
 
@@ -178,29 +188,38 @@ Return the **git branch name** to use for this batch.
 ### `PromptFn`
 
 ```ts
-interface PromptFnInput {
+interface PromptFnInput<
+  V extends LumpVariables = LumpVariables,
+  SV extends StepVariables = StepVariables,
+> {
   context: Context;
   /** Root index or nested path for dynamic `steps` */
   stepIndex: number | number[];
   contextRunState: ContextRunState;
-  lumpVariables: LumpVariables;
-  stepVariables?: StepVariables;
+  lumpVariables: V;
+  stepVariables?: SV;
 }
 
-type PromptFn = (params: PromptFnInput) => MaybePromise<string>;
+type PromptFn<
+  V extends LumpVariables = LumpVariables,
+  SV extends StepVariables = StepVariables,
+> = (params: PromptFnInput<V, SV>) => MaybePromise<string>;
 ```
 
 ### `CommandFn`
 
 ```ts
-type CommandFn = ((
+type CommandFn<
+  V extends LumpVariables = LumpVariables,
+  SV extends StepVariables = StepVariables,
+> = ((
   params: {
     context: Context;
     prompt: string;
     stepIndex: number | number[];
     contextRunState: ContextRunState;
-    lumpVariables: LumpVariables;
-    stepVariables?: StepVariables;
+    lumpVariables: V;
+    stepVariables?: SV;
     projectRoot: string;
     workspacePath: string;
   },
@@ -217,15 +236,18 @@ Lumpcode runs the agent as `executable` + `args`. Agent-specific flags and the p
 ### `PostCommandExecFn`
 
 ```ts
-type PostCommandExecFn = (input: {
+type PostCommandExecFn<
+  V extends LumpVariables = LumpVariables,
+  SV extends StepVariables = StepVariables,
+> = (input: {
   commandResult: string;
   commandSucceeded: boolean;
   context: Context;
   prompt: string;
   stepIndex: number | number[];
   contextRunState: ContextRunState;
-  lumpVariables: LumpVariables;
-  stepVariables?: StepVariables;
+  lumpVariables: V;
+  stepVariables?: SV;
   projectRoot: string;
 }) => MaybePromise<void>;
 ```
@@ -235,9 +257,9 @@ type PostCommandExecFn = (input: {
 ### `SetupFn`
 
 ```ts
-type SetupFn = (params: {
+type SetupFn<V extends LumpVariables = LumpVariables> = (params: {
   contextList: Context[];
-  lumpVariables: LumpVariables;
+  lumpVariables: V;
   currentContextIndex: number;
 }) => MaybePromise<
   Maybe<Partial<{ contextRunState: ContextRunState }>>
@@ -247,8 +269,8 @@ type SetupFn = (params: {
 ### `TeardownFn`
 
 ```ts
-type TeardownFn = (params: {
-  lumpVariables: LumpVariables;
+type TeardownFn<V extends LumpVariables = LumpVariables> = (params: {
+  lumpVariables: V;
   contextList: Context[];
   contextRunState: ContextRunState;
   currentContextIndex: number;
@@ -261,15 +283,15 @@ There is no user-facing `setupWorkspaceFn` / `teardownWorkspaceFn` in lump confi
 
 ### Command module (`command` / `setup` / `teardown`)
 
-Custom modules under `.lumpcode/commands/<name>.js` export:
+Custom modules under `.lumpcode/commands/<name>.js` export a `CommandModule<V, SV>`:
 
 ```ts
-export const command: CommandFn = …;
-export const setup?: SetupFn;
-export const teardown?: TeardownFn;
+export const command: CommandFn<V, SV> = …;
+export const setup?: SetupFn<V>;
+export const teardown?: TeardownFn<V>;
 ```
 
-`setup` / `teardown` use the same parameter shapes as lump-level hooks.
+`setup` / `teardown` are lump-bag only (`<V>`); `command` carries both bags. Use `defineCommandModule` / `defineCommand` / `defineCommandSetup` / `defineCommandTeardown` from `@lumpcode/cli-utils` (or soft-aligned `@lumpcode/cli-types`) so refined `V` / `SV` are not erased.
 
 ---
 

@@ -4,15 +4,14 @@ import { PostCommandExecFn } from "./PostCommandExecFn";
 import { PromptFn } from "./PromptFn";
 import { StepVariables } from "./StepVariables";
 
-// testImpl stub: accept <V, SV>; stepVariables / hooks not refined until implementation
 export type Step<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
 > = {
-    promptFn?: PromptFn;
-    commandFn?: CommandFn;
-    stepVariables?: StepVariables;
-    postCommandExecFn?: PostCommandExecFn;
+    promptFn?: PromptFn<V, SV>;
+    commandFn?: CommandFn<V, SV>;
+    stepVariables?: SV;
+    postCommandExecFn?: PostCommandExecFn<V, SV>;
     continueOnError?: boolean;
     timeoutMillis?: number;
 };

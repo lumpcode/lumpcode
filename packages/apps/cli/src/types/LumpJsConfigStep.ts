@@ -4,13 +4,12 @@ import { FilePath } from "./FilePath";
 import { MergeObjs } from "./MergeObjs";
 import { CommandTag } from "./CommandTag";
 
-// testImpl stub: accept <V, SV>; stepVariables not refined until implementation
 export type LumpJsConfigStep<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
-> = MergeObjs<Step, {
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = MergeObjs<Step<V, SV>, {
     promptTemplate?: FilePathOrString;
-    promptFn?: FilePath | PromptFn;
-    postCommandExecFn?: FilePath | PostCommandExecFn;
-    command?: CommandTag | FilePath | Step['commandFn'];
+    promptFn?: FilePath | PromptFn<V, SV>;
+    postCommandExecFn?: FilePath | PostCommandExecFn<V, SV>;
+    command?: CommandTag | FilePath | Step<V, SV>['commandFn'];
 }>;

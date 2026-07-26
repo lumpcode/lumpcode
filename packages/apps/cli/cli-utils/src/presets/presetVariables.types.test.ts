@@ -1,8 +1,6 @@
 /**
  * Closed cursor/copilot preset variable contracts (P1–P12).
  * Source files live under cli-utils/src/presets/ (barrel-exported from package root).
- *
- * Skipped until implementation ships closed preset variable contracts.
  */
 import { describe, it, expectTypeOf } from 'vitest';
 import {
@@ -41,7 +39,7 @@ const excessKeyBag = {
   unknownPresetOption: 1,
 } as const;
 
-describe.skip('preset contracts from @lumpcode/cli-utils (P1–P12)', () => {
+describe('preset contracts from @lumpcode/cli-utils (P1–P12)', () => {
   it('P1: seven preset type names resolve from package root', () => {
     expectTypeOf<PresetSessionStepVariables>().not.toBeNever();
     expectTypeOf<CursorAgentPermissions>().not.toBeNever();
@@ -64,8 +62,8 @@ describe.skip('preset contracts from @lumpcode/cli-utils (P1–P12)', () => {
       cursorConfigDir?: string;
     }>();
     expectTypeOf<CopilotAgentPermissions>().toEqualTypeOf<{
-      writablePaths?: string[];
-      denyShell?: string[];
+      writablePaths?: readonly string[];
+      denyShell?: readonly string[];
     }>();
   });
 
@@ -105,14 +103,16 @@ describe.skip('preset contracts from @lumpcode/cli-utils (P1–P12)', () => {
   });
 
   it('P7: closed keys reject excess on lump/step contracts', () => {
+    // Fresh literals — excess property checking does not apply to widened variables.
     // @ts-expect-error — closed CursorPresetLumpVariables
-    const badCursorLump: CursorPresetLumpVariables = excessKeyBag;
+    const badCursorLump: CursorPresetLumpVariables = { model: 'auto', unknownPresetOption: 1 };
     // @ts-expect-error — closed CopilotPresetLumpVariables
-    const badCopilotLump: CopilotPresetLumpVariables = excessKeyBag;
+    const badCopilotLump: CopilotPresetLumpVariables = { model: 'auto', unknownPresetOption: 1 };
     // @ts-expect-error — closed CursorPresetStepVariables
-    const badCursorStep: CursorPresetStepVariables = excessKeyBag;
+    const badCursorStep: CursorPresetStepVariables = { model: 'auto', unknownPresetOption: 1 };
     // @ts-expect-error — closed CopilotPresetStepVariables
-    const badCopilotStep: CopilotPresetStepVariables = excessKeyBag;
+    const badCopilotStep: CopilotPresetStepVariables = { model: 'auto', unknownPresetOption: 1 };
+    void excessKeyBag;
     void badCursorLump;
     void badCopilotLump;
     void badCursorStep;

@@ -1,10 +1,13 @@
-import type { LumpJsConfig, LumpVariables } from '@lumpcode/cli-utils';
+import type { LumpJsConfig, LumpVariables, StepVariables } from '@lumpcode/cli-utils';
 import type { MaybePromise } from '@lumpcode/core';
 import type { BaseBacklogItem } from '../../types';
 import type { BacklogPaths } from '../../kit';
 
-export type BacklogStageDefinition = {
-    steps: NonNullable<LumpJsConfig['steps']>;
+export type BacklogStageDefinition<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = {
+    steps: NonNullable<LumpJsConfig<V, SV>['steps']>;
     completion: 'keepPending' | 'moveToDone';
 };
 
@@ -13,13 +16,19 @@ export type BacklogItemResolution<StageName extends string> =
     | {
           stage: StageName;
           contextName?: string;
+          /** Context variables (not lump/step variable bags). */
           variables?: LumpVariables;
           additionalDependsOnContexts?: string[];
       };
 
 export type BacklogOptions<
     Item extends BaseBacklogItem,
-    Stages extends Record<string, BacklogStageDefinition>,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+    Stages extends Record<string, BacklogStageDefinition<V, SV>> = Record<
+        string,
+        BacklogStageDefinition<V, SV>
+    >,
 > = {
     configUrl: string | URL;
     backlogItemsDir?: string;
@@ -30,7 +39,7 @@ export type BacklogOptions<
         paths: BacklogPaths;
     }): MaybePromise<BacklogItemResolution<Extract<keyof Stages, string>>>;
 } & Omit<
-    LumpJsConfig,
+    LumpJsConfig<V, SV>,
     'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps'
 >;
 

@@ -196,6 +196,8 @@ Shipped presets read their options from **`lumpVariables`** (lump-wide) and **`s
 | `model` | string | `auto` | Passed to the agent as `--model` — e.g. a cheap model for an analysis step and a stronger one for the edit step |
 | `agentPermissions` | object | `{}` | Preset-specific permission scoping — see [Agent permissions for presets](#agent-permissions-for-presets) |
 
+TypeScript contracts for these keys (closed shapes, no index signature) are exported from [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils): `CursorPresetLumpVariables` / `CursorPresetStepVariables`, `CopilotPresetLumpVariables` / `CopilotPresetStepVariables`, plus `PresetSessionStepVariables` (step-only `newChat` / `chatIdIndex`), `CursorAgentPermissions`, and `CopilotAgentPermissions`. Parameterize `defineConfig<V, SV>` with those types (or `& { myFlag: boolean }`) for compile-time checking — see [types.md](./types.md#typed-variables-v--sv).
+
 ```js
 {
   command: 'copilot',
@@ -267,10 +269,10 @@ Each module exports:
 | `teardown` | No       | Composed with the lump's `teardownFn` (see below)                |
 
 
-For editor hints, install [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) and use `defineCommand`, `defineCommandSetup`, `defineCommandTeardown` (or `defineCommandModule` for the whole file) in **`.ts`** or **`.js`** command modules:
+For editor hints, install [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils) (preferred) or soft-aligned [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) and use `defineCommand`, `defineCommandSetup`, `defineCommandTeardown` (or `defineCommandModule` for the whole file) in **`.ts`** or **`.js`** command modules. Helpers accept `<V, SV>` so refined lump/step bags are preserved:
 
 ```js
-import { defineCommand, defineCommandSetup } from '@lumpcode/cli-types';
+import { defineCommand, defineCommandSetup } from '@lumpcode/cli-utils';
 
 export const command = defineCommand(({ prompt, stepVariables }) => ({
   executable: 'my-agent',

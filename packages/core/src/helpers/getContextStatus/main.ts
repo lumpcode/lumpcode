@@ -3,12 +3,12 @@ import { GitCommitMessageFn } from "../../types/GitCommitMessageFn";
 import { parseGitLogHashSubjectLines, shellSingleQuote } from "../../utils";
 import { execAsync } from "../execAsync";
 
-export async function getContextStatus(params: {
+export async function getContextStatus<V extends LumpVariables = LumpVariables>(params: {
     contextName: string;
-    gitCommitMessageFn: GitCommitMessageFn;
+    gitCommitMessageFn: GitCommitMessageFn<V>;
     projectRoot: string;
     baseBranch: string;
-    lumpVariables?: LumpVariables;
+    lumpVariables?: V;
     contextVariables?: Record<string, string>;
     remoteName?: string;
     logger?: Logger;
@@ -18,12 +18,13 @@ export async function getContextStatus(params: {
         gitCommitMessageFn,
         projectRoot,
         baseBranch,
-        lumpVariables = {},
+        lumpVariables: lumpVariablesInput,
         contextVariables = {},
         remoteName = "origin",
         logger,
     } = params;
 
+    const lumpVariables = (lumpVariablesInput ?? {}) as V;
     const commitMessage = gitCommitMessageFn({
         context: { name: contextName, variables: contextVariables },
         lumpVariables,

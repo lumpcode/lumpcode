@@ -4,11 +4,10 @@ import { PromptFnInput } from "./PromptFn";
 import { LumpVariables } from "./LumpVariables";
 import { StepVariables } from "./StepVariables";
 
-// testImpl stub: accept <V, SV>; not threaded until implementation
 export type Steps<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
 > = Array<
-Step
-| ((input: Exclude<PromptFnInput, 'stepVariables'>) => MaybePromise<Steps>)
+    | Step<V, SV>
+    | ((input: Omit<PromptFnInput<V, SV>, 'stepVariables'>) => MaybePromise<Steps<V, SV>>)
 >;

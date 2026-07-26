@@ -2,13 +2,12 @@ import type { LumpVariables, StepVariables } from "@lumpcode/core";
 import { LumpJsConfig } from "./LumpJsConfig";
 import { LumpJsonConfigStep } from "./LumpJsonConfigStep";
 
-// testImpl stub: accept <V, SV>; step bag not threaded until implementation
 export type LumpJsonConfig<
     V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    SV extends StepVariables = StepVariables,
 > = {
-    [K in keyof LumpJsConfig<V>]: Exclude<LumpJsConfig<V>[K], Function>;
+    [K in keyof LumpJsConfig<V, SV>]: Exclude<LumpJsConfig<V, SV>[K], Function>;
 } & {
-    prompt?: LumpJsonConfigStep;
-    steps?: (LumpJsonConfigStep | string)[];
+    prompt?: LumpJsonConfigStep<V, SV>;
+    steps?: (LumpJsonConfigStep<V, SV> | string)[];
 }

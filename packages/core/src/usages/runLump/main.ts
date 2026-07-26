@@ -7,18 +7,17 @@ import {
 } from "../../helpers";
 import { defaultGitAddCommandFn, defaultGitCommitCommandFn, defaultGitCommitMessageFn, defaultGitPushCommandFn, defaultSetupWorkspaceFn, defaultTeardownWorkspaceFn } from "./defaultInjectedFns";
 
-// testImpl stub: accept <V, SV>; steps / hooks not refined until implementation
 export async function runLump<
     V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
->(input: RunLumpInput<V>): Promise<
+    SV extends StepVariables = StepVariables,
+>(input: RunLumpInput<V, SV>): Promise<
 Success<RunLumpOutput> | 
 Failure<{ message: string; }>
 > {
     const { 
         baseBranch,
         branchFn,
-        lumpVariables = {},
+        lumpVariables: lumpVariablesInput,
         getContextListFn,
         gitAddCommandFn = defaultGitAddCommandFn,
         gitCommitCommandFn = defaultGitCommitCommandFn,
@@ -35,8 +34,8 @@ Failure<{ message: string; }>
         logger: loggerInput,
     } = input;
 
+    const lumpVariables = (lumpVariablesInput ?? {}) as V;
     const logger = loggerInput ?? createConsoleLogger({});
-    
 
     const contextListToDoResult = await getToDoContextList({
         getContextListFn,
@@ -108,23 +107,22 @@ Failure<{ message: string; }>
     });
 }
 
-// testImpl stub: accept <V, SV>; steps stay unbound until implementation
 export interface RunLumpInput<
     V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    SV extends StepVariables = StepVariables,
 > {
     projectRoot: string;
     baseBranch: string;
-    branchFn: BranchFn;
-    getContextListFn: GetContextListFn;
-    steps: Steps;
+    branchFn: BranchFn<V>;
+    getContextListFn: GetContextListFn<V>;
+    steps: Steps<V, SV>;
     numberOfContextsPerBranch?: number;
     lumpVariables?: V;
-    setupFn?: SetupFn;
-    teardownFn?: TeardownFn;
+    setupFn?: SetupFn<V>;
+    teardownFn?: TeardownFn<V>;
     gitAddCommandFn?: GitAddCommandFn;
     gitCommitCommandFn?: GitCommitCommandFn;
-    gitCommitMessageFn?: GitCommitMessageFn;
+    gitCommitMessageFn?: GitCommitMessageFn<V>;
     gitPushCommandFn?: GitPushCommandFn;
     setupWorkspaceFn?: SetupWorkspaceFn;
     teardownWorkspaceFn?: TeardownWorkspaceFn;

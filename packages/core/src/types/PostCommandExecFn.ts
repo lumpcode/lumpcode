@@ -4,10 +4,9 @@ import { LumpVariables } from "./LumpVariables";
 import { MaybePromise } from "./MaybePromise";
 import { StepVariables } from "./StepVariables";
 
-// testImpl stub: accept <V, SV>; bags not threaded until implementation
 export type PostCommandExecFn<
-    _V extends LumpVariables = LumpVariables,
-    _SV extends StepVariables = StepVariables,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
 > = (input: {
     commandResult: string;
     commandSucceeded: boolean;
@@ -15,7 +14,7 @@ export type PostCommandExecFn<
     prompt: string;
     stepIndex: number | number[];
     contextRunState: ContextRunState;
-    lumpVariables: LumpVariables;
-    stepVariables?: StepVariables;
+    lumpVariables: V;
+    stepVariables?: SV;
     projectRoot: string;
 }) => MaybePromise<void>
