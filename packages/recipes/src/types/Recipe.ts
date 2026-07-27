@@ -1,11 +1,14 @@
-import type { LumpJsConfig, LumpVariables } from '@lumpcode/cli-utils';
+import type { LumpJsConfig, LumpVariables, StepVariables } from '@lumpcode/cli-utils';
 
-export type Recipe<Options, V extends LumpVariables = LumpVariables> = (
-    options: Options,
-) => LumpJsConfig<V>;
+export type Recipe<
+    Options,
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = (options: Options) => LumpJsConfig<V, SV>;
 
-export function defineRecipe<Options, V extends LumpVariables = LumpVariables>(
-    recipe: Recipe<Options, V>,
-): Recipe<Options, V> {
+/** Identity helper — must preserve a generic `<V, SV>` function signature. */
+export function defineRecipe<R extends (options: never) => LumpJsConfig>(
+    recipe: R,
+): R {
     return recipe;
 }

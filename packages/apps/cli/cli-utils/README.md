@@ -15,8 +15,27 @@ npm install @lumpcode/cli-utils
 ## Usage
 
 ```ts
-import { defineConfig, normalizeSteps, type LumpJsConfig, type StepFn } from '@lumpcode/cli-utils';
+import {
+  defineConfig,
+  normalizeSteps,
+  type CursorPresetLumpVariables,
+  type CursorPresetStepVariables,
+  type LumpJsConfig,
+  type StepFn,
+} from '@lumpcode/cli-utils';
+
+export default defineConfig<
+  CursorPresetLumpVariables & { myHookFlag: boolean },
+  CursorPresetStepVariables & { myHookFlag: boolean }
+>({
+  baseBranch: 'main',
+  command: 'cursor',
+  lumpVariables: { model: 'auto', myHookFlag: true },
+  steps: [{ promptTemplate: 'Do the work.', stepVariables: { newChat: true } }],
+});
 ```
+
+`defineConfig` (and the other variable-carrying `define*` helpers) take independent generics `<V, SV>` for lump and step variable bags. Preset option contracts (`CursorPreset*`, `CopilotPreset*`, `PresetSessionStepVariables`, …) are closed TypeScript types — intersect with your own keys via `& Extra`.
 
 ## Build
 

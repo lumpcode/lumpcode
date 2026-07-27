@@ -5,9 +5,11 @@ import {
     ContextRunState,
     Failure,
     Logger,
+    LumpVariables,
     PromptFnInput,
     Step,
     Steps,
+    StepVariables,
 } from "../../types";
 import {
     appendHistoryEntry,
@@ -20,8 +22,11 @@ import {
 import { GitAndWorkspaceFnsInput } from '../../types/GitAndWorkspaceFnsInput';
 import type { RunLumpInput } from '../../usages';
 
-export type ExecuteStepsForContextListParams = Required<Pick<
-    RunLumpInput,
+export type ExecuteStepsForContextListParams<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = Required<Pick<
+    RunLumpInput<V, SV>,
     | 'baseBranch' 
     | 'branchFn'
     | 'lumpVariables'
@@ -41,7 +46,10 @@ export type ExecuteStepsForContextListParams = Required<Pick<
     logger?: Logger;
 }
 
-export async function executeStepsForContextList({
+export async function executeStepsForContextList<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>({
     baseBranch,
     branchFn,
     lumpVariables,
@@ -58,7 +66,7 @@ export async function executeStepsForContextList({
     teardownWorkspaceFn,
     getKeepHistoryFilePathFn,
     logger: loggerInput,
-}: ExecuteStepsForContextListParams) {
+}: ExecuteStepsForContextListParams<V, SV>) {
     const logger = loggerInput ?? createConsoleLogger({});
     const contextNames = contextList.map(context => context.name);
 
@@ -130,7 +138,7 @@ export async function executeStepsForContextList({
         let stepWalkFailure: Failure<{ message: string }> | undefined;
 
         async function walkAndExecuteSteps(
-            stepsToExec: Steps,
+            stepsToExec: Steps<V, SV>,
             currStepIndex: number[],
         ): Promise<void> {
             for (let stepIndex = 0; stepIndex < stepsToExec.length; stepIndex++) {
@@ -144,7 +152,7 @@ export async function executeStepsForContextList({
                     nextCallHeadIndex.length === 1 ? nextCallHeadIndex[0]! : nextCallHeadIndex;
 
                 if (typeof step === 'function' || Array.isArray(step)) {
-                    let subSteps: Steps = [];
+                    let subSteps: Steps<V, SV> = [];
                     if (typeof step === 'function') {
                         subSteps = await step({
                             context,
@@ -168,7 +176,7 @@ export async function executeStepsForContextList({
                     postCommandExecFn,
                     continueOnError,
                     timeoutMillis = 1000 * 60 * 30,
-                } = step as Step;
+                } = step as Step<V, SV>;
 
                 const prompt = promptFn
                     ? await promptFn({
@@ -177,7 +185,7 @@ export async function executeStepsForContextList({
                         contextRunState,
                         lumpVariables,
                         stepVariables,
-                    } satisfies PromptFnInput)
+                    } satisfies PromptFnInput<V, SV>)
                     : '';
 
                 const command = await commandFn({
@@ -272,7 +280,10 @@ export async function executeStepsForContextList({
                 }
 
                 if (postCommandExecFn) {
-                    await postCommandExecFn(postCommandExecFnInput);
+                    const returnedSteps = await postCommandExecFn(postCommandExecFnInput);
+                    if (returnedSteps != null && returnedSteps.length > 0) {
+                        await walkAndExecuteSteps(returnedSteps, nextCallHeadIndex);
+                    }
                 }
             }
         }

@@ -1,7 +1,5 @@
 import { defineConfig, StepFn } from '@lumpcode/cli-utils';
 
-type Vars = {validationSucceeded: boolean | null};
-
 const entry = (() => {
     return [
         {
@@ -22,7 +20,7 @@ const endStep = (() => {
         commandFn() {
             return {
                 executable: 'echo',
-                args: ['"Tests passed"'],
+                args: ['Tests passed'],
             };
         }
     };
@@ -39,27 +37,18 @@ const verifyStep = (() => {
             },
             continueOnError: true,
             postCommandExecFn({
-                lumpVariables,
                 commandSucceeded,
             }) {
-                const lumpVars = lumpVariables as Vars;
                 if (commandSucceeded) {
-                    lumpVars.validationSucceeded = true;
+                    return endStep();
                 } else {
-                    lumpVars.validationSucceeded = false;
+                    return retryStep();
                 }
             }
-        },
-        ({ lumpVariables }) => {
-            const lumpVars = lumpVariables as Vars;
-            if (lumpVars.validationSucceeded === false) {
-                return retryStep();
-            }
-            return endStep();
         }
     ];
 }) satisfies StepFn;
 
-export default defineConfig<Vars>({
+export default defineConfig({
     steps: entry()
 });

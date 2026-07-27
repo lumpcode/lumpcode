@@ -1,6 +1,7 @@
 import fs from 'fs/promises';
 import path from 'node:path';
 import { dump as dumpYaml, load as loadYaml } from 'js-yaml';
+import type { LumpVariables, StepVariables } from '@lumpcode/cli-utils';
 import type { Step } from '@lumpcode/core';
 import { pathExists } from '@lumpcode/core';
 
@@ -9,10 +10,13 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 }
 
 /** Moves a finished backlog item folder from todo/ to completed/ after the context completes. */
-export const folderSetTaskDoneStep = (input: {
+export function folderSetTaskDoneStep<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(input: {
     itemsDirVarName: string;
     nameVarName?: string;
-}): Step => {
+}): Step<V, SV> {
     const nameVarName = input.nameVarName ?? 'TASK_NAME';
 
     return {
@@ -63,4 +67,4 @@ export const folderSetTaskDoneStep = (input: {
         },
         continueOnError: true,
     };
-};
+}

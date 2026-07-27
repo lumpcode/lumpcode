@@ -1,18 +1,28 @@
-import { defineConfig, LumpJsConfig } from '@lumpcode/cli-utils';
+import {
+    defineConfig,
+    type LumpJsConfig,
+    type LumpVariables,
+    type StepVariables,
+} from '@lumpcode/cli-utils';
 
-import { defineRecipe, type Recipe } from '../../types';
+import { defineRecipe } from '../../types';
 
 import { ephemeralContextListFn } from '../../kit';
 
-export type AbstractionFinderOptions = {
+export type AbstractionFinderOptions<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = {
     scanDirectories?: string[];
     customPrompt?(): string;
     maxPendingAbstractions?: number;
     backlogItemsDir: string;
-} & LumpJsConfig;
+} & LumpJsConfig<V, SV>;
 
-
-export const abstractionFinder: Recipe<AbstractionFinderOptions> = defineRecipe((options) => {
+export const abstractionFinder = defineRecipe(function abstractionFinder<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(options: AbstractionFinderOptions<V, SV>): LumpJsConfig<V, SV> {
     const {
         maxPendingAbstractions = 5,
         scanDirectories,
@@ -20,9 +30,9 @@ export const abstractionFinder: Recipe<AbstractionFinderOptions> = defineRecipe(
         backlogItemsDir,
     } = options; // TODO : check if pending abstcations in backlog are less than maxPendingAbstractions
 
-    return defineConfig({
+    return defineConfig<V, SV>({
         ...options,
-        getContextListFn: ephemeralContextListFn({
+        getContextListFn: ephemeralContextListFn<V>({
             contextCount: maxPendingAbstractions,
             variables: {
                 BACKLOG_ITEMS_DIR: backlogItemsDir,
@@ -31,7 +41,6 @@ export const abstractionFinder: Recipe<AbstractionFinderOptions> = defineRecipe(
         steps: buildFinderPrompt({ backlogItemsDir, scanDirectories, customPrompt }),
     });
 });
-
 
 function buildFinderPrompt({
     backlogItemsDir,
@@ -42,7 +51,6 @@ function buildFinderPrompt({
     scanDirectories?: string[];
     customPrompt?(): string;
 }): string {
-
     return customPrompt ? customPrompt() : `
 Scan ${(scanDirectories || []).map((dir) => `@${dir}`).join(' and ') || 'the codebase'} for duplicated logic that appears in multiple places (same pattern, not merely similar file structure).
 

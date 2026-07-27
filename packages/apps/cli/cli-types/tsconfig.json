@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": true,
     "strict": true,
@@ -16,5 +16,12 @@
     "resolveJsonModule": true
   },
   "include": ["src/**/*.ts", "../src/types/**/*.ts"],
-  "exclude": ["node_modules", "dist", "../src/**/*.test.ts", "../src/**/*.spec.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "../src/**/*.test.ts",
+    "../src/**/*.spec.ts",
+    "../src/**/*.types.test.ts",
+    "../cli-utils/src/**/*.types.test.ts"
+  ]
 }

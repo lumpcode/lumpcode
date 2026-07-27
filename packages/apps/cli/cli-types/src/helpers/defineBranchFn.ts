@@ -1,4 +1,7 @@
-import type { BranchFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { BranchFn, LumpVariables } from '@lumpcode/core';
 
-export const defineBranchFn = identity<BranchFn>;
+export function defineBranchFn<V extends LumpVariables = LumpVariables>(
+  fn: NoInfer<BranchFn<V>>,
+): BranchFn<V> {
+  return fn;
+}

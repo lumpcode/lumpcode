@@ -1,4 +1,8 @@
-import type { CommandFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { CommandFn, LumpVariables, StepVariables } from '@lumpcode/core';
 
-export const defineCommand = identity<CommandFn>;
+export function defineCommand<
+  V extends LumpVariables = LumpVariables,
+  SV extends StepVariables = StepVariables,
+>(fn: NoInfer<CommandFn<V, SV>>): CommandFn<V, SV> {
+  return fn;
+}

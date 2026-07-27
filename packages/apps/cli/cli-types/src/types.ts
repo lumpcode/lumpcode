@@ -1,6 +1,7 @@
 /** CLI-side lump config shapes (from `@lumpcode/cli` sources). */
 export type { LumpJsConfig } from '../../src/types/LumpJsConfig';
 export type { LumpJsConfigStep } from '../../src/types/LumpJsConfigStep';
+export type { LumpJsConfigPostCommandExecFn } from '../../src/types/LumpJsConfigPostCommandExecFn';
 export type {
   LumpJsConfigSteps,
   LumpJsConfigStepsFn,

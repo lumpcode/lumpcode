@@ -1,4 +1,7 @@
-import type { SetupFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { LumpVariables, SetupFn } from '@lumpcode/core';
 
-export const defineSetupFn = identity<SetupFn>;
+export function defineSetupFn<V extends LumpVariables = LumpVariables>(
+  fn: NoInfer<SetupFn<V>>,
+): SetupFn<V> {
+  return fn;
+}

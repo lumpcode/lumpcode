@@ -5,10 +5,10 @@ import { validateContextListNames } from "../validateContextListNames";
 import { GitCommitMessageFn } from "../../types/GitCommitMessageFn";
 import { failure, success } from "../../utils";
 
-export async function getToDoContextList(params: {
-    getContextListFn: GetContextListFn;
-    lumpVariables: LumpVariables;
-    gitCommitMessageFn: GitCommitMessageFn;
+export async function getToDoContextList<V extends LumpVariables = LumpVariables>(params: {
+    getContextListFn: GetContextListFn<V>;
+    lumpVariables: V;
+    gitCommitMessageFn: GitCommitMessageFn<V>;
     projectRoot: string;
     baseBranch: string;
     logger?: Logger;

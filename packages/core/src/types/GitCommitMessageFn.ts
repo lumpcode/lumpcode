@@ -1,10 +1,12 @@
 import { Context } from "./Context";
 import { LumpVariables } from "./LumpVariables";
 
-export type GitCommitMessageFnInput = {
+export type GitCommitMessageFnInput<V extends LumpVariables = LumpVariables> = {
     context: Context;
-    lumpVariables: LumpVariables;
+    lumpVariables: V;
     baseBranch: string;
 };
 
-export type GitCommitMessageFn = (input: GitCommitMessageFnInput) => string;
+export type GitCommitMessageFn<V extends LumpVariables = LumpVariables> = (
+    input: GitCommitMessageFnInput<V>,
+) => string;

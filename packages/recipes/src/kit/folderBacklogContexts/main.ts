@@ -1,7 +1,12 @@
 import fs from 'fs/promises';
 import path from 'node:path';
 import { load as loadYaml } from 'js-yaml';
-import type { Context, GetContextListFn, MaybePromise } from '@lumpcode/cli-utils';
+import type {
+    Context,
+    GetContextListFn,
+    LumpVariables,
+    MaybePromise,
+} from '@lumpcode/cli-utils';
 
 import type { BaseBacklogItem } from '../../types';
 import { validateBaseBacklogItem } from '../validateBaseBacklogItem';
@@ -31,11 +36,14 @@ async function listTodoFolderNames(todoDir: string): Promise<string[]> {
     }
 }
 
-export function folderBacklogContexts<Item extends BaseBacklogItem = BaseBacklogItem>({
+export function folderBacklogContexts<
+    Item extends BaseBacklogItem = BaseBacklogItem,
+    V extends LumpVariables = LumpVariables,
+>({
     backlogItemsDir,
     parseItem,
     parseContext,
-}: FolderBacklogContextsOptions<Item>): GetContextListFn {
+}: FolderBacklogContextsOptions<Item>): GetContextListFn<V> {
     return async () => {
         const todoDir = path.join(backlogItemsDir, 'todo');
         const folderNames = await listTodoFolderNames(todoDir);

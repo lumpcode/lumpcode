@@ -45,6 +45,9 @@ jobs:
       - name: Unit tests (@lumpcode/core)
         run: npm run test -w=@lumpcode/core
 
+      - name: Unit tests (@lumpcode/cli-utils)
+        run: npm run test -w=@lumpcode/cli-utils
+
       - name: Build @lumpcode/cli bundle
         run: npm run build:bundle -w=@lumpcode/cli
 

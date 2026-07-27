@@ -1,0 +1,25 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": null,
+    "types": ["node", "vitest/importMeta"],
+    "baseUrl": ".",
+    "paths": {
+      "@lumpcode/core": ["../../core/src/index.ts"],
+      "@lumpcode/core/*": ["../../core/src/*"],
+      "@lumpcode/cli-types": ["./cli-types/src/index.ts"],
+      "@lumpcode/cli-utils": ["./cli-utils/src/index.ts"]
+    }
+  },
+  "include": [
+    "src/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/e2e/**",
+    "**/unit.test.ts",
+    "**/*.integration.test.ts"
+  ]
+}

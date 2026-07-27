@@ -1,4 +1,4 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger } from "../../types";
 import { createConsoleLogger, set, success } from "../../utils";
 import { 
     getToDoContextList,
@@ -7,14 +7,17 @@ import {
 } from "../../helpers";
 import { defaultGitAddCommandFn, defaultGitCommitCommandFn, defaultGitCommitMessageFn, defaultGitPushCommandFn, defaultSetupWorkspaceFn, defaultTeardownWorkspaceFn } from "./defaultInjectedFns";
 
-export async function runLump<V extends LumpVariables = LumpVariables>(input: RunLumpInput<V>): Promise<
+export async function runLump<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(input: RunLumpInput<V, SV>): Promise<
 Success<RunLumpOutput> | 
 Failure<{ message: string; }>
 > {
     const { 
         baseBranch,
         branchFn,
-        lumpVariables = {},
+        lumpVariables: lumpVariablesInput,
         getContextListFn,
         gitAddCommandFn = defaultGitAddCommandFn,
         gitCommitCommandFn = defaultGitCommitCommandFn,
@@ -31,8 +34,8 @@ Failure<{ message: string; }>
         logger: loggerInput,
     } = input;
 
+    const lumpVariables = (lumpVariablesInput ?? {}) as V;
     const logger = loggerInput ?? createConsoleLogger({});
-    
 
     const contextListToDoResult = await getToDoContextList({
         getContextListFn,
@@ -104,19 +107,22 @@ Failure<{ message: string; }>
     });
 }
 
-export interface RunLumpInput<V extends LumpVariables = LumpVariables> {
+export interface RunLumpInput<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> {
     projectRoot: string;
     baseBranch: string;
-    branchFn: BranchFn;
-    getContextListFn: GetContextListFn;
-    steps: Steps;
+    branchFn: BranchFn<V>;
+    getContextListFn: GetContextListFn<V>;
+    steps: Steps<V, SV>;
     numberOfContextsPerBranch?: number;
     lumpVariables?: V;
-    setupFn?: SetupFn;
-    teardownFn?: TeardownFn;
+    setupFn?: SetupFn<V>;
+    teardownFn?: TeardownFn<V>;
     gitAddCommandFn?: GitAddCommandFn;
     gitCommitCommandFn?: GitCommitCommandFn;
-    gitCommitMessageFn?: GitCommitMessageFn;
+    gitCommitMessageFn?: GitCommitMessageFn<V>;
     gitPushCommandFn?: GitPushCommandFn;
     setupWorkspaceFn?: SetupWorkspaceFn;
     teardownWorkspaceFn?: TeardownWorkspaceFn;

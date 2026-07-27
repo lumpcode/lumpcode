@@ -67,7 +67,7 @@ Run via existing `npm run test -w=@lumpcode/core` (Vitest already configured).
 
 | Path | Role |
 | ---- | ---- |
-| `packages/apps/cli/src/types/typedVariables.types.test.ts` | `LumpJsConfig` / `LumpJsConfigStep` / `LumpJsConfigSteps` / `LumpJsonConfig` / `LumpJsonConfigStep` / `CommandModule` / `ContextMatchFn` generics |
+| `packages/apps/cli/src/types/typedVariables.types.test.ts` | `LumpJsConfig` / `LumpJsConfigStep` / `LumpJsConfigSteps` / `LumpJsConfigStepsItem` / `LumpJsConfigStepsFn`/`StepFn` / `LumpJsonConfig` / `LumpJsonConfigStep` / `CommandModule` / `ContextMatchFn` generics |
 | `packages/apps/cli/src/utils/defineConfig/unit.test.ts` | Keep existing identity tests; add type-level `it` blocks **or** move type cases to a sibling `typedVariables.types.test.ts` under `defineConfig/` if preferred |
 
 Run via `npm run test -w=@lumpcode/cli`.
@@ -197,7 +197,7 @@ Each case: **ID**, **asserts**, **data**, **expectation**, **where**.
 | ID | Case | Data | Expectation |
 | -- | ---- | ---- | ----------- |
 | A1 | `LumpJsConfig<V, SV>` | `lumpVariables: V`, step with `stepVariables: SV` | Compiles; excess step key fails with `@ts-expect-error` |
-| A2 | `LumpJsConfigStep` / `LumpJsConfigSteps`<V, SV> | Solo step + array forms | Both carry `SV` on `stepVariables`; hooks on steps see `V`/`SV` |
+| A2 | `LumpJsConfigStep` / `LumpJsConfigSteps` / `LumpJsConfigStepsItem`<V, SV>; `LumpJsConfigStepsFn`/`StepFn` | Solo step + array forms; dynamic expander | Steps/item carry `SV` on `stepVariables`; hooks on leaf steps see `V`/`SV`; expander **input** is lump-bag only (`Omit<…, 'stepVariables'>` — no `SV` on input) |
 | A3 | `LumpJsonConfig` / `LumpJsonConfigStep`<V, SV> | JSON-shaped object with `stepVariables?: SV` | Compiles; function fields still excluded from JSON config type |
 | A4 | `CommandModule<V, SV>` | `{ command: CommandFn<V, SV>; setup?: SetupFn<V>; teardown?: TeardownFn<V> }` | `command` dual-generic; setup/teardown lump-only |
 | A5 | `ContextMatchFn<V>` | Params `lumpVariables: V` | Replaces hardcoded `Record<string, unknown>`; refined access works |
@@ -269,7 +269,7 @@ Verify manually when implementing (map to requirements Docs updates table):
 | -------------------------------- | ---------- |
 | 1. `runLump` / `RunLumpInput` / `Step` / `Steps` + both-bag hooks `<V, SV>` + defaults | C1–C8 |
 | 2. Lump-only hooks `<V>` + defaults | C9–C12, D7 |
-| 3. `LumpJsConfig`, `LumpJsonConfig`, `CommandModule`, `ContextMatchFn` generics | A1–A6 |
+| 3. `LumpJsConfig`, `LumpJsConfigSteps` / `LumpJsConfigStepsItem`, `LumpJsConfigStepsFn`/`StepFn` (V-only input), `LumpJsonConfig`, `CommandModule`, `ContextMatchFn` generics | A1–A6 |
 | 4. Variable-carrying `define*` generic, no erasure | D1–D10 |
 | 5. Preset contracts exported from cli-utils / `src/presets/` | P1–P12 |
 | 6. cli-types soft align; not deleted | S1–S2 |

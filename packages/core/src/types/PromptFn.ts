@@ -4,14 +4,20 @@ import { StepVariables } from "./StepVariables";
 import { ContextRunState } from "./ContextRunState";
 import { MaybePromise } from "./MaybePromise";
 
-export interface PromptFnInput { 
+export interface PromptFnInput<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> { 
     context: Context;
     stepIndex: number | number[];
     contextRunState: ContextRunState;
-    lumpVariables: LumpVariables;
-    stepVariables?: StepVariables;
+    lumpVariables: V;
+    stepVariables?: SV;
 };
 
 export type PromptFnOutput = MaybePromise<string>;
 
-export type PromptFn = (params: PromptFnInput) => PromptFnOutput;
+export type PromptFn<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = (params: PromptFnInput<V, SV>) => PromptFnOutput;

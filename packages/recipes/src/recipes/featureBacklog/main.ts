@@ -1,6 +1,11 @@
 import path from 'node:path';
 
-import { getContextStatus, type LumpJsConfig } from '@lumpcode/cli-utils';
+import {
+    getContextStatus,
+    type LumpJsConfig,
+    type LumpVariables,
+    type StepVariables,
+} from '@lumpcode/cli-utils';
 import { pathExists } from '@lumpcode/core';
 
 import {
@@ -11,7 +16,7 @@ import {
     type BacklogPaths,
     type ValidationCommandFn,
 } from '../../kit';
-import { defineRecipe, type Recipe, type BaseBacklogItem } from '../../types';
+import { defineRecipe, type BaseBacklogItem } from '../../types';
 import {
     backlog,
     type BacklogItemResolution,
@@ -33,13 +38,16 @@ export type FeatureBacklogContextVariables = {
     TEST_PLAN_FILE?: string;
 };
 
-export type FeatureBacklogOptions = {
+export type FeatureBacklogOptions<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = {
     configUrl: string | URL;
     baseBranch: string;
-    implValidateCommand?: ValidationCommandFn | string;
+    implValidateCommand?: ValidationCommandFn<V, SV> | string;
     backlogItemsDir?: string;
 } & Omit<
-    LumpJsConfig,
+    LumpJsConfig<V, SV>,
     'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps' | 'baseBranch'
 >;
 
@@ -138,7 +146,10 @@ export async function resolveFeatureBacklogItem(
     };
 }
 
-export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((options) => {
+export const featureBacklog = defineRecipe(function featureBacklog<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(options: FeatureBacklogOptions<V, SV>): LumpJsConfig<V, SV> {
     const {
         configUrl,
         baseBranch,
@@ -148,9 +159,12 @@ export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((optio
     } = options;
 
     const projectRoot = projectRootFromConfigUrl(configUrl);
-    const runImplValidation = resolveImplValidateCommand(implValidateCommand ?? 'echo "No implementation validation command provided. I say, trust but verify, but well..."');
+    const runImplValidation = resolveImplValidateCommand<V, SV>(
+        implValidateCommand ??
+            'echo "No implementation validation command provided. I say, trust but verify, but well..."',
+    );
 
-    return backlog({
+    return backlog<FeatureBacklogItem, V, SV>({
         configUrl,
         backlogItemsDir,
         baseBranch,
@@ -177,13 +191,14 @@ export const featureBacklog: Recipe<FeatureBacklogOptions> = defineRecipe((optio
         stages: {
             makeReq: {
                 completion: 'keepPending',
-                steps: [
-                    {
-                        promptFn({ context: ctx }) {
-                            const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE } = vars;
+                steps: retryUntilGreen<V, SV>({
+                    steps: [
+                        {
+                            promptFn({ context: ctx }) {
+                                const vars = ctx.variables as FeatureBacklogContextVariables;
+                                const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE } = vars;
 
-                            return `
+                                return `
 Write a requirements document for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
 Task name: ${TASK_NAME}
@@ -203,22 +218,44 @@ The requirements document should be self-contained and implementation-ready. Inc
 - Acceptance criteria
 
 Do not implement the feature — only create the requirements markdown file.
+Do not wait the user to answer any questions — make the best assumptions and just write the requirements document.
 The requirements document should not contain any testing strategy details.
-                            `.trim();
+                                `.trim();
+                            },
                         },
-                    },
-                    requireArtifactStep('REQ_FILE'),
-                ],
+                    ],
+                    validationCommandFn: requireArtifactStep<V, SV>('REQ_FILE'),
+                    fixSteps: ({ prevValidateCommandResult }) => [
+                        {
+                            promptFn({ context: ctx }) {
+                                const vars = ctx.variables as FeatureBacklogContextVariables;
+                                const { BACKLOG_ITEM_DIR, REQ_FILE } = vars;
+
+                                return `
+The requirements document was not created at @${REQ_FILE}.
+
+Create it now at that exact path. Do not edit @${BACKLOG_ITEM_DIR}/desc.yml.
+Do not implement the feature — only write the requirements markdown file.
+The requirements document should not contain any testing strategy details.
+
+Verification output:
+${prevValidateCommandResult ?? '(no output captured)'}
+                                `.trim();
+                            },
+                        },
+                    ],
+                }),
             },
             makeTestPlan: {
                 completion: 'keepPending',
-                steps: [
-                    {
-                        promptFn({ context: ctx }) {
-                            const vars = ctx.variables as FeatureBacklogContextVariables;
-                            const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE, TEST_PLAN_FILE } = vars;
+                steps: retryUntilGreen<V, SV>({
+                    steps: [
+                        {
+                            promptFn({ context: ctx }) {
+                                const vars = ctx.variables as FeatureBacklogContextVariables;
+                                const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE, TEST_PLAN_FILE } = vars;
 
-                            return `
+                                return `
 Write a test plan for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
 Task name: ${TASK_NAME}
@@ -234,11 +271,30 @@ The test plan should be self-contained and implementation-ready. Include:
 - Test data
 - Test expectations
 - Test implementation details
-                            `.trim();
+                                `.trim();
+                            },
                         },
-                    },
-                    requireArtifactStep('TEST_PLAN_FILE'),
-                ],
+                    ],
+                    validationCommandFn: requireArtifactStep<V, SV>('TEST_PLAN_FILE'),
+                    fixSteps: ({ prevValidateCommandResult }) => [
+                        {
+                            promptFn({ context: ctx }) {
+                                const vars = ctx.variables as FeatureBacklogContextVariables;
+                                const { BACKLOG_ITEM_DIR, REQ_FILE, TEST_PLAN_FILE } = vars;
+
+                                return `
+The test plan was not created at @${TEST_PLAN_FILE}.
+
+Create it now at that exact path. Match the requirements in @${REQ_FILE}.
+Do not edit @${BACKLOG_ITEM_DIR}/desc.yml nor @${REQ_FILE}.
+
+Verification output:
+${prevValidateCommandResult ?? '(no output captured)'}
+                                `.trim();
+                            },
+                        },
+                    ],
+                }),
             },
             testImpl: {
                 completion: 'keepPending',
@@ -250,6 +306,8 @@ The test plan should be self-contained and implementation-ready. Include:
 
                             return `
 Write a test implementation for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
+
+The new tests should be skipped in order to not break the whole test suite.
 
 Task name: ${TASK_NAME}
 Task:
@@ -264,7 +322,7 @@ The requirements for this task are in @${REQ_FILE}.
             },
             implementation: {
                 completion: 'moveToDone',
-                steps: retryUntilGreen({
+                steps: retryUntilGreen<V, SV>({
                     steps: [
                         {
                             promptFn({ context: ctx }) {
@@ -274,7 +332,8 @@ The requirements for this task are in @${REQ_FILE}.
                                 return `
 Implement the feature described in @${REQ_FILE}.
 The tests have already been implemented according to the test plan in @${TEST_PLAN_FILE}.
-The implementation should make the tests pass. Do not edit any test file.
+Unskip all the tests that were skipped in the tests implementation.
+The implementation should make the tests pass. Do not edit any test file except to unskip them or if absolutely necessary.
                                 `.trim();
                             },
                         },

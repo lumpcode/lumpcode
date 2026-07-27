@@ -66,12 +66,14 @@ export function packageSelectionHelp() {
 }
 
 /**
- * Pull `--packages` / `--package` from argv.
- * Accepts comma-separated values and repeated flags.
- * Returns remaining argv and resolved package entries (all when omitted).
+ * Pull `--packages` / `--package` and `--ignore-packages` / `--ignore-package`
+ * from argv. Accepts comma-separated values and repeated flags.
+ * Returns remaining argv and resolved package entries (all when `--packages`
+ * is omitted, then filtered by ignore list).
  */
 export function takePackageSelection(argv) {
   const selectedIds = [];
+  const ignoredIds = [];
   const rest = [];
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -89,15 +91,50 @@ export function takePackageSelection(argv) {
       selectedIds.push(...splitPackageIds(arg.slice(arg.indexOf("=") + 1)));
       continue;
     }
+    if (arg === "--ignore-packages" || arg === "--ignore-package") {
+      const value = argv[i + 1];
+      if (!value || value.startsWith("--")) {
+        throw new Error(
+          `${arg} requires a value (e.g. --ignore-packages lumpcode)`
+        );
+      }
+      ignoredIds.push(...splitPackageIds(value));
+      i += 1;
+      continue;
+    }
+    if (
+      arg.startsWith("--ignore-packages=") ||
+      arg.startsWith("--ignore-package=")
+    ) {
+      ignoredIds.push(...splitPackageIds(arg.slice(arg.indexOf("=") + 1)));
+      continue;
+    }
     rest.push(arg);
   }
 
-  const packages =
+  let packages =
     selectedIds.length === 0
       ? [...PUBLISHABLE_PACKAGES]
       : resolvePackageSelection(selectedIds);
 
-  return { packages, rest, selected: selectedIds.length > 0 };
+  if (ignoredIds.length > 0) {
+    const ignored = new Set(
+      resolvePackageSelection(ignoredIds).map((pkg) => pkg.workspace)
+    );
+    packages = packages.filter((pkg) => !ignored.has(pkg.workspace));
+    if (packages.length === 0) {
+      throw new Error(
+        "No packages left to process after --packages / --ignore-packages"
+      );
+    }
+  }
+
+  return {
+    packages,
+    rest,
+    selected: selectedIds.length > 0,
+    ignored: ignoredIds.length > 0,
+  };
 }
 
 function splitPackageIds(value) {

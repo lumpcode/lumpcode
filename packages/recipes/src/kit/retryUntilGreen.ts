@@ -1,4 +1,9 @@
-import type { LumpJsConfig, LumpJsConfigSteps } from '@lumpcode/cli-utils';
+import type {
+    LumpJsConfig,
+    LumpJsConfigSteps,
+    LumpVariables,
+    StepVariables,
+} from '@lumpcode/cli-utils';
 import type { CommandDescriptor } from '@lumpcode/core';
 import { shellSingleQuote } from '@lumpcode/core';
 
@@ -44,7 +49,10 @@ function defaultFixPrompt({ prevValidateCommandResult, prevValidateCommandDescri
     ].join('\n');
 }
 
-function defaultFixSteps(input: GetFirstStepsInput): LumpJsConfig['steps'] {
+function defaultFixSteps<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(input: GetFirstStepsInput): LumpJsConfig<V, SV>['steps'] {
     return [
         {
             promptFn() {
@@ -54,37 +62,40 @@ function defaultFixSteps(input: GetFirstStepsInput): LumpJsConfig['steps'] {
     ];
 }
 
-export interface RetryUntilGreenInput {
-    steps: LumpJsConfig['steps'];
-    fixSteps?: typeof defaultFixSteps;
-    validationCommandFn: ValidationCommandFn;
-    isValidationCommandResultOk?: (input: IsValidationCommandResultOkInput) => boolean;
-    contextRunStateIsOkFlagKey?: GetRecursiveStepsOptions['contextRunStateIsOkFlagKey'];
-    maxIterations?: GetRecursiveStepsOptions['maxIterations'];
+export interface RetryUntilGreenInput<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> {
+    steps: LumpJsConfig<V, SV>['steps'];
+    fixSteps?: (input: GetFirstStepsInput) => LumpJsConfig<V, SV>['steps'];
+    validationCommandFn: ValidationCommandFn<V, SV>;
+    isValidationCommandResultOk?: (input: IsValidationCommandResultOkInput<V, SV>) => boolean;
+    maxIterations?: GetRecursiveStepsOptions<V, SV>['maxIterations'];
 }
 
 /** Work steps, validation command, and optional fix steps — retried until checks pass or `maxIterations`. */
-export function retryUntilGreen({
+export function retryUntilGreen<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>({
     steps,
     fixSteps,
     validationCommandFn,
     isValidationCommandResultOk,
-    contextRunStateIsOkFlagKey,
     maxIterations,
-}: RetryUntilGreenInput): LumpJsConfigSteps {
-    return getRecursiveSteps({
+}: RetryUntilGreenInput<V, SV>): LumpJsConfigSteps<V, SV> {
+    return getRecursiveSteps<V, SV>({
         maxIterations,
         validationCommandFn,
         isValidationCommandResultOk,
-        contextRunStateIsOkFlagKey,
         getFirstSteps({ currentIteration, prevValidateCommandResult, prevValidateCommandDescriptor }) {
             if (currentIteration === 0) {
                 return steps;
             }
 
-            return (fixSteps ?? defaultFixSteps)({ 
-                currentIteration, 
-                prevValidateCommandResult, 
+            return (fixSteps ?? defaultFixSteps<V, SV>)({
+                currentIteration,
+                prevValidateCommandResult,
                 prevValidateCommandDescriptor,
             });
         },

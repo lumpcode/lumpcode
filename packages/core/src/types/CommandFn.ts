@@ -10,13 +10,16 @@ export type CommandDescriptor = {
     env?: Record<string, string>;
 };
 
-export type CommandFn = ((params: {
+export type CommandFn<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = ((params: {
     context: Context;
     prompt: string;
     stepIndex: number | number[];
     contextRunState: ContextRunState;
-    lumpVariables: LumpVariables;
-    stepVariables?: StepVariables;
+    lumpVariables: V;
+    stepVariables?: SV;
     projectRoot: string;
     workspacePath: string;
 }) => MaybePromise<CommandDescriptor | null | undefined | void>) & {

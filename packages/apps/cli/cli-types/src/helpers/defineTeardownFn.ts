@@ -1,4 +1,7 @@
-import type { TeardownFn } from '@lumpcode/core';
-import { identity } from './identity';
+import type { LumpVariables, TeardownFn } from '@lumpcode/core';
 
-export const defineTeardownFn = identity<TeardownFn>;
+export function defineTeardownFn<V extends LumpVariables = LumpVariables>(
+  fn: NoInfer<TeardownFn<V>>,
+): TeardownFn<V> {
+  return fn;
+}

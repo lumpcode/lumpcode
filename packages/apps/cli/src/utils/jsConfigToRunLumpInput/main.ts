@@ -24,7 +24,15 @@ import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled"
 import { getCommandPath } from "../getCommandPath";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
 
-import type { CommandModule, ContextMatchFn, ContextOptionsFn, LumpJsConfig, LumpJsConfigStep, CommandConfigPaths } from "../../types";
+import type {
+    CommandModule,
+    ContextMatchFn,
+    ContextOptionsFn,
+    LumpJsConfig,
+    LumpJsConfigPostCommandExecFn,
+    LumpJsConfigStep,
+    CommandConfigPaths,
+} from "../../types";
 import { isCommandFileRef } from '../lumpConfigPathRef';
 import { makePromptFnFromTemplate } from '../makePromptFnFromTemplate';
 import { makeGitCommitMessageFnFromLumpName } from '../makeGitCommitMessageFnFromLumpName';
@@ -435,12 +443,37 @@ async function jsConfigStepToStep({
     });
     if (!commandFnResult.success) return commandFnResult;
 
-    let resolvedPostCommandExecFn: PostCommandExecFn | undefined =
+    let authorPostCommandExecFn: LumpJsConfigPostCommandExecFn | undefined =
         typeof postCommandExecFn === 'function' ? postCommandExecFn : undefined;
     if (typeof postCommandExecFn === 'string') {
-        const postCommandExecResult = await resolveFnOrDefaultImport<PostCommandExecFn>(postCommandExecFn, fnImportOptions);
+        const postCommandExecResult = await resolveFnOrDefaultImport<LumpJsConfigPostCommandExecFn>(
+            postCommandExecFn,
+            fnImportOptions,
+        );
         if (!postCommandExecResult.success) return postCommandExecResult;
-        resolvedPostCommandExecFn = postCommandExecResult.data;
+        authorPostCommandExecFn = postCommandExecResult.data;
+    }
+
+    let resolvedPostCommandExecFn: PostCommandExecFn | undefined;
+    if (authorPostCommandExecFn) {
+        const userFn = authorPostCommandExecFn;
+        resolvedPostCommandExecFn = async (input) => {
+            const returned = await userFn(input);
+            if (returned == null || (Array.isArray(returned) && returned.length === 0)) {
+                return;
+            }
+            const subResult = await resolveSteps({
+                prompt: undefined,
+                jsSteps: returned,
+                defaultCommand,
+                commandModules,
+                configPaths,
+                fnImportOptions,
+                inRecursiveCall: true,
+            });
+            if (!subResult.success) throw new Error(subResult.data);
+            return subResult.data;
+        };
     }
 
     return success({

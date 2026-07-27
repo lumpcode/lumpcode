@@ -12,5 +12,11 @@ export default defineConfig({
         environment: 'node',
         include: ['src/**/*.test.ts', 'src/**/*.integration.test.ts', 'scripts/**/*.test.mjs'],
         exclude: ['src/e2e/**'],
+        typecheck: {
+            enabled: true,
+            include: ['**/*.types.test.ts'],
+            tsconfig: './tsconfig.typecheck.json',
+            ignoreSourceErrors: true,
+        },
     },
 });

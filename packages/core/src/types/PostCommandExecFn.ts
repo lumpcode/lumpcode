@@ -3,15 +3,19 @@ import { ContextRunState } from "./ContextRunState";
 import { LumpVariables } from "./LumpVariables";
 import { MaybePromise } from "./MaybePromise";
 import { StepVariables } from "./StepVariables";
+import { Steps } from "./Steps";
 
-export type PostCommandExecFn = (input: {
+export type PostCommandExecFn<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = (input: {
     commandResult: string;
     commandSucceeded: boolean;
     context: Context;
     prompt: string;
     stepIndex: number | number[];
     contextRunState: ContextRunState;
-    lumpVariables: LumpVariables;
-    stepVariables?: StepVariables;
+    lumpVariables: V;
+    stepVariables?: SV;
     projectRoot: string;
-}) => MaybePromise<void>
+}) => MaybePromise<void | Steps<V, SV>>

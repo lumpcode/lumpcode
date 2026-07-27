@@ -10,6 +10,8 @@ TypeScript types and small `defineX` identity helpers for authoring **Lumpcode**
 npm install --save-dev @lumpcode/cli-types
 ```
 
+> Prefer [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils) for new authoring work (same `define*` helpers plus runtime utils and cursor/copilot preset variable contracts). This package stays soft-aligned: `defineConfig` / `defineStep` / hook helpers accept the same `<V, SV>` (or lump-only `<V>`) signatures.
+
 ## Usage
 
 `config.ts` (or `config.js`):
@@ -23,6 +25,8 @@ export default defineConfig({
   prompt: { promptTemplate: 'Fix @{FILE}', command: 'copilot' },
 });
 ```
+
+With refined bags: `defineConfig<V, SV>({ … })` — `V` / `SV` default to unbound `LumpVariables` / `StepVariables` so untyped configs keep working.
 
 Command module (`.lumpcode/commands/my-agent.ts` or `.js`):
 
