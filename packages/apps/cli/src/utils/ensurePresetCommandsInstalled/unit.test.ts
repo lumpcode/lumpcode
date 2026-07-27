@@ -116,8 +116,7 @@ describe('installPresetCommands', () => {
         expect(names).not.toContain('utils');
     });
 
-    // Skipped until claude-code / opencode / codex preset modules ship.
-    it.skip('lists claude-code, opencode, and codex bundled preset command names (I1)', async () => {
+    it('lists claude-code, opencode, and codex bundled preset command names (I1)', async () => {
         const names = await listBundledPresetCommandNames(bundlePresetsDir);
         expect(names).toContain('claude-code.js');
         expect(names).toContain('opencode.js');
@@ -126,8 +125,7 @@ describe('installPresetCommands', () => {
         expect(names).toContain('copilot.js');
     });
 
-    // Skipped until the new presets land; mirrors I2 against the enlarged preset set.
-    it.skip('does not list utils helpers when new presets are present (I2)', async () => {
+    it('does not list utils helpers when new presets are present (I2)', async () => {
         const names = await listBundledPresetCommandNames(bundlePresetsDir);
         expect(names).toContain('claude-code.js');
         expect(names).toContain('opencode.js');
