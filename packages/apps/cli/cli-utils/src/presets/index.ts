@@ -8,4 +8,19 @@ export type {
   CopilotPresetLumpVariables,
   CopilotPresetStepVariables,
 } from './copilot';
+export type {
+  ClaudeCodeAgentPermissions,
+  ClaudeCodePresetLumpVariables,
+  ClaudeCodePresetStepVariables,
+} from './claudeCode';
+export type {
+  OpenCodeAgentPermissions,
+  OpenCodePresetLumpVariables,
+  OpenCodePresetStepVariables,
+} from './opencode';
+export type {
+  CodexAgentPermissions,
+  CodexPresetLumpVariables,
+  CodexPresetStepVariables,
+} from './codex';
 export type { PresetSessionStepVariables } from './session';
