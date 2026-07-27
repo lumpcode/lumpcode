@@ -3,6 +3,7 @@ import { ContextRunState } from "./ContextRunState";
 import { LumpVariables } from "./LumpVariables";
 import { MaybePromise } from "./MaybePromise";
 import { StepVariables } from "./StepVariables";
+import { Steps } from "./Steps";
 
 export type PostCommandExecFn<
     V extends LumpVariables = LumpVariables,
@@ -17,4 +18,4 @@ export type PostCommandExecFn<
     lumpVariables: V;
     stepVariables?: SV;
     projectRoot: string;
-}) => MaybePromise<void>
+}) => MaybePromise<void | Steps<V, SV>>

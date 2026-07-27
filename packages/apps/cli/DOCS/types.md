@@ -249,10 +249,12 @@ type PostCommandExecFn<
   lumpVariables: V;
   stepVariables?: SV;
   projectRoot: string;
-}) => MaybePromise<void>;
+}) => MaybePromise<void | Steps<V, SV>>;
 ```
 
 `commandResult` is the **captured stdout** (string). Parse JSON yourself if your agent returns structured text. `commandSucceeded` is `true` when the subprocess exited successfully or execution was skipped (`commandFn` returned `null`); `false` when the subprocess failed but the step's [`continueOnError`](./lump-config.md#per-item-fields-lumpjsonconfigstep) allowed the hook to run.
+
+Return `void` / `undefined` / `[]` for a no-op. Return a `Steps` array to run follow-on steps nested under this leaf (same `stepIndex` path rules as a dynamic `StepFn` child). In JS/TS configs the CLI also accepts a solo steps item and normalizes it to an array before the engine runs. Steps returned here are **runtime-only** — `lump-plan` does not expand them.
 
 ### `SetupFn`
 

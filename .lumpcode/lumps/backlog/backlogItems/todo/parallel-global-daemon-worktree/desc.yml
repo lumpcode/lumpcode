@@ -6,3 +6,5 @@ task: >-
   opt-out for side-managed lumps, and replace daemon meta busy with
   inFlightLumpCount. See requirements.md in this item folder.
 priority: 2
+dependsOn:
+  - execute-steps-teardown-on-failure

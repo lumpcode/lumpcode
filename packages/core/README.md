@@ -106,7 +106,7 @@ An array of `Step` objects that are executed sequentially for each context. Each
 | `promptFn`          | `PromptFn | undefined`          | Optional. Generates the prompt string from the current context, run state, and variables. When omitted, `commandFn` receives an empty prompt string.                                                                                    |
 | `commandFn`         | `CommandFn`                     | Required. Returns `{ executable, args, env? }` to run a subprocess, or `null` / `undefined` to skip execution while still running `postCommandExecFn`. Optional `env` merges over the parent process environment for that command only. |
 | `stepVariables`     | `StepVariables | undefined`     | Optional extra variables passed into `promptFn`, `commandFn`, and `postCommandExecFn`.                                                                                                                                                  |
-| `postCommandExecFn` | `PostCommandExecFn | undefined` | Optional hook called after the command finishes, receiving the command output.                                                                                                                                                          |
+| `postCommandExecFn` | `PostCommandExecFn | undefined` | Optional hook called after the command finishes, receiving the command output. May return `void` / `undefined` / `[]` (no-op) or a `Steps` array to run nested follow-on steps under this leaf. |
 | `timeoutMillis`     | `number | undefined`            | Maximum time in milliseconds allowed for the command execution. Defaults to `1800000` (30 minutes).                                                                                                                                     |
 
 
@@ -350,7 +350,7 @@ type Steps = Array<
 >;
 ```
 
-When the engine encounters a concrete `Step`, it runs optional `promptFn`, then `commandFn`, then `postCommandExecFn` (if provided). When `commandFn` returns `null`, `undefined`, or nothing, the subprocess is skipped and `postCommandExecFn` still runs with an empty `commandResult`. When it encounters a **function**, it calls it and recursively executes the returned `Steps` before moving to the next element. The returned array can itself contain more functions, allowing arbitrary nesting depth. An empty returned array is a no-op.
+When the engine encounters a concrete `Step`, it runs optional `promptFn`, then `commandFn`, then `postCommandExecFn` (if provided). When `commandFn` returns `null`, `undefined`, or nothing, the subprocess is skipped and `postCommandExecFn` still runs with an empty `commandResult`. When `postCommandExecFn` returns a non-empty `Steps` array, those steps are executed recursively nested under the leaf (same `stepIndex` path rules as function-form children) before the walk continues with any remaining siblings. When the engine encounters a **function**, it calls it and recursively executes the returned `Steps` before moving to the next element. The returned array can itself contain more functions, allowing arbitrary nesting depth. An empty returned array is a no-op.
 
 This makes it possible to build dynamic prompt chains: a function can inspect the current context, run state, or variables and decide at runtime how many prompts to produce, what they contain, or whether to skip entirely by returning an empty array.
 

@@ -673,6 +673,47 @@ describe('jsConfigToRunLumpInput', () => {
             const item = data.steps[0] as Step;
             expect(item.postCommandExecFn).toBeTypeOf('function');
         });
+
+        it('wraps postCommandExecFn so solo returned steps resolve to core Steps', async () => {
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                prompt: undefined,
+                steps: [{
+                    commandFn: stubCommandFn,
+                    postCommandExecFn: ({ commandSucceeded }) => {
+                        if (commandSucceeded) {
+                            return {
+                                commandFn: () => ({ executable: 'echo', args: ['done'] }),
+                            };
+                        }
+                    },
+                }],
+            }));
+            const item = data.steps[0] as Step;
+            const returned = await item.postCommandExecFn!({
+                commandResult: '',
+                commandSucceeded: true,
+                context: { name: 'ctx', variables: {} },
+                prompt: '',
+                stepIndex: 0,
+                contextRunState: {},
+                lumpVariables: {},
+                projectRoot: '/tmp',
+            });
+            expect(Array.isArray(returned)).toBe(true);
+            expect(returned).toHaveLength(1);
+            expect(typeof (returned![0] as Step).commandFn).toBe('function');
+            const command = await (returned![0] as Step).commandFn!({
+                context: { name: 'ctx', variables: {} },
+                prompt: '',
+                stepIndex: [0, 0],
+                contextRunState: {},
+                lumpVariables: {},
+                projectRoot: '/tmp',
+                workspacePath: '/tmp',
+            });
+            expect(command).toEqual({ executable: 'echo', args: ['done'] });
+        });
     });
 
     describe('passthrough fields', () => {

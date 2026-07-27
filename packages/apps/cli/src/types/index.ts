@@ -19,6 +19,7 @@ export * from './LocalConfig';
 export * from './LumpJsConfig';
 export * from './LumpJsConfigSteps';
 export * from './LumpJsConfigStep';
+export * from './LumpJsConfigPostCommandExecFn';
 export * from './LumpJsonConfig';
 export * from './LumpJsonConfigStep';
 export * from './MergeObjs';

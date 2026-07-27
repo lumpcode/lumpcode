@@ -10,7 +10,6 @@ import type {
   GitCommitCommandFn,
   GitCommitMessageFn,
   GitPushCommandFn,
-  PostCommandExecFn,
   PromptFn,
   SetupFn,
   TeardownFn,
@@ -37,6 +36,7 @@ import {
   type CommandModule,
   type ContextMatchFn,
   type LumpJsConfig,
+  type LumpJsConfigPostCommandExecFn,
   type LumpJsConfigStep,
 } from '@lumpcode/cli-utils';
 
@@ -88,12 +88,12 @@ describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
     expectTypeOf(fn).toEqualTypeOf<CommandFn<V, SV>>();
   });
 
-  it('D5: definePostCommandExecFn preserves PostCommandExecFn<V, SV>', () => {
+  it('D5: definePostCommandExecFn preserves LumpJsConfigPostCommandExecFn<V, SV>', () => {
     const fn = definePostCommandExecFn<V, SV>((params) => {
       expectTypeOf(params.lumpVariables).toEqualTypeOf<V>();
       expectTypeOf(params.stepVariables).toEqualTypeOf<SV | undefined>();
     });
-    expectTypeOf(fn).toEqualTypeOf<PostCommandExecFn<V, SV>>();
+    expectTypeOf(fn).toEqualTypeOf<LumpJsConfigPostCommandExecFn<V, SV>>();
   });
 
   it('D6: defineCommandModule<V, SV> does not erase to bare CommandModule', () => {
