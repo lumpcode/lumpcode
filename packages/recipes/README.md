@@ -41,8 +41,8 @@ The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a fo
 
 Flat helpers under `src/kit/` (re-exported from the package root):
 
-- `backlog` recipe helpers — `resolveBacklogPaths`, `validateBaseBacklogItem`, `requireArtifactStep`, `projectRootFromConfigUrl`
-- `getRecursiveSteps` — agent step(s) + validation command, retry until pass
+- `backlog` recipe helpers — `resolveBacklogPaths`, `validateBaseBacklogItem`, `requireArtifactStep` (artifact `ValidationCommandFn`), `projectRootFromConfigUrl`
+- `getRecursiveSteps` — agent step(s) + validation command, retry until pass (retries via `postCommandExecFn` returned steps)
 - `retryUntilGreen` — opinionated wrapper over `getRecursiveSteps` with default fix prompt
 - `ephemeralContextListFn` — N fresh synthetic contexts per run (`contextCount`, index-aware names)
 - `folderBacklogContexts` — `getContextListFn` from `backlogItems/todo/` with optional per-item parsing
