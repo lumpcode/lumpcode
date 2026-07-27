@@ -10,6 +10,8 @@
  *   node scripts/publish-npm.mjs --dry-run             # build + npm pack only
  *   node scripts/publish-npm.mjs --packages recipes
  *   node scripts/publish-npm.mjs --packages core,cli --dry-run
+ *   node scripts/publish-npm.mjs --ignore-packages lumpcode
+ *   node scripts/publish-npm.mjs --packages core,cli --ignore-packages cli
  */
 
 import { readFileSync } from "node:fs";
@@ -80,14 +82,19 @@ function isVersionPublishedOnRegistry(packageName, version) {
 
 function printUsage() {
   console.log("Usage:");
-  console.log("  node scripts/publish-npm.mjs [--dry-run] [--packages <ids>]");
+  console.log(
+    "  node scripts/publish-npm.mjs [--dry-run] [--packages <ids>] [--ignore-packages <ids>]"
+  );
   console.log("");
   console.log("Options:");
-  console.log("  --dry-run         build + npm pack only (no publish)");
+  console.log("  --dry-run                 build + npm pack only (no publish)");
   console.log(
-    `  --packages <ids>  only publish these packages (${packageSelectionHelp()})`
+    `  --packages <ids>          only publish these packages (${packageSelectionHelp()})`
   );
-  console.log("                    Builds selected packages plus their build deps.");
+  console.log("                            Builds selected packages plus their build deps.");
+  console.log(
+    `  --ignore-packages <ids>   skip these packages (${packageSelectionHelp()})`
+  );
 }
 
 const argv = process.argv.slice(2);
@@ -102,8 +109,9 @@ const withoutDryRun = argv.filter((arg) => arg !== "--dry-run");
 let packages;
 let rest;
 let selected;
+let ignored;
 try {
-  ({ packages, rest, selected } = takePackageSelection(withoutDryRun));
+  ({ packages, rest, selected, ignored } = takePackageSelection(withoutDryRun));
 } catch (error) {
   console.error(error instanceof Error ? error.message : error);
   process.exit(1);
@@ -124,7 +132,7 @@ if (!dryRun) {
   console.log(`Publishing as npm user: ${whoami.stdout.trim()}`);
 }
 
-if (selected) {
+if (selected || ignored) {
   console.log(
     `Package selection: ${packages.map((pkg) => pkg.workspace).join(", ")}`
   );
