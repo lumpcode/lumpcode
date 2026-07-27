@@ -35,6 +35,7 @@ export * from './isValidLumpName';
 export * from './jsConfigToRunLumpInput';
 export * from './killProcessTree';
 export * from './jsonConfigToJsConfig';
+export * from './listRemoteHeadBranches';
 export * from './listRunningProjectDaemons';
 export * from './localConfigFolderPath';
 export * from './logMessagesList';
