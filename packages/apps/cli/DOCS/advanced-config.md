@@ -53,7 +53,7 @@ A mutable bag scoped to **one context execution**. Not shared across contexts, b
 | `setupFn`                      | Seed the bag — its returned `{ contextRunState: { … } }` becomes the initial value |
 | `promptFn`                     | Read (e.g. interpolate previous results into prompt text)                          |
 | `commandFn`                    | Read (e.g. switch `executable` / `args` based on a flag)                           |
-| `postCommandExecFn`            | Mutate (parse stdout, set flags for later steps)                                   |
+| `postCommandExecFn`            | Mutate (parse stdout, set flags for later steps) or return follow-on steps |
 | Dynamic `steps` function | Read (gate the next prompt)                                                        |
 | `teardownFn`                   | Read the accumulated `contextRunState`                                             |
 
@@ -91,7 +91,7 @@ Detailed shapes live in [types.md](./types.md); runnable code lives in [examples
 | Hook | Purpose | Gotcha |
 |------|---------|--------|
 | [`promptFn`](./types.md#promptfn) | Build prompt text with custom logic (inject `contextRunState`, branch on `stepIndex`, …) | Mutually exclusive with `promptTemplate` on the same item; per-item, not per-context |
-| [`postCommandExecFn`](./types.md#postcommandexecfn) | Parse the agent's stdout and stash flags on `contextRunState` (gate the next prompt, enforce JSON contracts) | `commandResult` is **raw stdout** (string) |
+| [`postCommandExecFn`](./types.md#postcommandexecfn) | Parse the agent's stdout and stash flags on `contextRunState`, or return follow-on steps nested under this leaf | `commandResult` is **raw stdout** (string). Returned steps are runtime-only (not expanded by `lump-plan`); JS/TS may return a solo item (CLI normalizes like `StepFn`) |
 
 
 ---

@@ -215,7 +215,7 @@ In `config.js` / `config.ts`, `steps` itself may be a single item of any of thos
 | `promptTemplate` | string | Optional. Inline template text (same `{VAR}` rules as [Prompt template syntax](#prompt-template-syntax)) **or** a lump-relative file when the entire value has no whitespace and ends with `.md`, `.txt`, `.template`, or `.prompt` (read once at config load from `.lumpcode/lumps/<lumpName>/`; missing file fails). Mutually exclusive with `promptFn`. When omitted, the command receives an empty prompt string. |
 | `promptFn` | [Function reference](#field-forms-conventions) | Optional. Returns prompt text dynamically. Mutually exclusive with `promptTemplate` on the same step. |
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Required on each step unless overridden inline via `commandFn` in `config.js` / `config.ts`; inherits top-level `command` when omitted. |
-| `postCommandExecFn` | [Function reference](#field-forms-conventions) | Hook called after the agent finishes |
+| `postCommandExecFn` | [Function reference](#field-forms-conventions) | Hook called after the agent finishes. May return follow-on steps (runtime-only nesting under this leaf; see [types.md](./types.md#postcommandexecfn)) |
 | `stepVariables` | object | JSON-serializable bag passed to promptFn/command/postCommandExecFn hooks |
 | `timeoutMillis` | number | Millis cap for the agent process |
 

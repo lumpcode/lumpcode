@@ -500,6 +500,45 @@ describe('executeStepsForContextList dynamic steps', () => {
         expect(executionOrder).toEqual(['post:', 'succeeded:true', 'teardown:true']);
     });
 
+    it('runs steps returned from postCommandExecFn nested under the leaf stepIndex', async () => {
+        const seen: Array<{ label: string; stepIndex: number | number[] }> = [];
+
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommandFn: stubGitAdd,
+            gitCommitCommandFn: stubGitCommit,
+            gitPushCommandFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: [{
+                commandFn: () => ({ executable: 'echo', args: ['parent'] }),
+                postCommandExecFn: ({ stepIndex }) => {
+                    seen.push({ label: 'parent-post', stepIndex });
+                    return [{
+                        commandFn: ({ stepIndex: childIndex }) => {
+                            seen.push({ label: 'child', stepIndex: childIndex });
+                            return { executable: 'echo', args: ['child'] };
+                        },
+                    }];
+                },
+            }],
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        expect(seen).toEqual([
+            { label: 'parent-post', stepIndex: 0 },
+            { label: 'child', stepIndex: [0, 0] },
+        ]);
+    });
+
     it('continues the step walk when continueOnError is true and the command fails', async () => {
         const executionOrder: string[] = [];
 

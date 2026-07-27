@@ -280,7 +280,10 @@ export async function executeStepsForContextList<
                 }
 
                 if (postCommandExecFn) {
-                    await postCommandExecFn(postCommandExecFnInput);
+                    const returnedSteps = await postCommandExecFn(postCommandExecFnInput);
+                    if (returnedSteps != null && returnedSteps.length > 0) {
+                        await walkAndExecuteSteps(returnedSteps, nextCallHeadIndex);
+                    }
                 }
             }
         }
