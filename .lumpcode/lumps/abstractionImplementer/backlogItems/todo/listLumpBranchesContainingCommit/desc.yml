@@ -1,0 +1,7 @@
+name: listLumpBranchesContainingCommit
+task: >-
+  Extract repeated `git branch [-r] --contains <hash> --format='%(refname:short)'`
+  plus lump-prefix filter / `origin/` strip into util `listLumpBranchesContainingCommit`;
+  refactor `commands/clean/main.ts` (`discoverByContext`) and
+  `utils/buildContextStatusRecord/main.ts` (per-commit remote branch lookup).
+priority: 7
