@@ -54,7 +54,7 @@
 ### npm publish
 
 - Publishable `package.json` files: include `repository` (link to `lumpcode/lumpcode`) and relevant `keywords`
-- Version/publish scripts (`scripts/set-npm-versions.mjs`, `scripts/publish-npm.mjs`) share catalog `scripts/npm-packages.mjs` (ids: `core`, `cli-types`, `cli-utils`, `recipes`, `cli`, `lumpcode`); `--packages` selects a subset (omit = all); selective bumps only rewrite internal `@lumpcode/*` deps when both ends are in the selection; version early-exit must compare every selected package, not only `core`
+- Version/publish scripts (`scripts/set-npm-versions.mjs`, `scripts/publish-npm.mjs`) share catalog `scripts/npm-packages.mjs` (ids: `core`, `cli-types`, `cli-utils`, `recipes`, `cli`, `lumpcode`); `--packages` selects a subset (omit = all); `--ignore-packages` excludes ids after that selection (same aliases/forms; errors if selection empties); selective bumps only rewrite internal `@lumpcode/*` deps when both ends are in the selection; version early-exit must compare every selected package, not only `core`
 - `@lumpcode/cli` `files` must ship the full postinstall chain (`scripts/esbuild-sidecar.mjs`, `scripts/native-binary.mjs`, `scripts/postinstall.mjs`)
 - Before publish: smoke-test the packed tarball (`npm pack --dry-run | rg scripts/`, extract, `import './scripts/native-binary.mjs'`, `LUMPCODE_SKIP_BINARY=1 node scripts/postinstall.mjs`)
 - Release PRs to `main`: use merge commit, not rebase merge — rebase rewrites SHAs so the release branch is not an ancestor of `main` (identical tree, phantom follow-up PR)
@@ -66,7 +66,8 @@
 - npm workspaces (**not** pnpm): `packages/core` (`@lumpcode/core`, Apache 2.0 — `runLump` executes one agent loop per invocation), `packages/apps/cli` (`@lumpcode/cli`, Apache 2.0 — ncc bundle from `root.ts` only, **no programmatic library entry**; primary user install), `packages/apps/cli/cli-types` (`@lumpcode/cli-types`, published — canonical types + `define*`), `packages/apps/cli/cli-utils` (`@lumpcode/cli-utils`, published — single root barrel re-exporting `cli-types` + runtime helpers; utils bundled from CLI src at build, `cli-types` external at publish), `packages/recipes` (`@lumpcode/recipes`, published — single root barrel: recipes + kit + recipe types; monorepo imports `@lumpcode/cli-utils` only), `packages/libs/ui` (private WIP)
 - Authoring stack: `cli-types` and `cli-utils` coexist on npm; prefer `@lumpcode/cli-utils` for new consumer-facing types (`cli-types` soft-aligned until a later deprecation); `.lumpcode/lumps` remain on `cli-types` until the docs branch updates them
 - Core layout: `types/` (barrel via `index.ts`), `usages/runLump/`, `helpers/`, `utils/`
-- Stack: TypeScript, Commander.js, Zod, Vitest; agent-agnostic (Claude, Codex, Aider, Copilot CLI, etc.)
+- `@lumpcode/core` must not depend on `zod` (dropped; `ContextStatus` is a plain const tuple) — rollup-external zod without a package.json dep broke project-local recipe configs that resolve published core from `node_modules` (global CLI ncc hid it)
+- Stack: TypeScript, Commander.js, Zod (CLI only), Vitest; agent-agnostic (Claude, Codex, Aider, Copilot CLI, etc.)
 
 ### Core domain model
 
