@@ -29,7 +29,6 @@ export default defineConfig({
     'node:path',
     // Mark dependencies as external
     'ignore',
-    'zod',
     'type-fest'
   ],
   plugins: [
