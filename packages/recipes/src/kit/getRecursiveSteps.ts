@@ -8,8 +8,6 @@ import {
 } from '@lumpcode/cli-utils';
 import type { CommandDescriptor, MaybePromise, PostCommandExecFn } from '@lumpcode/core';
 
-const GET_RECURSIVE_STEPS_IS_OK_FLAG_KEY = '__getRecursiveSteps_isOk__';
-
 export type StepIndex = number | number[];
 
 export type ValidationCommandFnInput<
@@ -18,7 +16,6 @@ export type ValidationCommandFnInput<
 > = Parameters<CommandFn<V, SV>>[0] & {
     currentIteration: number;
     prevValidateCommandResult: string | null;
-    contextRunStateIsOkFlagKey: string;
 };
 
 export type ValidationCommandFn<
@@ -52,7 +49,6 @@ export type GetRecursiveStepsOptions<
     currentIteration?: number;
     prevValidateCommandResult?: string | null;
     prevValidateCommandDescriptor?: CommandDescriptor | null;
-    contextRunStateIsOkFlagKey?: string;
 };
 
 function stepIndexDepth(stepIndex: StepIndex): number {
@@ -71,7 +67,6 @@ export function getRecursiveSteps<
     currentIteration = 0,
     prevValidateCommandResult = null,
     prevValidateCommandDescriptor = null,
-    contextRunStateIsOkFlagKey = GET_RECURSIVE_STEPS_IS_OK_FLAG_KEY,
 }: GetRecursiveStepsOptions<V, SV>): LumpJsConfigSteps<V, SV> {
     const firstSteps = getFirstSteps({
         currentIteration,
@@ -79,7 +74,6 @@ export function getRecursiveSteps<
         prevValidateCommandDescriptor,
     });
 
-    let thisIterValidateCommandResult: string | null = null;
     let thisIterValidateCommandDescriptor: CommandDescriptor | null = null;
 
     return [
@@ -95,43 +89,35 @@ export function getRecursiveSteps<
                         args: ['Loop limit reached'],
                     };
                 }
-                if (!input.contextRunState[contextRunStateIsOkFlagKey]) {
-                    const validateCommandDescriptor = await validationCommandFn({
-                        ...input,
-                        currentIteration,
-                        prevValidateCommandResult,
-                        contextRunStateIsOkFlagKey,
-                    });
-                    thisIterValidateCommandDescriptor = validateCommandDescriptor || null;
-                    return validateCommandDescriptor;
-                }
-                return null;
-            },
-            postCommandExecFn(input) {
-                thisIterValidateCommandResult = input.commandResult;
-                input.contextRunState[contextRunStateIsOkFlagKey] = isValidationCommandResultOk({
+                const validateCommandDescriptor = await validationCommandFn({
                     ...input,
                     currentIteration,
+                    prevValidateCommandResult,
+                });
+                thisIterValidateCommandDescriptor = validateCommandDescriptor || null;
+                return validateCommandDescriptor;
+            },
+            async postCommandExecFn(input) {
+                if (stepIndexDepth(input.stepIndex) > maxIterations) {
+                    return;
+                }
+                if (isValidationCommandResultOk({
+                    ...input,
+                    currentIteration,
+                })) {
+                    return;
+                }
+                return getRecursiveSteps<V, SV>({
+                    maxIterations,
+                    validationCommandFn,
+                    isValidationCommandResultOk,
+                    getFirstSteps,
+                    currentIteration: currentIteration + 1,
+                    prevValidateCommandResult: input.commandResult,
+                    prevValidateCommandDescriptor: thisIterValidateCommandDescriptor,
                 });
             },
             continueOnError: currentIteration < maxIterations,
-        },
-        ({ contextRunState, stepIndex }) => {
-            if (stepIndexDepth(stepIndex) > maxIterations) {
-                return [];
-            }
-            return !contextRunState[contextRunStateIsOkFlagKey]
-                ? getRecursiveSteps<V, SV>({
-                      maxIterations,
-                      validationCommandFn,
-                      isValidationCommandResultOk,
-                      getFirstSteps,
-                      currentIteration: currentIteration + 1,
-                      prevValidateCommandResult: thisIterValidateCommandResult,
-                      prevValidateCommandDescriptor: thisIterValidateCommandDescriptor,
-                      contextRunStateIsOkFlagKey,
-                  })
-                : [];
         },
     ];
 }

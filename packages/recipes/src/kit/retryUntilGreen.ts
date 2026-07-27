@@ -70,7 +70,6 @@ export interface RetryUntilGreenInput<
     fixSteps?: (input: GetFirstStepsInput) => LumpJsConfig<V, SV>['steps'];
     validationCommandFn: ValidationCommandFn<V, SV>;
     isValidationCommandResultOk?: (input: IsValidationCommandResultOkInput<V, SV>) => boolean;
-    contextRunStateIsOkFlagKey?: GetRecursiveStepsOptions<V, SV>['contextRunStateIsOkFlagKey'];
     maxIterations?: GetRecursiveStepsOptions<V, SV>['maxIterations'];
 }
 
@@ -83,14 +82,12 @@ export function retryUntilGreen<
     fixSteps,
     validationCommandFn,
     isValidationCommandResultOk,
-    contextRunStateIsOkFlagKey,
     maxIterations,
 }: RetryUntilGreenInput<V, SV>): LumpJsConfigSteps<V, SV> {
     return getRecursiveSteps<V, SV>({
         maxIterations,
         validationCommandFn,
         isValidationCommandResultOk,
-        contextRunStateIsOkFlagKey,
         getFirstSteps({ currentIteration, prevValidateCommandResult, prevValidateCommandDescriptor }) {
             if (currentIteration === 0) {
                 return steps;
