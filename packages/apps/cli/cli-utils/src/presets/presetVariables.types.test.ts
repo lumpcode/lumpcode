@@ -1,6 +1,5 @@
 /**
- * Closed cursor/copilot preset variable contracts (P1–P12).
- * Claude-code / opencode / codex contracts (T1–T9) are skipped until implementation.
+ * Closed preset variable contracts (P1–P12 cursor/copilot; T1–T9 claude-code/opencode/codex).
  * Source files live under cli-utils/src/presets/ (barrel-exported from package root).
  */
 import { describe, it, expectTypeOf } from 'vitest';
@@ -40,7 +39,7 @@ const validCopilotLump = {
 } as const;
 
 const validClaudeCodeLump = {
-  model: 'auto',
+  model: 'sonnet',
   agentPermissions: {
     permissionMode: 'acceptEdits',
     allowedTools: ['Read'],
@@ -194,7 +193,7 @@ describe('preset contracts from @lumpcode/cli-utils (P1–P12)', () => {
   });
 });
 
-describe.skip('claude-code / opencode / codex preset contracts (T1–T9)', () => {
+describe('claude-code / opencode / codex preset contracts (T1–T9)', () => {
   it('T1: nine new preset type names resolve from package root', () => {
     expectTypeOf<ClaudeCodeAgentPermissions>().not.toBeNever();
     expectTypeOf<ClaudeCodePresetLumpVariables>().not.toBeNever();

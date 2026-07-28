@@ -40,8 +40,8 @@
     },
     "command": {
       "type": "string",
-      "description": "Default command for all prompt items (inherited when a step omits 'command'). Either a registered command tag (e.g. 'copilot', 'cursor') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — or a lump-relative file path ending in '.ts' or '.js' with no whitespace that exports a CommandModule ('command', optional 'setup'/'teardown'). Missing file-path modules fail at config load. Agent flags belong in the module's CommandFn, not in this string.",
-      "examples": ["copilot", "cursor", "./agents/custom.ts"]
+      "description": "Default command for all prompt items (inherited when a step omits 'command'). Either a registered command tag (e.g. 'copilot', 'cursor', 'claude-code', 'opencode', 'codex') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — or a lump-relative file path ending in '.ts' or '.js' with no whitespace that exports a CommandModule ('command', optional 'setup'/'teardown'). Missing file-path modules fail at config load. Agent flags belong in the module's CommandFn, not in this string.",
+      "examples": ["copilot", "cursor", "claude-code", "opencode", "codex", "./agents/custom.ts"]
     },
     "contextListJson": {
       "oneOf": [
@@ -197,8 +197,8 @@
         },
         "command": {
           "type": "string",
-          "description": "Command tag (e.g. 'copilot', 'cursor') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — OR a lump-relative '.ts' or '.js' file path with no whitespace exporting a CommandModule. Inherits top-level 'command' when omitted. Agent flags belong in the module's CommandFn, not here.",
-          "examples": ["copilot", "cursor", "./agents/custom.ts"]
+          "description": "Command tag (e.g. 'copilot', 'cursor', 'claude-code', 'opencode', 'codex') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — OR a lump-relative '.ts' or '.js' file path with no whitespace exporting a CommandModule. Inherits top-level 'command' when omitted. Agent flags belong in the module's CommandFn, not here.",
+          "examples": ["copilot", "cursor", "claude-code", "opencode", "codex", "./agents/custom.ts"]
         },
         "postCommandExecFn": {
           "type": "string",
