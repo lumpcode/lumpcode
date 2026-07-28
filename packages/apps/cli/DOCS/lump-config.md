@@ -63,7 +63,7 @@ Lumpcode transpiles **`.ts`** lump config, hook modules, and project/global comm
 | Lump config | `config.ts` (highest precedence when present) |
 | Hook `*Fn` file paths | `.ts` or `.js` (default export) |
 | `.lumpcode/commands/<name>` | `.ts` before `.js` (project-local, then global) |
-| Presets (`cursor`, `copilot`, …) | `.js` only |
+| Presets (`cursor`, `copilot`, `claude-code`, `opencode`, `codex`, …) | `.js` only |
 
 Transpile output is cached under **`.lumpcode/.cache/transpile/`** (gitignored). `project-setup` adds that path to `.gitignore`; the CLI also appends it the first time a `.ts` module is transpiled in a project that lacks the entry.
 
@@ -87,7 +87,7 @@ Two forms appear repeatedly in the field tables below. Each is defined here once
 
 `command` fields (top-level and per-prompt-item) identify which agent module runs the prompt:
 
-- **Registered tag** (e.g. `"cursor"`, `"copilot"`, `"my-agent"`) — resolved against `commands/<name>.ts`, then `commands/<name>.js` under the project (`.lumpcode/commands/`), then the same extensions under the global config folder (`~/.lumpcode/commands/`), then shipped presets (`~/.lumpcode/commands/presets/*.js`). Project-local wins over global override; global wins over preset. **`cursor`** and **`copilot`** are built-in preset names (require `cursor-agent` / `copilot` on `PATH`).
+- **Registered tag** (e.g. `"cursor"`, `"copilot"`, `"claude-code"`, `"opencode"`, `"codex"`, `"my-agent"`) — resolved against `commands/<name>.ts`, then `commands/<name>.js` under the project (`.lumpcode/commands/`), then the same extensions under the global config folder (`~/.lumpcode/commands/`), then shipped presets (`~/.lumpcode/commands/presets/*.js`). Project-local wins over global override; global wins over preset. **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** are built-in preset names (require `cursor-agent` / `copilot` / `claude` / `opencode` / `codex` on `PATH`).
 - **Lump-relative file path** — when the entire string has **no whitespace** and ends with **`.ts`** or **`.js`**, resolved from `.lumpcode/lumps/<lumpName>/` and loaded as a `CommandModule` (`command`, optional `setup`/`teardown`). Missing files fail at config load. `commandName` is the literal config string. File-path commands load on demand and do not need `registerCommands`.
 - **Inline function** (`config.js` or `config.ts` only) — a `CommandFn` used directly without registry lookup.
 

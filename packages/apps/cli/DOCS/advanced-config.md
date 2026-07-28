@@ -172,16 +172,19 @@ Place modules at:
 2. `~/.lumpcode/commands/<name>.ts` or `~/.lumpcode/commands/<name>.js` — **global user override**
 3. `~/.lumpcode/commands/presets/<name>.js` — **shipped preset** (installed automatically on first run; **`.js` only**)
 
-Reference them from `command` fields by **string name** (`"my-agent"`, `"cursor"`, `"copilot"`), same as built-in names. **First existing file wins** in the order above.
+Reference them from `command` fields by **string name** (`"my-agent"`, `"cursor"`, `"copilot"`, `"claude-code"`, `"opencode"`, `"codex"`), same as built-in names. **First existing file wins** in the order above.
 
 ### Shipped presets
 
-Lumpcode ships ready-made modules for common CLI agents. Set `"command": "cursor"` or `"command": "copilot"` in lump config — no custom module required. You still need the agent binary on `PATH` (`cursor-agent`, `copilot`).
+Lumpcode ships ready-made modules for common CLI agents. Set `"command": "cursor"`, `"copilot"`, `"claude-code"`, `"opencode"`, or `"codex"` in lump config — no custom module required. You still need the agent binary on `PATH`.
 
 | Preset name | Agent binary | Default model |
 | ----------- | ------------ | ------------- |
 | `cursor` | `cursor-agent` | `auto` |
 | `copilot` | `copilot` | `auto` |
+| `claude-code` | `claude` | omit `--model` when unset |
+| `opencode` | `opencode` | omit `-m` when unset |
+| `codex` | `codex` | omit `--model` when unset |
 
 On `npm install`, `npm update`, or standalone install via `install.sh`, shipped preset files are reinstalled into `~/.lumpcode/commands/presets/` (overwriting prior copies there). On first `run`, `start`, or `lump-plan`, any still-missing preset files are copied the same way without overwriting files already there. To restore shipped defaults after editing presets manually, run `lumpcode reset-presets`.
 
@@ -193,10 +196,10 @@ Shipped presets read their options from **`lumpVariables`** (lump-wide) and **`s
 
 | Option | Type | Default | Effect |
 | ------ | ---- | ------- | ------ |
-| `model` | string | `auto` | Passed to the agent as `--model` — e.g. a cheap model for an analysis step and a stronger one for the edit step |
+| `model` | string | `auto` (omit for Claude Code / OpenCode / Codex) | Passed to the agent as `--model` / `-m` — e.g. a cheap model for an analysis step and a stronger one for the edit step. Claude Code, OpenCode, and Codex omit the flag when unset (CLI default applies; OpenCode passes `provider/model` unchanged when set). ChatGPT-backed Codex rejects `auto`. |
 | `agentPermissions` | object | `{}` | Preset-specific permission scoping — see [Agent permissions for presets](#agent-permissions-for-presets) |
 
-TypeScript contracts for these keys (closed shapes, no index signature) are exported from [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils): `CursorPresetLumpVariables` / `CursorPresetStepVariables`, `CopilotPresetLumpVariables` / `CopilotPresetStepVariables`, plus `PresetSessionStepVariables` (step-only `newChat` / `chatIdIndex`), `CursorAgentPermissions`, and `CopilotAgentPermissions`. Parameterize `defineConfig<V, SV>` with those types (or `& { myFlag: boolean }`) for compile-time checking — see [types.md](./types.md#typed-variables-v--sv).
+TypeScript contracts for these keys (closed shapes, no index signature) are exported from [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils): `CursorPresetLumpVariables` / `CursorPresetStepVariables`, `CopilotPresetLumpVariables` / `CopilotPresetStepVariables`, `ClaudeCodePresetLumpVariables` / `ClaudeCodePresetStepVariables`, `OpenCodePresetLumpVariables` / `OpenCodePresetStepVariables`, `CodexPresetLumpVariables` / `CodexPresetStepVariables`, plus `PresetSessionStepVariables` (step-only `newChat` / `chatIdIndex`), and the matching `*AgentPermissions` types. Parameterize `defineConfig<V, SV>` with those types (or `& { myFlag: boolean }`) for compile-time checking — see [types.md](./types.md#typed-variables-v--sv).
 
 ```js
 {
@@ -211,12 +214,15 @@ TypeScript contracts for these keys (closed shapes, no index signature) are expo
 
 ### Agent permissions for presets
 
-Shipped `cursor` and `copilot` presets run headless (no approval prompts). By default they do **not** override your agent configuration—only CLI flags for non-interactive execution and workspace scoping.
+Shipped presets run headless (no approval prompts). By default they do **not** override your agent configuration beyond CLI flags for non-interactive execution and workspace scoping.
 
 | Preset | Headless flags | Permissions |
 | ------ | -------------- | ----------- |
 | `cursor` | `-p`, `--force`, `--trust`, `--workspace`, `--sandbox enabled` | User Cursor config applies (`~/.cursor/cli-config.json`, repo `.cursor/cli.json`). Optional `agentPermissions.cursorConfigDir` sets `CURSOR_CONFIG_DIR` to a user-maintained directory. |
 | `copilot` | `-p`, `--no-ask-user`, `--silent` | Preset denies agent `git commit` / `git push` via `--deny-tool`. Optional `writablePaths` and `denyShell` on `agentPermissions`. Never `--yolo` or `--allow-all-paths`. |
+| `claude-code` | `-p`, `--session-id`, optional `--model`, `--permission-mode` (default `acceptEdits`) | Preset always denies agent `git commit` / `git push` via `--disallowedTools` (`Bash(git commit *)`, `Bash(git push *)`). Optional `permissionMode`, `allowedTools`, `disallowedTools`, `bare`, `addDirs`. |
+| `opencode` | `run`, `-s`, optional `-m`, `--auto` (default on) | Optional `auto` (set `false` to omit `--auto`) and `agent`. No built-in git deny flags — deny git write in OpenCode config; Lumpcode owns marker commits. |
+| `codex` | `exec` options then `resume`, optional `--model`, `--sandbox` (default `workspace-write`) | Optional `sandbox` / `addDirs` on parent `codex exec` (before `resume`); `dangerouslyBypassApprovalsAndSandbox` only when explicitly `true`. Never implies the dangerous bypass. No built-in git deny flags — deny git write in Codex config; Lumpcode owns marker commits. |
 
 Set `agentPermissions` on **`lumpVariables`** or per-step **`stepVariables`** (step overrides lump, same as `model` — see [Preset options](#preset-options-model-agentpermissions)):
 
@@ -244,6 +250,44 @@ Set `agentPermissions` on **`lumpVariables`** or per-step **`stepVariables`** (s
 }
 ```
 
+```js
+{
+  command: 'claude-code',
+  lumpVariables: {
+    model: 'sonnet',
+    agentPermissions: {
+      permissionMode: 'acceptEdits',
+      addDirs: ['/tmp'],
+    },
+  },
+}
+```
+
+```js
+{
+  command: 'opencode',
+  lumpVariables: {
+    model: 'provider/model',
+    agentPermissions: {
+      auto: true,
+      agent: 'build',
+    },
+  },
+}
+```
+
+```js
+{
+  command: 'codex',
+  lumpVariables: {
+    agentPermissions: {
+      sandbox: 'workspace-write',
+      addDirs: ['/tmp'],
+    },
+  },
+}
+```
+
 **Recommended Cursor setup for Lumpcode:** maintain a dedicated config directory with a `cli-config.json` that denies agent git operations (Lumpcode owns marker commits). Point lumps at it with `cursorConfigDir`:
 
 ```json #cli-config.json
@@ -258,6 +302,8 @@ Set `agentPermissions` on **`lumpVariables`** or per-step **`stepVariables`** (s
 ```
 
 Without `cursorConfigDir`, Cursor may still run `git commit` or `git push` if your own Cursor config allows it—use a dedicated config directory for unattended daemon runs.
+
+**OpenCode / Codex git:** the shipped presets do not add deny flags for git write. Configure those agents so they cannot `git commit` / `git push`; Lumpcode owns marker commits.
 
 Each module exports:
 

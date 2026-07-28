@@ -467,7 +467,7 @@ When `--lumpName` is omitted, `lumpName` from the meta file is used if present (
 | `--json` | flag | No      | JSON output mode |
 
 
-**Behavior:** Copies bundled presets (`cursor`, `copilot`, …) from the installed CLI package. Does not require a Lumpcode project directory. The same reinstall runs automatically on `npm install` / `npm update` of `@lumpcode/cli` and after standalone install via `install.sh`.
+**Behavior:** Copies bundled presets (`cursor`, `copilot`, `claude-code`, `opencode`, `codex`, …) from the installed CLI package. Does not require a Lumpcode project directory. The same reinstall runs automatically on `npm install` / `npm update` of `@lumpcode/cli` and after standalone install via `install.sh`.
 
 **See also:** [advanced-config.md](./advanced-config.md#shipped-presets) (preset resolution order).
 

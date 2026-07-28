@@ -35,7 +35,7 @@ export default defineConfig<
 });
 ```
 
-`defineConfig` (and the other variable-carrying `define*` helpers) take independent generics `<V, SV>` for lump and step variable bags. Preset option contracts (`CursorPreset*`, `CopilotPreset*`, `PresetSessionStepVariables`, …) are closed TypeScript types — intersect with your own keys via `& Extra`.
+`defineConfig` (and the other variable-carrying `define*` helpers) take independent generics `<V, SV>` for lump and step variable bags. Preset option contracts (`CursorPreset*`, `CopilotPreset*`, `ClaudeCodePreset*`, `OpenCodePreset*`, `CodexPreset*`, `PresetSessionStepVariables`, …) are closed TypeScript types — intersect with your own keys via `& Extra`.
 
 ## Build
 
