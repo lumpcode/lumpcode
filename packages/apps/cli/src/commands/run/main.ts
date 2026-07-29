@@ -68,6 +68,13 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         }
     }
 
+    const abortController = new AbortController();
+    const onSignal = () => {
+        abortController.abort();
+    };
+    process.on('SIGINT', onSignal);
+    process.on('SIGTERM', onSignal);
+
     try {
         const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
         const logger = createCliLogger({
@@ -86,6 +93,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             localConfig,
             effectiveDiscoveryBranch: discoveryResult.data,
             discoveryBranchOpt,
+            signal: abortController.signal,
         });
         if (!runLumpRes.success) {
             const errData = runLumpRes.data;
@@ -112,6 +120,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             data: runLumpRes.data,
         });
     } finally {
+        process.off('SIGINT', onSignal);
+        process.off('SIGTERM', onSignal);
         if (dedicatedRestoreBranch) {
             await execAsync(`git switch ${shellSingleQuote(dedicatedRestoreBranch)}`, { cwd: projectRoot });
         }

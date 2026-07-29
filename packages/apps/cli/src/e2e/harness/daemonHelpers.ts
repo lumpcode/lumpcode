@@ -37,18 +37,28 @@ export function assertHomeIsolated(project: E2eProject): void {
     }
 }
 
-/** Polls daemon meta until `busy` is not true (graceful stop requires an idle daemon). */
+/**
+ * Polls daemon meta until a lump run has started (`busy: true`) and then finished
+ * (`busy` cleared). Avoids racing `stop` against the pre-first-tick window where
+ * meta looks idle simply because work has not begun yet.
+ */
 export async function waitForDaemonIdle(input: {
     metaFilePath: string;
     timeoutMs?: number;
 }): Promise<void> {
+    let sawBusy = false;
     await pollUntil({
         timeoutMs: input.timeoutMs ?? 120_000,
         intervalMs: 100,
-        timeoutError: `Timed out waiting for daemon idle at ${input.metaFilePath}`,
+        timeoutError: `Timed out waiting for daemon busy→idle at ${input.metaFilePath}`,
         poll: async () => {
             const metaResult = await readDaemonMeta(input.metaFilePath);
-            return metaResult.success && metaResult.data.busy !== true ? true : undefined;
+            if (!metaResult.success) return undefined;
+            if (metaResult.data.busy === true) {
+                sawBusy = true;
+                return undefined;
+            }
+            return sawBusy ? true : undefined;
         },
     });
 }

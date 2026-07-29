@@ -38,7 +38,7 @@ setInterval(() => {}, 60_000);
 }
 
 /** Skipped until kill-spawned-command-on-timeout-abort implementation lands. */
-describe.skip('executeStepsForContextList timeout/abort (S1–S5)', () => {
+describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
     let projectRoot: string;
     const activePids = new Set<number>();
 
@@ -76,7 +76,7 @@ describe.skip('executeStepsForContextList timeout/abort (S1–S5)', () => {
             steps: [
                 {
                     continueOnError: true,
-                    timeoutMillis: 80,
+                    timeoutMillis: 2000,
                     commandFn: () => longLivedCommand(readyFile),
                     postCommandExecFn: () => {
                         executionOrder.push('post-timeout');
@@ -129,7 +129,7 @@ describe.skip('executeStepsForContextList timeout/abort (S1–S5)', () => {
             projectRoot,
             steps: [
                 {
-                    timeoutMillis: 80,
+                    timeoutMillis: 2000,
                     commandFn: () => longLivedCommand(readyFile),
                 },
                 {

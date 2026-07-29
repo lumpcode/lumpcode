@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { nodeErrnoCode } from './main';
 
 /** Skipped until kill-spawned-command-on-timeout-abort implementation migrates this util. */
-describe.skip('nodeErrnoCode (N1–N3)', () => {
+describe('nodeErrnoCode (N1–N3)', () => {
     it('N1: returns string code from Node-style errors', () => {
         const error = Object.assign(new Error('missing'), { code: 'ENOENT' });
         expect(nodeErrnoCode(error)).toBe('ENOENT');

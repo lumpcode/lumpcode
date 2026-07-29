@@ -1,9 +1,7 @@
 import * as fs from 'node:fs/promises';
 
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
-
-import { nodeErrnoCode } from '../nodeErrnoCode';
+import { failure, nodeErrnoCode, success } from '@lumpcode/core';
 
 export type ReadJsonFileIfMissing<T> = 'fail' | 'undefined' | { defaultValue: T };
 

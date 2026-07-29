@@ -32,6 +32,7 @@ Failure<{ message: string; }>
         teardownWorkspaceFn = defaultTeardownWorkspaceFn,
         getKeepHistoryFilePathFn = () => undefined,
         logger: loggerInput,
+        signal,
     } = input;
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -92,6 +93,7 @@ Failure<{ message: string; }>
         teardownWorkspaceFn,
         logger,
         getKeepHistoryFilePathFn,
+        signal,
     });
 
     if (!executeStepsResult.success) {

@@ -217,7 +217,7 @@ In `config.js` / `config.ts`, `steps` itself may be a single item of any of thos
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Required on each step unless overridden inline via `commandFn` in `config.js` / `config.ts`; inherits top-level `command` when omitted. |
 | `postCommandExecFn` | [Function reference](#field-forms-conventions) | Hook called after the agent finishes. May return follow-on steps (runtime-only nesting under this leaf; see [types.md](./types.md#postcommandexecfn)) |
 | `stepVariables` | object | JSON-serializable bag passed to promptFn/command/postCommandExecFn hooks |
-| `timeoutMillis` | number | Millis cap for the agent process |
+| `timeoutMillis` | number | Millis cap for the agent/command process; on expiry Lumpcode terminates the process tree (SIGTERM, then SIGKILL after a grace period) and the step fails |
 
 ## Prompt run history (`keepHistory`)
 

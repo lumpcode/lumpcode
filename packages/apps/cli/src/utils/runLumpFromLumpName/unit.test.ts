@@ -143,7 +143,7 @@ describe('runLumpFromLumpName', () => {
      * Target abort wiring for kill-spawned-command-on-timeout-abort.
      * Skipped until runLumpFromLumpName forwards AbortSignal into core.runLump.
      */
-    describe.skip('abort signal wiring (W1)', () => {
+    describe('abort signal wiring (W1)', () => {
         it('W1: runLumpFromLumpName passes signal to runLump', async () => {
             await writeMinimalLump(projectRoot, 'my-lump');
             vi.mocked(core.runLump).mockResolvedValue(

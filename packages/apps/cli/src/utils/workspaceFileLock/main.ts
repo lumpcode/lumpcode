@@ -2,10 +2,16 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { failure, type Failure, success, type Success, type Logger } from '@lumpcode/core';
+import {
+    failure,
+    type Failure,
+    isProcessAlive,
+    nodeErrnoCode,
+    success,
+    type Success,
+    type Logger,
+} from '@lumpcode/core';
 
-import { isProcessAlive } from '../isProcessAlive';
-import { nodeErrnoCode } from '../nodeErrnoCode';
 import { readJsonFile } from '../readJsonFile';
 
 export type WorkspaceLockMode = 'wait' | 'fail';

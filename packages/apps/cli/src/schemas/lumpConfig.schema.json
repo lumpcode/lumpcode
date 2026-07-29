@@ -216,7 +216,7 @@
         "timeoutMillis": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum time in milliseconds to wait for the agent command to complete before it is considered timed out and the step fails. Defaults to 30 minutes (1800000) when omitted.",
+          "description": "Maximum time in milliseconds to wait for the agent command to complete. On expiry, Lumpcode terminates the command process tree (SIGTERM, then SIGKILL after a grace period) and the step fails. Defaults to 30 minutes (1800000) when omitted.",
           "examples": [60000, 300000]
         },
         "continueOnError": {

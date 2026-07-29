@@ -65,7 +65,7 @@ async function spawnSigtermIgnorantTree(): Promise<{ rootPid: number; pids: numb
 }
 
 /** Skipped until kill-spawned-command-on-timeout-abort implementation lands. */
-describe.skip('killProcessTree (K1–K8)', () => {
+describe('killProcessTree (K1–K8)', () => {
     const activePids = new Set<number>();
 
     afterEach(async () => {

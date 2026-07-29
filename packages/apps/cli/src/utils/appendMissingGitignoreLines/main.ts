@@ -2,9 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
-
-import { nodeErrnoCode } from '../nodeErrnoCode';
+import { failure, nodeErrnoCode, success } from '@lumpcode/core';
 
 export async function appendMissingGitignoreLines(input: {
     projectRoot: string;

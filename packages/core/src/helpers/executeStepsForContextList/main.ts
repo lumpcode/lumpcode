@@ -68,6 +68,7 @@ export async function executeStepsForContextList<
     teardownWorkspaceFn,
     getKeepHistoryFilePathFn,
     logger: loggerInput,
+    signal,
 }: ExecuteStepsForContextListParams<V, SV>) {
     const logger = loggerInput ?? createConsoleLogger({});
     const contextNames = contextList.map(context => context.name);
@@ -213,20 +214,20 @@ export async function executeStepsForContextList<
                     }
                     logger.verbose(`workspacePath ${workspacePath}`);
 
-                    const commandExec = await execBinary(
-                        executable,
+                    const commandExec = await execBinary({
+                        binaryPath: executable,
                         args,
                         timeoutMillis,
-                        {
-                            stdio: ['inherit', 'pipe', 'pipe'],
-                            cwd: workspacePath,
-                            ...(env != null ? { env: { ...process.env, ...env } } : {}),
-                        }
-                    );
+                        stdio: ['inherit', 'pipe', 'pipe'],
+                        cwd: workspacePath,
+                        signal,
+                        ...(env != null ? { env: { ...process.env, ...env } } : {}),
+                    });
                     logger.verbose(`commandExec ${JSON.stringify(commandExec)}`);
 
                     if (!commandExec.success) {
-                        if (!continueOnError) {
+                        const aborted = commandExec.data.reason === 'aborted';
+                        if (aborted || !continueOnError) {
                             stepWalkFailure = set(
                                 commandExec,
                                 ['data', 'message'],

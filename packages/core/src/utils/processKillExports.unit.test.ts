@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
  * Import-move smoke for kill-spawned-command-on-timeout-abort (M2).
  * Skipped until the three helpers are implemented (not just stubbed) in @lumpcode/core.
  */
-describe.skip('core process-kill helper exports (M2)', () => {
+describe('core process-kill helper exports (M2)', () => {
     it('M2: killProcessTree, isProcessAlive, and nodeErrnoCode resolve from @lumpcode/core', async () => {
         const core = await import('@lumpcode/core');
         expect(typeof core.killProcessTree).toBe('function');

@@ -77,9 +77,13 @@ export interface Injections {
     spawnFn?: typeof nodeSpawn;
 }
 
+/** Aborted when the daemon receives SIGINT/SIGTERM during an in-flight lump run. */
+const daemonLumpAbortState: { current: AbortController | undefined } = { current: undefined };
+
 const waitForShutdown: () => Promise<void> = () =>
     new Promise((resolve) => {
         const onSignal = () => {
+            daemonLumpAbortState.current?.abort();
             process.off('SIGINT', onSignal);
             process.off('SIGTERM', onSignal);
             resolve();
@@ -366,6 +370,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             const { lumpName } = input;
 
             await updateDaemonMetaBusy(metaFilePath, true);
+            const abortController = new AbortController();
+            daemonLumpAbortState.current = abortController;
             try {
                 const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
                 const lumpLogger = createCliLogger({
@@ -387,6 +393,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     effectiveDiscoveryBranch:
                         lumpName === lumpNameOpt ? frozenEffectiveDiscoveryBranch : undefined,
                     discoveryBranchOpt: lumpName === lumpNameOpt ? discoveryBranchOpt : undefined,
+                    signal: abortController.signal,
                 });
                 if (!runLumpRes.success) {
                     logger.error(`lump "${lumpName}": ${runLumpFromJsConfigFailureMessage(runLumpRes.data)}`);
@@ -405,6 +412,9 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     );
                 }
             } finally {
+                if (daemonLumpAbortState.current === abortController) {
+                    daemonLumpAbortState.current = undefined;
+                }
                 await updateDaemonMetaBusy(metaFilePath, false);
             }
         };
@@ -494,33 +504,53 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         return failure({ messages: [launchValidation.data] });
     }
 
-    await runTick();
-
-    try {
-        cronJob = new Cron(
-            cronSetup,
-            { protect: true, name: 'lumpcode' + (lumpNameOpt ? '-' + lumpNameOpt : '') },
-            async () => {
-                try {
-                    await runTick();
-                } catch (e) {
-                    const msg = e instanceof Error ? e.message : String(e);
-                    logger.error(`tick failed: ${msg}`);
-                }
-            },
-        );
-    } catch (e) {
-        await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
-        const msg = e instanceof Error ? e.message : String(e);
-        return failure({
-            messages: [`Failed to start scheduler for "${cronSetup}": ${msg}`],
-        });
+    // Arm native SIGINT/SIGTERM shutdown *before* the first tick so a stop during runTick
+    // both aborts work and resolves shutdown — otherwise only abort runs, then the daemon
+    // hangs forever waiting for a second signal. Test overrides still run after the tick
+    // (they assert post-tick artifacts and must not race busy meta writes).
+    const onDaemonAbortSignal = () => {
+        daemonLumpAbortState.current?.abort();
+    };
+    const nativeShutdownPromise = waitForShutdownOverride ? undefined : waitForShutdown();
+    if (waitForShutdownOverride) {
+        process.on('SIGINT', onDaemonAbortSignal);
+        process.on('SIGTERM', onDaemonAbortSignal);
     }
 
-    await (waitForShutdownOverride ?? waitForShutdown)();
-    cronJob?.stop();
+    try {
+        await runTick();
 
-    await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
+        try {
+            cronJob = new Cron(
+                cronSetup,
+                { protect: true, name: 'lumpcode' + (lumpNameOpt ? '-' + lumpNameOpt : '') },
+                async () => {
+                    try {
+                        await runTick();
+                    } catch (e) {
+                        const msg = e instanceof Error ? e.message : String(e);
+                        logger.error(`tick failed: ${msg}`);
+                    }
+                },
+            );
+        } catch (e) {
+            await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
+            const msg = e instanceof Error ? e.message : String(e);
+            return failure({
+                messages: [`Failed to start scheduler for "${cronSetup}": ${msg}`],
+            });
+        }
+
+        await (waitForShutdownOverride ?? (() => nativeShutdownPromise!))();
+        cronJob?.stop();
+
+        await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
+    } finally {
+        if (waitForShutdownOverride) {
+            process.off('SIGINT', onDaemonAbortSignal);
+            process.off('SIGTERM', onDaemonAbortSignal);
+        }
+    }
 
     const summaryLines = [`Stopped after ${ticks} run(s).`, `Schedule was: ${cronSetup}`];
 
