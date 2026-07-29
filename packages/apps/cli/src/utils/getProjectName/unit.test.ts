@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { writeJsonFile } from '../writeJsonFile';
 import { getProjectName, isValidProjectName, sanitizeInferredProjectName } from './main';
 
 describe('getProjectName', () => {
@@ -22,11 +23,7 @@ describe('getProjectName', () => {
     });
 
     it('returns trimmed valid projectName from project.json', async () => {
-        await fs.writeFile(
-            path.join(localConfig, 'project.json'),
-            JSON.stringify({ projectName: '  valid_name-1  ' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfig, 'project.json'), data: { projectName: ' valid_name-1 ' } });
         const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
         expect(result.success).toBe(true);
         if (result.success) expect(result.data).toBe('valid_name-1');
@@ -38,25 +35,17 @@ describe('getProjectName', () => {
     });
 
     it('fails when projectName is missing or empty', async () => {
-        await fs.writeFile(path.join(localConfig, 'project.json'), JSON.stringify({}), 'utf-8');
+        await writeJsonFile({ filePath: path.join(localConfig, 'project.json'), data: {} });
         const empty = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
         expect(empty.success).toBe(false);
 
-        await fs.writeFile(
-            path.join(localConfig, 'project.json'),
-            JSON.stringify({ projectName: '   ' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfig, 'project.json'), data: { projectName: ' ' } });
         const spaces = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
         expect(spaces.success).toBe(false);
     });
 
     it('fails when projectName contains spaces or invalid characters', async () => {
-        await fs.writeFile(
-            path.join(localConfig, 'project.json'),
-            JSON.stringify({ projectName: 'My Project' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfig, 'project.json'), data: { projectName: 'My Project' } });
         const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
         expect(result.success).toBe(false);
     });
@@ -66,11 +55,10 @@ describe('getProjectName', () => {
      */
     describe('getProjectName strict membership (clean-local-project-json-config N*)', () => {
         it('N2: unknown key fails', async () => {
-            await fs.writeFile(
-                path.join(localConfig, 'project.json'),
-                JSON.stringify({ projectName: 'x', foo: 1 }),
-                'utf-8',
-            );
+            await writeJsonFile({
+                filePath: path.join(localConfig, 'project.json'),
+                data: { projectName: 'x', foo: 1 },
+            });
             const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
@@ -78,11 +66,10 @@ describe('getProjectName', () => {
         });
 
         it('N3: misplaced mode fails', async () => {
-            await fs.writeFile(
-                path.join(localConfig, 'project.json'),
-                JSON.stringify({ projectName: 'x', mode: 'shared' }),
-                'utf-8',
-            );
+            await writeJsonFile({
+                filePath: path.join(localConfig, 'project.json'),
+                data: { projectName: 'x', mode: 'shared' },
+            });
             const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
@@ -90,11 +77,10 @@ describe('getProjectName', () => {
         });
 
         it('N4: path-shaped command fails', async () => {
-            await fs.writeFile(
-                path.join(localConfig, 'project.json'),
-                JSON.stringify({ projectName: 'x', command: './agent.ts' }),
-                'utf-8',
-            );
+            await writeJsonFile({
+                filePath: path.join(localConfig, 'project.json'),
+                data: { projectName: 'x', command: './agent.ts' },
+            });
             const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');

@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 
 import { command, type Injections } from './main';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 const TEST_AUTH_DIR = path.join(os.tmpdir(), '.lumpcode-test-logout');
 const TEST_AUTH_FILE_PATH = path.join(TEST_AUTH_DIR, 'auth.json');
@@ -29,11 +30,7 @@ describe('logout command', () => {
 
     it('removes the auth file when it exists', async () => {
         await fs.mkdir(TEST_AUTH_DIR, { recursive: true });
-        await fs.writeFile(
-            TEST_AUTH_FILE_PATH,
-            JSON.stringify({ token: 't', user: { id: '1', email: 'a@b.c' } }),
-            { mode: 0o600 },
-        );
+        await writeJsonFile({ filePath: TEST_AUTH_FILE_PATH, data: { token: 't', user: { id: '1', email: 'a@b.c' } }, mode: 0o600 });
 
         const handler = command.handlerMaker(makeInjections());
         const result = await handler(makeInput());

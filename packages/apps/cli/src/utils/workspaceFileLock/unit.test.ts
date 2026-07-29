@@ -12,6 +12,7 @@ import {
     workspaceLocksDirPath,
     type WorkspaceFileLockSpec,
 } from './main';
+import { writeJsonFile } from '../writeJsonFile';
 
 const TEST_LOCK_SPEC = {
     locksSubdirName: 'test-workspace-locks',
@@ -137,16 +138,16 @@ describe('workspaceFileLock', () => {
         await fs.mkdir(workspaceLocksDirPath({ globalConfigFolderPath, spec: TEST_LOCK_SPEC }), {
             recursive: true,
         });
-        await fs.writeFile(
-            lockFilePath,
-            `${JSON.stringify({
+        await writeJsonFile({
+            filePath: lockFilePath,
+            data: {
                 pid: 999999999,
                 lumpName: 'ghost',
                 testWorkspacePath: path.resolve(workspacePath),
                 startedAt: new Date().toISOString(),
-            })}\n`,
-            'utf8',
-        );
+            },
+            trailingNewline: true,
+        });
 
         const acquired = await acquireWorkspaceFileLock({
             spec: TEST_LOCK_SPEC,
@@ -202,16 +203,16 @@ describe('workspaceFileLock', () => {
         expect(acquired.success).toBe(true);
         if (!acquired.success) throw new Error('unreachable');
 
-        await fs.writeFile(
-            lockFilePath,
-            `${JSON.stringify({
+        await writeJsonFile({
+            filePath: lockFilePath,
+            data: {
                 pid: process.pid + 1,
                 lumpName: 'other',
                 testWorkspacePath: path.resolve(workspacePath),
                 startedAt: new Date().toISOString(),
-            })}\n`,
-            'utf8',
-        );
+            },
+            trailingNewline: true,
+        });
 
         await acquired.data();
         await expect(fs.access(lockFilePath)).resolves.toBeUndefined();

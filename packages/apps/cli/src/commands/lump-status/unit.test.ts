@@ -14,6 +14,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { execGit } from '../../utils/execGit';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 
 describe('lump-status command', () => {
@@ -35,16 +36,14 @@ describe('lump-status command', () => {
 
         await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'status-project' }),
-            'utf-8',
-        );
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'status-project' },
+        });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
     }, 60_000);
 
     afterEach(async () => {
@@ -55,15 +54,14 @@ describe('lump-status command', () => {
     async function writeLump(lumpName: string) {
         const lumpDir = path.join(localConfigFolderPath, 'lumps', lumpName);
         await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(
-            path.join(lumpDir, 'config.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(lumpDir, 'config.json'),
+            data: {
                 baseBranch: 'main',
                 contextListJson: { c1: 'README.md' },
                 prompt: { promptTemplate: 'task', command: 'claude' },
-            }),
-            'utf-8',
-        );
+            },
+        });
     }
 
     function makeHandler() {
@@ -153,26 +151,24 @@ describe('lump-status command', () => {
     }, 60_000);
 
     it('fails allowlist validation for unlisted discoveryBranch (dedicated)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: {
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main'],
-            }),
-            'utf-8',
-        );
+            },
+        });
         const lumpDir = path.join(localConfigFolderPath, 'lumps', 'unlisted');
         await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(
-            path.join(lumpDir, 'config.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(lumpDir, 'config.json'),
+            data: {
                 discoveryBranch: 'ver/0.0.9',
                 contextListJson: { c1: 'README.md' },
                 prompt: { promptTemplate: 'task', command: 'claude' },
-            }),
-            'utf-8',
-        );
+            },
+        });
 
         const result = await makeHandler()({
             options: {},
@@ -184,26 +180,24 @@ describe('lump-status command', () => {
     }, 60_000);
 
     it('succeeds in shared mode when discoveryBranch is unlisted (no allowlist)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: {
                 mode: 'shared',
                 primaryBranch: 'main',
                 primaryBranches: ['main'],
-            }),
-            'utf-8',
-        );
+            },
+        });
         const lumpDir = path.join(localConfigFolderPath, 'lumps', 'unlisted');
         await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(
-            path.join(lumpDir, 'config.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(lumpDir, 'config.json'),
+            data: {
                 discoveryBranch: 'ver/0.0.9',
                 contextListJson: { c1: 'README.md' },
                 prompt: { promptTemplate: 'task', command: 'claude' },
-            }),
-            'utf-8',
-        );
+            },
+        });
 
         const result = await makeHandler()({
             options: {},
@@ -229,11 +223,10 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
         initBareRemoteAndCheckout(projectRoot, bareDir);
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'status-ddb-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'status-ddb-test' },
+        });
     }, 60_000);
 
     afterEach(async () => {
@@ -322,22 +315,20 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
      */
     describe('lump defaults on status path (clean-local-project-json-config W3)', () => {
         it('W3: applyLumpConfigDefaults called; local verbose inherited when lump omits', async () => {
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'project.json'),
-                JSON.stringify({ projectName: 'status-project' }),
-                'utf-8',
-            );
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'local.json'),
-                JSON.stringify({ mode: 'shared', primaryBranch: 'main', verbose: true }),
-                'utf-8',
-            );
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: { projectName: 'status-project' },
+            });
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: { mode: 'shared', primaryBranch: 'main', verbose: true },
+            });
             await writeMinimalLump(projectRoot, 'alpha');
             // Lump without verbose
             const lumpPath = path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json');
             const lump = JSON.parse(await fs.readFile(lumpPath, 'utf-8')) as Record<string, unknown>;
             delete lump.verbose;
-            await fs.writeFile(lumpPath, JSON.stringify(lump), 'utf-8');
+            await writeJsonFile({ filePath: lumpPath, data: lump });
 
             const applySpy = vi.spyOn(
                 await import('../../utils/applyLumpConfigDefaults'),

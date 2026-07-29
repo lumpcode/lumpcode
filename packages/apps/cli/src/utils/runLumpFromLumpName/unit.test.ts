@@ -12,6 +12,7 @@ import { writeMinimalLump } from '../../testing';
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import { runLumpFromLumpName } from './main';
 import { execGit } from '../execGit';
+import { writeJsonFile } from '../writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -34,16 +35,8 @@ describe('runLumpFromLumpName', () => {
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-from-name-global-'));
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(localConfigFolderPath, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'run-from-name-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-from-name-test' } });
 
         execGit('init --bare', remoteDir);
         execGit('init -b main', projectRoot);
@@ -173,25 +166,23 @@ describe('runLumpFromLumpName', () => {
      */
     describe('lump defaults + cap wiring (clean-local-project-json-config W*/C*)', () => {
         it('W1: applies project command when lump omits command', async () => {
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'project.json'),
-                JSON.stringify({
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
                     projectName: 'run-from-name-test',
                     command: 'cursor',
-                }),
-                'utf-8',
-            );
+                },
+            });
             await writeMinimalLump(projectRoot, 'my-lump', { command: undefined });
             // Rewrite lump without top-level command (JSON omit).
             const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'my-lump');
-            await fs.writeFile(
-                path.join(lumpDir, 'config.json'),
-                JSON.stringify({
+            await writeJsonFile({
+                filePath: path.join(lumpDir, 'config.json'),
+                data: {
                     contextListJson: { NAME: 'README' },
                     prompt: { promptTemplate: 'E2E @{NAME}' },
-                }),
-                'utf-8',
-            );
+                },
+            });
 
             const applySpy = vi.spyOn(
                 await import('../applyLumpConfigDefaults'),
@@ -225,14 +216,13 @@ describe('runLumpFromLumpName', () => {
         });
 
         it('C: inherited project cap skips tooManyOpenBranches', async () => {
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'project.json'),
-                JSON.stringify({
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
                     projectName: 'run-from-name-test',
                     maximumNumberOfConcurrentBranches: 2,
-                }),
-                'utf-8',
-            );
+                },
+            });
             await writeMinimalLump(projectRoot, 'my-lump');
             // Ensure lump omits cap
             const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'my-lump');
@@ -241,7 +231,7 @@ describe('runLumpFromLumpName', () => {
                 unknown
             >;
             delete raw.maximumNumberOfConcurrentBranches;
-            await fs.writeFile(path.join(lumpDir, 'config.json'), JSON.stringify(raw), 'utf-8');
+            await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: raw });
 
             createAndPushLumpBranch('my-lump', 'ctx-a');
             createAndPushLumpBranch('my-lump', 'ctx-b');

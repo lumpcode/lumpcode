@@ -7,6 +7,7 @@ import { LOCAL_CONFIG_FILE_NAME } from '../readLocalConfig';
 import { runProjectPreflight } from './main';
 import { createIntegrationBranch, gitCurrentBranch, initBareRemoteAndCheckout, writeLocalJson } from '../../testing';
 import { execGit } from '../execGit';
+import { writeJsonFile } from '../writeJsonFile';
 
 describe('runProjectPreflight', () => {
     let projectRoot: string;
@@ -21,11 +22,7 @@ describe('runProjectPreflight', () => {
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(localConfigFolderPath, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'run-project-preflight' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-project-preflight' } });
     });
 
     afterEach(async () => {
@@ -80,15 +77,14 @@ describe('runProjectPreflight', () => {
 
     it('uses frozen localConfig instead of re-reading local.json from disk', async () => {
         await writeLocalJsonDedicated();
-        await fs.writeFile(
-            path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
+            data: {
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 workspaceStrategy: 'worktree',
-            }),
-            'utf-8',
-        );
+            },
+        });
 
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,

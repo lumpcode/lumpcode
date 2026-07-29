@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { command } from './main';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import { execGit } from '../../utils/execGit';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 
 describe('context-status command', () => {
@@ -37,15 +38,14 @@ describe('context-status command', () => {
     async function writeLump(lumpName: string, contextKey: string) {
         const lumpDir = path.join(localConfigFolderPath, 'lumps', lumpName);
         await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(
-            path.join(lumpDir, 'config.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(lumpDir, 'config.json'),
+            data: {
                 baseBranch: 'main',
                 contextListJson: { CTX: contextKey },
                 prompt: { promptTemplate: 'task', command: 'claude' },
-            }),
-            'utf-8',
-        );
+            },
+        });
     }
 
     function makeHandler() {

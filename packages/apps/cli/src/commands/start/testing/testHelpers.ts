@@ -15,6 +15,7 @@ import { command as stopCommand } from '../../stop/main';
 import { command } from '../main';
 import { execGit } from '../../../utils/execGit';
 import { resolveDaemonPaths } from '../../../utils/resolveDaemonPaths';
+import { writeJsonFile } from '../../../utils/writeJsonFile';
 
 export type StartTestProject = {
     projectRoot: string;
@@ -53,22 +54,20 @@ export const runLumpSuccess = success({
 });
 
 export async function writeDefaultProjectJson(projectRoot: string, projectName: string) {
-    await fs.writeFile(
-        path.join(projectRoot, '.lumpcode', 'project.json'),
-        JSON.stringify({ projectName }),
-        'utf-8',
-    );
+    await writeJsonFile({
+        filePath: path.join(projectRoot, '.lumpcode', 'project.json'),
+        data: { projectName },
+    });
 }
 
 export async function writeDefaultLocalJson(
     projectRoot: string,
     overrides: { disabled?: boolean; workspaceStrategy?: 'checkout' | 'worktree' } = {},
 ) {
-    await fs.writeFile(
-        path.join(projectRoot, '.lumpcode', 'local.json'),
-        JSON.stringify({ mode: 'dedicated', primaryBranch: 'main', ...overrides }),
-        'utf-8',
-    );
+    await writeJsonFile({
+        filePath: path.join(projectRoot, '.lumpcode', 'local.json'),
+        data: { mode: 'dedicated', primaryBranch: 'main', ...overrides },
+    });
 }
 
 export async function setupStartTestRepo(options: {

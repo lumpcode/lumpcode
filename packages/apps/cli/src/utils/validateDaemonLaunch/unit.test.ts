@@ -13,6 +13,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { validateDaemonLaunch } from './main';
+import { writeJsonFile } from '../writeJsonFile';
 
 const minimalLumpConfigJson = `{
   "contextListJson": {
@@ -67,11 +68,7 @@ describe('validateDaemonLaunch', () => {
             mode: 'dedicated',
             primaryBranch: 'main',
         });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'validate-daemon-launch-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'validate-daemon-launch-test' } });
     });
 
     afterEach(async () => {

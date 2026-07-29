@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { writeMinimalLump } from '../../../testing';
+import { writeJsonFile } from '../../../utils/writeJsonFile';
 import { command } from '../main';
 import {
     makeStartHandler,
@@ -512,16 +513,14 @@ describe('start command', () => {
         });
 
         it('W5: missing merged primary fails start', async () => {
-            await fs.writeFile(
-                path.join(projectRoot, '.lumpcode', 'project.json'),
-                JSON.stringify({ projectName: 'no-primary-project' }),
-                'utf-8',
-            );
-            await fs.writeFile(
-                path.join(projectRoot, '.lumpcode', 'local.json'),
-                JSON.stringify({ mode: 'dedicated' }),
-                'utf-8',
-            );
+            await writeJsonFile({
+                filePath: path.join(projectRoot, '.lumpcode', 'project.json'),
+                data: { projectName: 'no-primary-project' },
+            });
+            await writeJsonFile({
+                filePath: path.join(projectRoot, '.lumpcode', 'local.json'),
+                data: { mode: 'dedicated' },
+            });
             await writeMinimalLump(projectRoot, 'alpha');
 
             const result = await makeStartHandler(deps())({

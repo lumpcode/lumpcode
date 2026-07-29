@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resolveDaemonCommandScope } from './main';
+import { writeJsonFile } from '../writeJsonFile';
 
 describe('resolveDaemonCommandScope', () => {
     let base: string;
@@ -19,11 +20,7 @@ describe('resolveDaemonCommandScope', () => {
         await fs.mkdir(path.join(projectRoot, '.git'), { recursive: true });
         await fs.mkdir(localConfigFolderPath, { recursive: true });
         await fs.mkdir(globalConfigFolderPath, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'demo_proj' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'demo_proj' } });
     });
 
     afterEach(async () => {

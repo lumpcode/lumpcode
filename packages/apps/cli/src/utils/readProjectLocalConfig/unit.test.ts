@@ -10,6 +10,7 @@ import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLoca
 import { LOCAL_CONFIG_FILE_NAME } from '../readLocalConfig';
 import { PROJECT_JSON_FILE_NAME } from '../readProjectJson';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
+import { writeJsonFile } from '../writeJsonFile';
 import { readProjectLocalConfig, resolvedProjectLocalConfigSchema } from './main';
 
 /**
@@ -27,8 +28,8 @@ describe('readProjectLocalConfig (clean-local-project-json-config)', () => {
     });
 
     async function writePair(project: unknown, local: unknown) {
-        await fs.writeFile(path.join(dir, PROJECT_JSON_FILE_NAME), JSON.stringify(project), 'utf-8');
-        await fs.writeFile(path.join(dir, LOCAL_CONFIG_FILE_NAME), JSON.stringify(local), 'utf-8');
+        await writeJsonFile({ filePath: path.join(dir, PROJECT_JSON_FILE_NAME), data: project });
+        await writeJsonFile({ filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME), data: local });
     }
 
     it('M1: local wins shared primaryBranch', async () => {

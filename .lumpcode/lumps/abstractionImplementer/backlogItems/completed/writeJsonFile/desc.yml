@@ -1,0 +1,12 @@
+name: writeJsonFile
+task: >-
+  Extract repeated `fs.writeFile` + `JSON.stringify` patterns (optional
+  pretty-print, trailing newline, parent `mkdir`, file `mode`, try/catch →
+  `Failure`) into util `writeJsonFile` as the write-side counterpart to
+  `readJsonFile`; refactor `updateContextStatusRecord`,
+  `transpileTypeScriptToCachedMjs`, `commands/start`, `commands/login`,
+  `commands/project-setup`, `workspaceFileLock` JSON serialization, and JSON
+  fixture writes across `testing/`, `e2e/harness/`, and unit tests that
+  duplicate the same write boilerplate.
+priority: 2
+completedAt: '2026-07-29T10:12:10.462Z'

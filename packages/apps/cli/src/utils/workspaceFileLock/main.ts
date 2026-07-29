@@ -13,6 +13,7 @@ import {
 } from '@lumpcode/core';
 
 import { readJsonFile } from '../readJsonFile';
+import { formatJsonFileContent } from '../writeJsonFile';
 
 export type WorkspaceLockMode = 'wait' | 'fail';
 
@@ -148,7 +149,7 @@ async function tryAcquireWorkspaceFileLockOnce(input: {
     try {
         const handle = await fs.open(lockFilePath, 'wx');
         try {
-            await handle.writeFile(`${JSON.stringify(payload)}\n`, 'utf8');
+            await handle.writeFile(formatJsonFileContent({ data: payload, trailingNewline: true }), 'utf8');
         } finally {
             await handle.close();
         }

@@ -17,6 +17,7 @@ import {
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import * as runLumpFromLumpNameModule from '../../utils/runLumpFromLumpName';
 import { command } from './main';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -40,11 +41,7 @@ describe('run command — multi discovery branches', () => {
 
         initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'run-cmd-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-cmd-test' } });
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
                 result: {
@@ -260,11 +257,10 @@ describe('run command — dynamic-discovery-branch (C*)', () => {
 
         initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'run-ddb-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'run-ddb-test' },
+        });
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
                 result: {
@@ -419,11 +415,10 @@ describe('run command abort signal wiring (W2)', () => {
 
         initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'run-signal-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'run-signal-test' },
+        });
         await writeLocalJson(localConfigFolderPath, {
             mode: 'dedicated',
             primaryBranch: 'main',

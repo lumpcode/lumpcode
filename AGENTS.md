@@ -134,7 +134,7 @@
 
 - **`workspacePathLock`**: single namespace per `path.resolve` (`workspace-path-locks/`); **`workspacePathBusy`** failure; manual `run` `lockMode: 'fail'`, daemon `wait`; atomic `wx` only (no FIFO v1)
 - **`run` / `start`** call **`runLumpFromLumpName`** (phase 1) → **`runLumpFromJsConfig`** (phase 2); tests may call `runLumpFromJsConfig` directly with `jsConfig`
-- **Phase 1** (dedicated): `preflightDiscoveryBranchWithLock` → load config + disabled soft skip; checkout keeps lock into phase 2; worktree releases after validation (enables parallel agents across worktrees, but also concurrent preflight on the shared git common dir — see Daemon / pre-flight race note)
+- **Phase 1** (dedicated): `preflightDiscoveryBranchWithLock` → load config + disabled soft skip; checkout keeps lock into phase 2; worktree releases after validation (parallel agents across worktrees; shared-git mutations still serialized by `gitCommonDirLock`)
 - **Phase 2**: `withWorkspaceLockHooks` — baseBranch preflight at setup; checkout continuous hold; worktree hold execution through setup then release execution-path lock when setup fn returns (branch path lock remains)
 - Phase-1 **`releaseLock`** handoff → adopted into `session.releaseExecutionPathLock` at **`runLumpFromJsConfig` entry**; `try/finally` + **`releaseWorkspaceLockSession`** releases on all early returns (including **`tooManyOpenBranches`**)
 - Disabled lump soft skip in phase 1 must call **`releaseLock`** before return (phase 2 not invoked)
@@ -177,7 +177,7 @@
 - Lump-config `*Fn` paths resolve relative to `.lumpcode/lumps/<lumpName>/`
 - `promptTemplate` (`FilePathOrString`): resolve relative to `.lumpcode/lumps/<lumpName>/`; file ref only when entire string has no whitespace and ends with `.txt`, `.template`, `.prompt`, or `.md` and path exists (read once at config load; missing → fail); otherwise inline template text (`{VAR}` / `@{VAR}` unchanged). Prompt placeholders resolve from **context** variables, not from `lumpVariables`/`stepVariables` (those carry preset options and hook inputs). `command` file ref: no whitespace, ends with `.ts` or `.js`, exists under lump dir → `CommandModule` import; else tag lookup; `commandName` = literal config string; `registerCommands` tag-only
 - `getCommandPath`: explicit local/global config paths only (no implicit `~/.lumpcode` fallback)
-- `getContextStatus` CLI wrapper wires `makeGitCommitMessageFnFromLumpName(lumpName)` plus locked refresh + core `skipFetch`; `getContextStatuses` returns `Map<string, ContextStatus>` (exported from `@lumpcode/cli-utils`)
+- CLI context status: `getContextStatuses` is the batch entry (`Map<string, ContextStatus>`, exported from `@lumpcode/cli-utils`); `getContextStatus` delegates to it for one name; default path does locked refresh then core `skipFetch`; `skipRefresh: true` when the caller already refreshed (`buildContextStatusRecord`)
 
 ### CLI framework
 

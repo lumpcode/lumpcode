@@ -14,6 +14,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { discoverDedicatedLumpsForScanBranch } from './main';
+import { writeJsonFile } from '../writeJsonFile';
 
 function createLogger(): Logger {
     return {
@@ -44,11 +45,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
             primaryBranch: 'main',
             primaryBranches: ['main', 'ver/0.0.9'],
         });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'discover-dedicated-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'discover-dedicated-test' } });
     });
 
     afterEach(async () => {
@@ -86,6 +83,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'ver/0.0.9'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -108,6 +106,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'ver/0.0.9'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -143,11 +142,10 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
             primaryBranch: 'main',
             primaryBranches: ['main', 'feature/*'],
         });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'discover-pattern-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'discover-pattern-test' },
+        });
     });
 
     afterEach(async () => {
@@ -188,6 +186,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -212,6 +211,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -235,6 +235,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*', 'release/1'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
