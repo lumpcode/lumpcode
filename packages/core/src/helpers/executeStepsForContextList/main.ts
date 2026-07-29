@@ -44,6 +44,8 @@ export type ExecuteStepsForContextListParams<
 >> & {
     contextList: ContextList;
     logger?: Logger;
+    /** When aborted, in-flight commands are killed and the step walk stops (ignores continueOnError). */
+    signal?: AbortSignal;
 }
 
 export async function executeStepsForContextList<

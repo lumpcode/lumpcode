@@ -128,6 +128,8 @@ export interface RunLumpInput<
     teardownWorkspaceFn?: TeardownWorkspaceFn;
     logger?: Logger;
     getKeepHistoryFilePathFn?: (context: Context) => string | undefined;
+    /** When aborted, in-flight commands are killed and the step walk stops (ignores continueOnError). */
+    signal?: AbortSignal;
 }
 
 export interface RunLumpOutput {
