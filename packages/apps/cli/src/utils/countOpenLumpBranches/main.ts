@@ -1,7 +1,5 @@
-import { execAsync, shellSingleQuote } from '@lumpcode/core';
-
-import { REFS_HEADS_PREFIX } from '../../consts';
 import { lumpBranchGlob } from '../lumpBranchGlob';
+import { listRemoteHeadBranches } from '../listRemoteHeadBranches';
 
 /**
  * Counts the distinct branches opened for a given lump on the remote.
@@ -19,28 +17,11 @@ export async function countOpenLumpBranches(input: {
 }): Promise<number> {
     const { executionWorkspacePath, lumpName } = input;
     const branchGlob = lumpBranchGlob({ lumpName });
-    const namePattern = branchGlob.endsWith('*') ? branchGlob.slice(0, -1) : branchGlob;
-
-    const remoteRefPattern = `${REFS_HEADS_PREFIX}${branchGlob}`;
-    const remoteResult = await execAsync(
-        `git ls-remote --heads origin ${shellSingleQuote(remoteRefPattern)}`,
-        { cwd: executionWorkspacePath },
-    );
-
-    const branches = new Set<string>();
-
-    if (remoteResult.success) {
-        for (const line of remoteResult.data.stdout.split('\n')) {
-            const trimmed = line.trim();
-            if (!trimmed) continue;
-            const parts = trimmed.split(/\s+/);
-            const ref = parts[1];
-            if (!ref || !ref.startsWith(REFS_HEADS_PREFIX)) continue;
-            const shortName = ref.slice(REFS_HEADS_PREFIX.length);
-            if (!shortName.startsWith(namePattern)) continue;
-            branches.add(shortName);
-        }
-    }
-
-    return branches.size;
+    const shortNamePrefix = branchGlob.slice(0, -1);
+    const branches = await listRemoteHeadBranches({
+        cwd: executionWorkspacePath,
+        branchGlob,
+        postFilterBranchShortName: (shortName) => shortName.startsWith(shortNamePrefix),
+    });
+    return branches.length;
 }
