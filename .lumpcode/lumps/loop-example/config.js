@@ -127,6 +127,7 @@ export default defineConfig({
     }),
     keepHistory: true,
     verbose: false,
+    disabled: true,
 });
 
 export function getRecursiveSteps({

@@ -1,6 +1,6 @@
-import { defineConfig } from '@lumpcode/cli-types';
+import { defineConfig } from '@lumpcode/cli-utils';
 import { CommandDescriptor } from '@lumpcode/core';
-import { getRecursiveSteps } from '../../recipes/kit/getContextListFn';
+import { getRecursiveSteps } from '@lumpcode/recipes';
 
 const ABSTRACTION_PROMPT = `
     Scan @packages/apps/cli for duplicated logic that appears in multiple places (same pattern, not merely similar file structure).
@@ -74,7 +74,7 @@ export default defineConfig({
     }),
     keepHistory: true,
     verbose: true,
-    disabled: false,
+    disabled: true,
     numberOfContextsPerBranch: 1,
     maximumNumberOfConcurrentBranches: 1,
     discoveryBranch: 'dev',
