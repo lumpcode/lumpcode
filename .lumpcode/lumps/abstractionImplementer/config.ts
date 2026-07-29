@@ -1,4 +1,4 @@
-import { LumpJsConfig } from '@lumpcode/cli-types';
+import { LumpJsConfig } from '@lumpcode/cli-utils';
 import { CursorPresetLumpVariables, CursorPresetStepVariables } from '@lumpcode/cli-utils';
 import { abstractionBacklog } from '@lumpcode/recipes';
 
