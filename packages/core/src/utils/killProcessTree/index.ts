@@ -1,0 +1,1 @@
+export { killProcessTree } from './main';

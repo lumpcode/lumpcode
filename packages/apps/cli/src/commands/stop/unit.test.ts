@@ -405,4 +405,345 @@ describe('stop command', () => {
             assertProcessAlive(pid);
         }, 15_000);
     });
+
+    /**
+     * Target stop behavior for kill-spawned-command-on-timeout-abort.
+     * Skipped until implementation removes daemonBusy refuse and adds busy 30s wait.
+     */
+    describe.skip('kill-spawned-command-on-timeout-abort stop behavior (ST1–ST10)', () => {
+        const sigtermIgnorantScript = fileURLToPath(
+            new URL('../../testing/sigtermIgnorantTreeChild.cjs', import.meta.url),
+        );
+        const activeFixturePids = new Set<number>();
+
+        afterEach(() => {
+            for (const pid of activeFixturePids) {
+                try {
+                    process.kill(pid, 'SIGKILL');
+                } catch {
+                    // already gone
+                }
+            }
+            activeFixturePids.clear();
+        });
+
+        const metaPath = () => metaFilePathFromPidFilePath(pidPath());
+
+        async function writeBusyMeta(overrides: Record<string, unknown> = {}) {
+            await fs.writeFile(
+                metaPath(),
+                `${JSON.stringify({
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    busy: true,
+                    ...overrides,
+                })}\n`,
+                'utf8',
+            );
+        }
+
+        async function readDaemonPid(): Promise<number> {
+            const raw = await fs.readFile(pidPath(), 'utf8');
+            const pid = Number.parseInt(raw.trim(), 10);
+            if (Number.isNaN(pid)) {
+                throw new Error(`invalid pid in ${pidPath()}`);
+            }
+            return pid;
+        }
+
+        function assertProcessAlive(pid: number) {
+            expect(() => process.kill(pid, 0)).not.toThrow();
+        }
+
+        async function spawnSigtermIgnorantDaemon(): Promise<{ pid: number; childPids: number[] }> {
+            const readyFile = path.join(
+                await fs.mkdtemp(path.join(os.tmpdir(), 'lump-sigterm-ready-')),
+                'ready.json',
+            );
+            const child = spawn(process.execPath, [sigtermIgnorantScript], {
+                detached: true,
+                stdio: 'ignore',
+                env: {
+                    ...process.env,
+                    LUMPCODE_TREE_READY_FILE: readyFile,
+                },
+            });
+            child.unref();
+            const pid = child.pid;
+            if (pid === undefined) {
+                throw new Error('spawn did not return a pid');
+            }
+
+            const childPids = await pollUntil({
+                timeoutMs: 5000,
+                intervalMs: 25,
+                timeoutError: 'timed out waiting for sigterm-ignorant tree',
+                poll: async () => {
+                    try {
+                        const raw = await fs.readFile(readyFile, 'utf8');
+                        const parsed = JSON.parse(raw) as { pids?: number[] };
+                        return Array.isArray(parsed.pids) && parsed.pids.length >= 2
+                            ? parsed.pids
+                            : undefined;
+                    } catch {
+                        return undefined;
+                    }
+                },
+            });
+
+            await fs.mkdir(path.dirname(pidPath()), { recursive: true });
+            await fs.writeFile(pidPath(), `${pid}\n`, 'utf8');
+            await fs.writeFile(
+                metaPath(),
+                `${JSON.stringify({
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                })}\n`,
+                'utf8',
+            );
+
+            for (const fixturePid of childPids) {
+                activeFixturePids.add(fixturePid);
+            }
+            return { pid, childPids };
+        }
+
+        it('ST1: busy default stop cooperatively SIGTERMs and cleans up', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await writeBusyMeta();
+
+            const result = await makeStopHandler()({ options: {}, arguments: {} });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(JSON.stringify(result.data)).not.toMatch(/daemonBusy/);
+            await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+            await expect(fs.access(metaPath())).rejects.toMatchObject({ code: 'ENOENT' });
+            try {
+                process.kill(pid, 0);
+                throw new Error('expected daemon to be dead');
+            } catch (e) {
+                expect(e).toMatchObject({ code: 'ESRCH' });
+            }
+        });
+
+        it('ST2: busy + --json success has no daemonBusy code', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            await writeBusyMeta();
+
+            const result = await makeStopHandler()({
+                options: { json: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).not.toBe('daemonBusy');
+            expect(result.data.messages.join(' ')).toMatch(/stopped/i);
+        });
+
+        it('ST3: busy stop sends SIGTERM to the daemon pid', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await writeBusyMeta();
+
+            const killSpy = vi.spyOn(process, 'kill');
+            try {
+                await makeStopHandler()({ options: {}, arguments: {} });
+                const termCalls = killSpy.mock.calls.filter(
+                    (call) => call[0] === pid && call[1] === 'SIGTERM',
+                );
+                expect(termCalls.length).toBeGreaterThanOrEqual(1);
+            } finally {
+                killSpy.mockRestore();
+            }
+        });
+
+        it('ST4: per-lump busy stop cooperatively succeeds', async () => {
+            const lumpProjectName = 'stop-mid-run-lump-project';
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'project.json'),
+                JSON.stringify({ projectName: lumpProjectName }),
+                'utf-8',
+            );
+
+            const lumpPidPath = path.join(
+                globalConfigFolderPath,
+                'daemons',
+                `${lumpProjectName}.alpha.daemon.pid`,
+            );
+            const lumpMetaPath = metaFilePathFromPidFilePath(lumpPidPath);
+
+            const lumpStart = startCommand.handlerMaker({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                spawnFn: aliveDaemonSpawnFn,
+            });
+            const lumpStartResult = await lumpStart({
+                options: { lumpName: 'alpha' },
+                arguments: {},
+            });
+            expect(lumpStartResult.success).toBe(true);
+            await waitForDaemonPidFile(lumpPidPath);
+
+            const lumpPid = Number.parseInt((await fs.readFile(lumpPidPath, 'utf8')).trim(), 10);
+            await fs.writeFile(
+                lumpMetaPath,
+                `${JSON.stringify({
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    lumpName: 'alpha',
+                    busy: true,
+                })}\n`,
+                'utf8',
+            );
+
+            const result = await makeStopHandler()({
+                options: { lumpName: 'alpha', json: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).not.toBe('daemonBusy');
+            await expect(fs.access(lumpPidPath)).rejects.toMatchObject({ code: 'ENOENT' });
+            try {
+                process.kill(lumpPid, 0);
+                throw new Error('expected lump daemon to be dead');
+            } catch (e) {
+                expect(e).toMatchObject({ code: 'ESRCH' });
+            }
+        });
+
+        it('ST5: idle stop within 5s still succeeds', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+
+            const result = await makeStopHandler()({ options: {}, arguments: {} });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+            try {
+                process.kill(pid, 0);
+                throw new Error('expected daemon to be dead');
+            } catch (e) {
+                expect(e).toMatchObject({ code: 'ESRCH' });
+            }
+        });
+
+        it('ST6: --force while busy removes artifacts and kills process', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await writeBusyMeta();
+
+            const result = await makeStopHandler()({
+                options: { force: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+            await expect(fs.access(metaPath())).rejects.toMatchObject({ code: 'ENOENT' });
+            try {
+                process.kill(pid, 0);
+                throw new Error('expected daemon to be dead');
+            } catch (e) {
+                expect(e).toMatchObject({ code: 'ESRCH' });
+            }
+        });
+
+        it('ST7: --force kills child tree', async () => {
+            const { pid, childPids } = await spawnSigtermIgnorantDaemon();
+
+            const result = await makeStopHandler()({
+                options: { force: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+
+            await pollUntil({
+                timeoutMs: 5000,
+                intervalMs: 50,
+                timeoutError: 'expected fixture tree to be killed',
+                poll: () => {
+                    for (const fixturePid of [pid, ...childPids]) {
+                        try {
+                            process.kill(fixturePid, 0);
+                            return undefined;
+                        } catch (e) {
+                            expect(e).toMatchObject({ code: 'ESRCH' });
+                        }
+                    }
+                    return true;
+                },
+            });
+            for (const fixturePid of [pid, ...childPids]) {
+                activeFixturePids.delete(fixturePid);
+            }
+        }, 15_000);
+
+        it('ST8: idle SIGTERM-ignore still times out ~5s', async () => {
+            const { pid } = await spawnSigtermIgnorantDaemon();
+
+            const result = await makeStopHandler()({ options: {}, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages.join(' ')).toMatch(/did not exit within/i);
+            expect(JSON.stringify(result.data)).not.toMatch(/daemonBusy/);
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+            assertProcessAlive(pid);
+        }, 15_000);
+
+        it('ST9: busy SIGTERM-ignore times out after busy wait (no daemonBusy)', async () => {
+            const { pid } = await spawnSigtermIgnorantDaemon();
+            await writeBusyMeta();
+
+            const result = await makeStopHandler()({ options: {}, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages.join(' ')).toMatch(/did not exit/i);
+            expect(result.data.data?.code).not.toBe('daemonBusy');
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+            assertProcessAlive(pid);
+        }, 35_000);
+
+        it('ST10: --force uses immediate kill (graceMs 0)', async () => {
+            const { pid, childPids } = await spawnSigtermIgnorantDaemon();
+            const started = Date.now();
+
+            const result = await makeStopHandler()({
+                options: { force: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(Date.now() - started).toBeLessThan(5000);
+
+            await pollUntil({
+                timeoutMs: 5000,
+                intervalMs: 50,
+                timeoutError: 'expected force kill to reap tree quickly',
+                poll: () => {
+                    for (const fixturePid of [pid, ...childPids]) {
+                        try {
+                            process.kill(fixturePid, 0);
+                            return undefined;
+                        } catch (e) {
+                            expect(e).toMatchObject({ code: 'ESRCH' });
+                        }
+                    }
+                    return true;
+                },
+            });
+            for (const fixturePid of [pid, ...childPids]) {
+                activeFixturePids.delete(fixturePid);
+            }
+        }, 15_000);
+    });
 });
