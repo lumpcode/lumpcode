@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli-utils",
-  "version": "0.0.14",
+  "version": "0.0.15",
   "description": "Types, defineX helpers, and runtime utilities for Lumpcode lump configs and recipes",
   "keywords": [
     "lumpcode",
@@ -43,8 +43,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lumpcode/cli-types": "^0.0.14",
-    "@lumpcode/core": "^0.0.14",
+    "@lumpcode/cli-types": "^0.0.15",
+    "@lumpcode/core": "^0.0.15",
     "js-yaml": "^5.0.0"
   },
   "devDependencies": {
