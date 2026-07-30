@@ -174,6 +174,11 @@ export async function runLumpFromJsConfig(input: {
             return failure(session.pendingFailure);
         }
         if (!runLumpResult.success) {
+            if (runLumpResult.data.reason === 'workspaceTeardownFailed') {
+                logger.warn(
+                    'Workspace teardown failed after the lump finished; git commit/push usually already succeeded. Next preflight should reset the execution workspace.',
+                );
+            }
             return failure(toRunLumpMessageFailure(runLumpResult.data.message));
         }
 

@@ -29,4 +29,6 @@ export * from './TeardownFn';
 export * from './TeardownWorkspaceFn';
 export * from './ExtractSuccess';
 export * from './ExecFailureData';
+export * from './ExecuteStepsFailureData';
+export * from './ExecuteStepsFailureReason';
 export * from './AsyncFnSuccess';

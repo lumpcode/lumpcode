@@ -107,8 +107,7 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         }
     });
 
-    // T2 — skipped until execute-steps-teardown-on-failure implementation lands
-    it.skip('S2: timeout without continueOnError stops the walk; tree is dead', async () => {
+    it('S2: timeout without continueOnError stops the walk; tree is dead', async () => {
         const readyFile = join(projectRoot, 'ready-stop.json');
         const executionOrder: string[] = [];
         const events: string[] = [];
@@ -157,8 +156,7 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         }
     });
 
-    // T3 — skipped until execute-steps-teardown-on-failure implementation lands
-    it.skip('S3: abort + continueOnError still stops the walk; tree is dead', async () => {
+    it('S3: abort + continueOnError still stops the walk; tree is dead', async () => {
         const readyFile = join(projectRoot, 'ready-abort.json');
         const executionOrder: string[] = [];
         const events: string[] = [];
@@ -209,8 +207,7 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         }
     });
 
-    // T4 — skipped until execute-steps-teardown-on-failure implementation lands
-    it.skip('S4: already-aborted signal fails without orphans and ignores continueOnError', async () => {
+    it('S4: already-aborted signal fails without orphans and ignores continueOnError', async () => {
         const controller = new AbortController();
         controller.abort();
         const executionOrder: string[] = [];

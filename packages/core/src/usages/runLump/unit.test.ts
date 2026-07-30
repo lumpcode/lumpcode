@@ -16,8 +16,7 @@ function initTestGitRepo(projectRoot: string) {
     );
 }
 
-/** Skipped until execute-steps-teardown-on-failure implementation lands. */
-describe.skip('runLump failure reason preservation (R1/R2)', () => {
+describe('runLump failure reason preservation (R1/R2)', () => {
     let projectRoot: string;
 
     beforeEach(async () => {
