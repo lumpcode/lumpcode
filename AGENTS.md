@@ -23,6 +23,7 @@
 - File writes: use the temp `projectRoot`/`tmpDir`, not process `cwd`, so teardown removes them
 - TS transpile tests: assert `.lumpcode/.cache/transpile/` cache hits (`readCacheMeta` in `tsLumpFixtures.ts`) — Node 22 Vitest can natively import temp `.ts`, which false-greens `resolveImportable` tests before esbuild wiring; Vitest aliases `esbuild` to `src/testing/esbuildVitestShim.ts`
 - Not-yet-implemented utils: add index-barrel-exported stubs (throwing `not implemented`) plus the types tests import so tests compile and run red until implementation lands
+- Core process-tree unit tests share `packages/core/src/testing/processTreeTestHelpers.ts` (`probeAlive`, `waitForPidGone`, `waitForReadyFile`) — reuse across `killProcessTree` / `execBinary` / timeout-abort suites instead of duplicating wait helpers
 
 ### CLI docs and vocabulary
 
@@ -154,6 +155,7 @@
 - Manual `run`: no daemon PID gate — coordinates with running daemons via workspace locks only (`lockMode: 'fail'` vs daemon `wait`); dedicated `dedicatedRestoreBranch` `git switch` in handler `finally` runs after lock release (not serialized with daemon preflight)
 - `daemon-status` / `stop`: single scope only (global or one `--lumpName`); no list-all/stop-all — internal `listRunningProjectDaemons` used by `start` collision checks only
 - Default `stop` always SIGTERMs the daemon (cooperative abort when `meta.busy === true`); waits up to **30s** when busy / **5s** when idle; `--force` tree-kills daemon + descendants with `graceMs: 0`; no `daemonBusy` soft-fail
+- Foreground daemon arms native SIGINT/SIGTERM shutdown **before** the first `runTick` (so `stop` during that tick does not hang waiting for a second signal); test `waitForShutdownOverride` still runs after the first tick to avoid racing meta `busy` writes
 - `busy` toggled per `runLumpFromLumpName` in `try/finally` (not whole tick or discovery)
 - Global daemon: fails if any project daemon running. Per-lump: fails if global running, same lump running, or other per-lump running when `workspaceStrategy` ≠ `worktree`
 - `daemon-log`: follows by default; `--noFollow` prints and exits; `--lines` limits initial output
@@ -197,7 +199,7 @@
 - Git flow: canonical operator doc `GIT-FLOW.md` at repo root; `dev` integration branch; larger work on `feat/*`; version releases merge `dev` → `main` with annotated `v*` tag (optional `ver/X.Y.Z` stabilization branch from `dev` avoids freezing integration); rebase feature branches onto `dev` only — merge commits (not rebase) across the `dev`/`main` boundary
 - CI (`.github/workflows/build-cli.yml`): triggers on push/PR to `main` and `dev`; `unit-test` build order core → cli-types → cli-utils → recipes (their `dist/` is gitignored), each followed by `npm run test -w=...` (recipes included) → OS `build` matrix → aggregating `ci` job; E2E on ubuntu/macOS/windows including arm; isolated `HOME`/`USERPROFILE` per platform; both `main` and `dev` protected via repository rulesets requiring `ci` status check
 - E2E: `packages/apps/cli/src/e2e/` subprocess harness; rerun **`build:bundle` + `build:sea`** after bundle/SEA changes; mock agent via `e2e-mock-agent.cjs` script file (not `node -e`); `pushIntegrationBranch` needs full `writeE2eLumpFixture` (config-only writes wrong lump path)
-- E2E teardown: `stopDaemonSafely` should pass `--force` so teardown does not race daemon `meta.busy` mid-run; treat stale/invalid PID stop messages as already-stopped; `waitForDaemonIdle` polls meta `busy` before graceful-stop assertions
+- E2E teardown: `stopDaemonSafely` should pass `--force` so teardown does not race daemon `meta.busy` mid-run; treat stale/invalid PID stop messages as already-stopped; `waitForDaemonIdle` requires a busy→idle cycle (not merely current idle) before graceful-stop assertions — otherwise stop can race the first tick before shutdown is armed
 - `killProcessTree` (core; win32): `taskkill /T /F` can fail on SEA child trees ("operation not supported") — treat as success when the root PID is already gone (best-effort per PRD); `graceMs > 0` uses SIGTERM-then-SIGKILL on Unix
 - ncc emits CJS — use `lodash/camelCase` not `lodash-es`; `build:bundle` externalizes `esbuild`; SEA spawns esbuild sidecar via `execFile` (`esbuildPlatformBinaryRelativePath`: Windows `@esbuild/win32-x64/esbuild.exe`, Unix `bin/esbuild`)
 - **OSS**: Apache 2.0 at `lumpcode/lumpcode`; no feature gates or account required; ICLA/CLA Assistant before external contributions; publish order: core → cli-types → cli-utils → recipes → cli → optional `lumpcode` via `scripts/publish-npm.mjs`; release branches `ver/X.Y.Z`, annotated tags `vX.Y.Z` — tag push (`push: tags: ['v*']`) triggers Build CLI Binaries and the `release` job uploads binaries to a GitHub Release (`softprops/action-gh-release`); npm publish is separate

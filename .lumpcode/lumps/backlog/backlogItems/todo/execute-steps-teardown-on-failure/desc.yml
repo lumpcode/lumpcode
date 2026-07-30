@@ -5,5 +5,6 @@ task: >-
   cleanup is not skipped when a command fails or is cancelled. Follow-up to
   kill-spawned-command-on-timeout-abort (agent kill is separate).
 priority: 2
+manualReq: true
 dependsOn:
   - kill-spawned-command-on-timeout-abort
