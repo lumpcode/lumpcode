@@ -13,7 +13,6 @@ import {
     stubGitCommitMessage,
 } from './testHelpers';
 
-/** Skipped until execute-steps-teardown-on-failure implementation lands. */
 describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
     let projectRoot: string;
 
@@ -26,7 +25,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
-    it.skip('F1: teardownFn throws on success path — logged, git and workspace teardown still run', async () => {
+    it('F1: teardownFn throws on success path — logged, git and workspace teardown still run', async () => {
         const events: string[] = [];
         const errorCalls: string[] = [];
 
@@ -58,7 +57,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(errorCalls.some((message) => /teardown/i.test(message) && /boom/i.test(message))).toBe(true);
     });
 
-    it.skip('F2: teardownFn throws after step-walk failure — reason stays stepWalkFailed', async () => {
+    it('F2: teardownFn throws after step-walk failure — reason stays stepWalkFailed', async () => {
         const events: string[] = [];
         const errorCalls: string[] = [];
 
@@ -98,7 +97,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(errorCalls.some((message) => /teardown/i.test(message) && /boom/i.test(message))).toBe(true);
     });
 
-    it.skip('W1: success walk + failing workspace teardown → workspaceTeardownFailed after push', async () => {
+    it('W1: success walk + failing workspace teardown → workspaceTeardownFailed after push', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({
@@ -130,7 +129,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(events).toEqual(['teardownFn', 'gitAdd', 'gitCommit', 'gitPush', 'teardownWorkspaceFn']);
     });
 
-    it.skip('W2: step-walk failed then workspace teardown also fails — reason stays stepWalkFailed', async () => {
+    it('W2: step-walk failed then workspace teardown also fails — reason stays stepWalkFailed', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({
@@ -167,7 +166,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(events).not.toContain('gitPush');
     });
 
-    it.skip('W3: soft teardownFn error + failing workspace teardown → workspaceTeardownFailed', async () => {
+    it('W3: soft teardownFn error + failing workspace teardown → workspaceTeardownFailed', async () => {
         const events: string[] = [];
         const errorCalls: string[] = [];
 
@@ -202,7 +201,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(errorCalls.some((message) => /teardown/i.test(message) && /boom/i.test(message))).toBe(true);
     });
 
-    it.skip('G1: git add failure after successful walk still runs teardownWorkspaceFn', async () => {
+    it('G1: git add failure after successful walk still runs teardownWorkspaceFn', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({
@@ -248,7 +247,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(events).not.toContain('gitPush');
     });
 
-    it.skip('O1: single context success order — walk → teardownFn → git → push → workspace teardown', async () => {
+    it('O1: single context success order — walk → teardownFn → git → push → workspace teardown', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({
@@ -288,7 +287,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         ]);
     });
 
-    it.skip('O2: two contexts success order — per-context teardown+git, then push, then workspace teardown', async () => {
+    it('O2: two contexts success order — per-context teardown+git, then push, then workspace teardown', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({
@@ -346,7 +345,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         ]);
     });
 
-    it.skip('M1: first context OK, second walk fails — teardown both, git only first, no push', async () => {
+    it('M1: first context OK, second walk fails — teardown both, git only first, no push', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({

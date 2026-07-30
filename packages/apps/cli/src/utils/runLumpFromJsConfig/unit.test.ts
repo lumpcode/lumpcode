@@ -498,8 +498,7 @@ describe('runLumpFromJsConfig', () => {
         expect(core.runLump).toHaveBeenCalledOnce();
     });
 
-    // C1–C3 — skipped until execute-steps-teardown-on-failure implementation lands
-    it.skip('C1: warns when runLump fails with workspaceTeardownFailed', async () => {
+    it('C1: warns when runLump fails with workspaceTeardownFailed', async () => {
         const warnCalls: string[] = [];
         const logger = {
             ...noopLogger,
@@ -531,7 +530,7 @@ describe('runLumpFromJsConfig', () => {
         ).toBe(true);
     });
 
-    it.skip('C2: does not warn the workspace-teardown message on stepWalkFailed', async () => {
+    it('C2: does not warn the workspace-teardown message on stepWalkFailed', async () => {
         const warnCalls: string[] = [];
         const logger = {
             ...noopLogger,
@@ -563,7 +562,7 @@ describe('runLumpFromJsConfig', () => {
         ).toBe(false);
     });
 
-    it.skip('C3: failure without reason stays message Failure with no workspace-teardown warn', async () => {
+    it('C3: failure without reason stays message Failure with no workspace-teardown warn', async () => {
         const warnCalls: string[] = [];
         const logger = {
             ...noopLogger,

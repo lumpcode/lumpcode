@@ -567,8 +567,7 @@ describe('executeStepsForContextList dynamic steps', () => {
         expect(executionOrder).toEqual(['post:true', 'succeeded:false', 'dynamic:true']);
     });
 
-    // T1 — skipped until execute-steps-teardown-on-failure implementation lands
-    it.skip('stops the step walk when the command fails and continueOnError is not set', async () => {
+    it('stops the step walk when the command fails and continueOnError is not set', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({

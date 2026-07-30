@@ -3,6 +3,7 @@ import { execAsync } from '../execAsync';
 import { 
     ContextList,  
     ContextRunState,
+    ExecuteStepsFailureData,
     Failure,
     Logger,
     LumpVariables,
@@ -14,7 +15,6 @@ import {
 import {
     appendHistoryEntry,
     createConsoleLogger,
-    failure,
     formatExecFailureMessage,
     set,
     success,
@@ -121,248 +121,279 @@ export async function executeStepsForContextList<
 
     injectedGitAndWorkspaceFnsInput.workspacePath = workspacePath;
 
-    for (let i = 0; i < contextList.length; i++) {
-        const context = contextList[i];
+    let runFailure: Failure<ExecuteStepsFailureData> | undefined;
 
-        logger.info(
-            contextList.length > 1
-                ? `Running context "${context.name}" (${i + 1}/${contextList.length})`
-                : `Running context "${context.name}"`,
-        );
+    try {
+        for (let i = 0; i < contextList.length; i++) {
+            const context = contextList[i];
 
-        const setupResult = await setupFn({
-            contextList,
-            lumpVariables,
-            currentContextIndex: i,
-        });
+            logger.info(
+                contextList.length > 1
+                    ? `Running context "${context.name}" (${i + 1}/${contextList.length})`
+                    : `Running context "${context.name}"`,
+            );
 
-        const contextRunState = setupResult?.contextRunState || {};
+            const setupResult = await setupFn({
+                contextList,
+                lumpVariables,
+                currentContextIndex: i,
+            });
 
-        let stepWalkFailure: Failure<{ message: string }> | undefined;
+            const contextRunState = setupResult?.contextRunState || {};
 
-        async function walkAndExecuteSteps(
-            stepsToExec: Steps<V, SV>,
-            currStepIndex: number[],
-        ): Promise<void> {
-            for (let stepIndex = 0; stepIndex < stepsToExec.length; stepIndex++) {
-                if (stepWalkFailure) {
-                    return;
-                }
+            let stepWalkFailure: Failure<ExecuteStepsFailureData> | undefined;
 
-                const step = stepsToExec[stepIndex];
-                const nextCallHeadIndex = [...currStepIndex, stepIndex];
-                const compositeStepIndex: number | number[] =
-                    nextCallHeadIndex.length === 1 ? nextCallHeadIndex[0]! : nextCallHeadIndex;
+            async function walkAndExecuteSteps(
+                stepsToExec: Steps<V, SV>,
+                currStepIndex: number[],
+            ): Promise<void> {
+                for (let stepIndex = 0; stepIndex < stepsToExec.length; stepIndex++) {
+                    if (stepWalkFailure) {
+                        return;
+                    }
 
-                if (typeof step === 'function' || Array.isArray(step)) {
-                    let subSteps: Steps<V, SV> = [];
-                    if (typeof step === 'function') {
-                        subSteps = await step({
+                    const step = stepsToExec[stepIndex];
+                    const nextCallHeadIndex = [...currStepIndex, stepIndex];
+                    const compositeStepIndex: number | number[] =
+                        nextCallHeadIndex.length === 1 ? nextCallHeadIndex[0]! : nextCallHeadIndex;
+
+                    if (typeof step === 'function' || Array.isArray(step)) {
+                        let subSteps: Steps<V, SV> = [];
+                        if (typeof step === 'function') {
+                            subSteps = await step({
+                                context,
+                                stepIndex: compositeStepIndex,
+                                contextRunState,
+                                lumpVariables,
+                            });
+                        } else {
+                            subSteps = step;
+                        }
+                        await walkAndExecuteSteps(subSteps, nextCallHeadIndex);
+                        continue;
+                    }
+
+                    logger.verbose(`step ${JSON.stringify(step)}`);
+
+                    const {
+                        commandFn = () => null,
+                        stepVariables,
+                        promptFn,
+                        postCommandExecFn,
+                        continueOnError,
+                        timeoutMillis = 1000 * 60 * 30,
+                    } = step as Step<V, SV>;
+
+                    const prompt = promptFn
+                        ? await promptFn({
                             context,
                             stepIndex: compositeStepIndex,
                             contextRunState,
                             lumpVariables,
-                        });
-                    } else {
-                        subSteps = step;
-                    }
-                    await walkAndExecuteSteps(subSteps, nextCallHeadIndex);
-                    continue;
-                }
+                            stepVariables,
+                        } satisfies PromptFnInput<V, SV>)
+                        : '';
 
-                logger.verbose(`step ${JSON.stringify(step)}`);
-
-                const {
-                    commandFn = () => null,
-                    stepVariables,
-                    promptFn,
-                    postCommandExecFn,
-                    continueOnError,
-                    timeoutMillis = 1000 * 60 * 30,
-                } = step as Step<V, SV>;
-
-                const prompt = promptFn
-                    ? await promptFn({
+                    const command = await commandFn({
                         context,
+                        prompt,
                         stepIndex: compositeStepIndex,
                         contextRunState,
                         lumpVariables,
                         stepVariables,
-                    } satisfies PromptFnInput<V, SV>)
-                    : '';
-
-                const command = await commandFn({
-                    context,
-                    prompt,
-                    stepIndex: compositeStepIndex,
-                    contextRunState,
-                    lumpVariables,
-                    stepVariables,
-                    projectRoot,
-                    workspacePath,
-                });
-
-                let commandResult = '';
-                let commandSucceeded = true;
-
-                if (command != null) {
-                    const { executable, args, env } = command;
-
-                    logger.verbose(`command for prompt ${executable} ${args.join(' ')}`);
-                    if (env != null) {
-                        logger.verbose(`command env overrides ${JSON.stringify(env)}`);
-                    }
-                    logger.verbose(`workspacePath ${workspacePath}`);
-
-                    const commandExec = await execBinary({
-                        binaryPath: executable,
-                        args,
-                        timeoutMillis,
-                        stdio: ['inherit', 'pipe', 'pipe'],
-                        cwd: workspacePath,
-                        signal,
-                        ...(env != null ? { env: { ...process.env, ...env } } : {}),
+                        projectRoot,
+                        workspacePath,
                     });
-                    logger.verbose(`commandExec ${JSON.stringify(commandExec)}`);
 
-                    if (!commandExec.success) {
-                        const aborted = commandExec.data.reason === 'aborted';
-                        if (aborted || !continueOnError) {
-                            stepWalkFailure = set(
-                                commandExec,
-                                ['data', 'message'],
-                                `Failed to run the command: ${commandExec.data.message}. Command: ${executable} ${args.join(' ')}`
-                            );
-                            return;
+                    let commandResult = '';
+                    let commandSucceeded = true;
+
+                    if (command != null) {
+                        const { executable, args, env } = command;
+
+                        logger.verbose(`command for prompt ${executable} ${args.join(' ')}`);
+                        if (env != null) {
+                            logger.verbose(`command env overrides ${JSON.stringify(env)}`);
+                        }
+                        logger.verbose(`workspacePath ${workspacePath}`);
+
+                        const commandExec = await execBinary({
+                            binaryPath: executable,
+                            args,
+                            timeoutMillis,
+                            stdio: ['inherit', 'pipe', 'pipe'],
+                            cwd: workspacePath,
+                            signal,
+                            ...(env != null ? { env: { ...process.env, ...env } } : {}),
+                        });
+                        logger.verbose(`commandExec ${JSON.stringify(commandExec)}`);
+
+                        if (!commandExec.success) {
+                            const aborted = commandExec.data.reason === 'aborted';
+                            if (aborted || !continueOnError) {
+                                stepWalkFailure = {
+                                    success: false,
+                                    data: {
+                                        message: `Failed to run the command: ${commandExec.data.message}. Command: ${executable} ${args.join(' ')}`,
+                                        reason: 'stepWalkFailed',
+                                    },
+                                };
+                                return;
+                            }
+
+                            commandSucceeded = false;
+                            commandResult = (
+                                commandExec.data.stdout
+                                || commandExec.data.stderr
+                                || commandExec.data.message
+                                || ''
+                            ).toString();
+                            logger.verbose(`commandResult ${commandResult}`);
+                        } else {
+                            commandResult = (commandExec.data.stdout || commandExec.data.stderr || '').toString();
+                            logger.verbose(`commandResult ${commandResult}`);
                         }
 
-                        commandSucceeded = false;
-                        commandResult = (
-                            commandExec.data.stdout
-                            || commandExec.data.stderr
-                            || commandExec.data.message
-                            || ''
-                        ).toString();
-                        logger.verbose(`commandResult ${commandResult}`);
-                    } else {
-                        commandResult = (commandExec.data.stdout || commandExec.data.stderr || '').toString();
-                        logger.verbose(`commandResult ${commandResult}`);
+                        if (commandSucceeded) {
+                            const gitStatusAfterCommand = await execAsync(`git status`, { cwd: workspacePath });
+                            logger.verbose(`gitStatusCommand ${JSON.stringify(gitStatusAfterCommand.data)}`);
+                        }
                     }
 
-                    if (commandSucceeded) {
-                        const gitStatusAfterCommand = await execAsync(`git status`, { cwd: workspacePath });
-                        logger.verbose(`gitStatusCommand ${JSON.stringify(gitStatusAfterCommand.data)}`);
+                    const postCommandExecFnInput = {
+                        commandResult,
+                        commandSucceeded,
+                        context,
+                        prompt,
+                        stepIndex: compositeStepIndex,
+                        contextRunState,
+                        lumpVariables,
+                        stepVariables,
+                        projectRoot,
+                    };
+                    logger.verbose(`context is ${JSON.stringify(context)}`);
+                    const keepHistoryFilePath = getKeepHistoryFilePathFn(context) || '';
+                    logger.verbose(`keepHistoryFilePath ${keepHistoryFilePath}`);
+                    if (!!command && keepHistoryFilePath.length > 0) {
+                        const appendResult = await appendHistoryEntry({
+                            filePath: keepHistoryFilePath,
+                            entry: postCommandExecFnInput,
+                        });
+                        if (!appendResult.success) {
+                            // TODO: sanitize history appending to avoid this warning for certain commands outputs
+                            logger.warn(
+                                `Failed to append history entry to ${keepHistoryFilePath}: ${appendResult.data}`,
+                            );
+                        }
                     }
-                }
 
-                const postCommandExecFnInput = {
-                    commandResult,
-                    commandSucceeded,
-                    context,
-                    prompt,
-                    stepIndex: compositeStepIndex,
-                    contextRunState,
-                    lumpVariables,
-                    stepVariables,
-                    projectRoot,
-                };
-                logger.verbose(`context is ${JSON.stringify(context)}`);
-                const keepHistoryFilePath = getKeepHistoryFilePathFn(context) || '';
-                logger.verbose(`keepHistoryFilePath ${keepHistoryFilePath}`);
-                if (!!command && keepHistoryFilePath.length > 0) {
-                    const appendResult = await appendHistoryEntry({
-                        filePath: keepHistoryFilePath,
-                        entry: postCommandExecFnInput,
-                    });
-                    if (!appendResult.success) {
-                        // TODO: sanitize history appending to avoid this warning for certain commands outputs
-                        logger.warn(
-                            `Failed to append history entry to ${keepHistoryFilePath}: ${appendResult.data}`,
-                        );
-                    }
-                }
-
-                if (postCommandExecFn) {
-                    const returnedSteps = await postCommandExecFn(postCommandExecFnInput);
-                    if (returnedSteps != null && returnedSteps.length > 0) {
-                        await walkAndExecuteSteps(returnedSteps, nextCallHeadIndex);
+                    if (postCommandExecFn) {
+                        const returnedSteps = await postCommandExecFn(postCommandExecFnInput);
+                        if (returnedSteps != null && returnedSteps.length > 0) {
+                            await walkAndExecuteSteps(returnedSteps, nextCallHeadIndex);
+                        }
                     }
                 }
             }
+
+            try {
+                await walkAndExecuteSteps(steps, []);
+            } finally {
+                try {
+                    await teardownFn({
+                        lumpVariables,
+                        contextList,
+                        currentContextIndex: i,
+                        contextRunState,
+                    });
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : String(error);
+                    logger.error(`Failed to run teardownFn: ${message}`);
+                }
+            }
+
+            if (stepWalkFailure) {
+                runFailure = stepWalkFailure;
+                break;
+            }
+
+            const perContextInput = {
+                ...injectedGitAndWorkspaceFnsInput,
+                context,
+            };
+
+            const gitAddCommand = await execAsync(gitAddCommandFn(perContextInput), { cwd: workspacePath });
+
+            logger.verbose(`gitAddCommand ${JSON.stringify(gitAddCommand)}`);
+
+            if (!gitAddCommand.success) {
+                runFailure = {
+                    success: false,
+                    data: {
+                        message: `Failed to add the changes for context ${context.name}: ${gitAddCommand.data.message}`,
+                    },
+                };
+                break;
+            }
+
+            const commitMessage = gitCommitMessageFn({ context, lumpVariables, baseBranch });
+
+            const commitCommand = await execAsync(gitCommitCommandFn({
+                ...perContextInput,
+                commitMessage,
+            }), { cwd: workspacePath });
+
+            logger.verbose(`commitCommand ${JSON.stringify(commitCommand)}`);
+
+            if (!commitCommand.success) {
+                logger.error(formatExecFailureMessage({
+                    label: `git commit for context ${context.name}`,
+                    failure: commitCommand,
+                }));
+            }
         }
 
-        await walkAndExecuteSteps(steps, []);
+        if (!runFailure) {
+            const pushCommand = await execAsync(gitPushCommandFn(injectedGitAndWorkspaceFnsInput), { cwd: workspacePath });
 
-        if (stepWalkFailure) {
-            return stepWalkFailure;
+            logger.verbose(`pushCommand ${JSON.stringify(pushCommand)}`);
+
+            if (!pushCommand.success) {
+                logger.error(formatExecFailureMessage({
+                    label: `git push on branch ${branchName}`,
+                    failure: pushCommand,
+                }));
+            }
         }
+    } finally {
+        const teardownWorkspaceCommand = await teardownWorkspaceFn(injectedGitAndWorkspaceFnsInput);
 
-        await teardownFn({
-            lumpVariables,
-            contextList,
-            currentContextIndex: i,
-            contextRunState,
-        });
+        logger.verbose(`teardownWorkspaceCommand ${teardownWorkspaceCommand}`);
 
-        const perContextInput = {
-            ...injectedGitAndWorkspaceFnsInput,
-            context,
-        };
-
-        const gitAddCommand = await execAsync(gitAddCommandFn(perContextInput), { cwd: workspacePath });
-
-        logger.verbose(`gitAddCommand ${JSON.stringify(gitAddCommand)}`);
-
-        if (!gitAddCommand.success) {
-            return set(
-                gitAddCommand,
-                ['data', 'message'],
-                `Failed to add the changes for context ${context.name}: ${gitAddCommand.data.message}`
-            );
-        }
-
-        const commitMessage = gitCommitMessageFn({ context, lumpVariables, baseBranch });
-
-        const commitCommand = await execAsync(gitCommitCommandFn({
-            ...perContextInput,
-            commitMessage,
-        }), { cwd: workspacePath });
-
-        logger.verbose(`commitCommand ${JSON.stringify(commitCommand)}`);
-
-        if (!commitCommand.success) {
-            logger.error(formatExecFailureMessage({
-                label: `git commit for context ${context.name}`,
-                failure: commitCommand,
-            }));
+        if (teardownWorkspaceCommand) {
+            const teardownWorkspaceCommandExec = await execAsync(teardownWorkspaceCommand, { cwd: workspacePath });
+            logger.verbose(`teardownWorkspaceCommandExec ${JSON.stringify(teardownWorkspaceCommandExec)}`);
+            if (!teardownWorkspaceCommandExec.success) {
+                if (runFailure) {
+                    logger.error(formatExecFailureMessage({
+                        label: 'teardown workspace',
+                        failure: teardownWorkspaceCommandExec,
+                    }));
+                } else {
+                    runFailure = {
+                        success: false,
+                        data: {
+                            message: `Failed to teardown the workspace: ${teardownWorkspaceCommandExec.data.message}`,
+                            reason: 'workspaceTeardownFailed',
+                        },
+                    };
+                }
+            }
         }
     }
 
-    const pushCommand = await execAsync(gitPushCommandFn(injectedGitAndWorkspaceFnsInput), { cwd: workspacePath });
-
-    logger.verbose(`pushCommand ${JSON.stringify(pushCommand)}`);
-
-    if (!pushCommand.success) {
-        logger.error(formatExecFailureMessage({
-            label: `git push on branch ${branchName}`,
-            failure: pushCommand,
-        }));
-    }   
-
-    const teardownWorkspaceCommand = await teardownWorkspaceFn(injectedGitAndWorkspaceFnsInput);
-
-    logger.verbose(`teardownWorkspaceCommand ${teardownWorkspaceCommand}`);
-
-    if (teardownWorkspaceCommand) {
-        const teardownWorkspaceCommandExec = await execAsync(teardownWorkspaceCommand, { cwd: workspacePath });
-        logger.verbose(`teardownWorkspaceCommandExec ${JSON.stringify(teardownWorkspaceCommandExec)}`);
-        if (!teardownWorkspaceCommandExec.success) {
-            return set(
-                teardownWorkspaceCommandExec, 
-                ['data', 'message'], 
-                `Failed to teardown the workspace: ${teardownWorkspaceCommandExec.data.message}`
-            );
-        }
+    if (runFailure) {
+        return runFailure;
     }
 
     return success({

@@ -58,6 +58,8 @@ dedicated mode:
 
 How runs coordinate over these paths (locks, fail-fast vs wait, worktree parallelism): [Concurrency and locks](#concurrency-and-locks).
 
+Failed or aborted runs still tear down the branch workspace (`teardownFn` / `teardownWorkspaceFn`) after a successful workspace setup. If workspace teardown itself fails after the walk finished, commit/push usually already succeeded; the next preflight resets the execution workspace.
+
 Three subcommand names include “status” (`daemon-status`, `lump-status`, `context-status`) — they check different things; see the comparison table in [commands.md](./commands.md#three-commands-that-mention-status).
 
 ## Branch resolution
