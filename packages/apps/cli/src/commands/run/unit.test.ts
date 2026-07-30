@@ -240,3 +240,70 @@ describe('run command — multi discovery branches', () => {
         expect(gitCurrentBranch(projectRoot)).toBe('main');
     });
 });
+
+/**
+ * Target abort wiring for kill-spawned-command-on-timeout-abort.
+ * Skipped until run owns an AbortController and passes signal into runLumpFromLumpName.
+ */
+describe('run command abort signal wiring (W2)', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-signal-'));
+        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-signal-remote-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-signal-global-'));
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+
+        initBareRemoteAndCheckout(projectRoot, remoteDir);
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName: 'run-signal-test' }),
+            'utf-8',
+        );
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+        });
+        await writeMinimalLump(projectRoot, 'signalLump');
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(remoteDir, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        vi.restoreAllMocks();
+    });
+
+    it('W2: run handler passes a live AbortSignal into runLumpFromLumpName', async () => {
+        const spy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(
+            core.success({
+                skipped: false,
+                result: {
+                    branchName: 'lump/signalLump/ctx',
+                    contextNames: ['ctx'],
+                    contextRunStateList: [],
+                },
+            }) as Awaited<ReturnType<typeof runLumpFromLumpNameModule.runLumpFromLumpName>>,
+        );
+
+        const handle = command.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+        const result = await handle({
+            options: {},
+            arguments: { lumpName: 'signalLump' },
+        });
+
+        expect(result.success).toBe(true);
+        expect(spy).toHaveBeenCalled();
+        const callArg = spy.mock.calls[0]?.[0] as { signal?: AbortSignal };
+        expect(callArg.signal).toBeInstanceOf(AbortSignal);
+        expect(callArg.signal?.aborted).toBe(false);
+    });
+});

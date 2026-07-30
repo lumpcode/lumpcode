@@ -60,6 +60,8 @@ export async function runLumpFromJsConfig(input: {
     localConfig?: LocalConfig;
     /** Held execution workspace path lock from dedicated discovery preflight; adopted in setup hooks. */
     releaseLock?: ReleaseWorkspacePathLockFn;
+    /** When aborted, in-flight commands are killed and the lump run stops. */
+    signal?: AbortSignal;
 }): Promise<Success<RunLumpFromJsConfigSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         jsConfig,
@@ -72,6 +74,7 @@ export async function runLumpFromJsConfig(input: {
         logger,
         localConfig: providedLocalConfig,
         releaseLock,
+        signal,
     } = input;
 
     const session = createWorkspaceLockSession();
@@ -139,6 +142,7 @@ export async function runLumpFromJsConfig(input: {
 
         const runLumpInput = {
             ...runLumpInputResult.data,
+            signal,
             setupWorkspaceFn: withWorkspaceLockHooks({
                 setupWorkspaceFn: runLumpInputResult.data.setupWorkspaceFn!,
                 session,
@@ -170,6 +174,11 @@ export async function runLumpFromJsConfig(input: {
             return failure(session.pendingFailure);
         }
         if (!runLumpResult.success) {
+            if (runLumpResult.data.reason === 'workspaceTeardownFailed') {
+                logger.warn(
+                    'Workspace teardown failed after the lump finished; git commit/push usually already succeeded. Next preflight should reset the execution workspace.',
+                );
+            }
             return failure(toRunLumpMessageFailure(runLumpResult.data.message));
         }
 

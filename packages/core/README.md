@@ -107,7 +107,7 @@ An array of `Step` objects that are executed sequentially for each context. Each
 | `commandFn`         | `CommandFn`                     | Required. Returns `{ executable, args, env? }` to run a subprocess, or `null` / `undefined` to skip execution while still running `postCommandExecFn`. Optional `env` merges over the parent process environment for that command only. |
 | `stepVariables`     | `StepVariables | undefined`     | Optional extra variables passed into `promptFn`, `commandFn`, and `postCommandExecFn`.                                                                                                                                                  |
 | `postCommandExecFn` | `PostCommandExecFn | undefined` | Optional hook called after the command finishes, receiving the command output. May return `void` / `undefined` / `[]` (no-op) or a `Steps` array to run nested follow-on steps under this leaf. |
-| `timeoutMillis`     | `number | undefined`            | Maximum time in milliseconds allowed for the command execution. Defaults to `1800000` (30 minutes).                                                                                                                                     |
+| `timeoutMillis`     | `number | undefined`            | Maximum time in milliseconds allowed for the command execution. On expiry the process tree is terminated and the step fails with a timeout. Defaults to `1800000` (30 minutes).                                                         |
 
 
 Elements in the array can also be **functions** that return more `Steps` at runtime, enabling dynamic and recursive prompt chains. See [Recursive Steps](#recursive-steps) for details.
@@ -178,6 +178,12 @@ How many contexts to include in a single branch. For example, `1` means each con
 Optional operational logger. CLI callers should pass an explicit logger from `createCliLogger` (after OR-merging lump `verbose` with `--verbose`). Library callers omit it for quiet defaults (info/warn/error only, no verbose detail).
 
 See [Logging](#logging) below.
+
+#### `signal`
+
+**Type:** `AbortSignal` -- **Default:** none
+
+When aborted, the engine kills the in-flight command process tree and stops the step walk (even if the step has `continueOnError: true`). Step `timeoutMillis` expiry also terminates the process tree before failing the step.
 
 #### `getKeepHistoryFilePathFn`
 

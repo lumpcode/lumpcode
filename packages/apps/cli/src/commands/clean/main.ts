@@ -15,6 +15,7 @@ import { getExecutionWorkspacePath } from '../../utils/getExecutionWorkspacePath
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import { getProjectName } from '../../utils/getProjectName';
 import { lumpWorktreePath } from '../../utils/getLumpWorktreePath';
+import { listRemoteHeadBranches } from '../../utils/listRemoteHeadBranches';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpBranchGlob } from '../../utils/lumpBranchGlob';
 import { readLocalConfig } from '../../utils/readLocalConfig';
@@ -40,39 +41,8 @@ export interface Injections {
     globalConfigFolderPath?: string;
 }
 
-function parseRefsFromLsRemote(stdout: string, refsPrefix: string, namePrefix: string): string[] {
-    const lines = stdout.trim().split("\n").filter(Boolean);
-    const seen = new Set<string>();
-    const names: string[] = [];
-
-    for (const line of lines) {
-        const parts = line.trim().split(/\s+/);
-        if (parts.length < 2) continue;
-
-        const ref = parts[1]!;
-        if (!ref.startsWith(refsPrefix)) continue;
-
-        const shortName = ref.slice(refsPrefix.length);
-        if (!shortName.startsWith(namePrefix) || seen.has(shortName)) continue;
-
-        seen.add(shortName);
-        names.push(shortName);
-    }
-
-    return names;
-}
-
 function parseLocalRefs(stdout: string): string[] {
     return stdout.trim().split("\n").filter(Boolean).map(s => s.trim());
-}
-
-async function discoverRemoteBranches(projectRoot: string, branchPattern: string): Promise<string[]> {
-    const result = await execAsync(
-        `git ls-remote --heads origin ${shellSingleQuote(`${REFS_HEADS_PREFIX}${branchPattern}`)}`,
-        { cwd: projectRoot },
-    );
-    if (!result.success) return [];
-    return parseRefsFromLsRemote(result.data.stdout, REFS_HEADS_PREFIX, LUMP_BRANCH_PREFIX);
 }
 
 async function discoverLocalBranches(projectRoot: string, branchPattern: string): Promise<string[]> {
@@ -91,7 +61,11 @@ interface DiscoveredRefs {
 
 async function discoverByGlob(projectRoot: string, branchPattern: string): Promise<DiscoveredRefs> {
     const [remoteBranches, localBranches] = await Promise.all([
-        discoverRemoteBranches(projectRoot, branchPattern),
+        listRemoteHeadBranches({
+            cwd: projectRoot,
+            branchGlob: branchPattern,
+            postFilterBranchShortName: (shortName) => shortName.startsWith(LUMP_BRANCH_PREFIX),
+        }),
         discoverLocalBranches(projectRoot, branchPattern),
     ]);
     return { remoteBranches, localBranches };

@@ -138,4 +138,33 @@ describe('runLumpFromLumpName', () => {
         expect(await countLockFiles()).toBe(0);
         expect(core.runLump).not.toHaveBeenCalled();
     });
+
+    /**
+     * Target abort wiring for kill-spawned-command-on-timeout-abort.
+     * Skipped until runLumpFromLumpName forwards AbortSignal into core.runLump.
+     */
+    describe('abort signal wiring (W1)', () => {
+        it('W1: runLumpFromLumpName passes signal to runLump', async () => {
+            await writeMinimalLump(projectRoot, 'my-lump');
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'lump/my-lump/ctx',
+                        contextNames: ['ctx'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromLumpName();
+
+            expect(result.success).toBe(true);
+            expect(core.runLump).toHaveBeenCalled();
+            const runInput = vi.mocked(core.runLump).mock.calls[0]?.[0] as {
+                signal?: AbortSignal;
+            };
+            expect(runInput.signal).toBeInstanceOf(AbortSignal);
+            expect(runInput.signal?.aborted).toBe(false);
+        });
+    });
 });

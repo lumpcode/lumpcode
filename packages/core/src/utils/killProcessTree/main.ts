@@ -1,12 +1,17 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
-import { failure, success, type Failure, type Success } from '@lumpcode/core';
-
+import type { Failure, Success } from '../../types';
+import { failure } from '../failure';
 import { isProcessAlive } from '../isProcessAlive';
 import { nodeErrnoCode } from '../nodeErrnoCode';
+import { success } from '../success';
 
 const execFileAsync = promisify(execFile);
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 async function listUnixProcessTreePids(rootPid: number): Promise<number[]> {
     const { stdout } = await execFileAsync('ps', ['-eo', 'pid=,ppid=']);
@@ -40,9 +45,9 @@ async function listUnixProcessTreePids(rootPid: number): Promise<number[]> {
     return ordered;
 }
 
-function killPidSigkill(pid: number): void {
+function killPid(pid: number, signal: NodeJS.Signals): void {
     try {
-        process.kill(pid, 'SIGKILL');
+        process.kill(pid, signal);
     } catch (error: unknown) {
         const code = nodeErrnoCode(error);
         if (code !== 'ESRCH') {
@@ -51,10 +56,31 @@ function killPidSigkill(pid: number): void {
     }
 }
 
-async function killUnixProcessTree(rootPid: number): Promise<void> {
+async function killUnixProcessTreeImmediate(rootPid: number): Promise<void> {
     const pids = await listUnixProcessTreePids(rootPid);
     for (let index = pids.length - 1; index >= 0; index -= 1) {
-        killPidSigkill(pids[index]!);
+        killPid(pids[index]!, 'SIGKILL');
+    }
+}
+
+async function killUnixProcessTreeWithGrace(rootPid: number, graceMs: number): Promise<void> {
+    const pids = await listUnixProcessTreePids(rootPid);
+    for (let index = pids.length - 1; index >= 0; index -= 1) {
+        killPid(pids[index]!, 'SIGTERM');
+    }
+
+    const deadline = Date.now() + graceMs;
+    while (Date.now() < deadline) {
+        const anyAlive = pids.some((pid) => isProcessAlive(pid, { onProbeError: 'dead' }));
+        if (!anyAlive) {
+            return;
+        }
+        await sleep(25);
+    }
+
+    const remaining = await listUnixProcessTreePids(rootPid);
+    for (let index = remaining.length - 1; index >= 0; index -= 1) {
+        killPid(remaining[index]!, 'SIGKILL');
     }
 }
 
@@ -81,10 +107,16 @@ async function killWindowsProcessTree(rootPid: number): Promise<void> {
     }
 }
 
+/**
+ * Kill a process and its descendants.
+ * `graceMs` default 0 → immediate SIGKILL / taskkill /T /F.
+ * When `graceMs > 0` (Unix), SIGTERM first, then SIGKILL after the grace window.
+ */
 export async function killProcessTree(input: {
     pid: number;
+    graceMs?: number;
 }): Promise<Success<void> | Failure<string>> {
-    const { pid } = input;
+    const { pid, graceMs = 0 } = input;
     if (!Number.isInteger(pid) || pid <= 0) {
         return failure(`Invalid pid: ${pid}`);
     }
@@ -92,8 +124,10 @@ export async function killProcessTree(input: {
     try {
         if (process.platform === 'win32') {
             await killWindowsProcessTree(pid);
+        } else if (graceMs > 0) {
+            await killUnixProcessTreeWithGrace(pid, graceMs);
         } else {
-            await killUnixProcessTree(pid);
+            await killUnixProcessTreeImmediate(pid);
         }
         return success(undefined);
     } catch (error) {

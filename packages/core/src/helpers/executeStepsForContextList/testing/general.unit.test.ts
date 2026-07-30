@@ -3,32 +3,21 @@ import { mkdtemp, rm, readFile, access, writeFile, mkdir } from 'node:fs/promise
 import { writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
-import { execSync } from 'node:child_process';
 import { load as loadYaml } from 'js-yaml';
 
-import type { BranchFn, CommandFn, Context, Logger, SetupFn, Steps } from '../../types';
-import { executeStepsForContextList } from './main';
-
-const stubBranchFn: BranchFn = async () => 'lump/test/ctx';
-const stubGitAdd = () => 'echo git-add';
-const stubGitCommit = () => 'echo git-commit';
-const stubGitPush = () => 'echo git-push';
-const stubGitCommitMessage = () => 'LUMP:ctx';
-const echoCommandFn: CommandFn = () => ({ executable: 'echo', args: ['ok'] });
-
-function initTestGitRepo(projectRoot: string) {
-    execSync(
-        'git init && git config user.email "test@test.com" && git config user.name "Test" && git commit --allow-empty -m "init"',
-        { cwd: projectRoot, stdio: 'pipe' },
-    );
-}
-
-function makeSteps(prompts: string[]): Steps {
-    return prompts.map((promptTemplate) => ({
-        promptFn: () => promptTemplate,
-        commandFn: echoCommandFn,
-    }));
-}
+import type { Context, Logger, SetupFn, Steps } from '../../../types';
+import { executeStepsForContextList } from '../main';
+import {
+    echoCommandFn,
+    initTestGitRepo,
+    makeSteps,
+    recordingTeardownAndGit,
+    stubBranchFn,
+    stubGitAdd,
+    stubGitCommit,
+    stubGitCommitMessage,
+    stubGitPush,
+} from './testHelpers';
 
 async function runWithHistory({
     projectRoot,
@@ -579,14 +568,14 @@ describe('executeStepsForContextList dynamic steps', () => {
     });
 
     it('stops the step walk when the command fails and continueOnError is not set', async () => {
+        const events: string[] = [];
+
         const result = await executeStepsForContextList({
             baseBranch: 'main',
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            ...recordingTeardownAndGit(events),
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [{
@@ -599,13 +588,16 @@ describe('executeStepsForContextList dynamic steps', () => {
                 commandFn: () => ({ executable: 'echo', args: ['never reached'] }),
             }],
             setupFn: async () => ({ contextRunState: {} }),
-            teardownFn: async () => undefined,
             setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
-            teardownWorkspaceFn: async () => '',
             getKeepHistoryFilePathFn: () => undefined,
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.message).toMatch(/Failed to run the command/i);
+            expect((result.data as { reason?: string }).reason).toBe('stepWalkFailed');
+        }
+        expect(events).toEqual(['teardownFn', 'teardownWorkspaceFn']);
     });
 
     it('does nothing when a dynamic steps function returns an empty array', async () => {

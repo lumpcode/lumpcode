@@ -1,0 +1,9 @@
+name: listRemoteHeadBranches
+task: >-
+  Extract repeated `git ls-remote --heads origin` invocation plus stdout parsing
+  (split ref lines, strip `refs/heads/`, filter by branch prefix, dedupe) into
+  util `listRemoteHeadBranches`; refactor `commands/clean/main.ts`
+  (`parseRefsFromLsRemote`, `discoverRemoteBranches`) and
+  `utils/countOpenLumpBranches/main.ts` (inline parse loop).
+priority: 1
+completedAt: '2026-07-27T08:09:39.752Z'

@@ -88,6 +88,7 @@ export default defineConfig({
     ],
     keepHistory: true,
     verbose: true,
+    disabled: true,
     numberOfContextsPerBranch: 3,
     maximumNumberOfConcurrentBranches: 2,
 });

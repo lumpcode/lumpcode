@@ -312,11 +312,11 @@ Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | 
 
 When the daemon is **idle** (meta has no `busy` flag, or `busy` is false), sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID and meta files on success.
 
-When the daemon is **running a lump** (`meta.busy === true`), default stop **does not signal** the process. It exits non-zero with a message that the daemon is busy and to wait for the run to finish or use `lumpcode stop --force`. With **`--json`**, the failure includes `data.code: "daemonBusy"`. PID and meta files are left in place. If the daemon crashed with stale `busy: true` in meta, use `--force` to recover.
+When the daemon is **running a lump** (`meta.busy === true`), default stop still sends **SIGTERM** so the daemon can cooperatively abort the in-flight lump (kill the agent process tree, release workspace locks, then exit). It waits up to **30 seconds** for exit, then deletes PID and meta on success. If the wait expires, stop fails non-zero and leaves the PID file in place. Use **`--force`** when cooperative cancel is stuck.
 
-**`lumpcode stop --force`** skips the busy check, tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. This is **best-effort**: agent processes that detached from the daemon process tree may survive. A force-killed daemon may leave a workspace lock behind; it is removed automatically on the next acquire ([concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
+**`lumpcode stop --force`** immediately tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. This is **best-effort**: agent processes that detached from the daemon process tree may survive. A force-killed daemon may leave a workspace lock behind; it is removed automatically on the next acquire ([concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
 
-**Fails if:** No PID file, invalid PID, cannot signal process, daemon is busy (default stop only), or process does not exit within the deadline.
+**Fails if:** No PID file, invalid PID, cannot signal process, or process does not exit within the deadline.
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon).
 

@@ -1,14 +1,15 @@
 import * as fs from 'node:fs/promises';
 import * as z from 'zod';
 
-import { failure, success } from '@lumpcode/core';
-
-import { isProcessAlive } from '../../utils/isProcessAlive';
-import { nodeErrnoCode } from '../../utils/nodeErrnoCode';
+import { failure, isProcessAlive, killProcessTree, nodeErrnoCode, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { killProcessTree, pollUntil, readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
+import { pollUntil, readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
+
+const IDLE_STOP_WAIT_MS = 5000;
+const BUSY_STOP_WAIT_MS = 30_000;
+const FORCE_STOP_WAIT_MS = 5000;
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -69,25 +70,27 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     const pid = pidAlive.pid;
-    const pollDead = () =>
-        pollUntil({ timeoutMs: 5000, intervalMs: 50, poll: () => (!isProcessAlive(pid, { onProbeError: 'dead' }) ? true : undefined) });
-    const unlinkArtifacts = async () => { await fs.unlink(pidFilePath).catch(() => {}); await fs.unlink(metaFilePath).catch(() => {}); };
+    const unlinkArtifacts = async () => {
+        await fs.unlink(pidFilePath).catch(() => {});
+        await fs.unlink(metaFilePath).catch(() => {});
+    };
 
     const metaResult = await readDaemonMeta(metaFilePath);
     if (!metaResult.success) {
         return failure({ messages: [metaResult.data] });
     }
-    if (!force && metaResult.data.busy === true) {
-        return failure({
-            messages: [
-                'Daemon is busy running a lump; wait for it to finish or run `lumpcode stop --force`.',
-            ],
-            data: { code: 'daemonBusy' as const },
+    const busy = metaResult.data.busy === true;
+    const waitMs = force ? FORCE_STOP_WAIT_MS : busy ? BUSY_STOP_WAIT_MS : IDLE_STOP_WAIT_MS;
+    const waitSeconds = Math.round(waitMs / 1000);
+    const pollDead = () =>
+        pollUntil({
+            timeoutMs: waitMs,
+            intervalMs: 50,
+            poll: () => (!isProcessAlive(pid, { onProbeError: 'dead' }) ? true : undefined),
         });
-    }
 
     if (force) {
-        const killResult = await killProcessTree({ pid });
+        const killResult = await killProcessTree({ pid, graceMs: 0 });
         if (!killResult.success) {
             return failure({ messages: [killResult.data] });
         }
@@ -103,7 +106,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
         return failure({
             messages: [
-                `Force-killed pid ${pid} but it did not exit within 5s. PID file left at ${pidFilePath}.`,
+                `Force-killed pid ${pid} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`,
             ],
         });
     }
@@ -137,7 +140,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
     return failure({
         messages: [
-            `Sent SIGTERM to pid ${pid} but it did not exit within 5s. PID file left at ${pidFilePath}.`,
+            `Sent SIGTERM to pid ${pid} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`,
         ],
     });
 };
@@ -146,6 +149,6 @@ export const command = {
     handlerMaker,
     name: 'stop',
     description:
-        'Stop the background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--lumpName` to stop a per-lump daemon. Pass `--force` when a lump run is active.',
+        'Stop the background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--lumpName` to stop a per-lump daemon. Pass `--force` for immediate process-tree kill.',
     inputSchema,
 } satisfies Command;

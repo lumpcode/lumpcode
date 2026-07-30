@@ -14,6 +14,7 @@ export default {
   ],
   verbose: true,
   history: true,
+  disabled: true,
   prompt:
     'What is this project about? Read @{README} (and any other obvious project docs if helpful). Write a quick overview in a new file at the project root called OVERVIEW.md.',
 };

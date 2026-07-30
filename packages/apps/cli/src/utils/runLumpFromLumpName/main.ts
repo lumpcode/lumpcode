@@ -46,6 +46,8 @@ export async function runLumpFromLumpName(input: {
     effectiveDiscoveryBranch?: string;
     /** Raw CLI `--discoveryBranch` for shared-mode warn-and-ignore. */
     discoveryBranchOpt?: string;
+    /** When aborted, in-flight commands are killed and the lump run stops. */
+    signal?: AbortSignal;
 }): Promise<Success<RunLumpFromLumpNameSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         lumpName,
@@ -58,7 +60,9 @@ export async function runLumpFromLumpName(input: {
         localConfig: providedLocalConfig,
         effectiveDiscoveryBranch: providedDiscoveryBranch,
         discoveryBranchOpt,
+        signal: providedSignal,
     } = input;
+    const signal = providedSignal ?? new AbortController().signal;
 
     let localConfig: LocalConfig;
     if (providedLocalConfig) {
@@ -109,6 +113,7 @@ export async function runLumpFromLumpName(input: {
             projectName,
             logger,
             localConfig,
+            signal,
         });
     }
 
@@ -196,5 +201,6 @@ export async function runLumpFromLumpName(input: {
         logger,
         localConfig,
         releaseLock,
+        signal,
     });
 }

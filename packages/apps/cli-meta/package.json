@@ -1,6 +1,6 @@
 {
   "name": "lumpcode",
-  "version": "0.0.15",
+  "version": "0.0.16",
   "description": "Global install alias for the Lumpcode CLI (@lumpcode/cli)",
   "keywords": [
     "lumpcode",
@@ -35,6 +35,6 @@
     "access": "public"
   },
   "dependencies": {
-    "@lumpcode/cli": "^0.0.15"
+    "@lumpcode/cli": "^0.0.16"
   }
 }

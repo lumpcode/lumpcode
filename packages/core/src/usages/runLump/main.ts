@@ -1,4 +1,4 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData } from "../../types";
 import { createConsoleLogger, set, success } from "../../utils";
 import { 
     getToDoContextList,
@@ -12,7 +12,7 @@ export async function runLump<
     SV extends StepVariables = StepVariables,
 >(input: RunLumpInput<V, SV>): Promise<
 Success<RunLumpOutput> | 
-Failure<{ message: string; }>
+Failure<ExecuteStepsFailureData>
 > {
     const { 
         baseBranch,
@@ -32,6 +32,7 @@ Failure<{ message: string; }>
         teardownWorkspaceFn = defaultTeardownWorkspaceFn,
         getKeepHistoryFilePathFn = () => undefined,
         logger: loggerInput,
+        signal,
     } = input;
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -92,6 +93,7 @@ Failure<{ message: string; }>
         teardownWorkspaceFn,
         logger,
         getKeepHistoryFilePathFn,
+        signal,
     });
 
     if (!executeStepsResult.success) {
@@ -128,6 +130,8 @@ export interface RunLumpInput<
     teardownWorkspaceFn?: TeardownWorkspaceFn;
     logger?: Logger;
     getKeepHistoryFilePathFn?: (context: Context) => string | undefined;
+    /** When aborted, in-flight commands are killed and the step walk stops (ignores continueOnError). */
+    signal?: AbortSignal;
 }
 
 export interface RunLumpOutput {
