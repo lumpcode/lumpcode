@@ -60,6 +60,8 @@ export async function runLumpFromJsConfig(input: {
     localConfig?: LocalConfig;
     /** Held execution workspace path lock from dedicated discovery preflight; adopted in setup hooks. */
     releaseLock?: ReleaseWorkspacePathLockFn;
+    /** When aborted, in-flight commands are killed and the lump run stops. */
+    signal?: AbortSignal;
 }): Promise<Success<RunLumpFromJsConfigSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         jsConfig,
@@ -72,6 +74,7 @@ export async function runLumpFromJsConfig(input: {
         logger,
         localConfig: providedLocalConfig,
         releaseLock,
+        signal,
     } = input;
 
     const session = createWorkspaceLockSession();
@@ -139,6 +142,7 @@ export async function runLumpFromJsConfig(input: {
 
         const runLumpInput = {
             ...runLumpInputResult.data,
+            signal,
             setupWorkspaceFn: withWorkspaceLockHooks({
                 setupWorkspaceFn: runLumpInputResult.data.setupWorkspaceFn!,
                 session,

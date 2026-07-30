@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isProcessAlive } from './main';
 
 /** Skipped until kill-spawned-command-on-timeout-abort implementation migrates this util. */
-describe.skip('isProcessAlive (A1–A5)', () => {
+describe('isProcessAlive (A1–A5)', () => {
     afterEach(() => {
         vi.restoreAllMocks();
     });

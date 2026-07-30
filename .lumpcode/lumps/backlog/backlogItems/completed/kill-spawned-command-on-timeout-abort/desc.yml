@@ -1,9 +1,10 @@
 name: kill-spawned-command-on-timeout-abort
 task: >-
   Kill the in-flight agent/command process tree on step timeoutMillis and on
-  parent AbortSignal (CLI run Ctrl+C, daemon SIGTERM / cooperative stop).
-  Move killProcessTree, isProcessAlive, and nodeErrnoCode into @lumpcode/core;
+  parent AbortSignal (CLI run Ctrl+C, daemon SIGTERM / cooperative stop). Move
+  killProcessTree, isProcessAlive, and nodeErrnoCode into @lumpcode/core;
   refactor execBinary to an object API with signal and reason; thread signal
   through runLump; change default lumpcode stop to abort busy daemons (remove
   daemonBusy). See requirements.md in this item folder.
 priority: 2
+completedAt: '2026-07-29T20:37:15.818Z'

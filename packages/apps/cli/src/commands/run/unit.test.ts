@@ -245,7 +245,7 @@ describe('run command — multi discovery branches', () => {
  * Target abort wiring for kill-spawned-command-on-timeout-abort.
  * Skipped until run owns an AbortController and passes signal into runLumpFromLumpName.
  */
-describe.skip('run command abort signal wiring (W2)', () => {
+describe('run command abort signal wiring (W2)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;

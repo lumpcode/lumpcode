@@ -52,7 +52,7 @@ const processTreeChildScript = fileURLToPath(
 
 describe('execBinary', () => {
     it('should return success with stdout for a valid command', async () => {
-        const result = await execBinary('echo', ['Hello, world!']);
+        const result = await execBinary({ binaryPath: 'echo', args: ['Hello, world!'] });
         expect(result.success).toBe(true);
         if (result.success) {
             expect(result.data.stdout).toContain('Hello, world!');
@@ -60,29 +60,40 @@ describe('execBinary', () => {
     });
 
     it('should return failure for a non-zero exit code', async () => {
-        const result = await execBinary('node', ['-e', 'process.exit(1)']);
+        const result = await execBinary({ binaryPath: 'node', args: ['-e', 'process.exit(1)'] });
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.data.code).toBe(1);
             expect(result.data.binaryPath).toBe('node');
+            expect(result.data.reason).toBe('exit');
         }
     });
 
     it('returns failure when spawn fails (missing cwd)', async () => {
-        const result = await execBinary('node', ['-e', 'process.exit(0)'], 5000, {
+        const result = await execBinary({
+            binaryPath: 'node',
+            args: ['-e', 'process.exit(0)'],
+            timeoutMillis: 5000,
             cwd: path.join(os.tmpdir(), 'lumpcode-execbinary-missing-cwd'),
         });
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.data.message).toMatch(/ENOENT/i);
+            expect(result.data.reason).toBe('spawn');
         }
     });
 
     it('should return failure on timeout', async () => {
-        const result = await execBinary('sleep', ['10'], 50);
+        const result = await execBinary({
+            binaryPath: 'sleep',
+            args: ['10'],
+            timeoutMillis: 50,
+            killGraceMs: 0,
+        });
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.data.message).toContain('timed out');
+            expect(result.data.reason).toBe('timeout');
         }
     });
 });
@@ -109,7 +120,7 @@ describe('execBinary (win32 cmd shim)', () => {
     });
 
     it.skipIf(process.platform !== 'win32')('runs a PATH-resolved .cmd shim', async () => {
-        const result = await execBinary('mock-agent', ['--version']);
+        const result = await execBinary({ binaryPath: 'mock-agent', args: ['--version'] });
 
         expect(result.success).toBe(true);
         if (result.success) {
@@ -132,7 +143,7 @@ describe('execBinary (win32 cmd shim)', () => {
             );
 
             const prompt = 'Look at `src/foo.ts:42`\n```ts\nconst x = 1;\n```';
-            const result = await execBinary('echo-agent', ['-p', prompt]);
+            const result = await execBinary({ binaryPath: 'echo-agent', args: ['-p', prompt] });
 
             expect(result.success).toBe(true);
             if (result.success) {
@@ -142,8 +153,7 @@ describe('execBinary (win32 cmd shim)', () => {
     );
 });
 
-/** Skipped until kill-spawned-command-on-timeout-abort implementation lands. */
-describe.skip('execBinary object API + kill on timeout/abort (E1–E9)', () => {
+describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
     const activePids = new Set<number>();
     let tmpDir = '';
 
@@ -203,12 +213,14 @@ describe.skip('execBinary object API + kill on timeout/abort (E1–E9)', () => {
     });
 
     it('E4: timeout abandons and kills the process tree', async () => {
-        const readyFile = path.join(tmpDir, 'ready.json');
+        const readyFile = path.join(tmpDir, 'ready-e4.json');
 
         const resultPromise = execBinaryObject({
             binaryPath: process.execPath,
             args: [processTreeChildScript],
-            timeoutMillis: 80,
+            // Generous under parallel vitest load so the fixture can write its ready file
+            // before timeout kill; still far below production defaults.
+            timeoutMillis: 2000,
             killGraceMs: 0,
             cwd: tmpDir,
             env: {
@@ -226,7 +238,7 @@ describe.skip('execBinary object API + kill on timeout/abort (E1–E9)', () => {
         if (!result.success) {
             expect(result.data.reason).toBe('timeout');
             expect(result.data.message).toMatch(/timed out/i);
-            expect(result.data.message).toMatch(/80/);
+            expect(result.data.message).toMatch(/2000/);
         }
 
         for (const pid of pids) {
@@ -242,7 +254,7 @@ describe.skip('execBinary object API + kill on timeout/abort (E1–E9)', () => {
         const resultPromise = execBinaryObject({
             binaryPath: process.execPath,
             args: [processTreeChildScript],
-            timeoutMillis: 120,
+            timeoutMillis: 2000,
             killGraceMs: 0,
             cwd: tmpDir,
             env: {

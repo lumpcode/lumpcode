@@ -202,55 +202,6 @@ describe('stop command', () => {
             return { pid, childPids };
         }
 
-        it('refuses when meta.busy is true', async () => {
-            await runStart(aliveDaemonSpawnFn);
-            await waitForDaemonPidFile(pidPath());
-            const pid = await readDaemonPid();
-            await writeBusyMeta();
-
-            const result = await makeStopHandler()({ options: {}, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages.join(' ')).toMatch(/busy/i);
-            expect(result.data.messages.join(' ')).toMatch(/--force/);
-            assertProcessAlive(pid);
-            await expect(fs.access(pidPath())).resolves.toBeUndefined();
-            await expect(fs.access(metaPath())).resolves.toBeUndefined();
-        });
-
-        it('returns JSON code daemonBusy when busy', async () => {
-            await runStart(aliveDaemonSpawnFn);
-            await waitForDaemonPidFile(pidPath());
-            await writeBusyMeta();
-
-            const result = await makeStopHandler()({
-                options: { json: true },
-                arguments: {},
-            });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages.length).toBeGreaterThan(0);
-            expect(result.data.data?.code).toBe('daemonBusy');
-        });
-
-        it('does not SIGTERM the daemon when busy', async () => {
-            await runStart(aliveDaemonSpawnFn);
-            await waitForDaemonPidFile(pidPath());
-            const pid = await readDaemonPid();
-            await writeBusyMeta();
-
-            const killSpy = vi.spyOn(process, 'kill');
-            try {
-                await makeStopHandler()({ options: {}, arguments: {} });
-                const termCalls = killSpy.mock.calls.filter(
-                    (call) => call[0] === pid && call[1] === 'SIGTERM',
-                );
-                expect(termCalls).toHaveLength(0);
-            } finally {
-                killSpy.mockRestore();
-            }
-        });
-
         it('stop --force skips the busy check and removes artifacts', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
@@ -306,57 +257,6 @@ describe('stop command', () => {
             }
         }, 15_000);
 
-        it('refuses per-lump busy stop without touching the global daemon', async () => {
-            const lumpProjectName = 'stop-mid-run-lump-project';
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'project.json'),
-                JSON.stringify({ projectName: lumpProjectName }),
-                'utf-8',
-            );
-
-            const lumpPidPath = path.join(
-                globalConfigFolderPath,
-                'daemons',
-                `${lumpProjectName}.alpha.daemon.pid`,
-            );
-            const lumpMetaPath = metaFilePathFromPidFilePath(lumpPidPath);
-
-            const lumpStart = startCommand.handlerMaker({
-                projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                spawnFn: aliveDaemonSpawnFn,
-            });
-            const lumpStartResult = await lumpStart({
-                options: { lumpName: 'alpha' },
-                arguments: {},
-            });
-            expect(lumpStartResult.success).toBe(true);
-            await waitForDaemonPidFile(lumpPidPath);
-
-            const lumpPid = Number.parseInt((await fs.readFile(lumpPidPath, 'utf8')).trim(), 10);
-            await fs.writeFile(
-                lumpMetaPath,
-                `${JSON.stringify({
-                    cronSetup: '*/5 * * * *',
-                    workspaceStrategy: 'checkout',
-                    lumpName: 'alpha',
-                    busy: true,
-                })}\n`,
-                'utf8',
-            );
-
-            const result = await makeStopHandler()({
-                options: { lumpName: 'alpha', json: true },
-                arguments: {},
-            });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.data?.code).toBe('daemonBusy');
-            assertProcessAlive(lumpPid);
-            await expect(fs.access(lumpPidPath)).resolves.toBeUndefined();
-        });
-
         it('still SIGTERM-stops an idle daemon within 5s', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
@@ -406,11 +306,7 @@ describe('stop command', () => {
         }, 15_000);
     });
 
-    /**
-     * Target stop behavior for kill-spawned-command-on-timeout-abort.
-     * Skipped until implementation removes daemonBusy refuse and adds busy 30s wait.
-     */
-    describe.skip('kill-spawned-command-on-timeout-abort stop behavior (ST1–ST10)', () => {
+    describe('kill-spawned-command-on-timeout-abort stop behavior (ST1–ST10)', () => {
         const sigtermIgnorantScript = fileURLToPath(
             new URL('../../testing/sigtermIgnorantTreeChild.cjs', import.meta.url),
         );
