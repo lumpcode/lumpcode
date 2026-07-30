@@ -1,0 +1,7 @@
+name: listBranchesContainingCommit
+task: >-
+  Extract repeated `git branch [-r] --contains <hash> --format='%(refname:short)'`
+  + stdout parse + `origin/` strip into util `listBranchesContainingCommit`; refactor
+  `commands/clean/main.ts` (`discoverByContext`) and
+  `utils/buildContextStatusRecord/main.ts`.
+priority: 7
