@@ -497,4 +497,98 @@ describe('runLumpFromJsConfig', () => {
         expect(waiter.success).toBe(true);
         expect(core.runLump).toHaveBeenCalledOnce();
     });
+
+    // C1–C3 — skipped until execute-steps-teardown-on-failure implementation lands
+    it.skip('C1: warns when runLump fails with workspaceTeardownFailed', async () => {
+        const warnCalls: string[] = [];
+        const logger = {
+            ...noopLogger,
+            warn: (message: string) => {
+                warnCalls.push(message);
+            },
+            child: () => logger,
+        };
+
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.failure({
+                message: 'Failed to teardown the workspace: boom',
+                reason: 'workspaceTeardownFailed',
+            } as { message: string }),
+        );
+
+        const result = await callRunLumpFromJsConfig(makeJsConfig({}), { logger });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.kind).toBe('message');
+        }
+        expect(
+            warnCalls.some(
+                (message) =>
+                    /teardown/i.test(message)
+                    && /already (succeeded|pushed)|usually already/i.test(message),
+            ),
+        ).toBe(true);
+    });
+
+    it.skip('C2: does not warn the workspace-teardown message on stepWalkFailed', async () => {
+        const warnCalls: string[] = [];
+        const logger = {
+            ...noopLogger,
+            warn: (message: string) => {
+                warnCalls.push(message);
+            },
+            child: () => logger,
+        };
+
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.failure({
+                message: 'Failed to run the command: boom',
+                reason: 'stepWalkFailed',
+            } as { message: string }),
+        );
+
+        const result = await callRunLumpFromJsConfig(makeJsConfig({}), { logger });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.kind).toBe('message');
+        }
+        expect(
+            warnCalls.some(
+                (message) =>
+                    /teardown/i.test(message)
+                    && /already (succeeded|pushed)|usually already/i.test(message),
+            ),
+        ).toBe(false);
+    });
+
+    it.skip('C3: failure without reason stays message Failure with no workspace-teardown warn', async () => {
+        const warnCalls: string[] = [];
+        const logger = {
+            ...noopLogger,
+            warn: (message: string) => {
+                warnCalls.push(message);
+            },
+            child: () => logger,
+        };
+
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.failure({ message: 'something went wrong' }),
+        );
+
+        const result = await callRunLumpFromJsConfig(makeJsConfig({}), { logger });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.kind).toBe('message');
+        }
+        expect(
+            warnCalls.some(
+                (message) =>
+                    /teardown/i.test(message)
+                    && /already (succeeded|pushed)|usually already/i.test(message),
+            ),
+        ).toBe(false);
+    });
 });
