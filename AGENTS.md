@@ -24,7 +24,8 @@
 - TS transpile tests: assert `.lumpcode/.cache/transpile/` cache hits (`readCacheMeta` in `tsLumpFixtures.ts`) — Node 22 Vitest can natively import temp `.ts`, which false-greens `resolveImportable` tests before esbuild wiring; Vitest aliases `esbuild` to `src/testing/esbuildVitestShim.ts`
 - Not-yet-implemented utils: add index-barrel-exported stubs (throwing `not implemented`) plus the types tests import so tests compile and run red until implementation lands
 - Core process-tree unit tests share `packages/core/src/testing/processTreeTestHelpers.ts` (`probeAlive`, `waitForPidGone`, `waitForReadyFile`) — reuse across `killProcessTree` / `execBinary` / timeout-abort suites instead of duplicating wait helpers
-- Backlog `testPlan.md` locations (`**Where:**`, host tables) cite package-rooted paths (e.g. `packages/core/src/helpers/<name>/unit.test.ts`), not bare `unit.test.ts`
+- Large helper suites may colocate under `<helper>/testing/` (first: `executeStepsForContextList/testing/` — `general.unit.test.ts`, topic files, `testHelpers.ts`); keep `main.ts`/`index.ts` at the helper root; exclude `**/helpers/**/testing/**` from core package tsconfig emit
+- Backlog `testPlan.md` locations (`**Where:**`, host tables) cite package-rooted paths (e.g. `packages/core/src/helpers/<name>/testing/general.unit.test.ts`), not bare `unit.test.ts`
 
 ### CLI docs and vocabulary
 

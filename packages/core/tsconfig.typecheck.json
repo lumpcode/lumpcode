@@ -12,6 +12,8 @@
   "exclude": [
     "node_modules",
     "dist",
-    "**/unit.test.ts"
+    "**/unit.test.ts",
+    "**/*.unit.test.ts",
+    "**/helpers/**/testing/**"
   ]
 }

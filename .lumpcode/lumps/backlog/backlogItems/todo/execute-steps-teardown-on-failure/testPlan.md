@@ -39,7 +39,7 @@ Docs (`AGENTS.md`, `concepts.md`) are **implementation-stage acceptance**, not a
 
 ### Prefer side effects over deep mocks
 
-Match `executeStepsForContextList/unit.test.ts` and `timeoutAbort.unit.test.ts`: real `projectRoot` temp repos, stub `git*CommandFn` / workspace fns that record calls, real failing commands (`sh -c 'exit 1'` or abort via `AbortSignal`). Do **not** mock `execBinary` for these cases.
+Match `executeStepsForContextList/testing/general.unit.test.ts` and `testing/timeoutAbort.unit.test.ts`: real `projectRoot` temp repos, stub `git*CommandFn` / workspace fns that record calls, real failing commands (`sh -c 'exit 1'` or abort via `AbortSignal`). Do **not** mock `execBinary` for these cases. Shared stubs live in `testing/testHelpers.ts`.
 
 ### Prefer update over new when a host exists
 
@@ -47,10 +47,10 @@ Only add a new `it` when no existing case owns the same setup/path. Substantiate
 
 | Host (today) | Becomes |
 | --- | --- |
-| `unit.test.ts` — “stops the step walk when the command fails and continueOnError is not set” | **T1** (teardowns + `reason` + no git) |
-| `timeoutAbort.unit.test.ts` — **S2** (timeout without `continueOnError`) | **T2** (same teardown/`reason`/no-git asserts) |
-| `timeoutAbort.unit.test.ts` — **S3** (abort mid-walk) | **T3** |
-| `timeoutAbort.unit.test.ts` — **S4** (already-aborted signal) | **T4** |
+| `testing/general.unit.test.ts` — “stops the step walk when the command fails and continueOnError is not set” | **T1** (teardowns + `reason` + no git) |
+| `testing/timeoutAbort.unit.test.ts` — **S2** (timeout without `continueOnError`) | **T2** (same teardown/`reason`/no-git asserts) |
+| `testing/timeoutAbort.unit.test.ts` — **S3** (abort mid-walk) | **T3** |
+| `testing/timeoutAbort.unit.test.ts` — **S4** (already-aborted signal) | **T4** |
 
 All other IDs (F*, W*, G*, O*, M*, R*, C*) are **new** `it`s — no good existing host.
 
@@ -76,12 +76,12 @@ Prefer casting in tests over inventing runtime stubs.
 
 | Path | Role |
 | --- | --- |
-| `packages/core/src/helpers/executeStepsForContextList/unit.test.ts` | **Update** T1 in place; **Add** F*/W*/G*/O*/M* (new `it`s). All T1 + new cases `it.skip` until implementation |
-| `packages/core/src/helpers/executeStepsForContextList/timeoutAbort.unit.test.ts` | **Update** S2→T2, S3→T3, S4→T4 in place (markers + `reason` + no git). `it.skip` those three until implementation |
+| `packages/core/src/helpers/executeStepsForContextList/testing/testHelpers.ts` | Shared stubs (`initTestGitRepo`, git fns, `recordingTeardownAndGit`, `capturingLogger`, …) |
+| `packages/core/src/helpers/executeStepsForContextList/testing/general.unit.test.ts` | keepHistory / dynamic steps / afterExec; **Update** T1 in place (`it.skip` until implementation) |
+| `packages/core/src/helpers/executeStepsForContextList/testing/teardownOnFailure.unit.test.ts` | **Add** F*/W*/G*/O*/M* (new `it.skip` cases until implementation) |
+| `packages/core/src/helpers/executeStepsForContextList/testing/timeoutAbort.unit.test.ts` | **Update** S2→T2, S3→T3, S4→T4 in place (markers + `reason` + no git). `it.skip` those three until implementation |
 | `packages/core/src/usages/runLump/unit.test.ts` | **Add** (new file): R1/R2 — preserve `reason` when rewriting message. File/`it.skip` until implementation |
 | `packages/apps/cli/src/utils/runLumpFromJsConfig/unit.test.ts` | **Add** C1–C3 (new `it`s in existing suite). `it.skip` until implementation |
-
-Optional split if `unit.test.ts` grows too large: colocate a sibling `teardownOnFailure.unit.test.ts` next to `timeoutAbort.unit.test.ts` with the same stubs (`initTestGitRepo`, stub git fns). Prefer extending the existing file unless it becomes unwieldy.
 
 Run:
 
@@ -96,7 +96,7 @@ npm run test -w=@lumpcode/cli
 
 ### 4.1 Minimal execute-steps harness
 
-Reuse patterns already in `executeStepsForContextList/unit.test.ts`:
+Reuse patterns already in `executeStepsForContextList/testing/testHelpers.ts`:
 
 ```ts
 const stubBranchFn: BranchFn = async () => 'lump/test/ctx';
@@ -153,7 +153,7 @@ On Windows CI, prefer `process.execPath` + `['-e', 'process.exit(1)']` if `sh` i
 
 ### 4.4 Abort
 
-Reuse `timeoutAbort.unit.test.ts` long-lived fixture + `AbortController`:
+Reuse `testing/timeoutAbort.unit.test.ts` long-lived fixture + `AbortController`:
 
 - abort mid-run after ready file, or
 - abort before first command.
@@ -211,12 +211,12 @@ Do **not** add parallel new tests for these paths. Update the named hosts in pla
 
 | ID | Mode | Host / case | Data | Expectation |
 | --- | --- | --- | --- | --- |
-| T1 | **Update** | `unit.test.ts` — “stops the step walk when the command fails and continueOnError is not set” | Same as today (`exit 1` + second step never reached) + markers on `teardownFn` / `teardownWorkspaceFn` / git fns | Keep `success: false`; add `data.reason === 'stepWalkFailed'`; message still mentions failed command; **`teardownFn` once**; **`teardownWorkspaceFn` once**; **no** `gitAdd` / `gitCommit` / `gitPush` |
-| T2 | **Update** | `timeoutAbort.unit.test.ts` — **S2** (timeout without `continueOnError`) | Same long-lived + timeout fixture + markers | Keep walk-stop + tree-dead asserts; add both teardowns ran; `reason: 'stepWalkFailed'`; no git add/push |
-| T3 | **Update** | `timeoutAbort.unit.test.ts` — **S3** (abort mid-walk) | Same abort-after-ready fixture + markers | Keep walk-stop + tree-dead; add both teardowns; `reason: 'stepWalkFailed'`; no git add/push |
-| T4 | **Update** | `timeoutAbort.unit.test.ts` — **S4** (already-aborted signal) | Same aborted-up-front fixture + markers | Keep `success: false` / no orphans; add both teardowns; `reason: 'stepWalkFailed'`; no git |
+| T1 | **Update** | `testing/general.unit.test.ts` — “stops the step walk when the command fails and continueOnError is not set” | Same as today (`exit 1` + second step never reached) + markers on `teardownFn` / `teardownWorkspaceFn` / git fns | Keep `success: false`; add `data.reason === 'stepWalkFailed'`; message still mentions failed command; **`teardownFn` once**; **`teardownWorkspaceFn` once**; **no** `gitAdd` / `gitCommit` / `gitPush` |
+| T2 | **Update** | `testing/timeoutAbort.unit.test.ts` — **S2** (timeout without `continueOnError`) | Same long-lived + timeout fixture + markers | Keep walk-stop + tree-dead asserts; add both teardowns ran; `reason: 'stepWalkFailed'`; no git add/push |
+| T3 | **Update** | `testing/timeoutAbort.unit.test.ts` — **S3** (abort mid-walk) | Same abort-after-ready fixture + markers | Keep walk-stop + tree-dead; add both teardowns; `reason: 'stepWalkFailed'`; no git add/push |
+| T4 | **Update** | `testing/timeoutAbort.unit.test.ts` — **S4** (already-aborted signal) | Same aborted-up-front fixture + markers | Keep `success: false` / no orphans; add both teardowns; `reason: 'stepWalkFailed'`; no git |
 
-**Where:** T1 → `packages/core/src/helpers/executeStepsForContextList/unit.test.ts`; T2–T4 → `packages/core/src/helpers/executeStepsForContextList/timeoutAbort.unit.test.ts`.
+**Where:** T1 → `packages/core/src/helpers/executeStepsForContextList/testing/general.unit.test.ts`; T2–T4 → `packages/core/src/helpers/executeStepsForContextList/testing/timeoutAbort.unit.test.ts`.
 
 **`testImpl`:** Convert these four hosts to `it.skip` (with the new asserts already written). Unskip during implementation.
 
@@ -227,7 +227,7 @@ Do **not** add parallel new tests for these paths. Update the named hosts in pla
 | F1 | `teardownFn` throws on success path | Echo step succeeds; `teardownFn` throws; capture `logger.error` | `success: true`; `gitAdd` / `gitCommit` / `gitPush` / `teardownWorkspaceFn` all ran; error logged (message includes throw / “teardown”); Result is **not** a Failure |
 | F2 | `teardownFn` throws after step-walk failure | `exit 1` step; `teardownFn` throws | Still `reason: 'stepWalkFailed'`; `teardownWorkspaceFn` still ran; throw logged; throw does **not** replace Result |
 
-**Where:** `packages/core/src/helpers/executeStepsForContextList/unit.test.ts` (new `it.skip` cases).
+**Where:** `packages/core/src/helpers/executeStepsForContextList/testing/teardownOnFailure.unit.test.ts` (new `it.skip` cases).
 
 ### 5.3 Core — workspace teardown failure + precedence (**new**)
 
@@ -237,7 +237,7 @@ Do **not** add parallel new tests for these paths. Update the named hosts in pla
 | W2 | Step-walk failed then teardown also fails | `exit 1` step; `teardownWorkspaceFn` → failing command | Returned `reason` remains `'stepWalkFailed'` (not `workspaceTeardownFailed`); both teardowns attempted; no push |
 | W3 | Soft `teardownFn` error + failing workspace teardown | Success walk; `teardownFn` throws; workspace teardown command fails | `reason: 'workspaceTeardownFailed'`; git still ran; `teardownFn` error logged |
 
-**Where:** `packages/core/src/helpers/executeStepsForContextList/unit.test.ts` (new `it.skip` cases).
+**Where:** `packages/core/src/helpers/executeStepsForContextList/testing/teardownOnFailure.unit.test.ts` (new `it.skip` cases).
 
 ### 5.4 Core — post-setup exits still tear down workspace (**new**)
 
@@ -246,7 +246,7 @@ Do **not** add parallel new tests for these paths. Update the named hosts in pla
 | G1 | Git add failure after successful walk | Echo step; `gitAddCommandFn` → `'exit 1'` | `success: false`; message mentions add/context (existing wording); **`teardownWorkspaceFn` ran**; `reason` **omitted** (message-only Failure — not `stepWalkFailed` / `workspaceTeardownFailed`) |
 | G2 | Optional: unexpected throw inside walk hooks | If easy: `postCommandExecFn` throws after success command | `teardownFn` (if walk attempt completed enough to enter finally) and/or outer `teardownWorkspaceFn` ran per implementation; at minimum **workspace teardown after successful setup** must run. Prefer G1 as the required post-setup non-stepWalk case; G2 only if throw path is stable to assert |
 
-**Where:** `packages/core/src/helpers/executeStepsForContextList/unit.test.ts` (new `it.skip` cases).
+**Where:** `packages/core/src/helpers/executeStepsForContextList/testing/teardownOnFailure.unit.test.ts` (new `it.skip` cases).
 
 ### 5.5 Core — success path order (**new**)
 
@@ -255,7 +255,7 @@ Do **not** add parallel new tests for these paths. Update the named hosts in pla
 | O1 | Single context success order | Echo step; all markers | `events` equals exactly: walk side-effect (optional) → `teardownFn:0` → `gitAdd` → `gitCommit` → `gitPush` → `teardownWorkspaceFn` (workspace teardown **after** push) |
 | O2 | Two contexts success order | Two contexts, both succeed | Per context: `teardownFn` then git add/commit; **then** one `gitPush`; **then** `teardownWorkspaceFn`. No workspace teardown between contexts |
 
-**Where:** `packages/core/src/helpers/executeStepsForContextList/unit.test.ts` (new `it.skip` cases). Do **not** overload `skips exec when commandFn returns null…` or the two-context logger.info test — different scopes.
+**Where:** `packages/core/src/helpers/executeStepsForContextList/testing/teardownOnFailure.unit.test.ts` (new `it.skip` cases). Do **not** overload `skips exec when commandFn returns null…` or the two-context logger.info test — different scopes.
 
 ### 5.6 Core — multi-context stop on second failure (**new**)
 
@@ -263,7 +263,7 @@ Do **not** add parallel new tests for these paths. Update the named hosts in pla
 | --- | --- | --- | --- |
 | M1 | First OK, second walk fails | `ctx-a` succeeds; `ctx-b` `exit 1`; markers keyed by context index/name | `teardownFn` for `ctx-a`; git add/commit for `ctx-a`; `teardownFn` for `ctx-b`; **no** git for `ctx-b`; **no** `gitPush`; `teardownWorkspaceFn` ran; `reason: 'stepWalkFailed'`; no third context if only two |
 
-**Where:** `packages/core/src/helpers/executeStepsForContextList/unit.test.ts` (new `it.skip` case).
+**Where:** `packages/core/src/helpers/executeStepsForContextList/testing/teardownOnFailure.unit.test.ts` (new `it.skip` case).
 
 ### 5.7 Core — `runLump` preserves `reason` (**new**)
 
@@ -294,10 +294,10 @@ Do **not** add parallel new tests for these paths. Update the named hosts in pla
 
 | Location | ID | Change |
 | --- | --- | --- |
-| `packages/core/src/helpers/executeStepsForContextList/unit.test.ts` — “stops the step walk when the command fails…” | T1 | Add markers + `reason` + no-git; **`it.skip` in `testImpl`**, unskip after implementation |
-| `packages/core/src/helpers/executeStepsForContextList/timeoutAbort.unit.test.ts` — S2 | T2 | Add teardown/`reason`/no-git; **`it.skip` in `testImpl`**, unskip after implementation |
-| `packages/core/src/helpers/executeStepsForContextList/timeoutAbort.unit.test.ts` — S3 | T3 | Same as T2 |
-| `packages/core/src/helpers/executeStepsForContextList/timeoutAbort.unit.test.ts` — S4 | T4 | Same as T2 |
+| `packages/core/src/helpers/executeStepsForContextList/testing/general.unit.test.ts` — “stops the step walk when the command fails…” | T1 | Add markers + `reason` + no-git; **`it.skip` in `testImpl`**, unskip after implementation |
+| `packages/core/src/helpers/executeStepsForContextList/testing/timeoutAbort.unit.test.ts` — S2 | T2 | Add teardown/`reason`/no-git; **`it.skip` in `testImpl`**, unskip after implementation |
+| `packages/core/src/helpers/executeStepsForContextList/testing/timeoutAbort.unit.test.ts` — S3 | T3 | Same as T2 |
+| `packages/core/src/helpers/executeStepsForContextList/testing/timeoutAbort.unit.test.ts` — S4 | T4 | Same as T2 |
 | Any other test that assumed “failure returns before teardownWorkspaceFn” | — | Update expectations if found during implementation |
 
 Do **not** change push-failure (or commit-failure) tests that assert `success: true` + `logger.error` (push/commit still log-only).
@@ -347,8 +347,7 @@ npm run test -w=@lumpcode/cli
 Optional focus during red/green:
 
 ```bash
-npm run test -w=@lumpcode/core -- src/helpers/executeStepsForContextList/unit.test.ts
-npm run test -w=@lumpcode/core -- src/helpers/executeStepsForContextList/timeoutAbort.unit.test.ts
+npm run test -w=@lumpcode/core -- src/helpers/executeStepsForContextList/testing
 npm run test -w=@lumpcode/core -- src/usages/runLump/unit.test.ts
 npm run test -w=@lumpcode/cli -- src/utils/runLumpFromJsConfig/unit.test.ts
 ```

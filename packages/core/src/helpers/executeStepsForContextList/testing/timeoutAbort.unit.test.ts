@@ -2,28 +2,23 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { execSync } from 'node:child_process';
 
-import type { BranchFn, CommandDescriptor } from '../../types';
+import type { CommandDescriptor } from '../../../types';
 import {
     probeAlive,
     waitForPidGone,
     waitForReadyFile,
-} from '../../testing/processTreeTestHelpers';
-import { executeStepsForContextList } from './main';
-
-const stubBranchFn: BranchFn = async () => 'lump/test/ctx';
-const stubGitAdd = () => 'echo git-add';
-const stubGitCommit = () => 'echo git-commit';
-const stubGitPush = () => 'echo git-push';
-const stubGitCommitMessage = () => 'LUMP:ctx';
-
-function initTestGitRepo(projectRoot: string) {
-    execSync(
-        'git init && git config user.email "test@test.com" && git config user.name "Test" && git commit --allow-empty -m "init"',
-        { cwd: projectRoot, stdio: 'pipe' },
-    );
-}
+} from '../../../testing/processTreeTestHelpers';
+import { executeStepsForContextList } from '../main';
+import {
+    initTestGitRepo,
+    recordingTeardownAndGit,
+    stubBranchFn,
+    stubGitAdd,
+    stubGitCommit,
+    stubGitCommitMessage,
+    stubGitPush,
+} from './testHelpers';
 
 function longLivedCommand(readyFile: string): CommandDescriptor {
     const script = `
@@ -37,7 +32,6 @@ setInterval(() => {}, 60_000);
     };
 }
 
-/** Skipped until kill-spawned-command-on-timeout-abort implementation lands. */
 describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
     let projectRoot: string;
     const activePids = new Set<number>();
@@ -113,18 +107,18 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         }
     });
 
-    it('S2: timeout without continueOnError stops the walk; tree is dead', async () => {
+    // T2 — skipped until execute-steps-teardown-on-failure implementation lands
+    it.skip('S2: timeout without continueOnError stops the walk; tree is dead', async () => {
         const readyFile = join(projectRoot, 'ready-stop.json');
         const executionOrder: string[] = [];
+        const events: string[] = [];
 
         const resultPromise = executeStepsForContextList({
             baseBranch: 'main',
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            ...recordingTeardownAndGit(events),
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [
@@ -140,9 +134,7 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
                 },
             ],
             setupFn: async () => ({ contextRunState: {} }),
-            teardownFn: async () => undefined,
             setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
-            teardownWorkspaceFn: async () => '',
             getKeepHistoryFilePathFn: () => undefined,
         });
 
@@ -153,8 +145,10 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.data.message).toMatch(/timed out|Failed to run the command/i);
+            expect((result.data as { reason?: string }).reason).toBe('stepWalkFailed');
         }
         expect(executionOrder).toEqual([]);
+        expect(events).toEqual(['teardownFn', 'teardownWorkspaceFn']);
 
         for (const pid of pids) {
             await waitForPidGone(pid);
@@ -163,9 +157,11 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         }
     });
 
-    it('S3: abort + continueOnError still stops the walk; tree is dead', async () => {
+    // T3 — skipped until execute-steps-teardown-on-failure implementation lands
+    it.skip('S3: abort + continueOnError still stops the walk; tree is dead', async () => {
         const readyFile = join(projectRoot, 'ready-abort.json');
         const executionOrder: string[] = [];
+        const events: string[] = [];
         const controller = new AbortController();
 
         const resultPromise = executeStepsForContextList({
@@ -173,9 +169,7 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            ...recordingTeardownAndGit(events),
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             signal: controller.signal,
@@ -192,9 +186,7 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
                 },
             ],
             setupFn: async () => ({ contextRunState: {} }),
-            teardownFn: async () => undefined,
             setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
-            teardownWorkspaceFn: async () => '',
             getKeepHistoryFilePathFn: () => undefined,
         });
 
@@ -204,7 +196,11 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
 
         const result = await resultPromise;
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect((result.data as { reason?: string }).reason).toBe('stepWalkFailed');
+        }
         expect(executionOrder).toEqual([]);
+        expect(events).toEqual(['teardownFn', 'teardownWorkspaceFn']);
 
         for (const pid of pids) {
             await waitForPidGone(pid);
@@ -213,19 +209,19 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         }
     });
 
-    it('S4: already-aborted signal fails without orphans and ignores continueOnError', async () => {
+    // T4 — skipped until execute-steps-teardown-on-failure implementation lands
+    it.skip('S4: already-aborted signal fails without orphans and ignores continueOnError', async () => {
         const controller = new AbortController();
         controller.abort();
         const executionOrder: string[] = [];
+        const events: string[] = [];
 
         const result = await executeStepsForContextList({
             baseBranch: 'main',
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            ...recordingTeardownAndGit(events),
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             signal: controller.signal,
@@ -239,13 +235,17 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
                 },
             ],
             setupFn: async () => ({ contextRunState: {} }),
-            teardownFn: async () => undefined,
             setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
-            teardownWorkspaceFn: async () => '',
             getKeepHistoryFilePathFn: () => undefined,
         });
 
         expect(result.success).toBe(false);
+        if (!result.success) {
+            expect((result.data as { reason?: string }).reason).toBe('stepWalkFailed');
+        }
+        expect(events).toEqual(['teardownFn', 'teardownWorkspaceFn']);
+        expect(events).not.toContain('gitAdd');
+        expect(events).not.toContain('gitPush');
     });
 
     it('S5: exit + continueOnError regression still succeeds', async () => {
