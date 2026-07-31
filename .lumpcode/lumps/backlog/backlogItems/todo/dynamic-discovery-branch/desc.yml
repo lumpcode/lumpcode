@@ -1,0 +1,7 @@
+name: dynamic-discovery-branch
+manualReq: true
+task: >-
+  Support a dynamic discoveryBranch (e.g. a pattern like feature/*) so the same
+  lump can discover its contexts on the feature integration branch rather than
+  only a fixed branch name.
+priority: 4
