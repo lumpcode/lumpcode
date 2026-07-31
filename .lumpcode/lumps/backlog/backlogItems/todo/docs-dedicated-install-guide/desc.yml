@@ -1,0 +1,6 @@
+name: docs-dedicated-install-guide
+manualReq: true
+task: >-
+  Add a quick guide to dedicated (distant) installation in DOCS, including the
+  git flow for Lumpcode (merge lump updates to the discovery branch, etc.).
+priority: 15
