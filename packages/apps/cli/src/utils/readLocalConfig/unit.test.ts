@@ -215,4 +215,109 @@ describe('readLocalConfig', () => {
         const result = await readLocalConfig({ localConfigFolderPath: dir });
         expect(result.success).toBe(false);
     });
+
+    describe.skip('maxParallelRun (parallel-global-daemon-worktree L*)', () => {
+        it('L1: omits maxParallelRun when field is absent', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    workspaceStrategy: 'worktree',
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.maxParallelRun).toBeUndefined();
+        });
+
+        it('L2: accepts positive integer maxParallelRun', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    workspaceStrategy: 'worktree',
+                    maxParallelRun: 3,
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.maxParallelRun).toBe(3);
+        });
+
+        it('L3: rejects maxParallelRun: 0', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    maxParallelRun: 0,
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/maxParallelRun|positive/i);
+        });
+
+        it('L4: rejects negative maxParallelRun', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    maxParallelRun: -2,
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/maxParallelRun|positive/i);
+        });
+
+        it.each([
+            { label: 'float', value: 1.5 },
+            { label: 'string', value: '2' },
+            { label: 'boolean', value: true },
+            { label: 'null', value: null },
+            { label: 'object', value: {} },
+        ])('L5: rejects non-integer maxParallelRun ($label)', async ({ value }) => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    maxParallelRun: value,
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/maxParallelRun/i);
+        });
+
+        it('L6: accepts maxParallelRun: 1 explicitly', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    maxParallelRun: 1,
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.maxParallelRun).toBe(1);
+        });
+    });
 });

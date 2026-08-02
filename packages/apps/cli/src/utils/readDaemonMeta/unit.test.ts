@@ -114,4 +114,43 @@ describe('readDaemonMeta', () => {
         expect('agentPid' in result.data).toBe(false);
         expect('childPids' in result.data).toBe(false);
     });
+
+    describe.skip('inFlightLumpCount (parallel-global-daemon-worktree M6–M7)', () => {
+        it('M6: reads inFlightLumpCount from meta', async () => {
+            const metaPath = path.join(dir, 'in-flight.meta.json');
+            await fs.writeFile(
+                metaPath,
+                JSON.stringify({
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'worktree',
+                    inFlightLumpCount: 2,
+                }),
+                'utf8',
+            );
+            const result = await readDaemonMeta(metaPath);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.inFlightLumpCount).toBe(2);
+            expect(result.data.cronSetup).toBe('*/5 * * * *');
+            expect(result.data.workspaceStrategy).toBe('worktree');
+        });
+
+        it('M7: legacy busy: true remains readable without count', async () => {
+            const metaPath = path.join(dir, 'legacy-busy.meta.json');
+            await fs.writeFile(
+                metaPath,
+                JSON.stringify({
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    busy: true,
+                }),
+                'utf8',
+            );
+            const result = await readDaemonMeta(metaPath);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.busy).toBe(true);
+            expect(result.data.inFlightLumpCount).toBeUndefined();
+        });
+    });
 });

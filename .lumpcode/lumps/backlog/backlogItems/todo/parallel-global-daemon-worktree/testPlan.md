@@ -40,7 +40,7 @@ Docs / `lumpConfig.schema.json` / `localConfig.schema.json` updates are **implem
 
 ### Prefer spies + deferred gates over real agents
 
-Match `packages/apps/cli/src/commands/start/unit.test.ts` (“daemon busy meta toggle”): spy `runLumpFromLumpName` with deferred promises, release in controlled order, poll meta / call counts. Do **not** run real presets/agents.
+Match `packages/apps/cli/src/commands/start/testing/daemonInFlightMeta.unit.test.ts` (in-flight meta): spy `runLumpFromLumpName` with deferred promises, release in controlled order, poll meta / call counts. Do **not** run real presets/agents.
 
 ### Prefer update over new when a host exists
 
@@ -48,8 +48,8 @@ Match `packages/apps/cli/src/commands/start/unit.test.ts` (“daemon busy meta t
 | --- | --- |
 | `readLocalConfig/unit.test.ts` — workspaceStrategy / disabled cases | Extend with **L*** (`maxParallelRun`) |
 | `readDaemonMeta/unit.test.ts` — `busy` read cases | Extend/rewrite for **M*** (`inFlightLumpCount` + legacy `busy`) |
-| `start/unit.test.ts` — “daemon busy meta toggle” | Rewrite to **M*** / **G*** (`inFlightLumpCount`, parallel windows) |
-| `start/unit.test.ts` — “runs lumps in discovery-branch scan order…” | Keep order asserts where still valid; add merged-queue + pool cases (**G5**) |
+| `start/testing/` — “daemon busy meta toggle” | Rewrite to **M*** / **G*** (`inFlightLumpCount`, parallel windows) |
+| `start/testing/` — “runs lumps in discovery-branch scan order…” | Keep order asserts where still valid; add merged-queue + pool cases (**G5**) |
 | `stop/unit.test.ts` — mid-run / ST1–ST10 busy cooperative cases | Rewrite mid-run path to **refuse** (**K***) per this item; keep idle / `--force` kill coverage |
 | `restart/unit.test.ts` — “cooperatively stops a busy daemon…” | Rewrite for mid-run refuse via stop (**K5**) |
 | `daemon-status/unit.test.ts` | Add **D*** surface of `inFlightLumpCount` |
@@ -71,7 +71,7 @@ Match `packages/apps/cli/src/commands/start/unit.test.ts` (“daemon busy meta t
 | `packages/apps/cli/src/utils/runLumpQueueWithConcurrency/{main,index,unit.test}.ts` | **Add** — reusable pool; **P*** cases. Stub in `testImpl` (`throw new Error('not implemented')`), barrel from `utils/index.ts` |
 | `packages/apps/cli/src/utils/readLocalConfig/unit.test.ts` | **Update** — **L1–L6** |
 | `packages/apps/cli/src/utils/readDaemonMeta/{main,unit.test}.ts` | **Update** — schema + **M1–M4** reads |
-| `packages/apps/cli/src/commands/start/unit.test.ts` | **Update** busy-meta describe → in-flight; **Add** parallel / ignored / checkout / per-lump cases (**G***, **I***, **C***, **S***) |
+| `packages/apps/cli/src/commands/start/testing/daemonInFlightMeta.unit.test.ts` + `parallelGlobalDaemon.unit.test.ts` | **Update** busy-meta → in-flight; parallel / ignored / checkout / per-lump (**G***, **I***, **C***, **S***) |
 | `packages/apps/cli/src/commands/stop/unit.test.ts` | **Update** mid-run refuse (**K1–K4**); adjust ST* that assumed cooperative busy SIGTERM |
 | `packages/apps/cli/src/commands/restart/unit.test.ts` | **Update** busy restart (**K5**) |
 | `packages/apps/cli/src/commands/daemon-status/unit.test.ts` | **Add** **D1–D2** |
@@ -107,7 +107,7 @@ Omit field → effective concurrency `1`.
 
 ### 4.2 Minimal lump configs
 
-Reuse `minimalLumpConfigJson` from `start/unit.test.ts`. Variants:
+Reuse `writeMinimalLump` / helpers from `start/testing/testHelpers.ts`. Variants:
 
 ```json
 { "...existing...", "ignoredByGlobalDaemon": true }
@@ -138,7 +138,7 @@ Assert concurrency by counting unresolved gates (or meta `inFlightLumpCount`) wh
 
 ### 4.4 Foreground start harness
 
-Reuse `makeStartHandler` + `waitForShutdownOverride` + `setDaemonTestGlobalConfigFolder` + temp bare remote from `start/unit.test.ts`. Commit/push lump configs so dedicated discovery sees them.
+Reuse `makeStartHandler` + `setupStartTestRepo` from `start/testing/testHelpers.ts`. Commit/push lump configs so dedicated discovery sees them.
 
 ### 4.5 Mid-run stop meta
 
@@ -180,7 +180,7 @@ Each case: **ID**, **setup/data**, **expectation**, **where**.
 
 **Where:** `packages/apps/cli/src/utils/readLocalConfig/unit.test.ts` (`it.skip` until implementation).
 
-If validation is deferred to `start` instead of `readLocalConfig`, move L3–L5 to `start/unit.test.ts` and keep L1–L2 on parse; prefer validating in `readLocalConfig` per requirements technical approach.
+If validation is deferred to `start` instead of `readLocalConfig`, move L3–L5 to `start/testing/` and keep L1–L2 on parse; prefer validating in `readLocalConfig` per requirements technical approach.
 
 ### 5.2 Concurrency pool util (**P** — new)
 
@@ -207,7 +207,7 @@ If validation is deferred to `start` instead of `readLocalConfig`, move L3–L5 
 | G6 | Failure isolation | Among 3 parallel-capable lumps, middle spy rejects/returns Failure | Other two still invoked; daemon start handler still `success: true` (tick continues); errors logged via existing error path |
 | G7 | Shared mode pool | Shared + worktree + `maxParallelRun: 2` + ≥3 lumps | Same peak-2 behavior after `resolveTargetLumpNames` discovery |
 
-**Where:** `packages/apps/cli/src/commands/start/unit.test.ts` — new describe (e.g. `start command — parallel global daemon`) with `it.skip` until implementation. Reuse multi-discovery fixtures from “start command — multi discovery branches” for G5.
+**Where:** `packages/apps/cli/src/commands/start/testing/parallelGlobalDaemon.unit.test.ts` (`describe.skip` until implementation). Reuse multi-discovery fixtures from `multiDiscoveryBranches.unit.test.ts` for G5.
 
 **Impl note:** Today dedicated tick `await`s inside the per-branch loop. G5 fails until discovery collects names first, then runs one pool.
 
@@ -217,7 +217,7 @@ If validation is deferred to `start` instead of `readLocalConfig`, move L3–L5 
 | --- | --- | --- | --- |
 | S1 | Scoped start | `--lumpName alpha`, worktree, `maxParallelRun: 3`, extra lumps present | Exactly one `runLumpFromLumpName('alpha')` per tick; other lumps never started |
 
-**Where:** `packages/apps/cli/src/commands/start/unit.test.ts` (`it.skip`).
+**Where:** `packages/apps/cli/src/commands/start/testing/parallelGlobalDaemon.unit.test.ts` (`describe.skip`).
 
 ### 5.5 `ignoredByGlobalDaemon` (**I**)
 
@@ -229,7 +229,7 @@ If validation is deferred to `start` instead of `readLocalConfig`, move L3–L5 
 | I4 | Disabled still soft-skipped in phase 1 | Eligible non-ignored lump with `disabled: true` remains in discovery/queue path | Still reaches `runLumpFromLumpName` (or existing skip path); **not** filtered by ignored-flag logic — assert distinct from I1 (disabled lump may be “started” then skipped) |
 | I5 | Manual run unaffected | Optional light case: call `run` handler / `runLumpFromLumpName` path for ignored lump | Invokes run (spy or success path); do **not** require full agent — prefer asserting start-scoped filter only + a unit that filtering helper is **not** used by `run` if such a helper is exported |
 
-**Where:** I1–I4 in `start/unit.test.ts`; I5 only if cheap — otherwise covered by “filter lives only in global tick” code review + I3.
+**Where:** I1–I4 in `start/testing/`; I5 only if cheap — otherwise covered by “filter lives only in global tick” code review + I3.
 
 ### 5.6 Meta `inFlightLumpCount` writers/readers (**M** — update busy hosts)
 
@@ -244,7 +244,7 @@ If validation is deferred to `start` instead of `readLocalConfig`, move L3–L5 
 | M7 | Legacy `busy` still readable | File with `busy: true` only | `data.busy === true`; count may be undefined |
 | M8 | Sequential windows (optional) | Replace “sets busy only during each sequential…” when `maxParallelRun: 1` | Snapshots show count `1` during each run window, `0` between if observable |
 
-**Where:** M1–M5, M8 → `packages/apps/cli/src/commands/start/unit.test.ts` (busy-meta describe); M6–M7 → `packages/apps/cli/src/utils/readDaemonMeta/unit.test.ts`.
+**Where:** M1–M5, M8 → `packages/apps/cli/src/commands/start/testing/daemonInFlightMeta.unit.test.ts`; M6–M7 → `packages/apps/cli/src/utils/readDaemonMeta/unit.test.ts`.
 
 **`testImpl`:** Convert updated busy hosts to `it.skip` with new asserts already written.
 
@@ -282,7 +282,7 @@ Requirements restore **refuse when mid-run** (distinct from the post–`kill-spa
 | V1 | Ignored but misconfigured | Lump with `ignoredByGlobalDaemon: true` and invalid config that already fails launch (e.g. discoveryBranch not allowlisted for explicit global discover path, or unloadable/invalid that validate treats as fail-fast for present configs) | Global `validateDaemonLaunch` / `start` still **fails** — ignored flag does **not** exclude from validation |
 | V2 | Ignored valid still launches | Ignored + valid among other valid lumps | Launch succeeds; ignored only affect tick scheduling (covered by I1) |
 
-**Where:** Prefer `packages/apps/cli/src/utils/validateDaemonLaunch/unit.test.ts` for V1 if an existing invalid-config failure shape is easy to reuse; otherwise `start/unit.test.ts` fail-before-tick. Use the same failure class already asserted for bad lumps (do not invent a new validation rule).
+**Where:** Prefer `packages/apps/cli/src/utils/validateDaemonLaunch/unit.test.ts` for V1 if an existing invalid-config failure shape is easy to reuse; otherwise `start/testing/` fail-before-tick. Use the same failure class already asserted for bad lumps (do not invent a new validation rule).
 
 ### 5.10 E2E harness (**E** — update only)
 
@@ -300,8 +300,8 @@ Requirements restore **refuse when mid-run** (distinct from the post–`kill-spa
 | --- | --- | --- |
 | `readLocalConfig/unit.test.ts` | L* | Add maxParallelRun cases; `it.skip` in `testImpl` |
 | `readDaemonMeta/unit.test.ts` | M6–M7 | Keep legacy busy reads; add `inFlightLumpCount`; `it.skip` new/updated as needed |
-| `start/unit.test.ts` — “daemon busy meta toggle” | M1–M5, M8 | Replace `busy` asserts with `inFlightLumpCount`; allowed keys; parallel peak; **`it.skip` in `testImpl`** |
-| `start/unit.test.ts` — discovery order / multi-branch | G5 | Ensure merged-queue + pool; do not keep per-branch sequential awaits as the only path |
+| `start/testing/` — “daemon busy meta toggle” | M1–M5, M8 | Replace `busy` asserts with `inFlightLumpCount`; allowed keys; parallel peak; **`it.skip` in `testImpl`** |
+| `start/testing/` — discovery order / multi-branch | G5 | Ensure merged-queue + pool; do not keep per-branch sequential awaits as the only path |
 | `stop/unit.test.ts` — mid-run / ST1–ST4, ST9 | K* | Refuse + `daemonBusy` when mid-run; meta field migration |
 | `restart/unit.test.ts` — busy cooperative restart | K5 | Expect refuse / `daemonBusy` when mid-run |
 | `daemon-status/unit.test.ts` | D* | Expose count |
@@ -360,7 +360,7 @@ Optional focus during red/green:
 npm run test -w=@lumpcode/cli -- src/utils/runLumpQueueWithConcurrency/unit.test.ts
 npm run test -w=@lumpcode/cli -- src/utils/readLocalConfig/unit.test.ts
 npm run test -w=@lumpcode/cli -- src/utils/readDaemonMeta/unit.test.ts
-npm run test -w=@lumpcode/cli -- src/commands/start/unit.test.ts
+npm run test -w=@lumpcode/cli -- src/commands/start/testing/
 npm run test -w=@lumpcode/cli -- src/commands/stop/unit.test.ts
 npm run test -w=@lumpcode/cli -- src/commands/restart/unit.test.ts
 npm run test -w=@lumpcode/cli -- src/commands/daemon-status/unit.test.ts

@@ -19,4 +19,9 @@ export interface LocalConfig {
     workspaceStrategy?: WorkspaceStrategy;
     /** When `true`, the background daemon skips every lump on this machine (`lumpcode start`). */
     disabled?: boolean;
+    /**
+     * Max concurrent lump runs in a global-daemon tick when `workspaceStrategy` is `worktree`.
+     * Positive integer; omit defaults to `1` (sequential).
+     */
+    maxParallelRun?: number;
 }

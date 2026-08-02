@@ -149,4 +149,50 @@ describe('validateDaemonLaunch', () => {
         expect(result.data).toContain('Lump config not found for missing');
         expect(logger.warnings).toEqual([]);
     });
+
+    describe.skip('ignoredByGlobalDaemon still validated (parallel-global-daemon-worktree V*)', () => {
+        it('V1: ignored lump with unlisted discoveryBranch still fails validateDaemonLaunch', async () => {
+            await writeMinimalLump(projectRoot, 'sideA', {
+                ignoredByGlobalDaemon: true,
+                discoveryBranch: 'ver/0.0.9',
+                baseBranch: 'ver/0.0.9',
+            });
+            gitCommitAll(projectRoot, 'ignored misconfigured lump');
+
+            const logger = createLogger();
+            const result = await validateDaemonLaunch({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                localConfig: {
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    primaryBranches: ['main'],
+                },
+                lumpNameOpt: 'sideA',
+                logger,
+            });
+
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/discoveryBranch|primaryBranches|ver\/0\.0\.9/i);
+        });
+
+        it('V2: ignored valid lump among other valid lumps still allows global launch', async () => {
+            await writeMinimalLump(projectRoot, 'alpha');
+            await writeMinimalLump(projectRoot, 'sideA', { ignoredByGlobalDaemon: true });
+            gitCommitAll(projectRoot, 'alpha + ignored sideA');
+
+            const logger = createLogger();
+            const result = await validateDaemonLaunch({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                localConfig: { mode: 'dedicated', primaryBranch: 'main' },
+                logger,
+            });
+
+            expect(result.success).toBe(true);
+        });
+    });
 });

@@ -150,4 +150,101 @@ describe('daemon-status command', () => {
             await stopHandle({ options: {}, arguments: {} });
         }
     });
+
+    describe.skip('inFlightLumpCount surface (parallel-global-daemon-worktree D*)', () => {
+        it('D1: JSON status includes inFlightLumpCount when running', async () => {
+            const startHandle = startCommand.handlerMaker({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                spawnFn: aliveDaemonSpawnFn,
+            });
+            const startResult = await startHandle({
+                options: { cronSetup: '15 * * * *' },
+                arguments: {},
+            });
+            expect(startResult.success).toBe(true);
+            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+            await waitForDaemonPidFile(pidPath);
+
+            await fs.writeFile(
+                metaPath,
+                `${JSON.stringify({
+                    cronSetup: '15 * * * *',
+                    workspaceStrategy: 'checkout',
+                    inFlightLumpCount: 2,
+                })}\n`,
+                'utf8',
+            );
+
+            try {
+                const statusResult = await makeDaemonStatusHandler()({
+                    options: { json: true },
+                    arguments: {},
+                });
+                expect(statusResult.success).toBe(true);
+                if (!statusResult.success) throw new Error('unreachable');
+                expect(statusResult.data.data!.running).toBe(true);
+                expect(
+                    (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
+                ).toBe(2);
+                expect(statusResult.data.messages.join('\n')).toMatch(/in[- ]?flight|2/i);
+            } finally {
+                const stopHandle = stopCommand.handlerMaker({
+                    projectRoot,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                });
+                await stopHandle({ options: { force: true }, arguments: {} });
+            }
+        });
+
+        it('D2: idle running daemon surfaces inFlightLumpCount 0', async () => {
+            const startHandle = startCommand.handlerMaker({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                spawnFn: aliveDaemonSpawnFn,
+            });
+            const startResult = await startHandle({
+                options: { cronSetup: '15 * * * *' },
+                arguments: {},
+            });
+            expect(startResult.success).toBe(true);
+            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+            await waitForDaemonPidFile(pidPath);
+
+            await fs.writeFile(
+                metaPath,
+                `${JSON.stringify({
+                    cronSetup: '15 * * * *',
+                    workspaceStrategy: 'checkout',
+                    inFlightLumpCount: 0,
+                })}\n`,
+                'utf8',
+            );
+
+            try {
+                const statusResult = await makeDaemonStatusHandler()({
+                    options: { json: true },
+                    arguments: {},
+                });
+                expect(statusResult.success).toBe(true);
+                if (!statusResult.success) throw new Error('unreachable');
+                expect(statusResult.data.data!.running).toBe(true);
+                expect(
+                    (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
+                ).toBe(0);
+            } finally {
+                const stopHandle = stopCommand.handlerMaker({
+                    projectRoot,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                });
+                await stopHandle({ options: { force: true }, arguments: {} });
+            }
+        });
+    });
 });

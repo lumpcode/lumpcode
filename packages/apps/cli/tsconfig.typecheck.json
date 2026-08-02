@@ -20,6 +20,8 @@
     "dist",
     "src/e2e/**",
     "**/unit.test.ts",
-    "**/*.integration.test.ts"
+    "**/*.unit.test.ts",
+    "**/*.integration.test.ts",
+    "**/commands/**/testing/**"
   ]
 }

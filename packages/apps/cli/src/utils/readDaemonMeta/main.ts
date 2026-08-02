@@ -17,7 +17,10 @@ export type DaemonMeta = {
     cronSetup?: string;
     lumpName?: string;
     workspaceStrategy: WorkspaceStrategy;
+    /** @deprecated Writers use `inFlightLumpCount`; kept for upgrade-safety reads. */
     busy?: boolean;
+    /** Number of lump runs currently in flight; `0` when idle. */
+    inFlightLumpCount?: number;
 };
 
 /** Fields written when a detached daemon starts. */
