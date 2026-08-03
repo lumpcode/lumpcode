@@ -51,7 +51,7 @@ lumpcode daemon-status  # is it running?
 lumpcode stop           # SIGTERM + cleanup
 ```
 
-Because the daemon keeps invoking your agent on every tick, **cap parallel work** with `maximumNumberOfConcurrentBranches` (per lump or in `project.json`) and set `"disabled": true` on a lump to take it out of the rotation without stopping the scheduler.
+Because the daemon keeps invoking your agent on every tick, **cap open branches** with `maximumNumberOfConcurrentBranches` (per lump or in `project.json`) and set `"disabled": true` on a lump to take it out of the rotation without stopping the scheduler. With `"workspaceStrategy": "worktree"` and `"maxParallelRun"` in `.lumpcode/local.json`, a global daemon can run multiple lumps concurrently in one tick; use `"ignoredByGlobalDaemon": true` on a lump to leave global rotation while still allowing `start --lumpName` or manual `run`.
 
 Sporadic `run` vs sustained `start`: [DOCS/concepts.md#when-to-use-run-vs-start-daemon](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#when-to-use-run-vs-start-daemon).
 

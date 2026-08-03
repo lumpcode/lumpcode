@@ -5,10 +5,15 @@ import { failure, isProcessAlive, killProcessTree, nodeErrnoCode, success } from
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { pollUntil, readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
+import {
+    isDaemonMidRun,
+    pollUntil,
+    readDaemonMeta,
+    readDaemonPidIfAlive,
+    resolveDaemonCommandScope,
+} from '../../utils';
 
 const IDLE_STOP_WAIT_MS = 5000;
-const BUSY_STOP_WAIT_MS = 30_000;
 const FORCE_STOP_WAIT_MS = 5000;
 
 const inputSchema = z.object({
@@ -75,12 +80,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         await fs.unlink(metaFilePath).catch(() => {});
     };
 
-    const metaResult = await readDaemonMeta(metaFilePath);
-    if (!metaResult.success) {
-        return failure({ messages: [metaResult.data] });
-    }
-    const busy = metaResult.data.busy === true;
-    const waitMs = force ? FORCE_STOP_WAIT_MS : busy ? BUSY_STOP_WAIT_MS : IDLE_STOP_WAIT_MS;
+    const waitMs = force ? FORCE_STOP_WAIT_MS : IDLE_STOP_WAIT_MS;
     const waitSeconds = Math.round(waitMs / 1000);
     const pollDead = () =>
         pollUntil({
@@ -108,6 +108,29 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             messages: [
                 `Force-killed pid ${pid} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`,
             ],
+        });
+    }
+
+    const metaResult = await readDaemonMeta(metaFilePath);
+    if (!metaResult.success) {
+        return failure({
+            messages: [
+                `Daemon meta is invalid (reason: ${metaResult.data.reason}) at ${metaFilePath} (pid ${pid}); ` +
+                    'refusing graceful stop. Run `lumpcode stop --force`.',
+            ],
+            data: {
+                code: 'daemonMetaCorrupt' as const,
+                reason: metaResult.data.reason,
+            },
+        });
+    }
+
+    if (isDaemonMidRun(metaResult.data)) {
+        return failure({
+            messages: [
+                'Daemon is busy running a lump (mid-run / in-flight); wait for it to finish or run `lumpcode stop --force`.',
+            ],
+            data: { code: 'daemonBusy' as const },
         });
     }
 

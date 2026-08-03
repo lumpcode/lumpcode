@@ -259,9 +259,11 @@ Plus global [`--json`](#ref-json-output).
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 
-**`local.json` at startup:** `.lumpcode/local.json` is read **once** when the daemon starts (`mode`, `primaryBranch`, `primaryBranches`, `workspaceStrategy`, `disabled`). Those values are frozen for every tick until you restart the daemon. Edit the file and restart to pick up changes.
+**`local.json` at startup:** `.lumpcode/local.json` is read **once** when the daemon starts (`mode`, `primaryBranch`, `primaryBranches`, `workspaceStrategy`, `disabled`, `maxParallelRun`). Those values are frozen for every tick until you restart the daemon. Edit the file and restart to pick up changes.
 
-**Pre-flight per tick:** skips the tick when `disabled` is `true` in the frozen config (no pre-flight, no lump runs). Otherwise it runs pre-flight (`git fetch && git switch <branch> && git reset --hard origin/<branch> && git pull`), then runs every targeted loadable lump whose own config is not `disabled`. If pre-flight fails the tick is **skipped** with an error logged to the daemon log file; the next tick tries again.
+**Parallel global ticks:** when `workspaceStrategy` is `"worktree"` and `maxParallelRun` is greater than `1`, an unscoped global daemon keeps up to that many lumps in flight within a tick (work-queue pool). `"checkout"` and per-lump daemons (`--lumpName`) stay sequential. Lumps with `"ignoredByGlobalDaemon": true` are omitted from the global queue (logged once at startup) but still validated at launch and remain runnable via `--lumpName` or `run`.
+
+**Pre-flight per tick:** skips the tick when `disabled` is `true` in the frozen config (no pre-flight, no lump runs). Otherwise it discovers eligible lumps, then runs them (soft-skipping per-lump `disabled` at phase 1). If discovery/pre-flight fails for a branch the daemon logs and continues with other branches; the next tick tries again.
 
 **Daemon files** under `~/.lumpcode/daemons/`:
 
@@ -270,13 +272,14 @@ With **`--json`**, all the logs even the ones of the deamon will be with json ou
 | Project (default) | `<projectName>.daemon.pid`, `.daemon.log`, `.daemon.meta.json` |
 | Single lump (`--lumpName`) | `<projectName>.<lumpName>.daemon.pid`, `.daemon.log`, `.daemon.meta.json` |
 
-Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | "worktree"` (frozen from `local.json` at daemon start), and for per-lump daemons optional `"lumpName": "…"`.
+Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | "worktree"` (frozen from `local.json` at daemon start), `"inFlightLumpCount": <number>` (`0` when idle; increments while lump runs are in flight), and for per-lump daemons optional `"lumpName": "…"`.
 
 **Collision rules:**
 
 - Starting the **global** daemon fails if **any** daemon for this project is already running (global or per-lump).
 - With **`checkout`** workspace strategy, only **one** daemon may run for the project (global or per-lump). Starting a new daemon fails while any other is alive.
 - With **`worktree`** strategy, multiple **per-lump** daemons may run together only when **all** running daemons (including any you start against) use `worktree`. Starting a `worktree` daemon fails while a daemon started with **`checkout`** is still running — stop it first.
+- If a running daemon's meta file is **missing or invalid**, start **refuses** (with `--json`, `data.code: "daemonMetaCorrupt"`) and suggests `lumpcode stop --force` for that scope. Missing meta is never treated as `checkout`.
 - The workspace strategy recorded in each daemon's meta file is the value frozen at **that daemon's** startup (not re-read from `local.json` on each tick).
 
 **Detached mode (default):**
@@ -310,13 +313,15 @@ Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | 
 
 **Behavior:** Reads the scoped PID file under `~/.lumpcode/daemons/` and daemon meta.
 
-When the daemon is **idle** (meta has no `busy` flag, or `busy` is false), sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID and meta files on success.
+When the daemon is **idle** (`inFlightLumpCount` is `0` or absent, and legacy `busy` is not `true`), sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID and meta files on success.
 
-When the daemon is **running a lump** (`meta.busy === true`), default stop still sends **SIGTERM** so the daemon can cooperatively abort the in-flight lump (kill the agent process tree, release workspace locks, then exit). It waits up to **30 seconds** for exit, then deletes PID and meta on success. If the wait expires, stop fails non-zero and leaves the PID file in place. Use **`--force`** when cooperative cancel is stuck.
+When the daemon is **mid-run** (`inFlightLumpCount >= 1`, or legacy `busy: true` from an older CLI), default stop **refuses** (non-zero; with `--json`, `data.code: "daemonBusy"`) and suggests **`--force`**. Artifacts and the process are left alone so in-flight work can finish.
 
-**`lumpcode stop --force`** immediately tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. This is **best-effort**: agent processes that detached from the daemon process tree may survive. A force-killed daemon may leave a workspace lock behind; it is removed automatically on the next acquire ([concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
+When the PID is alive but daemon **meta is missing or invalid**, default stop **refuses** (non-zero; with `--json`, `data.code: "daemonMetaCorrupt"`) and suggests **`--force`**. Do not invent idle or checkout state from a missing file.
 
-**Fails if:** No PID file, invalid PID, cannot signal process, or process does not exit within the deadline.
+**`lumpcode stop --force`** immediately tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. Force does **not** require a readable meta file. This is **best-effort**: agent processes that detached from the daemon process tree may survive. A force-killed daemon may leave a workspace lock behind; it is removed automatically on the next acquire ([concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
+
+**Fails if:** No PID file, invalid PID, mid-run without `--force`, corrupt meta without `--force`, cannot signal process, or process does not exit within the deadline.
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon).
 
@@ -333,6 +338,8 @@ When the daemon is **running a lump** (`meta.busy === true`), default stop still
 | `--lumpName` | string | No       | Restart the daemon scoped to a single lump       |
 
 When `--lumpName` is omitted, `lumpName` from the meta file is used if present (so a bare `restart` preserves a per-lump daemon).
+
+If meta is missing or invalid, restart uses **`stop --force`** then starts again (repair path). Mid-run with readable meta still refuses via normal stop (`daemonBusy`).
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon).
 
@@ -353,7 +360,8 @@ When `--lumpName` is omitted, `lumpName` from the meta file is used if present (
 - Whether a daemon is currently running for this scope
 - Paths to the PID, log, and meta files
 - Stale PID detection (process no longer exists)
-- `cronSetup` and optional `lumpName` from meta when present
+- `cronSetup`, `workspaceStrategy`, and `inFlightLumpCount` from meta when present and valid
+- When the PID is alive but meta is missing/invalid: `metaStatus` in `--json` output and a message suggesting `lumpcode stop --force` (no invented idle/checkout fields)
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon) (daemon files table).
 

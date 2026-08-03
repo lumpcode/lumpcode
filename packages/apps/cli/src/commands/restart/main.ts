@@ -40,11 +40,11 @@ export interface Injections {
 
 async function readDaemonMetaForRestart(input: {
     metaFilePath: string;
-}): Promise<{ cronSetup: string; lumpName?: string }> {
+}): Promise<{ cronSetup: string; lumpName?: string; metaCorrupt: boolean }> {
     const { metaFilePath } = input;
     const metaResult = await readDaemonMeta(metaFilePath);
     if (!metaResult.success) {
-        return { cronSetup: defaultCronPattern };
+        return { cronSetup: defaultCronPattern, metaCorrupt: true };
     }
     const cronSetup =
         typeof metaResult.data.cronSetup === 'string' && metaResult.data.cronSetup.trim()
@@ -54,7 +54,11 @@ async function readDaemonMetaForRestart(input: {
         typeof metaResult.data.lumpName === 'string' && metaResult.data.lumpName.trim()
             ? metaResult.data.lumpName.trim()
             : undefined;
-    return { cronSetup, ...(lumpName !== undefined ? { lumpName } : {}) };
+    return {
+        cronSetup,
+        metaCorrupt: false,
+        ...(lumpName !== undefined ? { lumpName } : {}),
+    };
 }
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
@@ -80,7 +84,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         globalConfigFolderPath,
     });
     const stopResult = await stopHandle({
-        options: { json, ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}) },
+        options: {
+            json,
+            ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+            ...(meta.metaCorrupt ? { force: true } : {}),
+        },
         arguments: {},
     });
     if (!stopResult.success) {

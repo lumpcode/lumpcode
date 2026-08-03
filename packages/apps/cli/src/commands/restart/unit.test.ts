@@ -198,7 +198,7 @@ describe('restart command', () => {
         expect(result.data.data?.cronSetup).toBe('*/5 * * * *');
     });
 
-    it.skip('K5: restart while mid-run fails via stop refuse (parallel-global-daemon-worktree)', async () => {
+    it('K5: restart while mid-run fails via stop refuse (parallel-global-daemon-worktree)', async () => {
         await runStart(aliveDaemonSpawnFn);
         await waitForDaemonPidFile(pidPath());
         const pid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);

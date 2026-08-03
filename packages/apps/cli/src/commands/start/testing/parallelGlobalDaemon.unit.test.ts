@@ -19,7 +19,7 @@ import {
     type PromiseGate,
 } from './testHelpers';
 
-describe.skip('start command — parallel global daemon (parallel-global-daemon-worktree G*/S*/I*)', () => {
+describe('start command — parallel global daemon (parallel-global-daemon-worktree G*/S*/I*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;
@@ -155,6 +155,12 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
             for (const gate of gates.values()) {
                 gate.resolve();
             }
+            await vi.waitFor(() => {
+                if (gates.size < 3) throw new Error('waiting for third lump gate');
+            });
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
             await vi.waitFor(async () => {
                 const raw = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
                 if (raw.inFlightLumpCount !== 0) {
@@ -174,6 +180,10 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
 
         const started: string[] = [];
         const gates = new Map<string, PromiseGate>();
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
 
         const runLumpSpy = vi
             .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
@@ -187,21 +197,21 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
 
         try {
             const startPromise = makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {
-                    await vi.waitFor(() => {
-                        if (started.length !== 1) throw new Error('expected sequential first only');
-                    });
-                    gates.get(started[0]!)!.resolve();
-                    await vi.waitFor(() => {
-                        if (started.length !== 2) throw new Error('expected second after first');
-                    });
-                    gates.get(started[1]!)!.resolve();
-                },
+                waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
 
+            await vi.waitFor(() => {
+                if (started.length !== 1) throw new Error('expected sequential first only');
+            });
+            gates.get(started[0]!)!.resolve();
+            await vi.waitFor(() => {
+                if (started.length !== 2) throw new Error('expected second after first');
+            });
+            gates.get(started[1]!)!.resolve();
+            releaseShutdown();
             await startPromise;
             expect(started).toHaveLength(2);
         } finally {
@@ -220,6 +230,10 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
         const gates = new Map<string, PromiseGate>();
         let peak = 0;
         let inFlight = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
 
         const runLumpSpy = vi
             .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
@@ -235,28 +249,30 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
             });
 
         try {
-            await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {
-                    await vi.waitFor(() => {
-                        if (started.length !== 1) throw new Error('expected only first started');
-                    });
-                    expect(peak).toBe(1);
-                    gates.get(started[0]!)!.resolve();
-                    await vi.waitFor(() => {
-                        if (started.length !== 2) throw new Error('expected second after first');
-                    });
-                    expect(peak).toBe(1);
-                    gates.get(started[1]!)!.resolve();
-                    await vi.waitFor(() => {
-                        if (started.length !== 3) throw new Error('expected third after second');
-                    });
-                    expect(peak).toBe(1);
-                    gates.get(started[2]!)!.resolve();
-                },
+            const startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
+
+            await vi.waitFor(() => {
+                if (started.length !== 1) throw new Error('expected only first started');
+            });
+            expect(peak).toBe(1);
+            gates.get(started[0]!)!.resolve();
+            await vi.waitFor(() => {
+                if (started.length !== 2) throw new Error('expected second after first');
+            });
+            expect(peak).toBe(1);
+            gates.get(started[1]!)!.resolve();
+            await vi.waitFor(() => {
+                if (started.length !== 3) throw new Error('expected third after second');
+            });
+            expect(peak).toBe(1);
+            gates.get(started[2]!)!.resolve();
+            releaseShutdown();
+            await startPromise;
 
             expect(peak).toBe(1);
             expect(started).toHaveLength(3);
@@ -291,6 +307,10 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
         const gates = new Map<string, PromiseGate>();
         let peak = 0;
         let inFlight = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
 
         const runLumpSpy = vi
             .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
@@ -307,32 +327,32 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
 
         try {
             const startPromise = makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {
-                    await vi.waitFor(() => {
-                        if (peak < 2) throw new Error('waiting for cross-branch peak 2');
-                    });
-                    // If pools were per-branch sequential, releaseLine/main would never
-                    // overlap before the other branch drained — peak 2 across names from
-                    // different discovery branches proves a merged queue.
-                    const fromDifferentBranches =
-                        started.some((n) => n.startsWith('main')) &&
-                        started.some((n) => n.startsWith('release'));
-                    expect(fromDifferentBranches || started.length >= 2).toBe(true);
-                    for (const gate of gates.values()) {
-                        gate.resolve();
-                    }
-                    await vi.waitFor(() => {
-                        if (started.length < 3) throw new Error('waiting for all three');
-                    });
-                    for (const gate of gates.values()) {
-                        gate.resolve();
-                    }
-                },
+                waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
 
+            await vi.waitFor(() => {
+                if (peak < 2) throw new Error('waiting for cross-branch peak 2');
+            });
+            // If pools were per-branch sequential, release/main would never
+            // overlap before the other branch drained — peak 2 across names from
+            // different discovery branches proves a merged queue.
+            const fromDifferentBranches =
+                started.some((n) => n.startsWith('main')) &&
+                started.some((n) => n.startsWith('release'));
+            expect(fromDifferentBranches || started.length >= 2).toBe(true);
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            await vi.waitFor(() => {
+                if (started.length < 3) throw new Error('waiting for all three');
+            });
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            releaseShutdown();
             await startPromise;
             expect(peak).toBe(2);
             expect(started.sort()).toEqual(['mainA', 'mainB', 'releaseA']);
@@ -348,6 +368,10 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
         const started: string[] = [];
         const gates = new Map<string, PromiseGate>();
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
 
         const runLumpSpy = vi
             .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
@@ -363,28 +387,27 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
             });
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {
-                    await vi.waitFor(() => {
-                        if (started.length < 2) throw new Error('waiting for starts');
-                    });
-                    for (const gate of gates.values()) {
-                        gate.resolve();
-                    }
-                    await vi.waitFor(() => {
-                        if (!started.includes('c') && !started.includes('a')) {
-                            throw new Error('waiting for remaining');
-                        }
-                        if (started.length < 3) throw new Error('waiting for all three');
-                    });
-                    for (const gate of gates.values()) {
-                        gate.resolve();
-                    }
-                },
+            const startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
+
+            await vi.waitFor(() => {
+                if (started.length < 2) throw new Error('waiting for starts');
+            });
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            await vi.waitFor(() => {
+                if (started.length < 3) throw new Error('waiting for all three');
+            });
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            releaseShutdown();
+            const result = await startPromise;
 
             expect(result.success).toBe(true);
             expect(started.sort()).toEqual(['a', 'b', 'c']);
@@ -406,6 +429,10 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
         const gates = new Map<string, PromiseGate>();
         let peak = 0;
         let inFlight = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
 
         const runLumpSpy = vi
             .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
@@ -421,25 +448,27 @@ describe.skip('start command — parallel global daemon (parallel-global-daemon-
             });
 
         try {
-            await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {
-                    await vi.waitFor(() => {
-                        if (peak < 2) throw new Error('waiting for shared peak 2');
-                    });
-                    for (const gate of gates.values()) {
-                        gate.resolve();
-                    }
-                    await vi.waitFor(() => {
-                        if (started.length < 3) throw new Error('waiting for third');
-                    });
-                    for (const gate of gates.values()) {
-                        gate.resolve();
-                    }
-                },
+            const startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
+
+            await vi.waitFor(() => {
+                if (peak < 2) throw new Error('waiting for shared peak 2');
+            });
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            await vi.waitFor(() => {
+                if (started.length < 3) throw new Error('waiting for third');
+            });
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            releaseShutdown();
+            await startPromise;
 
             expect(peak).toBe(2);
             expect(started.sort()).toEqual(['a', 'b', 'c']);

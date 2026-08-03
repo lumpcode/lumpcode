@@ -15,7 +15,7 @@ import {
     type PromiseGate,
 } from './testHelpers';
 
-describe.skip('start command — daemon inFlightLumpCount meta (parallel-global-daemon-worktree M*)', () => {
+describe('start command — daemon inFlightLumpCount meta (parallel-global-daemon-worktree M*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;
@@ -134,17 +134,18 @@ describe.skip('start command — daemon inFlightLumpCount meta (parallel-global-
 
         try {
             const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
+                // Assert before daemon cleanup removes meta artifacts.
+                waitForShutdownOverride: async () => {
+                    const count = await readMetaCount();
+                    expect(count === 0 || count === undefined).toBe(true);
+                    const raw = await readRawMeta();
+                    expect(raw.busy).not.toBe(true);
+                },
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
             expect(result.success).toBe(true);
-
-            const count = await readMetaCount();
-            expect(count === 0 || count === undefined).toBe(true);
-            const raw = await readRawMeta();
-            expect(raw.busy).not.toBe(true);
         } finally {
             runLumpSpy.mockRestore();
         }
@@ -163,17 +164,17 @@ describe.skip('start command — daemon inFlightLumpCount meta (parallel-global-
 
         try {
             const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
+                waitForShutdownOverride: async () => {
+                    const count = await readMetaCount();
+                    expect(count === 0 || count === undefined).toBe(true);
+                    const raw = await readRawMeta();
+                    expect(raw.busy).not.toBe(true);
+                },
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
             expect(result.success).toBe(true);
-
-            const count = await readMetaCount();
-            expect(count === 0 || count === undefined).toBe(true);
-            const raw = await readRawMeta();
-            expect(raw.busy).not.toBe(true);
         } finally {
             runLumpSpy.mockRestore();
         }
@@ -193,15 +194,15 @@ describe.skip('start command — daemon inFlightLumpCount meta (parallel-global-
 
         try {
             const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
+                waitForShutdownOverride: async () => {
+                    const count = await readMetaCount();
+                    expect(count === 0 || count === undefined).toBe(true);
+                },
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
             expect(result.success).toBe(true);
-
-            const count = await readMetaCount();
-            expect(count === 0 || count === undefined).toBe(true);
         } finally {
             runLumpSpy.mockRestore();
         }
@@ -263,6 +264,12 @@ describe.skip('start command — daemon inFlightLumpCount meta (parallel-global-
                 if (count !== 2) throw new Error(`expected count 2, got ${String(count)}`);
             });
 
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            await vi.waitFor(() => {
+                if (gates.size < 3) throw new Error('waiting for third in-flight lump');
+            });
             for (const gate of gates.values()) {
                 gate.resolve();
             }

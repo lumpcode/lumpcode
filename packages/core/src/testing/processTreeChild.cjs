@@ -12,7 +12,7 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function waitForReadyFile(filePath, timeoutMs = 5000) {
+async function waitForReadyFile(filePath, timeoutMs = 10_000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
         try {

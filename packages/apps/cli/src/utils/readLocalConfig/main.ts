@@ -32,6 +32,11 @@ const localConfigSchema = z
         primaryBranches: primaryBranchesSchema.optional(),
         workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
         disabled: z.boolean().optional(),
+        maxParallelRun: z
+            .number({ error: 'maxParallelRun must be a positive integer' })
+            .int({ error: 'maxParallelRun must be a positive integer' })
+            .positive({ error: 'maxParallelRun must be a positive integer' })
+            .optional(),
     })
     .superRefine((value, ctx) => {
         const hasSingular = value.primaryBranch !== undefined;

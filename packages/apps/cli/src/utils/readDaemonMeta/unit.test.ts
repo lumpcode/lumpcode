@@ -16,11 +16,31 @@ describe('readDaemonMeta', () => {
         await fs.rm(dir, { recursive: true, force: true });
     });
 
-    it('defaults to checkout when the meta file is missing', async () => {
+    it('fails with reason missing when the meta file is absent', async () => {
         const result = await readDaemonMeta(path.join(dir, 'missing.meta.json'));
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.reason).toBe('missing');
+        expect(result.data.message).toMatch(/not found/i);
+    });
+
+    it('fails with reason invalid when JSON is corrupt', async () => {
+        const metaPath = path.join(dir, 'bad.meta.json');
+        await fs.writeFile(metaPath, '{ not json', 'utf8');
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.reason).toBe('invalid');
+    });
+
+    it('defaults workspaceStrategy to checkout when omitted from a valid meta object', async () => {
+        const metaPath = path.join(dir, 'no-strategy.meta.json');
+        await fs.writeFile(metaPath, JSON.stringify({ cronSetup: '*/5 * * * *' }), 'utf8');
+        const result = await readDaemonMeta(metaPath);
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data).toEqual({ workspaceStrategy: 'checkout' }); // TODO : fail with error if it is missing
+        expect(result.data.workspaceStrategy).toBe('checkout');
+        expect(result.data.cronSetup).toBe('*/5 * * * *');
     });
 
     it('reads workspaceStrategy and cronSetup from meta', async () => {
@@ -115,7 +135,7 @@ describe('readDaemonMeta', () => {
         expect('childPids' in result.data).toBe(false);
     });
 
-    describe.skip('inFlightLumpCount (parallel-global-daemon-worktree M6–M7)', () => {
+    describe('inFlightLumpCount (parallel-global-daemon-worktree M6–M7)', () => {
         it('M6: reads inFlightLumpCount from meta', async () => {
             const metaPath = path.join(dir, 'in-flight.meta.json');
             await fs.writeFile(

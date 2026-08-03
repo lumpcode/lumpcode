@@ -11,6 +11,7 @@ const daemonMetaSchema = z.object({
     lumpName: z.string().optional(),
     workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
     busy: z.boolean().optional(),
+    inFlightLumpCount: z.number().int().nonnegative().optional(),
 });
 
 export type DaemonMeta = {
@@ -23,6 +24,18 @@ export type DaemonMeta = {
     inFlightLumpCount?: number;
 };
 
+export type DaemonMetaReadErrorReason = 'missing' | 'invalid' | 'io';
+
+export type DaemonMetaReadError = {
+    reason: DaemonMetaReadErrorReason;
+    message: string;
+};
+
+/** True when the daemon is mid-run (new count or legacy `busy`). */
+export function isDaemonMidRun(meta: Pick<DaemonMeta, 'busy' | 'inFlightLumpCount'>): boolean {
+    return (meta.inFlightLumpCount ?? 0) >= 1 || meta.busy === true;
+}
+
 /** Fields written when a detached daemon starts. */
 export type DaemonMetaWrite = {
     cronSetup: string;
@@ -30,32 +43,53 @@ export type DaemonMetaWrite = {
     lumpName?: string;
 };
 
-const defaultMeta: DaemonMeta = { workspaceStrategy: 'checkout' };
-
 /**
- * Reads daemon metadata written at detach time. Missing or invalid files default
- * to `{ workspaceStrategy: 'checkout' }` for backward compatibility.
+ * Reads daemon metadata written at start time.
+ * Missing or invalid files fail closed — callers must not invent strategy/idle state.
+ * When a valid meta omits `workspaceStrategy`, defaults that field to `'checkout'` (old writers).
  */
 export async function readDaemonMeta(
     metaFilePath: string,
-): Promise<Success<DaemonMeta> | Failure<string>> {
+): Promise<Success<DaemonMeta> | Failure<DaemonMetaReadError>> {
     const readResult = await readJsonFile<unknown>({
         filePath: metaFilePath,
-        ifMissing: { defaultValue: defaultMeta },
+        ifMissing: 'fail',
     });
     if (!readResult.success) {
-        return readResult;
+        const message = readResult.data;
+        if (/^File not found:/.test(message)) {
+            return failure<DaemonMetaReadError>({
+                reason: 'missing',
+                message: `Daemon meta file not found: ${metaFilePath}`,
+            });
+        }
+        if (/^Invalid JSON in /.test(message)) {
+            return failure<DaemonMetaReadError>({
+                reason: 'invalid',
+                message,
+            });
+        }
+        return failure<DaemonMetaReadError>({
+            reason: 'io',
+            message,
+        });
     }
 
     const validated = daemonMetaSchema.safeParse(readResult.data);
     if (!validated.success) {
-        return success(defaultMeta);
+        return failure<DaemonMetaReadError>({
+            reason: 'invalid',
+            message: `Invalid daemon meta in ${metaFilePath}: ${validated.error.message}`,
+        });
     }
 
     return success({
         ...(validated.data.cronSetup !== undefined ? { cronSetup: validated.data.cronSetup } : {}),
         ...(validated.data.lumpName !== undefined ? { lumpName: validated.data.lumpName } : {}),
         ...(validated.data.busy !== undefined ? { busy: validated.data.busy } : {}),
+        ...(validated.data.inFlightLumpCount !== undefined
+            ? { inFlightLumpCount: validated.data.inFlightLumpCount }
+            : {}),
         workspaceStrategy: validated.data.workspaceStrategy ?? 'checkout',
     });
 }

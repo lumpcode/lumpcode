@@ -25,8 +25,9 @@ Legacy keys `discoveryBranch` / `discoveryBranches` are **not** accepted; use `p
 | `primaryBranches` | string[] | Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular `primaryBranch`. The **primary branch** is the first entry (or `primaryBranch` when the array is omitted). See [Multiple primary branches](#multiple-primary-branches-dedicated-daemons). |
 | `workspaceStrategy` | `"checkout"` \| `"worktree"` | How each lump run prepares git inside the [execution workspace](concepts.md#three-workspaces). Default: `"checkout"`. See [Workspace strategies](#workspace-strategies). |
 | `disabled` | boolean | When `true`, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected. |
+| `maxParallelRun` | positive integer | Cap on concurrent lump runs in one **global** daemon tick when `workspaceStrategy` is `"worktree"`. Default `1` (sequential). Ignored for per-lump daemons and under `"checkout"`. See [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks). |
 
-`mode` and either `primaryBranch` or `primaryBranches` are **required**. `workspaceStrategy` and `disabled` are optional (`workspaceStrategy` defaults to `"checkout"` when omitted). Unknown fields are rejected.
+`mode` and either `primaryBranch` or `primaryBranches` are **required**. `workspaceStrategy`, `disabled`, and `maxParallelRun` are optional (`workspaceStrategy` defaults to `"checkout"` when omitted; `maxParallelRun` defaults to `1`). Unknown fields are rejected.
 
 ## Modes
 
@@ -58,7 +59,7 @@ Each lump run switches the main worktree to a fresh `lump/<lumpName>/…` branch
 
 Each lump run uses a **linked git worktree** under `.lumpcode/worktrees/<branch>/` inside the execution workspace (the project copy in `shared` mode, the checkout in `dedicated`). The main worktree stays on the lump's resolved `baseBranch` while the agent runs inside the worktree (the **branch workspace**). Worktree paths mirror branch segments (e.g. branch `lump/migrate-vue/Button.tsx` → `.lumpcode/worktrees/lump/migrate-vue/Button.tsx`). `project-setup` gitignores `.lumpcode/worktrees/`. `lumpcode clean` removes worktrees when it deletes lump branches.
 
-Pick `worktree` when you want the base branch checked out in the main tree during runs, or when planning parallel lump execution later.
+Pick `worktree` when you want the base branch checked out in the main tree during runs, or when using `maxParallelRun` so a global daemon can run multiple lumps concurrently in one tick.
 
 ## Multiple primary branches (dedicated daemons)
 
@@ -67,7 +68,7 @@ Pick `worktree` when you want the base branch checked out in the main tree durin
 How a dedicated global daemon uses the list, each tick:
 
 1. For **each** listed branch in order: run a locked pre-flight to that branch, then discover the lumps whose resolved discovery branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)) is that branch.
-2. Run each discovered lump with the usual per-lump flow. A failure on one branch or lump is logged and does not stop the rest of the tick.
+2. Merge discovered lump names into **one** tick-wide queue (dedupe by name), omit `ignoredByGlobalDaemon` lumps, then run the queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1). A failure on one branch or lump is logged and does not stop the rest of the tick.
 
 Rules:
 
