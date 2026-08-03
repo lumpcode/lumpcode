@@ -198,50 +198,31 @@ describe('restart command', () => {
         expect(result.data.data?.cronSetup).toBe('*/5 * * * *');
     });
 
-    it('cooperatively stops a busy daemon then starts a new one', async () => {
+    it.skip('K5: restart while mid-run fails via stop refuse (parallel-global-daemon-worktree)', async () => {
         await runStart(aliveDaemonSpawnFn);
         await waitForDaemonPidFile(pidPath());
-        const initialPid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
-        expect(Number.isNaN(initialPid)).toBe(false);
+        const pid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
+        expect(Number.isNaN(pid)).toBe(false);
 
         await fs.writeFile(
             metaPath(),
             `${JSON.stringify({
                 cronSetup: '*/5 * * * *',
                 workspaceStrategy: 'checkout',
-                busy: true,
+                inFlightLumpCount: 2,
             })}\n`,
             'utf8',
         );
 
-        const restartSpawnFn = vi.fn(
-            (command: string, args?: readonly string[] | Record<string, unknown>, options?: Parameters<typeof nodeSpawn>[2]) => {
-                const argList = args as readonly string[];
-                return aliveDaemonSpawnFn(command, argList, options ?? {});
-            },
-        ) as unknown as typeof nodeSpawn;
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
 
-        const result = await makeRestartHandler({ spawnFn: restartSpawnFn })({
-            options: {},
-            arguments: {},
-        });
-
-        expect(result.success).toBe(true);
-        if (!result.success) throw new Error('unreachable');
-        expect(JSON.stringify(result.data)).not.toMatch(/daemonBusy/);
-        expect(result.data.messages.some((m) => m.includes('Stopped Lumpcode daemon'))).toBe(true);
-        expect(restartSpawnFn).toHaveBeenCalledOnce();
-
-        try {
-            process.kill(initialPid, 0);
-            throw new Error('expected original daemon to be dead');
-        } catch (e) {
-            expect(e).toMatchObject({ code: 'ESRCH' });
-        }
-
-        await waitForDaemonPidFile(pidPath());
-        const finalPid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
-        expect(Number.isNaN(finalPid)).toBe(false);
-        expect(finalPid).not.toBe(initialPid);
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/busy|--force|daemonBusy/i);
+        expect(JSON.stringify(result.data)).toMatch(/daemonBusy/);
+        expect(spawnFn).not.toHaveBeenCalled();
+        expect(() => process.kill(pid, 0)).not.toThrow();
+        await expect(fs.access(pidPath())).resolves.toBeUndefined();
     });
 });

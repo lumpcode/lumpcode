@@ -67,6 +67,7 @@ export * from './preflightDiscoveryBranchWithLock';
 export * from './resolveEffectiveDiscoveryBranch';
 export * from './runLumpFromJsConfig';
 export * from './runLumpFromLumpName';
+export * from './runLumpQueueWithConcurrency';
 export * from './runPreflight';
 export * from './runProjectPreflight';
 export * from './setContextToFinishedStatus';
