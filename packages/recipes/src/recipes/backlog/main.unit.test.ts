@@ -72,6 +72,7 @@ describe('backlog recipe', () => {
             priority: 2,
         });
 
+        let seenDiscoveryBranch: string | undefined;
         const config = backlog({
             configUrl: pathToFileURL(configPath),
             stages: {
@@ -84,7 +85,8 @@ describe('backlog recipe', () => {
                     steps: [{ promptTemplate: 'Ship @{TASK}' }],
                 },
             },
-            resolveItem({ item }) {
+            resolveItem({ item, discoveryBranch }) {
+                seenDiscoveryBranch = discoveryBranch;
                 return item.task.includes('Alpha')
                     ? { stage: 'draft', contextName: `${item.name}_draft` }
                     : { stage: 'ship' };
@@ -94,9 +96,10 @@ describe('backlog recipe', () => {
         const contexts = await asGetContextListFn(config.getContextListFn)({
             codeBasePaths: [],
             lumpVariables: {},
-            discoveryBranch: 'main',
+            discoveryBranch: 'feature/a',
         });
 
+        expect(seenDiscoveryBranch).toBe('feature/a');
         expect(contexts).toHaveLength(1);
         expect(contexts[0]).toMatchObject({
             name: 'alpha_draft',
@@ -120,6 +123,7 @@ describe('backlog recipe', () => {
                 context: contexts[0],
                 lumpVariables: {},
                 stepIndex: 0,
+                contextRunState: {},
             }),
         });
         expect(resolvedSteps).toHaveLength(1);
@@ -161,6 +165,7 @@ describe('backlog recipe', () => {
                 context: contexts[0],
                 lumpVariables: {},
                 stepIndex: 0,
+                contextRunState: {},
             }),
         });
 
