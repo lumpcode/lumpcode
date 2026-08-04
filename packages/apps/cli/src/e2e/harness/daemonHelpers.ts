@@ -16,10 +16,10 @@ import { waitForRemoteMarker } from './markerAssertions';
 import type { RunCliResult } from './runCli';
 import { subprocessEnv } from './subprocessEnv';
 
-/** PID and meta file paths for a global or per-lump daemon under the project's isolated HOME. */
-export function daemonPathsForProject(project: E2eProject, lumpName?: string) {
+/** PID and meta file paths for a daemon under the project's isolated HOME. */
+export function daemonPathsForProject(project: E2eProject, daemonId = 'global') {
     const daemonsDir = daemonsDirPath({ globalConfigFolderPath: project.globalConfigFolderPath });
-    const base = { daemonsDir, projectName: project.projectName, lumpName };
+    const base = { daemonsDir, projectName: project.projectName, daemonId };
     return {
         pidFilePath: daemonPidPath(base),
         metaFilePath: daemonMetaPath(base),
@@ -84,13 +84,16 @@ function isDaemonNotRunningStop(result: RunCliResult): boolean {
 export async function stopDaemonSafely(input: {
     project: E2eProject;
     runCli: (args: string[]) => Promise<RunCliResult>;
+    daemonId?: string;
+    /** @deprecated use daemonId */
     lumpName?: string;
 }): Promise<void> {
+    const daemonId = input.daemonId ?? input.lumpName;
     const args = [
         'stop',
         '--json',
         '--force',
-        ...(input.lumpName ? ['--lumpName', input.lumpName] : []),
+        ...(daemonId ? ['--daemonId', daemonId] : []),
     ];
     const result = await input.runCli(args);
     if (result.code === 0) return;
@@ -132,15 +135,20 @@ export type ForegroundDaemonOutput = { stdout: string; stderr: string };
  */
 export async function runForegroundUntilMarkers(input: {
     project: E2eProject;
+    include?: string;
+    daemonId?: string;
+    /** @deprecated use include */
     lumpName?: string;
     waitFor: { lumpName: string; contextName: string }[];
 }): Promise<ForegroundDaemonOutput> {
+    const include = input.include ?? input.lumpName;
     const args = [
         'start',
         '--foreground',
         '--cronSetup',
         '*/1 * * * *',
-        ...(input.lumpName ? ['--lumpName', input.lumpName] : []),
+        ...(include ? ['--include', include] : []),
+        ...(input.daemonId ? ['--daemonId', input.daemonId] : []),
     ];
     const invocation = e2eCliInvocation();
     const child = spawn(invocation.executable, [...invocation.argsPrefix, ...args], {

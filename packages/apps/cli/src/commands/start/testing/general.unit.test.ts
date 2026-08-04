@@ -52,13 +52,20 @@ describe('start command', () => {
         }
     });
 
-    it('fails when there are no loadable lumps', async () => {
+    it('starts with no loadable lumps (empty queue / idle ticks allowed)', async () => {
+        await writeDefaultProjectJson(projectRoot, 'empty-lumps-project');
         await writeDefaultLocalJson(projectRoot);
-        const handle = makeStartHandler(deps());
-        const result = await handle({ options: {}, arguments: {} });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.messages[0]).toContain('No lumps with a loadable config');
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        try {
+            const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
+            const result = await handle({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+        } finally {
+            warnSpy.mockRestore();
+        }
     });
 
     it('fails on an invalid cron expression before running lumps', async () => {
@@ -313,7 +320,7 @@ describe('start command', () => {
         if (!result.success) throw new Error('unreachable');
         expect(spawnFn).toHaveBeenCalledOnce();
 
-        const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+        const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
         await expect(fs.access(pidPath)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
@@ -324,16 +331,22 @@ describe('start command', () => {
 
         await writeMinimalLump(projectRoot, 'alpha');
 
-        const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
-        const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+        const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+        const metaPath = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.global.daemon.meta.json`,
+        );
 
         const handle = makeStartHandler(deps(), {
             waitForShutdownOverride: async () => {
                 expect((await fs.readFile(pidPath, 'utf8')).trim()).toBe(String(process.pid));
                 const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as {
+                    daemonId: string;
                     cronSetup: string;
                     workspaceStrategy: string;
                 };
+                expect(meta.daemonId).toBe('global');
                 expect(meta.cronSetup).toBe('*/5 * * * *');
                 expect(meta.workspaceStrategy).toBe('checkout');
             },
@@ -347,7 +360,7 @@ describe('start command', () => {
         if (!result.success) throw new Error('unreachable');
     });
 
-    it('writes per-lump PID and meta in foreground mode with --lumpName', async () => {
+    it('writes filtered daemon PID and meta with include (not lumpName field)', async () => {
         const projectName = 'test-foreground-lump-daemon-project';
         await writeDefaultProjectJson(projectRoot, projectName);
         await writeDefaultLocalJson(projectRoot);
@@ -368,12 +381,18 @@ describe('start command', () => {
         const handle = makeStartHandler(deps(), {
             waitForShutdownOverride: async () => {
                 expect((await fs.readFile(pidPath, 'utf8')).trim()).toBe(String(process.pid));
-                const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as { lumpName: string };
-                expect(meta.lumpName).toBe('alpha');
+                const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as {
+                    daemonId: string;
+                    include?: string[];
+                    lumpName?: string;
+                };
+                expect(meta.daemonId).toBe('alpha');
+                expect(meta.include).toEqual(['alpha']);
+                expect(meta.lumpName).toBeUndefined();
             },
         });
         const result = await handle({
-            options: { foreground: true, lumpName: 'alpha' },
+            options: { foreground: true, include: 'alpha' },
             arguments: {},
         });
 
@@ -381,26 +400,29 @@ describe('start command', () => {
         if (!result.success) throw new Error('unreachable');
     });
 
-    it('fails to start global daemon when a per-lump daemon is already running', async () => {
-        await writeDefaultProjectJson(projectRoot, 'conflict-global-project');
+    it('allows overlapping filtered daemon alongside global', async () => {
+        await writeDefaultProjectJson(projectRoot, 'overlap-global-project');
         await writeDefaultLocalJson(projectRoot);
 
         await writeMinimalLump(projectRoot, 'alpha');
 
+        const spawnFn = vi.fn(() => ({ pid: 444444, unref: vi.fn() })) as unknown as typeof import('node:child_process').spawn;
+
         try {
             await runDetachedStart(deps(), { lumpName: 'alpha' });
 
-            const result = await makeStartHandler(deps())({ options: {}, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain('per-lump daemon already running');
+            const result = await makeStartHandler(deps(), { spawnFn })({ options: {}, arguments: {} });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(spawnFn).toHaveBeenCalledOnce();
         } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
+            await stopDaemon(deps(), { daemonId: 'alpha' });
+            await stopDaemon(deps(), { daemonId: 'global' });
         }
     });
 
-    it('fails to start per-lump daemon when global daemon is running', async () => {
-        await writeDefaultProjectJson(projectRoot, 'conflict-lump-global-project');
+    it('fails to start when the same daemonId is already running', async () => {
+        await writeDefaultProjectJson(projectRoot, 'conflict-same-id-project');
         await writeDefaultLocalJson(projectRoot);
 
         await writeMinimalLump(projectRoot, 'alpha');
@@ -408,81 +430,52 @@ describe('start command', () => {
         try {
             await runDetachedStart(deps(), {});
 
-            const result = await makeStartHandler(deps())({ options: { lumpName: 'alpha' }, arguments: {} });
+            const result = await makeStartHandler(deps())({ options: {}, arguments: {} });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain('global daemon already running');
+            expect(result.data.messages[0]).toMatch(/already in use|already running/i);
         } finally {
             await stopDaemon(deps());
         }
     });
 
-    it('fails to start second per-lump daemon under checkout strategy', async () => {
-        await writeDefaultProjectJson(projectRoot, 'conflict-two-lumps-project');
+    it('allows two filtered daemons under checkout strategy', async () => {
+        await writeDefaultProjectJson(projectRoot, 'two-filters-checkout-project');
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'checkout' });
 
         for (const name of ['alpha', 'beta']) {
             await writeMinimalLump(projectRoot, name);
         }
 
-        try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
-
-            const result = await makeStartHandler(deps())({ options: { lumpName: 'beta' }, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain(
-                'Only one daemon can run with workspace strategy "checkout"',
-            );
-        } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
-        }
-    });
-
-    it('allows second per-lump daemon under worktree strategy when another lump runs', async () => {
-        await writeDefaultProjectJson(projectRoot, 'worktree-two-lumps-project');
-        await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'worktree' });
-
-        for (const name of ['alpha', 'beta']) {
-            await writeMinimalLump(projectRoot, name);
-        }
-
-        const spawnFn = vi.fn(() => ({ pid: 444444, unref: vi.fn() })) as unknown as typeof import('node:child_process').spawn;
+        const spawnFn = vi.fn(() => ({ pid: 555555, unref: vi.fn() })) as unknown as typeof import('node:child_process').spawn;
 
         try {
             await runDetachedStart(deps(), { lumpName: 'alpha' });
 
             const result = await makeStartHandler(deps(), { spawnFn })({
-                options: { lumpName: 'beta' },
+                options: { include: 'beta' },
                 arguments: {},
             });
             expect(result.success).toBe(true);
             if (!result.success) throw new Error('unreachable');
             expect(spawnFn).toHaveBeenCalledOnce();
         } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
-            await stopDaemon(deps(), { lumpName: 'beta' });
+            await stopDaemon(deps(), { daemonId: 'alpha' });
+            await stopDaemon(deps(), { daemonId: 'beta' });
         }
     });
 
-    it('fails to start worktree per-lump daemon when a checkout per-lump daemon is running', async () => {
-        await writeDefaultProjectJson(projectRoot, 'checkout-blocks-worktree-project');
+    it('rejects --maxParallelRun when workspaceStrategy is checkout', async () => {
+        await writeDefaultProjectJson(projectRoot, 'max-parallel-checkout-project');
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'checkout' });
+        await writeMinimalLump(projectRoot, 'alpha');
 
-        for (const name of ['alpha', 'beta']) {
-            await writeMinimalLump(projectRoot, name);
-        }
-
-        try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
-            await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'worktree' });
-
-            const result = await makeStartHandler(deps())({ options: { lumpName: 'beta' }, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain('workspace strategy "checkout"');
-        } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
-        }
+        const result = await makeStartHandler(deps())({
+            options: { maxParallelRun: 2, foreground: true },
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/worktree/i);
     });
 });

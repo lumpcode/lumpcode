@@ -116,25 +116,35 @@ export function makeStartHandler(
 
 export async function runDetachedStart(
     deps: StartHandlerDeps,
-    options: { lumpName?: string; cronSetup?: string; spawnFn?: typeof aliveDaemonSpawnFn } = {},
+    options: {
+        daemonId?: string;
+        include?: string;
+        lumpName?: string;
+        cronSetup?: string;
+        spawnFn?: typeof aliveDaemonSpawnFn;
+    } = {},
 ) {
-    const { lumpName, cronSetup, spawnFn = aliveDaemonSpawnFn } = options;
+    const { daemonId, include, lumpName, cronSetup, spawnFn = aliveDaemonSpawnFn } = options;
     const handle = makeStartHandler(deps, { spawnFn });
     const result = await handle({
         options: {
+            ...(daemonId !== undefined ? { daemonId } : {}),
+            ...(include !== undefined ? { include } : {}),
             ...(lumpName !== undefined ? { lumpName } : {}),
             ...(cronSetup !== undefined ? { cronSetup } : {}),
         },
         arguments: {},
     });
     expect(result.success).toBe(true);
+    if (!result.success) throw new Error('unreachable');
+    const resolvedId = result.data.data?.daemonId ?? 'global';
 
     const pathsResult = await resolveDaemonPaths({
         projectRoot: deps.projectRoot,
         localConfigFolderPath:
             deps.localConfigFolderPath ?? localConfigFolderPath(deps.projectRoot),
         globalConfigFolderPath: deps.globalConfigFolderPath,
-        lumpName,
+        daemonId: resolvedId,
     });
     if (!pathsResult.success) {
         throw new Error(pathsResult.data);
@@ -144,7 +154,7 @@ export async function runDetachedStart(
 
 export async function stopDaemon(
     deps: StartHandlerDeps,
-    options: { lumpName?: string } = {},
+    options: { daemonId?: string; lumpName?: string } = {},
 ) {
     const handle = stopCommand.handlerMaker({
         projectRoot: deps.projectRoot,
@@ -153,7 +163,10 @@ export async function stopDaemon(
         globalConfigFolderPath: deps.globalConfigFolderPath,
     });
     await handle({
-        options: options.lumpName !== undefined ? { lumpName: options.lumpName } : {},
+        options: {
+            ...(options.daemonId !== undefined ? { daemonId: options.daemonId } : {}),
+            ...(options.lumpName !== undefined ? { lumpName: options.lumpName } : {}),
+        },
         arguments: {},
     });
 }
@@ -161,10 +174,9 @@ export async function stopDaemon(
 export function daemonMetaPath(
     globalConfigFolderPath: string,
     projectName: string,
-    lumpName?: string,
+    daemonId = 'global',
 ): string {
-    const scope = lumpName === undefined ? projectName : `${projectName}.${lumpName}`;
-    return path.join(globalConfigFolderPath, 'daemons', `${scope}.daemon.meta.json`);
+    return path.join(globalConfigFolderPath, 'daemons', `${projectName}.${daemonId}.daemon.meta.json`);
 }
 
 export async function writeCommittedLumps(

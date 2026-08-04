@@ -6,14 +6,11 @@ import { daemonMetaPath } from './main';
 describe('daemonMetaPath', () => {
     const daemonsDir = '/home/.lumpcode/daemons';
 
-    it('builds the global daemon meta path', () => {
-        expect(daemonMetaPath({ daemonsDir, projectName: 'demo_proj' })).toBe(
-            path.join(daemonsDir, 'demo_proj.daemon.meta.json'),
+    it('builds daemon id meta path', () => {
+        expect(daemonMetaPath({ daemonsDir, projectName: 'demo_proj', daemonId: 'global' })).toBe(
+            path.join(daemonsDir, 'demo_proj.global.daemon.meta.json'),
         );
-    });
-
-    it('builds the per-lump daemon meta path', () => {
-        expect(daemonMetaPath({ daemonsDir, projectName: 'demo_proj', lumpName: 'alpha' })).toBe(
+        expect(daemonMetaPath({ daemonsDir, projectName: 'demo_proj', daemonId: 'alpha' })).toBe(
             path.join(daemonsDir, 'demo_proj.alpha.daemon.meta.json'),
         );
     });

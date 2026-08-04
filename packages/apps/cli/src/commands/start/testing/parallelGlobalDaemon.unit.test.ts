@@ -24,6 +24,8 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
     let remoteDir: string;
     let globalConfigFolderPath: string;
     const projectName = 'parallel-global-daemon-project';
+    /** Suite load can delay dedicated multi-branch discovery past vitest's 1s default. */
+    const waitForOpts = { timeout: 15_000, interval: 20 } as const;
 
     beforeEach(async () => {
         const project = await setupStartTestRepo({
@@ -51,6 +53,11 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
     }
     async function writeLumps(names: string[], configExtra: Record<string, unknown> = {}) {
         await writeCommittedLumps(projectRoot, names, configExtra);
+    }
+    function releaseAllGates(gates: Map<string, PromiseGate>) {
+        for (const gate of gates.values()) {
+            gate.resolve();
+        }
     }
     const runSuccess = runLumpSuccess;
 
@@ -90,7 +97,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
             await vi.waitFor(() => {
                 if (gates.size < 2) throw new Error('waiting for peak 2');
-            });
+            }, waitForOpts);
             expect(peak).toBe(2);
             expect(started.length).toBe(2);
 
@@ -98,20 +105,20 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             gates.get(first)!.resolve();
             await vi.waitFor(() => {
                 if (started.length < 3) throw new Error('waiting for third start');
-            });
+            }, waitForOpts);
             expect(peak).toBe(2);
 
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            releaseAllGates(gates);
             await vi.waitFor(() => {
                 if (inFlight !== 0) throw new Error('waiting for drain');
-            });
+            }, waitForOpts);
             releaseShutdown();
             const result = await startPromise;
             expect(result.success).toBe(true);
             expect(started.sort()).toEqual(['a', 'b', 'c']);
         } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
             runLumpSpy.mockRestore();
         }
     });
@@ -150,26 +157,24 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
                     throw new Error(`expected inFlightLumpCount 2, got ${String(raw.inFlightLumpCount)}`);
                 }
                 expect('busy' in raw).toBe(false);
-            });
+            }, waitForOpts);
 
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            releaseAllGates(gates);
             await vi.waitFor(() => {
                 if (gates.size < 3) throw new Error('waiting for third lump gate');
-            });
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            }, waitForOpts);
+            releaseAllGates(gates);
             await vi.waitFor(async () => {
                 const raw = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
                 if (raw.inFlightLumpCount !== 0) {
                     throw new Error(`expected drained 0, got ${String(raw.inFlightLumpCount)}`);
                 }
-            });
+            }, waitForOpts);
             releaseShutdown();
             await startPromise;
         } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
             runLumpSpy.mockRestore();
         }
     });
@@ -205,16 +210,18 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
             await vi.waitFor(() => {
                 if (started.length !== 1) throw new Error('expected sequential first only');
-            });
+            }, waitForOpts);
             gates.get(started[0]!)!.resolve();
             await vi.waitFor(() => {
                 if (started.length !== 2) throw new Error('expected second after first');
-            });
+            }, waitForOpts);
             gates.get(started[1]!)!.resolve();
             releaseShutdown();
             await startPromise;
             expect(started).toHaveLength(2);
         } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
             runLumpSpy.mockRestore();
         }
     });
@@ -258,17 +265,17 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
             await vi.waitFor(() => {
                 if (started.length !== 1) throw new Error('expected only first started');
-            });
+            }, waitForOpts);
             expect(peak).toBe(1);
             gates.get(started[0]!)!.resolve();
             await vi.waitFor(() => {
                 if (started.length !== 2) throw new Error('expected second after first');
-            });
+            }, waitForOpts);
             expect(peak).toBe(1);
             gates.get(started[1]!)!.resolve();
             await vi.waitFor(() => {
                 if (started.length !== 3) throw new Error('expected third after second');
-            });
+            }, waitForOpts);
             expect(peak).toBe(1);
             gates.get(started[2]!)!.resolve();
             releaseShutdown();
@@ -277,6 +284,8 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             expect(peak).toBe(1);
             expect(started).toHaveLength(3);
         } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
             runLumpSpy.mockRestore();
         }
     });
@@ -325,8 +334,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
                 return runSuccess;
             });
 
+        let startPromise: Promise<{ success: boolean; data?: unknown }> | undefined;
         try {
-            const startPromise = makeStartHandler(deps(), {
+            startPromise = makeStartHandler(deps(), {
                 waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -335,7 +345,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
             await vi.waitFor(() => {
                 if (peak < 2) throw new Error('waiting for cross-branch peak 2');
-            });
+            }, waitForOpts);
             // If pools were per-branch sequential, release/main would never
             // overlap before the other branch drained — peak 2 across names from
             // different discovery branches proves a merged queue.
@@ -343,20 +353,19 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
                 started.some((n) => n.startsWith('main')) &&
                 started.some((n) => n.startsWith('release'));
             expect(fromDifferentBranches || started.length >= 2).toBe(true);
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            releaseAllGates(gates);
             await vi.waitFor(() => {
                 if (started.length < 3) throw new Error('waiting for all three');
-            });
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            }, waitForOpts);
+            releaseAllGates(gates);
             releaseShutdown();
             await startPromise;
             expect(peak).toBe(2);
             expect(started.sort()).toEqual(['mainA', 'mainB', 'releaseA']);
         } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
             runLumpSpy.mockRestore();
         }
     });
@@ -386,8 +395,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
                 return runSuccess;
             });
 
+        let startPromise: Promise<{ success: boolean; data?: unknown; messages?: string[] }> | undefined;
         try {
-            const startPromise = makeStartHandler(deps(), {
+            startPromise = makeStartHandler(deps(), {
                 waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -396,23 +406,22 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
             await vi.waitFor(() => {
                 if (started.length < 2) throw new Error('waiting for starts');
-            });
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            }, waitForOpts);
+            releaseAllGates(gates);
             await vi.waitFor(() => {
                 if (started.length < 3) throw new Error('waiting for all three');
-            });
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            }, waitForOpts);
+            releaseAllGates(gates);
             releaseShutdown();
             const result = await startPromise;
 
-            expect(result.success).toBe(true);
+            expect(result.success, !result.success ? JSON.stringify(result) : '').toBe(true);
             expect(started.sort()).toEqual(['a', 'b', 'c']);
             expect(errorSpy.mock.calls.some((c) => String(c[0]).includes('boom-b'))).toBe(true);
         } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
             runLumpSpy.mockRestore();
             errorSpy.mockRestore();
         }
@@ -447,8 +456,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
                 return runSuccess;
             });
 
+        let startPromise: Promise<{ success: boolean }> | undefined;
         try {
-            const startPromise = makeStartHandler(deps(), {
+            startPromise = makeStartHandler(deps(), {
                 waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -457,27 +467,26 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
             await vi.waitFor(() => {
                 if (peak < 2) throw new Error('waiting for shared peak 2');
-            });
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            }, waitForOpts);
+            releaseAllGates(gates);
             await vi.waitFor(() => {
                 if (started.length < 3) throw new Error('waiting for third');
-            });
-            for (const gate of gates.values()) {
-                gate.resolve();
-            }
+            }, waitForOpts);
+            releaseAllGates(gates);
             releaseShutdown();
             await startPromise;
 
             expect(peak).toBe(2);
             expect(started.sort()).toEqual(['a', 'b', 'c']);
         } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
             runLumpSpy.mockRestore();
         }
     });
 
-    it('S1: per-lump daemon ignores maxParallelRun', async () => {
+    it('S1: single-include filtered daemon runs only that lump', async () => {
         await writeLocal({ maxParallelRun: 3 });
         await writeLumps(['alpha', 'beta', 'gamma']);
 
@@ -493,7 +502,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             const result = await makeStartHandler(deps(), {
                 waitForShutdownOverride: async () => {},
             })({
-                options: { lumpName: 'alpha', foreground: true, cronSetup: '*/5 * * * *' },
+                options: { include: 'alpha', foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
             expect(result.success).toBe(true);
@@ -503,70 +512,12 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
-    it('I1: global daemon skips ignoredByGlobalDaemon lumps', async () => {
+    it('include filter runs only matching lumps', async () => {
         await writeLocal();
         await writeMinimalLump(projectRoot, 'alpha');
-        await writeMinimalLump(projectRoot, 'sideA', { ignoredByGlobalDaemon: true });
+        await writeMinimalLump(projectRoot, 'sideA');
         execGit('add -A', projectRoot);
-        execGit('commit -m "ignored lump"', projectRoot);
-        execGit('push origin main', projectRoot);
-
-        const started: string[] = [];
-        const runLumpSpy = vi
-            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
-            .mockImplementation(async (input) => {
-                started.push(input.lumpName);
-                return runSuccess;
-            });
-
-        try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-            expect(started).toEqual(['alpha']);
-            expect(started).not.toContain('sideA');
-        } finally {
-            runLumpSpy.mockRestore();
-        }
-    });
-
-    it('I2: startup logs ignored lump names once', async () => {
-        await writeLocal();
-        await writeMinimalLump(projectRoot, 'alpha');
-        await writeMinimalLump(projectRoot, 'sideA', { ignoredByGlobalDaemon: true });
-        await writeMinimalLump(projectRoot, 'sideB', { ignoredByGlobalDaemon: true });
-        execGit('add -A', projectRoot);
-        execGit('commit -m "two ignored"', projectRoot);
-        execGit('push origin main', projectRoot);
-
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        const runLumpSpy = vi
-            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
-            .mockResolvedValue(runSuccess);
-
-        try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-            const ignoreLogs = logSpy.mock.calls
-                .map((c) => String(c[0]))
-                .filter((m) => /Global daemon ignoring lump\(s\):/.test(m));
-            expect(ignoreLogs).toHaveLength(1);
-            expect(ignoreLogs[0]).toMatch(/sideA/);
-            expect(ignoreLogs[0]).toMatch(/sideB/);
-        } finally {
-            runLumpSpy.mockRestore();
-            logSpy.mockRestore();
-        }
-    });
-
-    it('I3: per-lump daemon still runs ignoredByGlobalDaemon lump', async () => {
-        await writeLocal();
-        await writeMinimalLump(projectRoot, 'sideA', { ignoredByGlobalDaemon: true });
-        execGit('add -A', projectRoot);
-        execGit('commit -m "ignored only"', projectRoot);
+        execGit('commit -m "two lumps"', projectRoot);
         execGit('push origin main', projectRoot);
 
         const started: string[] = [];
@@ -581,7 +532,11 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             const result = await makeStartHandler(deps(), {
                 waitForShutdownOverride: async () => {},
             })({
-                options: { lumpName: 'sideA', foreground: true, cronSetup: '*/5 * * * *' },
+                options: {
+                    include: 'sideA',
+                    foreground: true,
+                    cronSetup: '*/5 * * * *',
+                },
                 arguments: {},
             });
             expect(result.success).toBe(true);
@@ -591,7 +546,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
-    it('I4: disabled lump is not filtered by ignoredByGlobalDaemon logic', async () => {
+    it('disabled lump still reaches runLumpFromLumpName (phase-1 soft skip)', async () => {
         await writeLocal();
         await writeMinimalLump(projectRoot, 'alpha', { disabled: true });
         execGit('add -A', projectRoot);
@@ -615,7 +570,6 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
-            // Distinct from I1: disabled still reaches runLumpFromLumpName (phase-1 soft skip).
             expect(started).toEqual(['alpha']);
         } finally {
             runLumpSpy.mockRestore();

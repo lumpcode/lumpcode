@@ -20,6 +20,8 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
     let remoteDir: string;
     let globalConfigFolderPath: string;
     const projectName = 'stop-mid-run-test-project';
+    /** Suite load can delay dedicated discovery past vitest's 1s default. */
+    const waitForOpts = { timeout: 15_000, interval: 20 } as const;
 
     beforeEach(async () => {
         const project = await setupStartTestRepo({ tmpPrefix: 'lump-start-busy' });
@@ -30,6 +32,7 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
 
     afterEach(async () => {
         await teardownStartTestRepo({ projectRoot, remoteDir, globalConfigFolderPath });
+        vi.restoreAllMocks();
     });
     const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
 
@@ -63,8 +66,12 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
 
     function assertMetaKeysAreAllowed(raw: Record<string, unknown>) {
         const allowed = new Set([
+            'daemonId',
             'cronSetup',
             'workspaceStrategy',
+            'include',
+            'exclude',
+            'maxParallelRun',
             'lumpName',
             'inFlightLumpCount',
         ]);
@@ -101,8 +108,9 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
             releaseShutdown = resolve;
         });
 
+        let startPromise: Promise<{ success: boolean }> | undefined;
         try {
-            const startPromise = makeStartHandler(deps(), {
+            startPromise = makeStartHandler(deps(), {
                 waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -116,12 +124,15 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
                 }
                 const raw = await readRawMeta();
                 expect('busy' in raw).toBe(false);
-            });
+            }, waitForOpts);
 
             resolveRun(runSuccess);
             releaseShutdown();
             await startPromise;
         } finally {
+            resolveRun(runSuccess);
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
             runLumpSpy.mockRestore();
         }
     });
@@ -250,8 +261,9 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
                 return runSuccess;
             });
 
+        let startPromise: Promise<{ success: boolean }> | undefined;
         try {
-            const startPromise = makeStartHandler(deps(), {
+            startPromise = makeStartHandler(deps(), {
                 waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -262,14 +274,14 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
                 if (gates.size < 2) throw new Error('waiting for two in-flight lumps');
                 const count = await readMetaCount();
                 if (count !== 2) throw new Error(`expected count 2, got ${String(count)}`);
-            });
+            }, waitForOpts);
 
             for (const gate of gates.values()) {
                 gate.resolve();
             }
             await vi.waitFor(() => {
                 if (gates.size < 3) throw new Error('waiting for third in-flight lump');
-            });
+            }, waitForOpts);
             for (const gate of gates.values()) {
                 gate.resolve();
             }
@@ -278,10 +290,15 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
                 if (count !== 0 && count !== undefined) {
                     throw new Error(`expected drained count, got ${String(count)}`);
                 }
-            });
+            }, waitForOpts);
             releaseShutdown();
             await startPromise;
         } finally {
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
             runLumpSpy.mockRestore();
         }
     });
@@ -312,7 +329,7 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
                     if (releaseQueue.length <= index) {
                         throw new Error(`waiting for lump run ${index + 1}`);
                     }
-                });
+                }, waitForOpts);
                 const count = await readMetaCount();
                 countSnapshots.push(count ?? -1);
                 releaseQueue[index]?.();
@@ -320,8 +337,9 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
             resolveShutdown();
         })();
 
+        let startPromise: Promise<{ success: boolean }> | undefined;
         try {
-            const startPromise = makeStartHandler(deps(), {
+            startPromise = makeStartHandler(deps(), {
                 waitForShutdownOverride: () => shutdownGate,
             })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
@@ -331,6 +349,11 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
             await Promise.all([startPromise, pollDuringRuns]);
             expect(countSnapshots).toEqual([1, 1]);
         } finally {
+            for (const release of releaseQueue) {
+                release();
+            }
+            resolveShutdown();
+            await startPromise?.catch(() => undefined);
             runLumpSpy.mockRestore();
         }
     });
