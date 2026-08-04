@@ -216,7 +216,7 @@ describe('readLocalConfig', () => {
         expect(result.success).toBe(false);
     });
 
-    describe.skip('maxParallelRun (parallel-global-daemon-worktree L*)', () => {
+    describe('maxParallelRun (parallel-global-daemon-worktree L*)', () => {
         it('L1: omits maxParallelRun when field is absent', async () => {
             await fs.writeFile(
                 path.join(dir, LOCAL_CONFIG_FILE_NAME),

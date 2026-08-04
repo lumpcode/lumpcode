@@ -38,11 +38,15 @@ describe('listRunningProjectDaemons', () => {
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.global).toEqual({ pid: process.pid, workspaceStrategy: 'worktree' });
+        expect(result.data.global).toEqual({
+            pid: process.pid,
+            meta: 'ok',
+            workspaceStrategy: 'worktree',
+        });
         expect(result.data.lumps).toEqual({});
     });
 
-    it('defaults workspaceStrategy to checkout when meta is missing', async () => {
+    it('marks alive daemon as meta missing when meta file is absent', async () => {
         await fs.writeFile(
             path.join(daemonsDir, `${projectName}.alpha.daemon.pid`),
             String(process.pid),
@@ -51,6 +55,23 @@ describe('listRunningProjectDaemons', () => {
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.lumps).toEqual({ alpha: { pid: process.pid, workspaceStrategy: 'checkout' } }); // TODO : remove this behavior, if no meta, fail with error
+        expect(result.data.lumps).toEqual({ alpha: { pid: process.pid, meta: 'missing' } });
+    });
+
+    it('marks alive daemon as meta invalid when meta JSON is corrupt', async () => {
+        await fs.writeFile(
+            path.join(daemonsDir, `${projectName}.daemon.pid`),
+            String(process.pid),
+            'utf8',
+        );
+        await fs.writeFile(
+            path.join(daemonsDir, `${projectName}.daemon.meta.json`),
+            '{ not json',
+            'utf8',
+        );
+        const result = await listRunningProjectDaemons({ daemonsDir, projectName });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.global).toEqual({ pid: process.pid, meta: 'invalid' });
     });
 });

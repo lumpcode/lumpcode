@@ -55,8 +55,8 @@ export async function getToDoContextList<V extends LumpVariables = LumpVariables
     );
 
     const contextListToDo = contextList
-    .filter((context, contextIndex) => {
-        const contextStatus = contextStatusList[contextIndex];
+    .filter((context) => {
+        const contextStatus = contextStatusMap.get(context.name);
         if (contextStatus && contextStatus !== 'toDo') return false;
 
         const deps = context.options?.dependsOnContexts;

@@ -1,8 +1,15 @@
-import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import { spawn, type ChildProcess } from 'node:child_process';
 
-import { daemonMetaPath, daemonPidPath, daemonsDirPath, pollUntil, pollUntilPathExists, readDaemonMeta } from '../../utils';
+import {
+    daemonMetaPath,
+    daemonPidPath,
+    daemonsDirPath,
+    isDaemonMidRun,
+    pollUntil,
+    pollUntilPathExists,
+    readDaemonMeta,
+} from '../../utils';
 import type { E2eProject } from './createE2eProject';
 import { e2eCliInvocation, runE2eCli } from './e2eCli';
 import { waitForRemoteMarker } from './markerAssertions';
@@ -40,12 +47,10 @@ export function assertHomeIsolated(project: E2eProject): void {
 
 /**
  * Polls daemon meta until a lump run has started (mid-run) and then finished
- * (idle). Mid-run is `(inFlightLumpCount ?? 0) >= 1` or legacy `busy: true`.
- * Avoids racing `stop` against the pre-first-tick window where meta looks idle
- * simply because work has not begun yet.
+ * (idle). Mid-run uses {@link isDaemonMidRun}. Avoids racing `stop` against the
+ * pre-first-tick window where meta looks idle simply because work has not begun yet.
  *
- * E1 (parallel-global-daemon-worktree): accepts new count with legacy busy fallback.
- * Raw JSON is consulted for `inFlightLumpCount` until `readDaemonMeta` parses it.
+ * E1 (parallel-global-daemon-worktree): mid-run via `inFlightLumpCount` with legacy `busy` fallback.
  */
 export async function waitForDaemonIdle(input: {
     metaFilePath: string;
@@ -60,23 +65,7 @@ export async function waitForDaemonIdle(input: {
             const metaResult = await readDaemonMeta(input.metaFilePath);
             if (!metaResult.success) return undefined;
 
-            let inFlightLumpCount = metaResult.data.inFlightLumpCount;
-            if (inFlightLumpCount === undefined) {
-                try {
-                    const raw = JSON.parse(await fs.readFile(input.metaFilePath, 'utf8')) as {
-                        inFlightLumpCount?: unknown;
-                    };
-                    if (typeof raw.inFlightLumpCount === 'number') {
-                        inFlightLumpCount = raw.inFlightLumpCount;
-                    }
-                } catch {
-                    // meta may be mid-write
-                }
-            }
-
-            const midRun =
-                (inFlightLumpCount ?? 0) >= 1 || metaResult.data.busy === true;
-            if (midRun) {
+            if (isDaemonMidRun(metaResult.data)) {
                 sawMidRun = true;
                 return undefined;
             }

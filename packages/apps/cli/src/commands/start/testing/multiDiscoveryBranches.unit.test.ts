@@ -253,9 +253,22 @@ describe('start command — multi discovery branches', () => {
             });
 
             expect(result.success).toBe(true);
-            const lumpNames = runLumpSpy.mock.calls.map((c) => c[0].lumpName);
-            expect(lumpNames).toContain('mainLine');
-            expect(lumpNames).toContain('releaseLine');
+            const byName = new Map(
+                runLumpSpy.mock.calls.map((c) => [c[0].lumpName as string, c[0]] as const),
+            );
+            expect(byName.has('mainLine')).toBe(true);
+            expect(byName.has('releaseLine')).toBe(true);
+            // Merged queue runs after all scans; must pass the scan-time discovery branch
+            // so branch-only configs resolve without relying on the current checkout.
+            expect(byName.get('mainLine')?.effectiveDiscoveryBranch).toBe('main');
+            expect(byName.get('releaseLine')?.effectiveDiscoveryBranch).toBe('ver/0.0.9');
+            const releaseCallIndex = runLumpSpy.mock.calls.findIndex(
+                (c) => c[0].lumpName === 'releaseLine',
+            );
+            const releaseCall = runLumpSpy.mock.results[releaseCallIndex];
+            expect(releaseCall?.type).toBe('return');
+            const releaseResult = await (releaseCall?.value as Promise<{ success: boolean }>);
+            expect(releaseResult.success).toBe(true);
         } finally {
             runLumpSpy.mockRestore();
         }

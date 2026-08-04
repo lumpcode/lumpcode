@@ -4,7 +4,12 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
+import {
+    readDaemonMeta,
+    readDaemonPidIfAlive,
+    resolveDaemonCommandScope,
+    type DaemonMetaReadErrorReason,
+} from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -25,7 +30,9 @@ export type StatusData = {
     cronSetup?: string;
     lumpName?: string;
     workspaceStrategy?: string;
+    inFlightLumpCount?: number;
     stalePidFile?: boolean;
+    metaStatus?: DaemonMetaReadErrorReason;
 };
 
 export type Output = {
@@ -39,19 +46,30 @@ export interface Injections {
     globalConfigFolderPath: string;
 }
 
-async function readMetaFromFile(metaFilePath: string): Promise<{
-    cronSetup?: string;
-    lumpName?: string;
-    workspaceStrategy?: string;
-}> {
+type MetaRead =
+    | {
+          ok: true;
+          cronSetup?: string;
+          lumpName?: string;
+          workspaceStrategy: string;
+          inFlightLumpCount: number;
+      }
+    | {
+          ok: false;
+          reason: DaemonMetaReadErrorReason;
+      };
+
+async function readMetaFromFile(metaFilePath: string): Promise<MetaRead> {
     const metaResult = await readDaemonMeta(metaFilePath);
     if (!metaResult.success) {
-        return {};
+        return { ok: false, reason: metaResult.data.reason };
     }
     return {
+        ok: true,
         ...(metaResult.data.cronSetup !== undefined ? { cronSetup: metaResult.data.cronSetup } : {}),
         ...(metaResult.data.lumpName !== undefined ? { lumpName: metaResult.data.lumpName } : {}),
         workspaceStrategy: metaResult.data.workspaceStrategy,
+        inFlightLumpCount: metaResult.data.inFlightLumpCount ?? 0,
     };
 }
 
@@ -78,7 +96,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const messages: string[] = [
             `No Lumpcode background daemon PID file for "${projectName}"${scopeLabel} (${pidFilePath}). The daemon is not running.`,
         ];
-        if (meta.cronSetup !== undefined) {
+        if (meta.ok && meta.cronSetup !== undefined) {
             messages.push(`Detached schedule on file: ${meta.cronSetup}`);
         }
         return success({
@@ -90,7 +108,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 logFilePath,
                 metaFilePath,
                 ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
-                ...(meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
+                ...(meta.ok && meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
+                ...(!meta.ok ? { metaStatus: meta.reason } : {}),
             },
         });
     }
@@ -99,7 +118,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const messages: string[] = [
             `PID file for "${projectName}"${scopeLabel} references a process that is not running (stale PID file at ${pidFilePath}).`,
         ];
-        if (meta.cronSetup !== undefined) {
+        if (meta.ok && meta.cronSetup !== undefined) {
             messages.push(`Last recorded cron schedule: ${meta.cronSetup}`);
         }
         return success({
@@ -112,12 +131,36 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 metaFilePath,
                 stalePidFile: true,
                 ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
-                ...(meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
+                ...(meta.ok && meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
+                ...(!meta.ok ? { metaStatus: meta.reason } : {}),
             },
         });
     }
 
     const pid = pidAlive.pid;
+
+    if (!meta.ok) {
+        const messages = [
+            `Lumpcode background daemon is running for "${projectName}"${scopeLabel} (pid ${pid}).`,
+            `Log file: ${logFilePath}`,
+            `Daemon meta is invalid (reason: ${meta.reason}) at ${metaFilePath}; run \`lumpcode stop --force\` to repair.`,
+        ];
+        return success({
+            messages,
+            data: {
+                running: true,
+                projectName,
+                pidFilePath,
+                logFilePath,
+                metaFilePath,
+                pid,
+                metaStatus: meta.reason,
+                ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+            },
+        });
+    }
+
+    const inFlightLumpCount = meta.inFlightLumpCount;
     const messages: string[] = [
         `Lumpcode background daemon is running for "${projectName}"${scopeLabel} (pid ${pid}).`,
         `Log file: ${logFilePath}`,
@@ -129,6 +172,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             'Cron schedule is not recorded in the daemon metadata file (restart with a current lumpcode to refresh it).',
         );
     }
+    messages.push(`In-flight lump runs: ${inFlightLumpCount}`);
 
     return success({
         messages,
@@ -139,9 +183,14 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             logFilePath,
             metaFilePath,
             pid,
-            ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : meta.lumpName !== undefined ? { lumpName: meta.lumpName } : {}),
+            ...(lumpNameOpt !== undefined
+                ? { lumpName: lumpNameOpt }
+                : meta.lumpName !== undefined
+                  ? { lumpName: meta.lumpName }
+                  : {}),
             ...(meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
             workspaceStrategy: meta.workspaceStrategy,
+            inFlightLumpCount,
         },
     });
 };

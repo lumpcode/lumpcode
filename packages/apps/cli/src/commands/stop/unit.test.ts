@@ -219,7 +219,7 @@ describe('stop command', () => {
             return { pid, childPids };
         }
 
-        it.skip('K1: refuses when inFlightLumpCount >= 1 (parallel-global-daemon-worktree)', async () => {
+        it('K1: refuses when inFlightLumpCount >= 1 (parallel-global-daemon-worktree)', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
@@ -236,7 +236,7 @@ describe('stop command', () => {
             await expect(fs.access(metaPath())).resolves.toBeUndefined();
         });
 
-        it.skip('K2: refuses when legacy busy: true (parallel-global-daemon-worktree)', async () => {
+        it('K2: refuses when legacy busy: true (parallel-global-daemon-worktree)', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
@@ -251,7 +251,7 @@ describe('stop command', () => {
             await expect(fs.access(pidPath())).resolves.toBeUndefined();
         });
 
-        it.skip('K6: busy true with inFlightLumpCount 0 still refuses (parallel-global-daemon-worktree)', async () => {
+        it('K6: busy true with inFlightLumpCount 0 still refuses (parallel-global-daemon-worktree)', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             await writeInFlightMeta(0, { busy: true });
@@ -262,7 +262,7 @@ describe('stop command', () => {
             expect(result.data.data?.code).toBe('daemonBusy');
         });
 
-        it.skip('K7: inFlightLumpCount 1 with busy false refuses (parallel-global-daemon-worktree)', async () => {
+        it('K7: inFlightLumpCount 1 with busy false refuses (parallel-global-daemon-worktree)', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             await writeInFlightMeta(1, { busy: false });
@@ -271,6 +271,43 @@ describe('stop command', () => {
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
             expect(result.data.data?.code).toBe('daemonBusy');
+        });
+
+        it('refuses graceful stop when meta is missing (daemonMetaCorrupt)', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await fs.unlink(metaPath());
+
+            const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('daemonMetaCorrupt');
+            expect(result.data.data?.reason).toBe('missing');
+            expect(result.data.messages.join(' ')).toMatch(/meta|--force/i);
+            assertProcessAlive(pid);
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+        });
+
+        it('stop --force succeeds when meta is missing', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await fs.unlink(metaPath());
+
+            const result = await makeStopHandler()({
+                options: { force: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+            try {
+                process.kill(pid, 0);
+                throw new Error('expected daemon to be dead');
+            } catch (e) {
+                expect(e).toMatchObject({ code: 'ESRCH' });
+            }
         });
 
         it('stop --force skips the busy check and removes artifacts', async () => {
@@ -493,7 +530,7 @@ describe('stop command', () => {
         }
 
         // ST1–ST4 / ST9: rewritten for mid-run refuse (parallel-global-daemon-worktree K*).
-        it.skip('ST1/K1: mid-run default stop refuses with daemonBusy', async () => {
+        it('ST1/K1: mid-run default stop refuses with daemonBusy', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
@@ -509,7 +546,7 @@ describe('stop command', () => {
             await expect(fs.access(metaPath())).resolves.toBeUndefined();
         });
 
-        it.skip('ST2/K1: mid-run --json includes daemonBusy code', async () => {
+        it('ST2/K1: mid-run --json includes daemonBusy code', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             await writeInFlightMeta(2);
@@ -523,7 +560,7 @@ describe('stop command', () => {
             expect(result.data.data?.code).toBe('daemonBusy');
         });
 
-        it.skip('ST3/K1: mid-run stop does not SIGTERM the daemon', async () => {
+        it('ST3/K1: mid-run stop does not SIGTERM the daemon', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
@@ -541,7 +578,7 @@ describe('stop command', () => {
             }
         });
 
-        it.skip('ST4/K1: per-lump mid-run stop refuses with daemonBusy', async () => {
+        it('ST4/K1: per-lump mid-run stop refuses with daemonBusy', async () => {
             const lumpProjectName = 'stop-mid-run-lump-project';
             await fs.writeFile(
                 path.join(localConfigFolderPath, 'project.json'),
@@ -676,7 +713,7 @@ describe('stop command', () => {
             assertProcessAlive(pid);
         }, 15_000);
 
-        it.skip('ST9/K2: legacy busy mid-run refuses (no cooperative wait)', async () => {
+        it('ST9/K2: legacy busy mid-run refuses (no cooperative wait)', async () => {
             const { pid } = await spawnSigtermIgnorantDaemon();
             await writeBusyMeta();
 

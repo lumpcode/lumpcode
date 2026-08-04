@@ -13,7 +13,7 @@ function makeGate(): Gate {
     return { resolve, promise };
 }
 
-describe.skip('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => {
+describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => {
     it('P1: caps concurrency and drains the queue', async () => {
         const gates = new Map<string, Gate>();
         let inFlight = 0;

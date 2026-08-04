@@ -150,7 +150,7 @@ describe('validateDaemonLaunch', () => {
         expect(logger.warnings).toEqual([]);
     });
 
-    describe.skip('ignoredByGlobalDaemon still validated (parallel-global-daemon-worktree V*)', () => {
+    describe('ignoredByGlobalDaemon still validated (parallel-global-daemon-worktree V*)', () => {
         it('V1: ignored lump with unlisted discoveryBranch still fails validateDaemonLaunch', async () => {
             await writeMinimalLump(projectRoot, 'sideA', {
                 ignoredByGlobalDaemon: true,

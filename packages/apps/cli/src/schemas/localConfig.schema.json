@@ -34,6 +34,12 @@
     "disabled": {
       "type": "boolean",
       "description": "When true, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected."
+    },
+    "maxParallelRun": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum concurrent lump runs in a single global-daemon tick when workspaceStrategy is \"worktree\". Omit or set to 1 for sequential ticks (default). Ignored for per-lump daemons (`start --lumpName`) and when workspaceStrategy is \"checkout\". Choose a value that fits machine resources and agent rate limits; there is no hard upper cap.",
+      "examples": [1, 2, 3]
     }
   },
   "anyOf": [

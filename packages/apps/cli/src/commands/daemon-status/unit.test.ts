@@ -151,7 +151,7 @@ describe('daemon-status command', () => {
         }
     });
 
-    describe.skip('inFlightLumpCount surface (parallel-global-daemon-worktree D*)', () => {
+    describe('inFlightLumpCount surface (parallel-global-daemon-worktree D*)', () => {
         it('D1: JSON status includes inFlightLumpCount when running', async () => {
             const startHandle = startCommand.handlerMaker({
                 projectRoot,
@@ -237,6 +237,45 @@ describe('daemon-status command', () => {
                 expect(
                     (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
                 ).toBe(0);
+            } finally {
+                const stopHandle = stopCommand.handlerMaker({
+                    projectRoot,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                });
+                await stopHandle({ options: { force: true }, arguments: {} });
+            }
+        });
+
+        it('reports metaStatus when PID is alive but meta is missing', async () => {
+            const startHandle = startCommand.handlerMaker({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                spawnFn: aliveDaemonSpawnFn,
+            });
+            const startResult = await startHandle({
+                options: { cronSetup: '15 * * * *' },
+                arguments: {},
+            });
+            expect(startResult.success).toBe(true);
+            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+            await waitForDaemonPidFile(pidPath);
+            await fs.unlink(metaPath);
+
+            try {
+                const statusResult = await makeDaemonStatusHandler()({
+                    options: { json: true },
+                    arguments: {},
+                });
+                expect(statusResult.success).toBe(true);
+                if (!statusResult.success) throw new Error('unreachable');
+                expect(statusResult.data.data!.running).toBe(true);
+                expect(statusResult.data.data!.metaStatus).toBe('missing');
+                expect(statusResult.data.data!.inFlightLumpCount).toBeUndefined();
+                expect(statusResult.data.data!.workspaceStrategy).toBeUndefined();
+                expect(statusResult.data.messages.join('\n')).toMatch(/meta|--force/i);
             } finally {
                 const stopHandle = stopCommand.handlerMaker({
                     projectRoot,

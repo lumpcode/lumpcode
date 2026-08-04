@@ -8,10 +8,16 @@ import { daemonPidPath } from '../daemonPidPath';
 import { metaFilePathFromPidFilePath, readDaemonMeta } from '../readDaemonMeta';
 import { readDaemonPidIfAlive } from '../readDaemonPidIfAlive';
 
-export type RunningDaemonInfo = {
-    pid: number;
-    workspaceStrategy: WorkspaceStrategy;
-};
+export type RunningDaemonInfo =
+    | {
+          pid: number;
+          meta: 'ok';
+          workspaceStrategy: WorkspaceStrategy;
+      }
+    | {
+          pid: number;
+          meta: 'missing' | 'invalid';
+      };
 
 export type RunningProjectDaemons = {
     global?: RunningDaemonInfo;
@@ -37,11 +43,19 @@ async function readRunningDaemonInfo(
         return success(undefined);
     }
 
+    const pid = aliveResult.data.pid;
     const metaResult = await readDaemonMeta(metaFilePathFromPidFilePath(pidFilePath));
-    if (!metaResult.success) return metaResult;
+    if (!metaResult.success) {
+        const reason = metaResult.data.reason;
+        if (reason === 'missing' || reason === 'invalid') {
+            return success<RunningDaemonInfo>({ pid, meta: reason });
+        }
+        return failure(metaResult.data.message);
+    }
 
-    return success({
-        pid: aliveResult.data.pid,
+    return success<RunningDaemonInfo>({
+        pid,
+        meta: 'ok',
         workspaceStrategy: metaResult.data.workspaceStrategy,
     });
 }

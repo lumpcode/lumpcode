@@ -6,10 +6,36 @@ export type RunLumpQueueWithConcurrencyInput = {
 
 /**
  * Runs lump names through a work-queue pool capped at `concurrency`.
- * Stub for parallel-global-daemon-worktree — implement during feature stage.
+ * Preserves queue-head start order; isolates failures so one lump cannot
+ * cancel siblings or prevent the remaining queue from draining.
  */
 export async function runLumpQueueWithConcurrency(
-    _input: RunLumpQueueWithConcurrencyInput,
+    input: RunLumpQueueWithConcurrencyInput,
 ): Promise<void> {
-    throw new Error('not implemented');
+    const { lumpNames, runOneLump } = input;
+    if (lumpNames.length === 0) {
+        return;
+    }
+
+    const concurrency = Math.max(1, Math.floor(input.concurrency));
+    let nextIndex = 0;
+
+    async function worker(): Promise<void> {
+        while (true) {
+            const index = nextIndex;
+            nextIndex += 1;
+            if (index >= lumpNames.length) {
+                return;
+            }
+            const lumpName = lumpNames[index]!;
+            try {
+                await runOneLump({ lumpName });
+            } catch {
+                // Failure isolation: log/handle at the call site; keep draining.
+            }
+        }
+    }
+
+    const workerCount = Math.min(concurrency, lumpNames.length);
+    await Promise.all(Array.from({ length: workerCount }, () => worker()));
 }

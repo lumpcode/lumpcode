@@ -48,6 +48,7 @@ export async function getContextStatus<V extends LumpVariables = LumpVariables>(
         .filter((entry) => entry.subject === commitMessage)
         .map((entry) => entry.hash);
 
+    logger?.verbose(`contextName ${contextName}`);
     logger?.verbose(`remoteName ${remoteName}`);
     logger?.verbose(`baseBranch ${baseBranch}`);
     logger?.verbose(`commitMessage ${commitMessage}`);
