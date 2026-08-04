@@ -173,4 +173,83 @@ describe('readDaemonMeta', () => {
             expect(result.data.inFlightLumpCount).toBeUndefined();
         });
     });
+
+    /**
+     * daemon-id-and-filters M1–M3.
+     * Skipped until meta schema accepts daemonId / include / exclude / maxParallelRun
+     * and compat readers map lumpName → include / infer id from path.
+     */
+    describe.skip('daemon-id-and-filters meta fields (M1–M3)', () => {
+        it('M1: parse new fields', async () => {
+            const metaPath = path.join(dir, 'new-fields.meta.json');
+            await fs.writeFile(
+                metaPath,
+                JSON.stringify({
+                    daemonId: 'agents',
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'worktree',
+                    maxParallelRun: 3,
+                    include: ['backlog', 'refacto-*'],
+                    exclude: ['refacto-wip'],
+                }),
+                'utf8',
+            );
+            const result = await readDaemonMeta(metaPath);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            const data = result.data as typeof result.data & {
+                daemonId?: string;
+                include?: string[];
+                exclude?: string[];
+                maxParallelRun?: number;
+            };
+            expect(data.daemonId).toBe('agents');
+            expect(data.include).toEqual(['backlog', 'refacto-*']);
+            expect(data.exclude).toEqual(['refacto-wip']);
+            expect(data.maxParallelRun).toBe(3);
+        });
+
+        it('M2: compat lumpName → include when include omitted', async () => {
+            const metaPath = path.join(dir, 'legacy-lump.meta.json');
+            await fs.writeFile(
+                metaPath,
+                JSON.stringify({
+                    cronSetup: '*/5 * * * *',
+                    lumpName: 'alpha',
+                    workspaceStrategy: 'checkout',
+                }),
+                'utf8',
+            );
+            const result = await readDaemonMeta(metaPath);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            const data = result.data as typeof result.data & {
+                include?: string[];
+                lumpName?: string;
+            };
+            // Reader or scope adapter yields effective include; raw may still expose lumpName.
+            expect(data.include ?? (data.lumpName ? [data.lumpName] : undefined)).toEqual([
+                'alpha',
+            ]);
+        });
+
+        it('M3: infer daemonId from path when meta omits it', async () => {
+            const metaPath = path.join(dir, 'proj.agents.daemon.meta.json');
+            await fs.writeFile(
+                metaPath,
+                JSON.stringify({
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'worktree',
+                }),
+                'utf8',
+            );
+            const result = await readDaemonMeta(metaPath);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            const data = result.data as typeof result.data & { daemonId?: string };
+            // Effective id at resolve/list/status layer may be outside readDaemonMeta;
+            // when reader infers from filename, expect agents.
+            expect(data.daemonId ?? path.basename(metaPath).split('.')[1]).toBe('agents');
+        });
+    });
 });

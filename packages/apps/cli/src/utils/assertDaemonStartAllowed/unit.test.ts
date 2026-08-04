@@ -1,136 +1,93 @@
 import { describe, expect, it } from 'vitest';
 
 import { assertDaemonStartAllowed } from './main';
+import type { RunningDaemonInfo } from '../listRunningProjectDaemons';
 
-describe('assertDaemonStartAllowed', () => {
+type AssertInput = {
+    projectName: string;
+    daemonId: string;
+    running: ReadonlyMap<string, RunningDaemonInfo> | Record<string, RunningDaemonInfo>;
+};
+
+type AssertResult =
+    | { success: true; data: void }
+    | {
+          success: false;
+          data: { message: string; code?: 'daemonIdInUse' | 'daemonMetaCorrupt' };
+      };
+
+type AssertFn = (input: AssertInput) => AssertResult;
+
+/**
+ * daemon-id-and-filters A1–A5.
+ * Skipped until assertDaemonStartAllowed is id-only + corrupt meta.
+ * Old global/per-lump/checkout mutual-exclusion cases are deleted (A6).
+ */
+describe.skip('assertDaemonStartAllowed (daemon-id-and-filters A*)', () => {
     const projectName = 'proj';
+    const assert = assertDaemonStartAllowed as unknown as AssertFn;
 
-    it('allows global start when nothing is running', () => {
-        const result = assertDaemonStartAllowed({
+    function runningRecord(
+        entries: Record<string, RunningDaemonInfo>,
+    ): Record<string, RunningDaemonInfo> {
+        return entries;
+    }
+
+    it('A1: free id → success', () => {
+        const result = assert({
             projectName,
-            workspaceStrategy: 'checkout',
-            running: { lumps: {} },
+            daemonId: 'agents',
+            running: runningRecord({}),
         });
         expect(result.success).toBe(true);
     });
 
-    it('blocks global start when global daemon is running', () => {
-        const result = assertDaemonStartAllowed({
+    it('A2: id in use → daemonIdInUse', () => {
+        const result = assert({
             projectName,
-            workspaceStrategy: 'checkout',
-            running: { global: { pid: 100, meta: 'ok', workspaceStrategy: 'checkout' }, lumps: {} },
+            daemonId: 'agents',
+            running: runningRecord({
+                agents: { pid: 100, meta: 'ok', workspaceStrategy: 'worktree' },
+            }),
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain('global daemon already running');
+        expect(result.data.code).toBe('daemonIdInUse');
+        expect(result.data.message).toMatch(/agents|already|in use/i);
     });
 
-    it('blocks global start when any per-lump daemon is running', () => {
-        const result = assertDaemonStartAllowed({
+    it('A3: peer corrupt meta blocks any new start', () => {
+        const result = assert({
             projectName,
-            workspaceStrategy: 'checkout',
-            running: { lumps: { alpha: { pid: 101, meta: 'ok', workspaceStrategy: 'checkout' } } },
+            daemonId: 'other',
+            running: runningRecord({
+                agents: { pid: 100, meta: 'missing' },
+            }),
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain('per-lump daemon already running');
+        expect(result.data.code).toBe('daemonMetaCorrupt');
     });
 
-    it('blocks per-lump start when global daemon is running', () => {
-        const result = assertDaemonStartAllowed({
+    it('A4: overlapping filters allowed (assert only sees ids)', () => {
+        const result = assert({
             projectName,
-            targetLumpName: 'alpha',
-            workspaceStrategy: 'checkout',
-            running: { global: { pid: 100, meta: 'ok', workspaceStrategy: 'checkout' }, lumps: {} },
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain('global daemon already running');
-    });
-
-    it('blocks per-lump start when same lump daemon is running', () => {
-        const result = assertDaemonStartAllowed({
-            projectName,
-            targetLumpName: 'alpha',
-            workspaceStrategy: 'checkout',
-            running: { lumps: { alpha: { pid: 102, meta: 'ok', workspaceStrategy: 'checkout' } } },
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain('lump "alpha"');
-    });
-
-    it('blocks per-lump checkout start when another lump runs', () => {
-        const result = assertDaemonStartAllowed({
-            projectName,
-            targetLumpName: 'beta',
-            workspaceStrategy: 'checkout',
-            running: { lumps: { alpha: { pid: 103, meta: 'ok', workspaceStrategy: 'checkout' } } },
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain('Only one daemon can run with workspace strategy "checkout"');
-    });
-
-    it('blocks per-lump checkout start when another lump runs with worktree strategy', () => {
-        const result = assertDaemonStartAllowed({
-            projectName,
-            targetLumpName: 'beta',
-            workspaceStrategy: 'checkout',
-            running: { lumps: { alpha: { pid: 103, meta: 'ok', workspaceStrategy: 'worktree' } } },
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain('Only one daemon can run with workspace strategy "checkout"');
-    });
-
-    it('allows per-lump worktree start when another lump runs with worktree strategy', () => {
-        const result = assertDaemonStartAllowed({
-            projectName,
-            targetLumpName: 'beta',
-            workspaceStrategy: 'worktree',
-            running: { lumps: { alpha: { pid: 103, meta: 'ok', workspaceStrategy: 'worktree' } } },
+            daemonId: 'other',
+            running: runningRecord({
+                agents: { pid: 100, meta: 'ok', workspaceStrategy: 'worktree' },
+            }),
         });
         expect(result.success).toBe(true);
     });
 
-    it('blocks per-lump worktree start when a checkout lump daemon is running', () => {
-        const result = assertDaemonStartAllowed({
+    it('A5: checkout multi allowed (distinct ids)', () => {
+        const result = assert({
             projectName,
-            targetLumpName: 'beta',
-            workspaceStrategy: 'worktree',
-            running: { lumps: { alpha: { pid: 103, meta: 'ok', workspaceStrategy: 'checkout' } } },
+            daemonId: 'beta',
+            running: runningRecord({
+                alpha: { pid: 100, meta: 'ok', workspaceStrategy: 'checkout' },
+            }),
         });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.message).toContain('workspace strategy "checkout"');
-        expect(result.data.message).toContain('strategy "worktree"');
-    });
-
-    it('blocks start when a running daemon has missing meta', () => {
-        const result = assertDaemonStartAllowed({
-            projectName,
-            targetLumpName: 'beta',
-            workspaceStrategy: 'worktree',
-            running: { lumps: { alpha: { pid: 103, meta: 'missing' } } },
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.code).toBe('daemonMetaCorrupt');
-        expect(result.data.reason).toBe('missing');
-        expect(result.data.message).toMatch(/meta is invalid \(reason: missing\)|--force/);
-    });
-
-    it('blocks start when a running global daemon has invalid meta', () => {
-        const result = assertDaemonStartAllowed({
-            projectName,
-            workspaceStrategy: 'checkout',
-            running: { global: { pid: 100, meta: 'invalid' }, lumps: {} },
-        });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data.code).toBe('daemonMetaCorrupt');
-        expect(result.data.reason).toBe('invalid');
-        expect(result.data.message).toMatch(/meta is invalid \(reason: invalid\)|--force/);
+        expect(result.success).toBe(true);
     });
 });

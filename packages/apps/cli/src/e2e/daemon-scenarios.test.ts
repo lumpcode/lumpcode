@@ -99,3 +99,92 @@ describe('E2E daemon scenarios', () => {
         ).toBe(false);
     });
 });
+
+/**
+ * daemon-id-and-filters E1–E3.
+ * Skipped until start/stop/status speak --daemonId / --include.
+ */
+describe.skip('E2E daemon scenarios (daemon-id-and-filters E*)', () => {
+    const { createProject } = useE2eProjects({ stopDaemonOnTeardown: true });
+
+    it('E1: start/stop with --include + --daemonId', async () => {
+        const project = await createProject({ lumps: [{ name: 'alpha' }, { name: 'beta' }] });
+        const { pidFilePath } = daemonPathsForProject(project, { daemonId: 'e2eAgents' });
+        expectCliOk(
+            await runE2eCli({
+                project,
+                args: [
+                    'start',
+                    '--include',
+                    'alpha',
+                    '--daemonId',
+                    'e2eAgents',
+                    '--cronSetup',
+                    '*/1 * * * *',
+                    '--json',
+                ],
+            }),
+            'filtered start',
+        );
+        await waitForPath(pidFilePath, 30_000);
+        expectCliOk(
+            await runE2eCli({
+                project,
+                args: ['stop', '--daemonId', 'e2eAgents', '--json', '--force'],
+            }),
+            'stop by daemonId',
+        );
+        await expect(fs.access(pidFilePath)).rejects.toThrow();
+    });
+
+    it('E2: daemon-status --json lists id/filters', async () => {
+        const project = await createProject({ lumps: [{ name: 'alpha' }] });
+        expectCliOk(
+            await runE2eCli({
+                project,
+                args: [
+                    'start',
+                    '--include',
+                    'alpha',
+                    '--daemonId',
+                    'e2eAgents',
+                    '--cronSetup',
+                    '*/1 * * * *',
+                    '--json',
+                ],
+            }),
+            'start',
+        );
+        const { pidFilePath } = daemonPathsForProject(project, { daemonId: 'e2eAgents' });
+        await waitForPath(pidFilePath, 30_000);
+        const status = await runE2eCli({ project, args: ['daemon-status', '--json'] });
+        expectCliOk(status, 'daemon-status list');
+        expect(`${status.stdout}\n${JSON.stringify(status.json)}`).toMatch(/e2eAgents|include|alpha/);
+        expectCliOk(
+            await runE2eCli({
+                project,
+                args: ['stop', '--daemonId', 'e2eAgents', '--json', '--force'],
+            }),
+            'stop',
+        );
+    });
+
+    it('E3: deprecated --lumpName start warns', async () => {
+        const project = await createProject({ lumps: [{ name: 'alpha' }, { name: 'beta' }] });
+        const result = await runE2eCli({
+            project,
+            args: ['start', '--lumpName', 'alpha', '--cronSetup', '*/1 * * * *', '--json'],
+        });
+        expectCliOk(result, 'deprecated lumpName start');
+        expect(`${result.stdout}\n${result.stderr}\n${result.json.messages.join('\n')}`).toMatch(
+            /deprecated|lumpName/i,
+        );
+        expectCliOk(
+            await runE2eCli({
+                project,
+                args: ['stop', '--lumpName', 'alpha', '--json', '--force'],
+            }),
+            'stop via lumpName',
+        );
+    });
+});

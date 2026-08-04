@@ -25,7 +25,9 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
     args: readonly string[],
     options: SpawnOptions,
 ) => {
-    const lumpName = parseSpawnArg(args, '--lumpName');
+    // Prefer --daemonId (daemon-id-and-filters); fall back to deprecated --lumpName.
+    const pathScope =
+        parseSpawnArg(args, '--daemonId') ?? parseSpawnArg(args, '--lumpName');
     const cronSetup = parseSpawnArg(args, '--cronSetup') ?? '*/5 * * * *';
     let workspaceStrategy = 'checkout';
     const projectRoot = options.cwd ? String(options.cwd) : '';
@@ -53,7 +55,8 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
             LUMPCODE_DAEMON_PROJECT_ROOT: projectRoot,
             LUMPCODE_DAEMON_GLOBAL_CONFIG: getDaemonTestGlobalConfigFolder(),
             LUMPCODE_DAEMON_CRON_SETUP: cronSetup,
-            LUMPCODE_DAEMON_LUMP_NAME: lumpName ?? '',
+            // Child still uses LUMPCODE_DAEMON_LUMP_NAME as the path middle segment.
+            LUMPCODE_DAEMON_LUMP_NAME: pathScope ?? '',
             LUMPCODE_DAEMON_WORKSPACE_STRATEGY: workspaceStrategy,
         },
     });

@@ -317,15 +317,24 @@ describe('start command', () => {
         await expect(fs.access(pidPath)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
-    it('writes PID and meta in foreground mode', async () => {
+    // daemon-id-and-filters path / collision hosts (S*, O*). Skipped until daemonId paths land.
+    it.skip('S1: writes PID and meta at project.global.daemon.* in foreground', async () => {
         const projectName = 'test-foreground-daemon-project';
         await writeDefaultProjectJson(projectRoot, projectName);
         await writeDefaultLocalJson(projectRoot);
 
         await writeMinimalLump(projectRoot, 'alpha');
 
-        const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
-        const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+        const pidPath = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.global.daemon.pid`,
+        );
+        const metaPath = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.global.daemon.meta.json`,
+        );
 
         const handle = makeStartHandler(deps(), {
             waitForShutdownOverride: async () => {
@@ -333,9 +342,13 @@ describe('start command', () => {
                 const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as {
                     cronSetup: string;
                     workspaceStrategy: string;
+                    daemonId?: string;
+                    lumpName?: string;
                 };
                 expect(meta.cronSetup).toBe('*/5 * * * *');
                 expect(meta.workspaceStrategy).toBe('checkout');
+                expect(meta.daemonId).toBe('global');
+                expect(meta.lumpName).toBeUndefined();
             },
         });
         const result = await handle({
@@ -347,7 +360,7 @@ describe('start command', () => {
         if (!result.success) throw new Error('unreachable');
     });
 
-    it('writes per-lump PID and meta in foreground mode with --lumpName', async () => {
+    it.skip('S3/M4: deprecated --lumpName writes include not lumpName', async () => {
         const projectName = 'test-foreground-lump-daemon-project';
         await writeDefaultProjectJson(projectRoot, projectName);
         await writeDefaultLocalJson(projectRoot);
@@ -368,8 +381,14 @@ describe('start command', () => {
         const handle = makeStartHandler(deps(), {
             waitForShutdownOverride: async () => {
                 expect((await fs.readFile(pidPath, 'utf8')).trim()).toBe(String(process.pid));
-                const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as { lumpName: string };
-                expect(meta.lumpName).toBe('alpha');
+                const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as {
+                    include?: string[];
+                    lumpName?: string;
+                    daemonId?: string;
+                };
+                expect(meta.include).toEqual(['alpha']);
+                expect(meta.daemonId).toBe('alpha');
+                expect(meta.lumpName).toBeUndefined();
             },
         });
         const result = await handle({
@@ -381,108 +400,76 @@ describe('start command', () => {
         if (!result.success) throw new Error('unreachable');
     });
 
-    it('fails to start global daemon when a per-lump daemon is already running', async () => {
-        await writeDefaultProjectJson(projectRoot, 'conflict-global-project');
-        await writeDefaultLocalJson(projectRoot);
-
-        await writeMinimalLump(projectRoot, 'alpha');
-
-        try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
-
-            const result = await makeStartHandler(deps())({ options: {}, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain('per-lump daemon already running');
-        } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
-        }
-    });
-
-    it('fails to start per-lump daemon when global daemon is running', async () => {
-        await writeDefaultProjectJson(projectRoot, 'conflict-lump-global-project');
-        await writeDefaultLocalJson(projectRoot);
-
-        await writeMinimalLump(projectRoot, 'alpha');
-
-        try {
-            await runDetachedStart(deps(), {});
-
-            const result = await makeStartHandler(deps())({ options: { lumpName: 'alpha' }, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain('global daemon already running');
-        } finally {
-            await stopDaemon(deps());
-        }
-    });
-
-    it('fails to start second per-lump daemon under checkout strategy', async () => {
-        await writeDefaultProjectJson(projectRoot, 'conflict-two-lumps-project');
-        await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'checkout' });
-
-        for (const name of ['alpha', 'beta']) {
-            await writeMinimalLump(projectRoot, name);
-        }
-
-        try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
-
-            const result = await makeStartHandler(deps())({ options: { lumpName: 'beta' }, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain(
-                'Only one daemon can run with workspace strategy "checkout"',
-            );
-        } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
-        }
-    });
-
-    it('allows second per-lump daemon under worktree strategy when another lump runs', async () => {
-        await writeDefaultProjectJson(projectRoot, 'worktree-two-lumps-project');
+    it.skip('O1/A4: overlapping daemons with distinct ids both start', async () => {
+        await writeDefaultProjectJson(projectRoot, 'overlap-project');
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'worktree' });
+        await writeMinimalLump(projectRoot, 'backlog');
 
-        for (const name of ['alpha', 'beta']) {
-            await writeMinimalLump(projectRoot, name);
-        }
-
-        const spawnFn = vi.fn(() => ({ pid: 444444, unref: vi.fn() })) as unknown as typeof import('node:child_process').spawn;
+        const spawnFn = vi.fn(() => ({
+            pid: 444444,
+            unref: vi.fn(),
+        })) as unknown as typeof import('node:child_process').spawn;
 
         try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
+            await runDetachedStart(deps(), {
+                daemonId: 'a',
+                include: 'backlog',
+            } as never);
 
             const result = await makeStartHandler(deps(), { spawnFn })({
-                options: { lumpName: 'beta' },
+                options: { daemonId: 'b', include: 'backlog' } as never,
                 arguments: {},
             });
             expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(spawnFn).toHaveBeenCalledOnce();
         } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
-            await stopDaemon(deps(), { lumpName: 'beta' });
+            await stopDaemon(deps(), { daemonId: 'a' } as never);
+            await stopDaemon(deps(), { daemonId: 'b' } as never);
         }
     });
 
-    it('fails to start worktree per-lump daemon when a checkout per-lump daemon is running', async () => {
-        await writeDefaultProjectJson(projectRoot, 'checkout-blocks-worktree-project');
+    it.skip('A5: checkout allows second distinct-id daemon', async () => {
+        await writeDefaultProjectJson(projectRoot, 'checkout-multi-project');
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'checkout' });
 
         for (const name of ['alpha', 'beta']) {
             await writeMinimalLump(projectRoot, name);
         }
 
-        try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
-            await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'worktree' });
+        const spawnFn = vi.fn(() => ({
+            pid: 444445,
+            unref: vi.fn(),
+        })) as unknown as typeof import('node:child_process').spawn;
 
-            const result = await makeStartHandler(deps())({ options: { lumpName: 'beta' }, arguments: {} });
+        try {
+            await runDetachedStart(deps(), { daemonId: 'alpha', include: 'alpha' } as never);
+
+            const result = await makeStartHandler(deps(), { spawnFn })({
+                options: { daemonId: 'beta', include: 'beta' } as never,
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+        } finally {
+            await stopDaemon(deps(), { daemonId: 'alpha' } as never);
+            await stopDaemon(deps(), { daemonId: 'beta' } as never);
+        }
+    });
+
+    it.skip('S7: duplicate daemonId fails', async () => {
+        await writeDefaultProjectJson(projectRoot, 'id-in-use-project');
+        await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'worktree' });
+        await writeMinimalLump(projectRoot, 'alpha');
+
+        try {
+            await runDetachedStart(deps(), { daemonId: 'agents' } as never);
+            const result = await makeStartHandler(deps())({
+                options: { daemonId: 'agents' } as never,
+                arguments: {},
+            });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toContain('workspace strategy "checkout"');
+            expect(result.data.messages.join(' ')).toMatch(/daemonIdInUse|already|in use/i);
         } finally {
-            await stopDaemon(deps(), { lumpName: 'alpha' });
+            await stopDaemon(deps(), { daemonId: 'agents' } as never);
         }
     });
 });

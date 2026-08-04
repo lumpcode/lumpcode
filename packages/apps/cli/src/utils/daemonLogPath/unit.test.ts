@@ -3,18 +3,29 @@ import { describe, expect, it } from 'vitest';
 
 import { daemonLogPath } from './main';
 
-describe('daemonLogPath', () => {
-    const daemonsDir = '/home/.lumpcode/daemons';
+type DaemonLogPath = (input: {
+    daemonsDir: string;
+    projectName: string;
+    daemonId: string;
+}) => string;
 
-    it('builds the global daemon log path', () => {
-        expect(daemonLogPath({ daemonsDir, projectName: 'demo_proj' })).toBe(
-            path.join(daemonsDir, 'demo_proj.daemon.log'),
+/**
+ * daemon-id-and-filters P3 (log).
+ * Skipped until path helpers require daemonId.
+ */
+describe.skip('daemonLogPath (daemon-id-and-filters P*)', () => {
+    const daemonsDir = '/home/.lumpcode/daemons';
+    const logPath = daemonLogPath as unknown as DaemonLogPath;
+
+    it('P3: global write target is project.global.daemon.log (never bare)', () => {
+        expect(logPath({ daemonsDir, projectName: 'demo', daemonId: 'global' })).toBe(
+            path.join(daemonsDir, 'demo.global.daemon.log'),
         );
     });
 
-    it('builds the per-lump daemon log path', () => {
-        expect(daemonLogPath({ daemonsDir, projectName: 'demo_proj', lumpName: 'alpha' })).toBe(
-            path.join(daemonsDir, 'demo_proj.alpha.daemon.log'),
+    it('P3: filtered id log path', () => {
+        expect(logPath({ daemonsDir, projectName: 'demo', daemonId: 'agents' })).toBe(
+            path.join(daemonsDir, 'demo.agents.daemon.log'),
         );
     });
 });

@@ -16,9 +16,21 @@ import { waitForRemoteMarker } from './markerAssertions';
 import type { RunCliResult } from './runCli';
 import { subprocessEnv } from './subprocessEnv';
 
-/** PID and meta file paths for a global or per-lump daemon under the project's isolated HOME. */
-export function daemonPathsForProject(project: E2eProject, lumpName?: string) {
+/**
+ * PID and meta file paths for a daemon under the project's isolated HOME.
+ * Prefer `{ daemonId }` (post daemon-id-and-filters). Legacy `lumpName` string/arg still works.
+ * Omit both → current bare global basename (pre-migration); pass `daemonId: 'global'` for new path.
+ */
+export function daemonPathsForProject(
+    project: E2eProject,
+    lumpNameOrOpts?: string | { daemonId?: string; lumpName?: string },
+) {
     const daemonsDir = daemonsDirPath({ globalConfigFolderPath: project.globalConfigFolderPath });
+    const opts =
+        typeof lumpNameOrOpts === 'string'
+            ? { lumpName: lumpNameOrOpts }
+            : (lumpNameOrOpts ?? {});
+    const lumpName = opts.daemonId ?? opts.lumpName;
     const base = { daemonsDir, projectName: project.projectName, lumpName };
     return {
         pidFilePath: daemonPidPath(base),
@@ -84,13 +96,17 @@ function isDaemonNotRunningStop(result: RunCliResult): boolean {
 export async function stopDaemonSafely(input: {
     project: E2eProject;
     runCli: (args: string[]) => Promise<RunCliResult>;
+    /** Preferred post daemon-id-and-filters. */
+    daemonId?: string;
+    /** @deprecated Prefer daemonId. */
     lumpName?: string;
 }): Promise<void> {
     const args = [
         'stop',
         '--json',
         '--force',
-        ...(input.lumpName ? ['--lumpName', input.lumpName] : []),
+        ...(input.daemonId ? ['--daemonId', input.daemonId] : []),
+        ...(!input.daemonId && input.lumpName ? ['--lumpName', input.lumpName] : []),
     ];
     const result = await input.runCli(args);
     if (result.code === 0) return;

@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import {
     aliveDaemonSpawnFn,
@@ -285,5 +285,213 @@ describe('daemon-status command', () => {
                 await stopHandle({ options: { force: true }, arguments: {} });
             }
         });
+    });
+});
+
+/**
+ * daemon-id-and-filters DS1–DS6.
+ * Skipped until daemon-status lists all project daemons / --daemonId detail.
+ */
+describe.skip('daemon-status command (daemon-id-and-filters DS*)', () => {
+    let projectRoot: string;
+    let globalConfigFolderPath: string;
+    let localConfigFolderPath: string;
+    const projectName = 'status-ds-project';
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ds-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ds-global-'));
+        setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName }),
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
+            minimalLumpConfigJson,
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                workspaceStrategy: 'worktree',
+            }),
+            'utf-8',
+        );
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+    });
+
+    function makeStatusHandler() {
+        return daemonStatusCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+    }
+
+    function makeStartHandler() {
+        return startCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            spawnFn: aliveDaemonSpawnFn,
+        });
+    }
+
+    it('DS1: no-id status lists all alive daemons', async () => {
+        expect((await makeStartHandler()({ options: {}, arguments: {} })).success).toBe(true);
+        expect(
+            (
+                await makeStartHandler()({
+                    options: { daemonId: 'agents', include: 'alpha' } as never,
+                    arguments: {},
+                })
+            ).success,
+        ).toBe(true);
+        await waitForDaemonPidFile(
+            path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`),
+        );
+        await waitForDaemonPidFile(
+            path.join(globalConfigFolderPath, 'daemons', `${projectName}.agents.daemon.pid`),
+        );
+
+        const result = await makeStatusHandler()({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        const data = result.data.data as unknown as {
+            daemons?: Array<Record<string, unknown>>;
+        };
+        const list = data.daemons ?? (Array.isArray(result.data.data) ? result.data.data : null);
+        expect(list).toBeTruthy();
+        const ids = (list as Array<Record<string, unknown>>).map((d) => d.daemonId);
+        expect(new Set(ids)).toEqual(new Set(['global', 'agents']));
+        for (const entry of list as Array<Record<string, unknown>>) {
+            for (const key of [
+                'daemonId',
+                'pid',
+                'running',
+                'cronSetup',
+                'include',
+                'exclude',
+                'workspaceStrategy',
+                'maxParallelRun',
+                'inFlightLumpCount',
+            ]) {
+                expect(key in entry).toBe(true);
+            }
+        }
+    });
+
+    it('DS2: --daemonId single detail', async () => {
+        expect(
+            (
+                await makeStartHandler()({
+                    options: { daemonId: 'agents', include: 'alpha' } as never,
+                    arguments: {},
+                })
+            ).success,
+        ).toBe(true);
+        await waitForDaemonPidFile(
+            path.join(globalConfigFolderPath, 'daemons', `${projectName}.agents.daemon.pid`),
+        );
+        const result = await makeStatusHandler()({
+            options: { daemonId: 'agents' } as never,
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(JSON.stringify(result.data.data)).toMatch(/agents/);
+    });
+
+    it('DS3: JSON list shape', async () => {
+        expect((await makeStartHandler()({ options: {}, arguments: {} })).success).toBe(true);
+        await waitForDaemonPidFile(
+            path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`),
+        );
+        const result = await makeStatusHandler()({
+            options: { json: true },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data).toBeTruthy();
+    });
+
+    it('DS4: deprecated --lumpName single detail + warn', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            expect(
+                (
+                    await makeStartHandler()({
+                        options: { daemonId: 'alpha', include: 'alpha' } as never,
+                        arguments: {},
+                    })
+                ).success,
+            ).toBe(true);
+            await waitForDaemonPidFile(
+                path.join(globalConfigFolderPath, 'daemons', `${projectName}.alpha.daemon.pid`),
+            );
+            const result = await makeStatusHandler()({
+                options: { lumpName: 'alpha' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            const logged = [...warnSpy.mock.calls, ...logSpy.mock.calls]
+                .map((c) => String(c[0]))
+                .join('\n');
+            expect(logged).toMatch(/deprecated|lumpName/i);
+        } finally {
+            warnSpy.mockRestore();
+            logSpy.mockRestore();
+        }
+    });
+
+    it('DS5: missing id → not-running / failure tone', async () => {
+        const result = await makeStatusHandler()({
+            options: { daemonId: 'nope' } as never,
+            arguments: {},
+        });
+        if (result.success) {
+            expect(JSON.stringify(result.data)).toMatch(/not running|nope/i);
+        } else {
+            expect(result.data.messages.join(' ')).toMatch(/not running|nope|not found/i);
+        }
+    });
+
+    it('DS6: legacy bare appears as daemonId global in list', async () => {
+        expect((await makeStartHandler()({ options: {}, arguments: {} })).success).toBe(true);
+        const globalPid = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.global.daemon.pid`,
+        );
+        const barePid = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+        await waitForDaemonPidFile(globalPid);
+        await fs.copyFile(globalPid, barePid);
+        await fs.copyFile(
+            globalPid.replace(/\.pid$/, '.meta.json'),
+            barePid.replace(/\.pid$/, '.meta.json'),
+        );
+        await fs.rm(globalPid, { force: true });
+        await fs.rm(globalPid.replace(/\.pid$/, '.meta.json'), { force: true });
+
+        const result = await makeStatusHandler()({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(JSON.stringify(result.data.data)).toMatch(/"daemonId"\s*:\s*"global"|global/);
     });
 });

@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
+    daemonPathsForProject,
     defaultE2eLumpConfigJson,
     expectCliOk,
     expectMarkerOnRemote,
@@ -14,6 +15,8 @@ import {
     runForegroundUntilMarkers,
     sharedModeCopyPath,
     useE2eProjects,
+    waitForDaemonIdle,
+    waitForPath,
     writeE2eLumpFixture,
 } from './harness';
 
@@ -179,6 +182,64 @@ describe('E2E multi discovery branches', () => {
                 branch: lumpBranchName('mainLine', 'README'),
             }),
         ).toBe(false);
+    });
+
+    /**
+     * daemon-id-and-filters D1 e2e smoke: filtered include still multi-primary discovers.
+     * Skipped until --include is supported on start (no --discoveryBranch on start).
+     */
+    it.skip('DAEMON-MDB-D1 start --include=releaseLine multi-primary (daemon-id-and-filters)', async () => {
+        const project = await createProject({
+            localJson: {
+                mode: 'dedicated',
+                primaryBranches: ['main', 'ver/0.0.9'],
+            },
+            lumps: [{ name: 'mainLine', discoveryBranch: 'main' }],
+        });
+        await pushIntegrationBranch(project, 'ver/0.0.9', async () => {});
+        await writeE2eLumpFixture({
+            projectRoot: project.projectRoot,
+            lumpName: 'releaseLine',
+            configOverrides: releaseLineConfig,
+        });
+
+        expectCliOk(
+            await runE2eCli({
+                project,
+                args: [
+                    'start',
+                    '--include',
+                    'releaseLine',
+                    '--daemonId',
+                    'releaseLine',
+                    '--cronSetup',
+                    '*/1 * * * *',
+                    '--json',
+                ],
+            }),
+            'filtered start',
+        );
+        const { metaFilePath } = daemonPathsForProject(project, { daemonId: 'releaseLine' });
+        await waitForPath(metaFilePath, 30_000);
+        await waitForDaemonIdle({ metaFilePath });
+        expectMarkerOnRemote({
+            remoteDir: project.remoteDir,
+            lumpName: 'releaseLine',
+            contextName: 'README',
+        });
+        expect(
+            remoteHasBranch({
+                remoteDir: project.remoteDir,
+                branch: lumpBranchName('mainLine', 'README'),
+            }),
+        ).toBe(false);
+        expectCliOk(
+            await runE2eCli({
+                project,
+                args: ['stop', '--daemonId', 'releaseLine', '--json', '--force'],
+            }),
+            'stop',
+        );
     });
 
     it('RUN-MDB-S1 lumpcode run releaseLine from main checkout succeeds', async () => {

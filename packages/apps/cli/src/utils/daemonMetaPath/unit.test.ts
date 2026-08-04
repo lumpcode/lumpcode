@@ -3,18 +3,29 @@ import { describe, expect, it } from 'vitest';
 
 import { daemonMetaPath } from './main';
 
-describe('daemonMetaPath', () => {
-    const daemonsDir = '/home/.lumpcode/daemons';
+type DaemonMetaPath = (input: {
+    daemonsDir: string;
+    projectName: string;
+    daemonId: string;
+}) => string;
 
-    it('builds the global daemon meta path', () => {
-        expect(daemonMetaPath({ daemonsDir, projectName: 'demo_proj' })).toBe(
-            path.join(daemonsDir, 'demo_proj.daemon.meta.json'),
+/**
+ * daemon-id-and-filters P3 (meta).
+ * Skipped until path helpers require daemonId.
+ */
+describe.skip('daemonMetaPath (daemon-id-and-filters P*)', () => {
+    const daemonsDir = '/home/.lumpcode/daemons';
+    const metaPath = daemonMetaPath as unknown as DaemonMetaPath;
+
+    it('P3: global write target is project.global.daemon.meta.json (never bare)', () => {
+        expect(metaPath({ daemonsDir, projectName: 'demo', daemonId: 'global' })).toBe(
+            path.join(daemonsDir, 'demo.global.daemon.meta.json'),
         );
     });
 
-    it('builds the per-lump daemon meta path', () => {
-        expect(daemonMetaPath({ daemonsDir, projectName: 'demo_proj', lumpName: 'alpha' })).toBe(
-            path.join(daemonsDir, 'demo_proj.alpha.daemon.meta.json'),
+    it('P3: filtered id meta path', () => {
+        expect(metaPath({ daemonsDir, projectName: 'demo', daemonId: 'agents' })).toBe(
+            path.join(daemonsDir, 'demo.agents.daemon.meta.json'),
         );
     });
 });

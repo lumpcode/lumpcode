@@ -760,3 +760,165 @@ describe('stop command', () => {
         }, 15_000);
     });
 });
+
+/**
+ * daemon-id-and-filters K1–K5.
+ * Skipped until stop defaults to daemonId global + new paths / --daemonId.
+ */
+describe.skip('stop command (daemon-id-and-filters K*)', () => {
+    let projectRoot: string;
+    let globalConfigFolderPath: string;
+    let localConfigFolderPath: string;
+    const projectName = 'stop-k-project';
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-k-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-k-global-'));
+        setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName }),
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
+            minimalLumpConfigJson,
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                workspaceStrategy: 'worktree',
+            }),
+            'utf-8',
+        );
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+    });
+
+    function makeStopHandler() {
+        return stopCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+    }
+
+    function makeStartHandler() {
+        return startCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            spawnFn: aliveDaemonSpawnFn,
+        });
+    }
+
+    function globalPidPath() {
+        return path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+    }
+
+    function idPidPath(daemonId: string) {
+        return path.join(globalConfigFolderPath, 'daemons', `${projectName}.${daemonId}.daemon.pid`);
+    }
+
+    it('K1: default stop targets global new path', async () => {
+        expect((await makeStartHandler()({ options: {}, arguments: {} })).success).toBe(true);
+        await waitForDaemonPidFile(globalPidPath());
+        const result = await makeStopHandler()({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        await expect(fs.access(globalPidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('K2: stop --daemonId stops only that id', async () => {
+        expect(
+            (
+                await makeStartHandler()({
+                    options: { daemonId: 'agents', include: 'alpha' } as never,
+                    arguments: {},
+                })
+            ).success,
+        ).toBe(true);
+        await waitForDaemonPidFile(idPidPath('agents'));
+        expect((await makeStartHandler()({ options: {}, arguments: {} })).success).toBe(true);
+        await waitForDaemonPidFile(globalPidPath());
+
+        const result = await makeStopHandler()({
+            options: { daemonId: 'agents' } as never,
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        await expect(fs.access(idPidPath('agents'))).rejects.toMatchObject({ code: 'ENOENT' });
+        await expect(fs.access(globalPidPath())).resolves.toBeUndefined();
+        await makeStopHandler()({ options: { daemonId: 'global' } as never, arguments: {} });
+    });
+
+    it('K3: deprecated --lumpName stop warns and stops that id', async () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        try {
+            expect(
+                (
+                    await makeStartHandler()({
+                        options: { daemonId: 'alpha', include: 'alpha' } as never,
+                        arguments: {},
+                    })
+                ).success,
+            ).toBe(true);
+            await waitForDaemonPidFile(idPidPath('alpha'));
+            const result = await makeStopHandler()({
+                options: { lumpName: 'alpha' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            const logged = [...warnSpy.mock.calls, ...logSpy.mock.calls]
+                .map((c) => String(c[0]))
+                .join('\n');
+            expect(logged).toMatch(/deprecated|lumpName/i);
+        } finally {
+            warnSpy.mockRestore();
+            logSpy.mockRestore();
+        }
+    });
+
+    it('K4: both --daemonId and --lumpName fail', async () => {
+        const result = await makeStopHandler()({
+            options: { daemonId: 'agents', lumpName: 'alpha' } as never,
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/daemonId|lumpName|together|both/i);
+    });
+
+    it('K5: legacy bare global stop via --daemonId=global', async () => {
+        const barePid = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+        expect((await makeStartHandler()({ options: {}, arguments: {} })).success).toBe(true);
+        // Prefer new path; relocate to bare for one-release compat assertion.
+        await waitForDaemonPidFile(globalPidPath());
+        await fs.copyFile(globalPidPath(), barePid);
+        await fs.copyFile(
+            globalPidPath().replace(/\.pid$/, '.meta.json'),
+            barePid.replace(/\.pid$/, '.meta.json'),
+        );
+        await fs.rm(globalPidPath(), { force: true });
+        await fs.rm(globalPidPath().replace(/\.pid$/, '.meta.json'), { force: true });
+
+        const result = await makeStopHandler()({
+            options: { daemonId: 'global' } as never,
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        await expect(fs.access(barePid)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+});

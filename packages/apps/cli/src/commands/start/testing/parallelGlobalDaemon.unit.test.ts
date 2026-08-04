@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { failure, success } from '@lumpcode/core';
+import { failure } from '@lumpcode/core';
 
 import {
     createIntegrationBranch,
@@ -19,7 +19,7 @@ import {
     type PromiseGate,
 } from './testHelpers';
 
-describe('start command — parallel global daemon (parallel-global-daemon-worktree G*/S*/I*)', () => {
+describe('start command — parallel global daemon (parallel-global-daemon-worktree G*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;
@@ -477,148 +477,148 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
-    it('S1: per-lump daemon ignores maxParallelRun', async () => {
-        await writeLocal({ maxParallelRun: 3 });
-        await writeLumps(['alpha', 'beta', 'gamma']);
+});
 
-        const started: string[] = [];
+/**
+ * daemon-id-and-filters Q1–Q5.
+ * Skipped until every worktree daemon (filtered or not) uses effectiveConcurrency
+ * and checkout rejects --maxParallelRun.
+ * Old S1 (per-lump ignores maxParallel) and I1–I4 (ignoredByGlobalDaemon) deleted.
+ */
+describe.skip('start command — concurrency (daemon-id-and-filters Q*)', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+    const projectName = 'daemon-filters-q-project';
+
+    beforeEach(async () => {
+        const project = await setupStartTestRepo({
+            tmpPrefix: 'lump-start-q',
+            projectName,
+        });
+        projectRoot = project.projectRoot;
+        remoteDir = project.remoteDir;
+        globalConfigFolderPath = project.globalConfigFolderPath;
+    });
+
+    afterEach(async () => {
+        await teardownStartTestRepo({ projectRoot, remoteDir, globalConfigFolderPath });
+        vi.restoreAllMocks();
+    });
+
+    const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
+    const runSuccess = runLumpSuccess;
+
+    async function writeLocal(overrides: Record<string, unknown> = {}) {
+        await writeDedicatedLocal(projectRoot, {
+            workspaceStrategy: 'worktree',
+            ...overrides,
+        });
+    }
+
+    async function writeLumps(names: string[]) {
+        await writeCommittedLumps(projectRoot, names);
+    }
+
+    async function peakConcurrency(options: {
+        local: Record<string, unknown>;
+        lumps: string[];
+        startOptions: Record<string, unknown>;
+    }): Promise<number> {
+        await writeLocal(options.local);
+        await writeLumps(options.lumps);
+        const gates = new Map<string, PromiseGate>();
+        let inFlight = 0;
+        let peak = 0;
         const runLumpSpy = vi
             .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
             .mockImplementation(async (input) => {
-                started.push(input.lumpName);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                inFlight -= 1;
                 return runSuccess;
             });
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
+            const handlePromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {
+                    for (const gate of gates.values()) {
+                        gate.resolve();
+                    }
+                },
             })({
-                options: { lumpName: 'alpha', foreground: true, cronSetup: '*/5 * * * *' },
+                options: {
+                    foreground: true,
+                    cronSetup: '*/5 * * * *',
+                    ...options.startOptions,
+                } as never,
                 arguments: {},
             });
-            expect(result.success).toBe(true);
-            expect(started).toEqual(['alpha']);
+
+            await vi.waitFor(() => expect(gates.size).toBeGreaterThan(0));
+            // Release in waves so peak can be observed
+            const names = [...gates.keys()];
+            for (const name of names) {
+                gates.get(name)!.resolve();
+            }
+            await handlePromise;
+            return peak;
         } finally {
             runLumpSpy.mockRestore();
         }
+    }
+
+    it('Q1: worktree CLI --maxParallelRun overrides local.json', async () => {
+        const peak = await peakConcurrency({
+            local: { maxParallelRun: 1 },
+            lumps: ['a', 'b', 'c'],
+            startOptions: { maxParallelRun: 3 },
+        });
+        expect(peak).toBe(3);
     });
 
-    it('I1: global daemon skips ignoredByGlobalDaemon lumps', async () => {
-        await writeLocal();
-        await writeMinimalLump(projectRoot, 'alpha');
-        await writeMinimalLump(projectRoot, 'sideA', { ignoredByGlobalDaemon: true });
-        execGit('add -A', projectRoot);
-        execGit('commit -m "ignored lump"', projectRoot);
-        execGit('push origin main', projectRoot);
-
-        const started: string[] = [];
-        const runLumpSpy = vi
-            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
-            .mockImplementation(async (input) => {
-                started.push(input.lumpName);
-                return runSuccess;
-            });
-
-        try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-            expect(started).toEqual(['alpha']);
-            expect(started).not.toContain('sideA');
-        } finally {
-            runLumpSpy.mockRestore();
-        }
+    it('Q2: filtered worktree pool uses maxParallelRun', async () => {
+        const peak = await peakConcurrency({
+            local: { maxParallelRun: 1 },
+            lumps: ['refacto-a', 'refacto-b', 'refacto-c', 'other'],
+            startOptions: { include: 'refacto-*', maxParallelRun: 2 },
+        });
+        expect(peak).toBe(2);
     });
 
-    it('I2: startup logs ignored lump names once', async () => {
-        await writeLocal();
-        await writeMinimalLump(projectRoot, 'alpha');
-        await writeMinimalLump(projectRoot, 'sideA', { ignoredByGlobalDaemon: true });
-        await writeMinimalLump(projectRoot, 'sideB', { ignoredByGlobalDaemon: true });
-        execGit('add -A', projectRoot);
-        execGit('commit -m "two ignored"', projectRoot);
-        execGit('push origin main', projectRoot);
-
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        const runLumpSpy = vi
-            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
-            .mockResolvedValue(runSuccess);
-
-        try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-            const ignoreLogs = logSpy.mock.calls
-                .map((c) => String(c[0]))
-                .filter((m) => /Global daemon ignoring lump\(s\):/.test(m));
-            expect(ignoreLogs).toHaveLength(1);
-            expect(ignoreLogs[0]).toMatch(/sideA/);
-            expect(ignoreLogs[0]).toMatch(/sideB/);
-        } finally {
-            runLumpSpy.mockRestore();
-            logSpy.mockRestore();
-        }
+    it('Q3: checkout rejects --maxParallelRun', async () => {
+        await writeDedicatedLocal(projectRoot, { workspaceStrategy: 'checkout' });
+        await writeLumps(['a', 'b']);
+        const result = await makeStartHandler(deps())({
+            options: {
+                foreground: true,
+                maxParallelRun: 2,
+            } as never,
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/maxParallelRun|checkout/i);
     });
 
-    it('I3: per-lump daemon still runs ignoredByGlobalDaemon lump', async () => {
-        await writeLocal();
-        await writeMinimalLump(projectRoot, 'sideA', { ignoredByGlobalDaemon: true });
-        execGit('add -A', projectRoot);
-        execGit('commit -m "ignored only"', projectRoot);
-        execGit('push origin main', projectRoot);
-
-        const started: string[] = [];
-        const runLumpSpy = vi
-            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
-            .mockImplementation(async (input) => {
-                started.push(input.lumpName);
-                return runSuccess;
-            });
-
-        try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
-            })({
-                options: { lumpName: 'sideA', foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-            expect(result.success).toBe(true);
-            expect(started).toEqual(['sideA']);
-        } finally {
-            runLumpSpy.mockRestore();
-        }
+    it('Q4: checkout sequential without flag (peak 1)', async () => {
+        const peak = await peakConcurrency({
+            local: { workspaceStrategy: 'checkout', maxParallelRun: 3 },
+            lumps: ['a', 'b', 'c'],
+            startOptions: {},
+        });
+        expect(peak).toBe(1);
     });
 
-    it('I4: disabled lump is not filtered by ignoredByGlobalDaemon logic', async () => {
-        await writeLocal();
-        await writeMinimalLump(projectRoot, 'alpha', { disabled: true });
-        execGit('add -A', projectRoot);
-        execGit('commit -m "disabled"', projectRoot);
-        execGit('push origin main', projectRoot);
-
-        const started: string[] = [];
-        const runLumpSpy = vi
-            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
-            .mockImplementation(async (input) => {
-                started.push(input.lumpName);
-                return success({
-                    skipped: true,
-                    reason: 'disabled',
-                    reasonDetail: 'lump disabled',
-                });
-            });
-
-        try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-            // Distinct from I1: disabled still reaches runLumpFromLumpName (phase-1 soft skip).
-            expect(started).toEqual(['alpha']);
-        } finally {
-            runLumpSpy.mockRestore();
-        }
+    it('Q5: unfiltered worktree still pools from local.json', async () => {
+        const peak = await peakConcurrency({
+            local: { maxParallelRun: 2 },
+            lumps: ['a', 'b', 'c'],
+            startOptions: {},
+        });
+        expect(peak).toBe(2);
     });
 });

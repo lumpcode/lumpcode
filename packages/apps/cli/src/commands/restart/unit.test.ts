@@ -226,3 +226,137 @@ describe('restart command', () => {
         await expect(fs.access(pidPath())).resolves.toBeUndefined();
     });
 });
+
+/**
+ * daemon-id-and-filters R1–R2.
+ * Skipped until restart replays daemonId / include / exclude / maxParallelRun from meta.
+ */
+describe.skip('restart command (daemon-id-and-filters R*)', () => {
+    let projectRoot: string;
+    let globalConfigFolderPath: string;
+    let localConfigFolderPath: string;
+    const projectName = 'restart-r-project';
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-r-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-r-global-'));
+        setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        execGit('init -b main', projectRoot);
+        execGit('config user.email "test@test.com"', projectRoot);
+        execGit('config user.name "Test"', projectRoot);
+        execGit('commit --allow-empty -m "init"', projectRoot);
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName }),
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
+            minimalLumpConfigJson,
+            'utf-8',
+        );
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'local.json'),
+            JSON.stringify({
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                workspaceStrategy: 'worktree',
+            }),
+            'utf-8',
+        );
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+    });
+
+    it('R1: restart replays filters from meta', async () => {
+        const startHandle = startCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            spawnFn: aliveDaemonSpawnFn,
+        });
+        expect(
+            (
+                await startHandle({
+                    options: {
+                        include: 'alpha',
+                        exclude: 'beta',
+                        daemonId: 'agents',
+                        maxParallelRun: 2,
+                        cronSetup: '*/7 * * * *',
+                    } as never,
+                    arguments: {},
+                })
+            ).success,
+        ).toBe(true);
+        const pidPath = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.agents.daemon.pid`,
+        );
+        await waitForDaemonPidFile(pidPath);
+
+        const spawnArgs: string[][] = [];
+        const spawnFn = vi.fn((_cmd: string, args?: readonly string[]) => {
+            spawnArgs.push([...(args as readonly string[])]);
+            return aliveDaemonSpawnFn(_cmd, args as string[], {
+                cwd: projectRoot,
+                detached: true,
+                stdio: 'ignore',
+            });
+        }) as unknown as typeof nodeSpawn;
+
+        const result = await restartCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            spawnFn,
+        })({
+            options: { daemonId: 'agents' } as never,
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        const flat = spawnArgs.flat().join(' ');
+        expect(flat).toMatch(/--include/);
+        expect(flat).toMatch(/--daemonId/);
+        expect(flat).toMatch(/agents|alpha|maxParallelRun|\*\/7/i);
+    });
+
+    it('R2: restart default scope is global', async () => {
+        const startHandle = startCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            spawnFn: aliveDaemonSpawnFn,
+        });
+        expect((await startHandle({ options: {}, arguments: {} })).success).toBe(true);
+        const pidPath = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.global.daemon.pid`,
+        );
+        await waitForDaemonPidFile(pidPath);
+
+        const spawnFn = vi.fn((_cmd: string, args?: readonly string[]) => {
+            return aliveDaemonSpawnFn(_cmd, args as string[], {
+                cwd: projectRoot,
+                detached: true,
+                stdio: 'ignore',
+            });
+        }) as unknown as typeof nodeSpawn;
+
+        const result = await restartCommand.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            spawnFn,
+        })({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        expect(spawnFn).toHaveBeenCalled();
+    });
+});
