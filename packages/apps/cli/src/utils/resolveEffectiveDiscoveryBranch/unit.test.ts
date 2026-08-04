@@ -38,7 +38,7 @@ function gitCommitAll(cwd: string, message: string): void {
  * Skipped until concrete-flag / first-exact / pattern-only rules land.
  * Fixture default branch is `main`.
  */
-describe.skip('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => {
+describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let localConfigFolderPath: string;

@@ -202,5 +202,6 @@ export async function runLumpFromLumpName(input: {
         localConfig,
         releaseLock,
         signal,
+        effectiveDiscoveryBranch,
     });
 }

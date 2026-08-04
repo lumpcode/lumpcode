@@ -6,7 +6,7 @@ import { isGitRefGlob } from './main';
  * dynamic-discovery-branch G1–G2.
  * Skipped until isGitRefGlob is implemented.
  */
-describe.skip('isGitRefGlob (dynamic-discovery-branch G*)', () => {
+describe('isGitRefGlob (dynamic-discovery-branch G*)', () => {
     it('G1: exact branch names are not patterns', () => {
         expect(isGitRefGlob('dev')).toBe(false);
         expect(isGitRefGlob('feature/a')).toBe(false);

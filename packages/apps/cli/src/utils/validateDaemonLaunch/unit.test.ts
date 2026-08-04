@@ -155,7 +155,7 @@ describe('validateDaemonLaunch', () => {
      * Expand / all-glob fail / pattern allowlist at launch.
      * Skipped until expand + glob allowlist land.
      */
-    describe.skip('dynamic-discovery-branch launch validation (V*)', () => {
+    describe('dynamic-discovery-branch launch validation (V*)', () => {
         it('V1: all-glob primaryBranches fails launch', async () => {
             await writeMinimalLump(projectRoot, 'alpha');
             gitCommitAll(projectRoot, 'alpha');

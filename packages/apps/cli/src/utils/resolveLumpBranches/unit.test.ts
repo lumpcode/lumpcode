@@ -74,7 +74,7 @@ describe('resolveLumpBranches', () => {
  * Helpers under test may be private to resolveLumpBranches or exported —
  * assert via resolve APIs / eligibility helper once implemented.
  */
-describe.skip('resolveLumpBranches discovery rules (dynamic-discovery-branch N*)', () => {
+describe('resolveLumpBranches discovery rules (dynamic-discovery-branch N*)', () => {
     const primaryBranch = 'main';
     const localConfig: LocalConfig = { mode: 'dedicated', primaryBranch: 'main' };
 

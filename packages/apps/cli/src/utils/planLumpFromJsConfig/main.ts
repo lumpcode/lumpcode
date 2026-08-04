@@ -20,11 +20,9 @@ import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { readLocalConfig } from '../readLocalConfig';
+import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
-import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
-import { resolveLumpBranches } from '../resolveLumpBranches';
 import { resolveProjectExecutionContext } from '../resolveProjectExecutionContext';
-import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
 
 export type LumpPlanDepth = 'validate' | 'contexts' | 'prompts' | 'plan';
 
@@ -70,6 +68,7 @@ export async function planLumpFromJsConfig(input: {
     depth: LumpPlanDepth;
     todoOnly?: boolean;
     contextName?: string;
+    discoveryBranchOpt?: string;
 }): Promise<Success<PlanLumpOutput> | Failure<string>> {
     const {
         lumpName,
@@ -79,6 +78,7 @@ export async function planLumpFromJsConfig(input: {
         depth,
         todoOnly,
         contextName,
+        discoveryBranchOpt,
     } = input;
 
     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
@@ -94,17 +94,14 @@ export async function planLumpFromJsConfig(input: {
     if (!localConfigResult.success) return localConfigResult;
     const localConfig = localConfigResult.data;
 
-    const { resolvedDiscoveryBranch } = resolveLumpBranches({
-        lumpConfig: jsConfig,
-        localConfig,
-    });
-    const allowlistResult = validateLumpDiscoveryBranchAllowlist({
-        mode: localConfig.mode,
+    const discoveryResult = await resolveEffectiveDiscoveryBranch({
+        discoveryBranchOpt,
         lumpName,
-        resolvedDiscoveryBranch,
-        effectivePrimaryBranches: resolvePrimaryBranches(localConfig),
+        localConfigFolderPath,
+        localConfig,
+        warnSharedDiscoveryBranchIgnored: true,
     });
-    if (!allowlistResult.success) return allowlistResult;
+    if (!discoveryResult.success) return discoveryResult;
 
     const execContextResult = await resolveProjectExecutionContext({
         sourceProjectRoot: projectRoot,
@@ -128,6 +125,7 @@ export async function planLumpFromJsConfig(input: {
         executionWorkspacePath,
         workspaceStrategy,
         localConfig,
+        effectiveDiscoveryBranch: discoveryResult.data,
     });
     if (!runLumpInputResult.success) return runLumpInputResult;
 

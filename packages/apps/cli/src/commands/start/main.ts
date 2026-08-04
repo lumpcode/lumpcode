@@ -16,6 +16,7 @@ import {
     createCliLogger,
     discoverDedicatedLumpsForScanBranch,
     discoverLoadableLumps,
+    expandPrimaryBranches,
     formatDeamonLumpScopeCliOutput,
     listRunningProjectDaemons,
     readLocalConfig,
@@ -428,11 +429,10 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             checkoutParallelismWarningLogged = true;
         }
 
-        // Populated during dedicated multi-branch discovery so queue runs can preflight
-        // to the scan branch even when the lump config is absent on the current checkout.
-        const discoveryBranchByLumpName = new Map<string, string>();
-
-        const runOneLump = async (input: { lumpName: string }): Promise<void> => {
+        const runOneLump = async (input: {
+            lumpName: string;
+            effectiveDiscoveryBranch?: string;
+        }): Promise<void> => {
             const { lumpName } = input;
 
             await inFlightMeta.adjust(1);
@@ -447,7 +447,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     json: !!json,
                     prefix: '[lumpcode start]',
                 });
-                const queuedDiscoveryBranch = discoveryBranchByLumpName.get(lumpName);
                 const runLumpRes = await runLumpFromLumpName({
                     lumpName,
                     localConfigFolderPath,
@@ -460,7 +459,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     effectiveDiscoveryBranch:
                         lumpName === lumpNameOpt
                             ? frozenEffectiveDiscoveryBranch
-                            : queuedDiscoveryBranch,
+                            : input.effectiveDiscoveryBranch,
                     discoveryBranchOpt: lumpName === lumpNameOpt ? discoveryBranchOpt : undefined,
                     signal: abortController.signal,
                 });
@@ -495,11 +494,21 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
         if (frozenLocalConfig.mode === 'dedicated') {
             ticks += 1;
-            const seen = new Set<string>();
-            const eligible: string[] = [];
-            discoveryBranchByLumpName.clear();
+            const expandResult = await expandPrimaryBranches({
+                localConfig: frozenLocalConfig,
+                cwd: projectRoot,
+                logger,
+            });
+            if (!expandResult.success) {
+                logger.error(`primaryBranches expand failed: ${expandResult.data}; skipping tick`);
+                return;
+            }
+            const scanBranches = expandResult.data;
 
-            for (const scanBranch of effectivePrimaryBranches) {
+            const eligible: Array<{ lumpName: string; effectiveDiscoveryBranch: string }> = [];
+            const seenOnScan = new Set<string>();
+
+            for (const scanBranch of scanBranches) {
                 const discoverResult = await discoverDedicatedLumpsForScanBranch({
                     scanBranch,
                     sourceProjectRoot: projectRoot,
@@ -513,25 +522,27 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     continue;
                 }
                 for (const { lumpName, jsConfig } of discoverResult.data) {
-                    if (seen.has(lumpName)) {
+                    const seenKey = `${lumpName}\0${scanBranch}`;
+                    if (seenOnScan.has(seenKey)) {
                         logger.warn(`duplicate lump "${lumpName}" on branch "${scanBranch}"; skipping`);
                         continue;
                     }
-                    seen.add(lumpName);
+                    seenOnScan.add(seenKey);
                     if (jsConfig.ignoredByGlobalDaemon === true) {
                         continue;
                     }
-                    eligible.push(lumpName);
-                    discoveryBranchByLumpName.set(lumpName, scanBranch);
+                    eligible.push({ lumpName, effectiveDiscoveryBranch: scanBranch });
                 }
             }
 
             logger.info(
                 `tick ${ticks} — running ${eligible.length} lump(s)…` +
-                    (eligible.length ? ` [${eligible.join(', ')}]` : ''),
+                    (eligible.length
+                        ? ` [${eligible.map((e) => `${e.lumpName}@${e.effectiveDiscoveryBranch}`).join(', ')}]`
+                        : ''),
             );
             await runLumpQueueWithConcurrency({
-                lumpNames: eligible,
+                items: eligible,
                 concurrency: effectiveConcurrency,
                 runOneLump,
             });

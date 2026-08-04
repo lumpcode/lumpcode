@@ -10,10 +10,16 @@ export type {
 } from '../../src/types/LumpJsConfigSteps';
 export type { LumpJsonConfig } from '../../src/types/LumpJsonConfig';
 export type { LumpJsonConfigStep } from '../../src/types/LumpJsonConfigStep';
+export type { BaseBranchFn, BaseBranchFnInput } from '../../src/types/BaseBranchFn';
 export type { ContextMatchFn } from '../../src/types/ContextMatchFn';
 export type { ContextOptionsFn } from '../../src/types/ContextOptionsFn';
 export type { CommandModule } from '../../src/types/CommandModule';
 export type { CommandTag } from '../../src/types/CommandTag';
+/** Author-facing list fn (requires concrete `discoveryBranch`); core engine shape is unchanged. */
+export type {
+  GetContextListFn,
+  GetContextListFnInput,
+} from '../../src/types/GetContextListFn';
 export type { LocalConfig } from '../../src/types/LocalConfig';
 export type { Mode } from '../../src/types/Mode';
 export type { ProjectConfig } from '../../src/types/ProjectConfig';
@@ -32,8 +38,6 @@ export type {
   ContextRunState,
   ContextStatus,
   ExtractSuccess,
-  GetContextListFn,
-  GetContextListFnInput,
   GetContextListFnOutput,
   GitAddCommandFn,
   GitCommitCommandFn,

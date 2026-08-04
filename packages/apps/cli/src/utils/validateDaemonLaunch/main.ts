@@ -4,9 +4,14 @@ import { failure, success } from '@lumpcode/core';
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
 import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
+import { discoverLoadableLumps } from '../discoverLoadableLumpNames';
+import { expandPrimaryBranches } from '../expandPrimaryBranches';
 import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
-import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
-import { resolveLumpBranches } from '../resolveLumpBranches';
+import { resolvePrimaryBranch, resolvePrimaryBranches } from '../resolvePrimaryBranches';
+import {
+    normalizeDiscoveryRules,
+    resolveLumpBaseBranch,
+} from '../resolveLumpBranches';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
 
 type LumpRegistryEntry = {
@@ -81,7 +86,14 @@ export async function validateDaemonLaunch(input: {
         logger,
     } = input;
 
-    const effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
+    let effectivePrimaryBranches: string[];
+    try {
+        effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
+        // Fail all-glob configs early (V1).
+        resolvePrimaryBranch(localConfig);
+    } catch (err) {
+        return failure(err instanceof Error ? err.message : String(err));
+    }
 
     if (lumpNameOpt) {
         if (providedDiscoveryBranch !== undefined) {
@@ -114,9 +126,61 @@ export async function validateDaemonLaunch(input: {
         return success(undefined);
     }
 
+    const expandResult = await expandPrimaryBranches({
+        localConfig,
+        cwd: projectRoot,
+        logger,
+    });
+    if (!expandResult.success) {
+        return failure(expandResult.data);
+    }
+    const scanBranches = expandResult.data;
+
+    let primaryBranch: string;
+    try {
+        primaryBranch = resolvePrimaryBranch(localConfig);
+    } catch (err) {
+        return failure(err instanceof Error ? err.message : String(err));
+    }
+
+    // Validate every loadable lump's configured discovery rules against unexpanded primaries (V3).
+    // Use a quiet logger so invalid-dir warns are not duplicated when scan discovery reloads.
+    const quietLogger: Logger = {
+        ...logger,
+        warn: () => {},
+        info: () => {},
+        verbose: () => {},
+        error: () => {},
+        child: () => quietLogger,
+    };
+    const allLoadable = await discoverLoadableLumps({
+        localConfigFolderPath,
+        logger: quietLogger,
+    });
+    for (const { lumpName, jsConfig } of allLoadable) {
+        const rulesResult = normalizeDiscoveryRules({
+            lumpConfig: jsConfig,
+            primaryBranch,
+        });
+        if (!rulesResult.success) {
+            return failure(`Lump "${lumpName}": ${rulesResult.data}`);
+        }
+        for (const rule of rulesResult.data) {
+            const allowlistResult = validateLumpDiscoveryBranchAllowlist({
+                mode: localConfig.mode,
+                lumpName,
+                resolvedDiscoveryBranch: rule,
+                effectivePrimaryBranches,
+            });
+            if (!allowlistResult.success) {
+                return failure(allowlistResult.data);
+            }
+        }
+    }
+
     const registry: LumpRegistryEntry[] = [];
 
-    for (const scanBranch of effectivePrimaryBranches) {
+    for (const scanBranch of scanBranches) {
         const discoverResult = await discoverDedicatedLumpsForScanBranch({
             scanBranch,
             sourceProjectRoot: projectRoot,
@@ -132,11 +196,6 @@ export async function validateDaemonLaunch(input: {
         const seenOnBranch = new Set<string>();
 
         for (const { lumpName, jsConfig } of discoverResult.data) {
-            const branches = resolveLumpBranches({
-                lumpConfig: jsConfig,
-                localConfig,
-            });
-
             if (seenOnBranch.has(lumpName)) {
                 return failure(
                     `Duplicate lump name "${lumpName}" on primary branch "${scanBranch}"`,
@@ -144,11 +203,18 @@ export async function validateDaemonLaunch(input: {
             }
             seenOnBranch.add(lumpName);
 
+            const resolvedBaseBranch = resolveLumpBaseBranch({
+                lumpConfig: jsConfig,
+                primaryBranch,
+                mode: localConfig.mode,
+                effectiveDiscoveryBranch: scanBranch,
+            });
+
             registry.push({
                 lumpName,
                 jsConfig,
-                resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
-                resolvedBaseBranch: branches.resolvedBaseBranch,
+                resolvedDiscoveryBranch: scanBranch,
+                resolvedBaseBranch,
             });
         }
     }

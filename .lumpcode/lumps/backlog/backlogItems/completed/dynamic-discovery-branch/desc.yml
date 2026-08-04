@@ -5,3 +5,4 @@ task: >-
   lump can discover its contexts on the feature integration branch rather than
   only a fixed branch name.
 priority: 4
+completedAt: '2026-08-04T14:23:20.082Z'

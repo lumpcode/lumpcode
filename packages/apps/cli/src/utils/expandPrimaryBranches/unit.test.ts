@@ -25,7 +25,7 @@ function createLogger(): Logger {
  * entries first-as-listed, then each glob's hits in ls-remote/dedupe order.
  * Fixture default branch is `main` (matches initBareRemoteAndCheckout).
  */
-describe.skip('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
+describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
     beforeEach(() => {
         vi.restoreAllMocks();
     });

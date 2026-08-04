@@ -35,6 +35,12 @@ const inputSchema = z.object({
             .string()
             .optional()
             .describe('Scope contexts, prompts, and plan to a single context name'),
+        discoveryBranch: z
+            .string()
+            .optional()
+            .describe(
+                'Concrete discovery branch (dedicated; required when lump discovery rules are pattern-only)',
+            ),
     }),
     arguments: z.object({
         lumpName: z.string().describe('The name of the lump to preview'),
@@ -141,6 +147,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         depth,
         todoOnly: input.options.todoOnly,
         contextName: input.options.contextName?.trim() || undefined,
+        discoveryBranchOpt: input.options.discoveryBranch?.trim() || undefined,
     });
 
     if (!planResult.success) return commandFailure(planResult.data);

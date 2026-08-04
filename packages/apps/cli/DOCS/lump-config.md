@@ -105,7 +105,9 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `baseBranch` | string | Override the default execution branch for this lump (`discoveryBranch` on the lump, then primary branch from `local.json`). Set when this lump should branch off something other than the project-wide default (e.g. a long-lived release branch). |
+| `baseBranch` | string \| BaseBranchFn \| FilePath | Exact execution branch (not a glob). Omit → concrete effective discovery branch. JS/TS may use a function `( { effectiveDiscoveryBranch, contexts } ) => string` on the pre-status raw context list. |
+| `discoveryBranch` | string | Singular discovery rule (exact or git glob). Mutually exclusive with `discoveryBranches`. Dedicated allowlist vs configured `primaryBranches`. |
+| `discoveryBranches` | string[] | Discovery rules (exact and/or globs). Mutually exclusive with `discoveryBranch`. Flagless CLI uses the first exact rule; pattern-only requires `--discoveryBranch`. |
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Default agent command for all prompt items that don’t set their own `command` |
 | `branchFn` | [Function reference](#field-forms-conventions) | Custom branch naming; default is `lump/<lumpName>/<contextNames…>` |
 | `disabled` | boolean | When `true`, the background daemon skips this lump (`lumpcode start`); `run` still executes if invoked manually |

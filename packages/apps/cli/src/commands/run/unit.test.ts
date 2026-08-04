@@ -246,7 +246,7 @@ describe('run command — multi discovery branches', () => {
  * Skipped until glob discovery rules and concrete flag binding land.
  * Fixture default branch is `main`.
  */
-describe.skip('run command — dynamic-discovery-branch (C*)', () => {
+describe('run command — dynamic-discovery-branch (C*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;

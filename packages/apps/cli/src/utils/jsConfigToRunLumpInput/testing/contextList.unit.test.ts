@@ -14,9 +14,13 @@ describe('jsConfigToRunLumpInput getContextListFn resolution', () => {
         vi.clearAllMocks();
     });
 
-    it('should pass through a function getContextListFn', async () => {
+    it('should adapt a function getContextListFn to the core list signature', async () => {
         const data = assertSuccess(await resolveJsConf({ getContextListFn: stubGetContextListFn }));
-        expect(data.getContextListFn).toBe(stubGetContextListFn);
+        const contexts = await data.getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+        });
+        expect(contexts).toEqual([{ name: 'ctx1', variables: { FILE: 'a.ts' } }]);
     });
 
     it('should resolve getContextListFn from a relative FilePath in the lump folder', async () => {

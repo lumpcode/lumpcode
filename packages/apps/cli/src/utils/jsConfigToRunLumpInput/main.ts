@@ -25,15 +25,18 @@ import { getCommandPath } from "../getCommandPath";
 import { makeGetContextListFnFromTemplate } from "../makeGetContextListFnFromTemplate";
 
 import type {
+    BaseBranchFn,
     CommandModule,
     ContextMatchFn,
     ContextOptionsFn,
+    GetContextListFn as AuthorGetContextListFn,
     LumpJsConfig,
     LumpJsConfigPostCommandExecFn,
     LumpJsConfigStep,
     CommandConfigPaths,
 } from "../../types";
 import { isCommandFileRef } from '../lumpConfigPathRef';
+import { isGitRefGlob } from '../isGitRefGlob';
 import { makePromptFnFromTemplate } from '../makePromptFnFromTemplate';
 import { makeGitCommitMessageFnFromLumpName } from '../makeGitCommitMessageFnFromLumpName';
 import { resolveImportable } from '../resolveImportable';
@@ -42,7 +45,7 @@ import { resolvePromptTemplateString } from '../resolvePromptTemplateString';
 import { makeLumpWorkspaceFns } from '../makeLumpWorkspaceFns';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import type { LocalConfig } from '../../types/LocalConfig';
-import { resolveLumpBaseBranch } from '../resolveLumpBranches';
+import { resolveLumpBaseBranch, resolveLumpDiscoveryBranch } from '../resolveLumpBranches';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { lumpBranchName } from '../lumpBranchName';
 import { lumpImportBasePath } from '../lumpDirPath';
@@ -59,6 +62,7 @@ export async function jsConfigToRunLumpInput({
     workspaceStrategy = 'checkout',
     logger = noopLogger,
     localConfig,
+    effectiveDiscoveryBranch: providedEffectiveDiscoveryBranch,
 }: {
     config: LumpJsConfig;
     lumpName: string;
@@ -72,6 +76,8 @@ export async function jsConfigToRunLumpInput({
     logger?: Logger;
     /** When set, resolves lump baseBranch via the full discovery/base fallback chain. */
     localConfig?: LocalConfig;
+    /** Concrete discovery branch bound for author context source + baseBranch resolve. */
+    effectiveDiscoveryBranch?: string;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
         baseBranch: lumpBaseBranchOverride,
@@ -96,14 +102,74 @@ export async function jsConfigToRunLumpInput({
     if (!presetInstallResult.success) return presetInstallResult;
 
     const projectRoot = path.dirname(localConfigFolderPath);
-    const baseBranch = localConfig
-        ? resolveLumpBaseBranch({
-            lumpConfig: config,
-            primaryBranch: resolvePrimaryBranch(localConfig, logger),
-            mode: localConfig.mode,
-        })
-        : (lumpBaseBranchOverride ?? config.discoveryBranch ?? projectBaseBranch);
     const fnImportOptions = { importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }) };
+
+    let concreteDiscovery: string;
+    if (providedEffectiveDiscoveryBranch !== undefined) {
+        concreteDiscovery = providedEffectiveDiscoveryBranch;
+    } else if (localConfig) {
+        try {
+            concreteDiscovery = resolveLumpDiscoveryBranch({
+                lumpConfig: config,
+                primaryBranch: resolvePrimaryBranch(localConfig, logger),
+                mode: localConfig.mode,
+            });
+        } catch (err) {
+            return failure(err instanceof Error ? err.message : String(err));
+        }
+    } else if (
+        typeof config.discoveryBranch === 'string' &&
+        !isGitRefGlob(config.discoveryBranch)
+    ) {
+        concreteDiscovery = config.discoveryBranch;
+    } else {
+        concreteDiscovery = projectBaseBranch;
+    }
+
+    const getContextListFnResult = await resolveGetContextListFn({
+        contextListJson,
+        contextMatchFn,
+        configBasePath: localConfigFolderPath,
+        fnImportOptions,
+        getContextListFn,
+        contextOptionsFn,
+        discoveryBranch: concreteDiscovery,
+    });
+    if (!getContextListFnResult.success) return getContextListFnResult;
+
+    const authorGetContextListFn = getContextListFnResult.data;
+    let cachedRawContexts: Context[] | undefined;
+    const coreGetContextListFn: GetContextListFn = async (params) => {
+        if (cachedRawContexts === undefined) {
+            cachedRawContexts = await authorGetContextListFn(params);
+        }
+        return cachedRawContexts;
+    };
+
+    const needsRawContextsEarly =
+        typeof lumpBaseBranchOverride === 'function' ||
+        (typeof lumpBaseBranchOverride === 'string' ? false : lumpBaseBranchOverride !== undefined);
+
+    let rawContextsForBaseBranch: Context[] = [];
+    if (needsRawContextsEarly) {
+        rawContextsForBaseBranch = await coreGetContextListFn({
+            codeBasePaths: [],
+            lumpVariables: config.lumpVariables ?? {},
+        });
+    }
+
+    const baseBranchResult = await resolveConcreteBaseBranch({
+        lumpBaseBranchOverride,
+        config,
+        localConfig,
+        logger,
+        projectBaseBranch,
+        concreteDiscovery,
+        fnImportOptions,
+        rawContexts: rawContextsForBaseBranch,
+    });
+    if (!baseBranchResult.success) return baseBranchResult;
+    const baseBranch = baseBranchResult.data;
 
     const { setupWorkspaceFn, teardownWorkspaceFn } = makeLumpWorkspaceFns({
         executionWorkspacePath: path.resolve(executionWorkspacePath), // TODO : why need path.resolve ?
@@ -140,16 +206,6 @@ export async function jsConfigToRunLumpInput({
         resolvedUserTeardownFn = teardownResult.data;
     }
 
-    const getContextListFnResult = await resolveGetContextListFn({
-        contextListJson,
-        contextMatchFn,
-        configBasePath: localConfigFolderPath,
-        fnImportOptions,
-        getContextListFn,
-        contextOptionsFn,
-    });
-    if (!getContextListFnResult.success) return getContextListFnResult;
-
     const stepsResult = await resolveSteps({
         prompt, jsSteps, defaultCommand, commandModules, configPaths, fnImportOptions,
     });
@@ -169,7 +225,7 @@ export async function jsConfigToRunLumpInput({
         baseBranch,
         projectRoot,
         branchFn: branchFnResult.data,
-        getContextListFn: getContextListFnResult.data,
+        getContextListFn: coreGetContextListFn,
         gitCommitMessageFn,
         steps: stepsResult.data,
         setupFn: composeSetupFn({ userSetupFn: resolvedUserSetupFn, commandModules }),
@@ -181,6 +237,78 @@ export async function jsConfigToRunLumpInput({
     };
 
     return success(retConf);
+}
+
+async function resolveConcreteBaseBranch(input: {
+    lumpBaseBranchOverride: LumpJsConfig['baseBranch'];
+    config: LumpJsConfig;
+    localConfig?: LocalConfig;
+    logger: Logger;
+    projectBaseBranch: string;
+    concreteDiscovery: string;
+    fnImportOptions: { importBasePath: string };
+    rawContexts: Context[];
+}): Promise<Success<string> | Failure<string>> {
+    const {
+        lumpBaseBranchOverride,
+        config,
+        localConfig,
+        logger,
+        projectBaseBranch,
+        concreteDiscovery,
+        fnImportOptions,
+        rawContexts,
+    } = input;
+
+    if (lumpBaseBranchOverride === undefined) {
+        if (localConfig) {
+            return success(
+                resolveLumpBaseBranch({
+                    lumpConfig: {
+                        discoveryBranch: config.discoveryBranch,
+                        discoveryBranches: config.discoveryBranches,
+                    },
+                    primaryBranch: resolvePrimaryBranch(localConfig, logger),
+                    mode: localConfig.mode,
+                    effectiveDiscoveryBranch: concreteDiscovery,
+                }),
+            );
+        }
+        return success(concreteDiscovery);
+    }
+
+    if (typeof lumpBaseBranchOverride === 'string') {
+        if (isGitRefGlob(lumpBaseBranchOverride)) {
+            return failure('baseBranch must be a concrete branch name');
+        }
+        return success(lumpBaseBranchOverride);
+    }
+
+    if (typeof lumpBaseBranchOverride === 'function') {
+        const resolved = await lumpBaseBranchOverride({
+            effectiveDiscoveryBranch: concreteDiscovery,
+            contexts: rawContexts,
+        });
+        if (typeof resolved !== 'string' || !resolved.trim() || isGitRefGlob(resolved)) {
+            return failure('baseBranch function must return a non-empty concrete branch name');
+        }
+        return success(resolved.trim());
+    }
+
+    // FilePath module
+    const fnResult = await resolveFnOrDefaultImport<BaseBranchFn>(
+        lumpBaseBranchOverride,
+        fnImportOptions,
+    );
+    if (!fnResult.success) return fnResult;
+    const resolved = await fnResult.data({
+        effectiveDiscoveryBranch: concreteDiscovery,
+        contexts: rawContexts,
+    });
+    if (typeof resolved !== 'string' || !resolved.trim() || isGitRefGlob(resolved)) {
+        return failure('baseBranch function must return a non-empty concrete branch name');
+    }
+    return success(resolved.trim());
 }
 
 function resolveGetKeepHistoryFilePathFn({
@@ -268,6 +396,7 @@ async function resolveGetContextListFn({
     fnImportOptions,
     getContextListFn,
     contextOptionsFn,
+    discoveryBranch,
 }: {
     contextListJson: LumpJsConfig['contextListJson'];
     contextMatchFn: LumpJsConfig['contextMatchFn'];
@@ -275,15 +404,24 @@ async function resolveGetContextListFn({
     fnImportOptions: { importBasePath: string };
     getContextListFn: LumpJsConfig['getContextListFn'];
     contextOptionsFn: LumpJsConfig['contextOptionsFn'];
+    discoveryBranch: string;
 }): Promise<Success<GetContextListFn> | Failure<string>> {
     if (getContextListFn) {
-        return resolveFnOrDefaultImport<GetContextListFn>(getContextListFn, fnImportOptions);
+        const authorResult = await resolveFnOrDefaultImport<AuthorGetContextListFn>(
+            getContextListFn,
+            fnImportOptions,
+        );
+        if (!authorResult.success) return authorResult;
+        const authorFn = authorResult.data;
+        return success(async ({ codeBasePaths, lumpVariables }) =>
+            authorFn({ codeBasePaths, lumpVariables, discoveryBranch }),
+        );
     }
 
     if (contextMatchFn) {
         const matchFnResult = await resolveFnOrDefaultImport<ContextMatchFn>(contextMatchFn, fnImportOptions);
         if (!matchFnResult.success) return matchFnResult;
-        return success(createGetContextListFromMatchFn(matchFnResult.data));
+        return success(createGetContextListFromMatchFn(matchFnResult.data, discoveryBranch));
     }
 
     if (contextListJson) {
@@ -317,11 +455,19 @@ async function resolveGetContextListFn({
     return failure('Either getContextListFn, contextMatchFn, or contextListJson must be provided');
 }
 
-function createGetContextListFromMatchFn(matchFn: ContextMatchFn): GetContextListFn {
+function createGetContextListFromMatchFn(
+    matchFn: ContextMatchFn,
+    discoveryBranch: string,
+): GetContextListFn {
     return async ({ codeBasePaths, lumpVariables }) => {
         const contextsRecord: Record<string, Context> = {};
         for (const codeBasePath of codeBasePaths) {
-            const match = await matchFn({ codeBasePath, codeBasePaths, lumpVariables });
+            const match = await matchFn({
+                codeBasePath,
+                codeBasePaths,
+                lumpVariables,
+                discoveryBranch,
+            });
             if (match) {
                 const contextName = match.contextName;
                 const currentContext = contextsRecord[contextName];
