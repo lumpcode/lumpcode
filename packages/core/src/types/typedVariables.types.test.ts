@@ -183,3 +183,15 @@ describe('core lump-only <V> (C9–C12)', () => {
     type _NoPushParam = GitPushCommandFn<V>;
   });
 });
+
+describe('dynamic-discovery-branch core type guards (G3t/G4t)', () => {
+  it('G3t: core GetContextListFnInput has no discoveryBranch (dynamic-discovery-branch)', () => {
+    type Input = GetContextListFnInput<V>;
+    // @ts-expect-error discoveryBranch must not exist on core GetContextListFnInput
+    type _NoDiscovery = Input['discoveryBranch'];
+  });
+
+  it('G4t: core RunLumpInput.baseBranch remains string (dynamic-discovery-branch)', () => {
+    expectTypeOf<RunLumpInput['baseBranch']>().toEqualTypeOf<string>();
+  });
+});

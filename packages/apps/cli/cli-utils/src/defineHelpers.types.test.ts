@@ -187,3 +187,24 @@ describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
     expectTypeOf(cfg).not.toEqualTypeOf<LumpJsConfig>();
   });
 });
+
+describe('dynamic-discovery-branch author discoveryBranch types (G1t/G2t)', () => {
+  it('G1t/G2t: documents required discoveryBranch on author CLI types (activate when types land)', () => {
+    // Expected post-impl author input shape (CLI-local, not core):
+    type AuthorListParams = {
+      codeBasePaths: unknown[];
+      lumpVariables: V;
+      discoveryBranch: string;
+    };
+    type AuthorMatchParams = {
+      codeBasePath: unknown;
+      codeBasePaths: unknown[];
+      lumpVariables: V;
+      discoveryBranch: string;
+    };
+    expectTypeOf<AuthorListParams['discoveryBranch']>().toEqualTypeOf<string>();
+    expectTypeOf<AuthorMatchParams['discoveryBranch']>().toEqualTypeOf<string>();
+    // When CLI GetContextListFn / ContextMatchFn gain required discoveryBranch,
+    // replace with expectTypeOf on defineGetContextListFn / defineContextMatchFn params.
+  });
+});

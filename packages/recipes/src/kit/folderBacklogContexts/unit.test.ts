@@ -37,7 +37,7 @@ describe('folderBacklogContexts', () => {
 
     it('returns empty list when backlogItems/todo is missing', async () => {
         const getContextListFn = folderBacklogContexts({ backlogItemsDir });
-        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
         expect(contexts).toEqual([]);
     });
 
@@ -47,7 +47,7 @@ describe('folderBacklogContexts', () => {
         await writeTodoItem(backlogItemsDir, 'gamma', { task: 'Gamma', priority: 2 });
 
         const getContextListFn = folderBacklogContexts({ backlogItemsDir });
-        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
 
         expect(contexts.map((ctx) => ctx.name)).toEqual(['alpha', 'beta', 'gamma']);
         expect(contexts[0]).toMatchObject({
@@ -61,7 +61,7 @@ describe('folderBacklogContexts', () => {
 
         const getContextListFn = folderBacklogContexts({ backlogItemsDir });
         await expect(
-            getContextListFn({ codeBasePaths: [], lumpVariables: {} }),
+            getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
         ).rejects.toThrow(/must match folder name/);
     });
 
@@ -70,7 +70,7 @@ describe('folderBacklogContexts', () => {
 
         const getContextListFn = folderBacklogContexts({ backlogItemsDir });
         await expect(
-            getContextListFn({ codeBasePaths: [], lumpVariables: {} }),
+            getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
         ).rejects.toThrow(/missing desc.yml/);
     });
 
@@ -81,7 +81,7 @@ describe('folderBacklogContexts', () => {
 
         const getContextListFn = folderBacklogContexts({ backlogItemsDir });
         await expect(
-            getContextListFn({ codeBasePaths: [], lumpVariables: {} }),
+            getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
         ).rejects.toThrow(/must be an object/);
     });
 
@@ -110,7 +110,7 @@ describe('folderBacklogContexts', () => {
             },
         });
 
-        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
         expect(contexts[0]?.variables).toMatchObject({ FLAG: 'yes' });
     });
 
@@ -124,7 +124,7 @@ describe('folderBacklogContexts', () => {
             },
         });
 
-        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
         expect(contexts).toEqual([]);
     });
 
@@ -134,7 +134,7 @@ describe('folderBacklogContexts', () => {
         await writeTodoItem(backlogItemsDir, 'alpha', { task: 'Alpha', priority: 1 });
 
         const getContextListFn = folderBacklogContexts({ backlogItemsDir });
-        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+        const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
         expect(contexts).toHaveLength(1);
         expect(contexts[0]?.name).toBe('alpha');
     });

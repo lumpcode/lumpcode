@@ -94,6 +94,7 @@ describe('backlog recipe', () => {
         const contexts = await asGetContextListFn(config.getContextListFn)({
             codeBasePaths: [],
             lumpVariables: {},
+            discoveryBranch: 'main',
         });
 
         expect(contexts).toHaveLength(1);
@@ -147,6 +148,7 @@ describe('backlog recipe', () => {
         const contexts = await asGetContextListFn(config.getContextListFn)({
             codeBasePaths: [],
             lumpVariables: {},
+            discoveryBranch: 'main',
         });
 
         const stepList = normalizeSteps({
@@ -185,7 +187,7 @@ describe('backlog recipe', () => {
         });
 
         await expect(
-            asGetContextListFn(config.getContextListFn)({ codeBasePaths: [], lumpVariables: {} }),
+            asGetContextListFn(config.getContextListFn)({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
         ).rejects.toThrow(/invalid name/);
     });
 
@@ -212,6 +214,7 @@ describe('backlog recipe', () => {
         const contexts = await asGetContextListFn(config.getContextListFn)({
             codeBasePaths: [],
             lumpVariables: {},
+            discoveryBranch: 'main',
         });
 
         expect(contexts[0]?.variables.BACKLOG_ITEMS_DIR).toBe(customItemsDir);
@@ -277,6 +280,7 @@ describe('abstractionBacklog compatibility', () => {
         const contexts = await asGetContextListFn(config.getContextListFn)({
             codeBasePaths: [],
             lumpVariables: {},
+            discoveryBranch: 'main',
         });
 
         expect(contexts).toHaveLength(1);
@@ -304,8 +308,8 @@ describe('deprecated YAML helpers', () => {
         const { ymlBacklogContexts } = await import('../../kit/ymlBacklogContexts');
 
         const getContextListFn = ymlBacklogContexts({ backlogFilePath });
-        const first = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
-        const second = await getContextListFn({ codeBasePaths: [], lumpVariables: {} });
+        const first = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
+        const second = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
 
         expect(first).toHaveLength(1);
         expect(second).toHaveLength(1);

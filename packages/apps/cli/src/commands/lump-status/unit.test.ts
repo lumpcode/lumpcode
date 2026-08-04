@@ -6,7 +6,13 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { command } from './main';
 import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
-import { gitCurrentBranch } from '../../testing';
+import {
+    createIntegrationBranch,
+    gitCurrentBranch,
+    initBareRemoteAndCheckout,
+    writeLocalJson,
+    writeMinimalLump,
+} from '../../testing';
 import { execGit } from '../../utils/execGit';
 
 
@@ -199,5 +205,110 @@ describe('lump-status command', () => {
             arguments: {},
         });
         expect(result.success).toBe(true);
+    }, 60_000);
+});
+
+/**
+ * dynamic-discovery-branch F1–F4.
+ * Skipped until lump-status wires discoveryBranch resolution (mirrors run C1–C4).
+ * Fixture default branch is `main`.
+ */
+describe.skip('lump-status command — dynamic-discovery-branch (F*)', () => {
+    let projectRoot: string;
+    let bareDir: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ddb-'));
+        bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ddb-bare-'));
+        initBareRemoteAndCheckout(projectRoot, bareDir);
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName: 'status-ddb-test' }),
+            'utf-8',
+        );
+    }, 60_000);
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(bareDir, { recursive: true, force: true });
+    }, 60_000);
+
+    function makeHandler() {
+        return command.handlerMaker({ projectRoot, localConfigFolderPath });
+    }
+
+    async function setupMultiRuleDedicated() {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'feature/*'],
+        });
+        await writeMinimalLump(projectRoot, 'multi', {
+            discoveryBranches: ['main', 'feature/*'],
+        });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "multi lump"', projectRoot);
+        execGit('push origin main', projectRoot);
+    }
+
+    it('F1: flagless multi-rule lump succeeds with first exact discovery', async () => {
+        await setupMultiRuleDedicated();
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+
+        const result = await makeHandler()({
+            options: { lumpName: 'multi' },
+            arguments: {},
+        });
+
+        expect(result.success).toBe(true);
+        expect(preflightSpy).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('F2: pattern-only lump without flag fails with --discoveryBranch hint', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'feature/*'],
+        });
+        await writeMinimalLump(projectRoot, 'patternOnly', { discoveryBranch: 'feature/*' });
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+
+        const result = await makeHandler()({
+            options: { lumpName: 'patternOnly' },
+            arguments: {},
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/--discoveryBranch/);
+        expect(preflightSpy).not.toHaveBeenCalled();
+    }, 60_000);
+
+    it('F3: discoveryBranch feature/a option succeeds for multi-rule lump', async () => {
+        await setupMultiRuleDedicated();
+        await createIntegrationBranch({ projectRoot, remoteDir: bareDir, branchName: 'feature/a' });
+
+        const result = await makeHandler()({
+            options: { lumpName: 'multi', discoveryBranch: 'feature/a' } as Record<string, unknown>,
+            arguments: {},
+        });
+
+        expect(result.success).toBe(true);
+    }, 60_000);
+
+    it('F4: discoveryBranch feature/* option fails (concrete-only)', async () => {
+        await setupMultiRuleDedicated();
+
+        const result = await makeHandler()({
+            options: { lumpName: 'multi', discoveryBranch: 'feature/*' } as Record<string, unknown>,
+            arguments: {},
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/concrete|pattern|discoveryBranch/i);
     }, 60_000);
 });
