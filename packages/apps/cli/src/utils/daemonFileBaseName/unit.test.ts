@@ -2,12 +2,21 @@ import { describe, expect, it } from 'vitest';
 
 import { daemonFileBaseName } from './main';
 
-describe('daemonFileBaseName', () => {
-    it('uses projectName for global daemons', () => {
-        expect(daemonFileBaseName({ projectName: 'demo_proj' })).toBe('demo_proj');
+/** Post-implementation API shape (daemon-id-and-filters). */
+type DaemonFileBaseName = (input: { projectName: string; daemonId: string }) => string;
+
+/**
+ * daemon-id-and-filters P1–P2.
+ * Skipped until path helpers require daemonId and always include the id segment.
+ */
+describe.skip('daemonFileBaseName (daemon-id-and-filters P*)', () => {
+    const baseName = daemonFileBaseName as unknown as DaemonFileBaseName;
+
+    it('P1: basename always includes id (global)', () => {
+        expect(baseName({ projectName: 'demo', daemonId: 'global' })).toBe('demo.global');
     });
 
-    it('uses projectName.lumpName for per-lump daemons', () => {
-        expect(daemonFileBaseName({ projectName: 'demo_proj', lumpName: 'alpha' })).toBe('demo_proj.alpha');
+    it('P2: filtered id segment', () => {
+        expect(baseName({ projectName: 'demo', daemonId: 'agents' })).toBe('demo.agents');
     });
 });

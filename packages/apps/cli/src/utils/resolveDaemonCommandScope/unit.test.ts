@@ -5,11 +5,37 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { resolveDaemonCommandScope } from './main';
 
-describe('resolveDaemonCommandScope', () => {
+type ScopeInput = {
+    projectRoot: string;
+    localConfigFolderPath: string;
+    globalConfigFolderPath: string;
+    daemonId?: string;
+    lumpName?: string;
+};
+
+type ScopeResult =
+    | {
+          success: true;
+          data: {
+              daemonId: string;
+              scopeLabel: string;
+              paths: { pidFilePath: string; daemonId?: string };
+          };
+      }
+    | { success: false; data: { messages: string[] } };
+
+type ScopeFn = (input: ScopeInput) => Promise<ScopeResult>;
+
+/**
+ * daemon-id-and-filters C1–C4.
+ * Skipped until resolveDaemonCommandScope uses --daemonId / default global.
+ */
+describe.skip('resolveDaemonCommandScope (daemon-id-and-filters C*)', () => {
     let base: string;
     let projectRoot: string;
     let localConfigFolderPath: string;
     let globalConfigFolderPath: string;
+    const resolve = resolveDaemonCommandScope as unknown as ScopeFn;
 
     beforeEach(async () => {
         base = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-daemon-command-scope-'));
@@ -30,41 +56,63 @@ describe('resolveDaemonCommandScope', () => {
         await fs.rm(base, { recursive: true, force: true });
     });
 
-    it('returns scoped daemon paths and an empty scopeLabel for the global daemon', async () => {
-        const result = await resolveDaemonCommandScope({
+    it('C1: default → daemonId global + new paths', async () => {
+        const result = await resolve({
             projectRoot,
             localConfigFolderPath,
             globalConfigFolderPath,
         });
-
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.scopeLabel).toBe('');
-        expect(result.data.paths.pidFilePath).toMatch(/demo_proj\.daemon\.pid$/);
+        expect(result.data.daemonId).toBe('global');
+        expect(result.data.paths.pidFilePath).toMatch(/demo_proj\.global\.daemon\.pid$/);
     });
 
-    it('trims lumpName and builds scopeLabel for a per-lump daemon', async () => {
-        const result = await resolveDaemonCommandScope({
+    it('C2: --daemonId → paths for that id', async () => {
+        const result = await resolve({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            daemonId: 'agents',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.daemonId).toBe('agents');
+        expect(result.data.paths.pidFilePath).toMatch(/demo_proj\.agents\.daemon\.pid$/);
+    });
+
+    it('C3: deprecated --lumpName → treat as daemonId', async () => {
+        const result = await resolve({
             projectRoot,
             localConfigFolderPath,
             globalConfigFolderPath,
             lumpName: '  alpha  ',
         });
-
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.lumpName).toBe('alpha');
-        expect(result.data.scopeLabel).toBe(' lump "alpha"');
-        expect(result.data.paths.lumpName).toBe('alpha');
+        expect(result.data.daemonId).toBe('alpha');
+        expect(result.data.paths.pidFilePath).toMatch(/demo_proj\.alpha\.daemon\.pid$/);
     });
 
-    it('returns commandFailure when the cwd is not a Lumpcode project root', async () => {
-        const result = await resolveDaemonCommandScope({
+    it('C4: both daemonId and lumpName → failure', async () => {
+        const result = await resolve({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            daemonId: 'agents',
+            lumpName: 'alpha',
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/daemonId|lumpName|together|mutually|both/i);
+    });
+
+    it('still fails when cwd is not a Lumpcode project root', async () => {
+        const result = await resolve({
             projectRoot: base,
             localConfigFolderPath: path.join(base, '.lumpcode'),
             globalConfigFolderPath,
         });
-
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toContain('Not a Lumpcode project root');

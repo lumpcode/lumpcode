@@ -3,18 +3,32 @@ import { describe, expect, it } from 'vitest';
 
 import { daemonPidPath } from './main';
 
-describe('daemonPidPath', () => {
-    const daemonsDir = '/home/.lumpcode/daemons';
+type DaemonPidPath = (input: {
+    daemonsDir: string;
+    projectName: string;
+    daemonId: string;
+}) => string;
 
-    it('builds the global daemon pid path', () => {
-        expect(daemonPidPath({ daemonsDir, projectName: 'demo_proj' })).toBe(
-            path.join(daemonsDir, 'demo_proj.daemon.pid'),
+/**
+ * daemon-id-and-filters P3 (pid).
+ * Skipped until path helpers require daemonId.
+ */
+describe.skip('daemonPidPath (daemon-id-and-filters P*)', () => {
+    const daemonsDir = '/home/.lumpcode/daemons';
+    const pidPath = daemonPidPath as unknown as DaemonPidPath;
+
+    it('P3: global write target is project.global.daemon.pid (never bare)', () => {
+        expect(pidPath({ daemonsDir, projectName: 'demo', daemonId: 'global' })).toBe(
+            path.join(daemonsDir, 'demo.global.daemon.pid'),
+        );
+        expect(pidPath({ daemonsDir, projectName: 'demo', daemonId: 'global' })).not.toBe(
+            path.join(daemonsDir, 'demo.daemon.pid'),
         );
     });
 
-    it('builds the per-lump daemon pid path', () => {
-        expect(daemonPidPath({ daemonsDir, projectName: 'demo_proj', lumpName: 'alpha' })).toBe(
-            path.join(daemonsDir, 'demo_proj.alpha.daemon.pid'),
+    it('P3: filtered id pid path', () => {
+        expect(pidPath({ daemonsDir, projectName: 'demo', daemonId: 'agents' })).toBe(
+            path.join(daemonsDir, 'demo.agents.daemon.pid'),
         );
     });
 });

@@ -116,25 +116,48 @@ export function makeStartHandler(
 
 export async function runDetachedStart(
     deps: StartHandlerDeps,
-    options: { lumpName?: string; cronSetup?: string; spawnFn?: typeof aliveDaemonSpawnFn } = {},
+    options: {
+        lumpName?: string;
+        /** Post daemon-id-and-filters: preferred scope key for paths. */
+        daemonId?: string;
+        include?: string | string[];
+        exclude?: string | string[];
+        maxParallelRun?: number;
+        cronSetup?: string;
+        spawnFn?: typeof aliveDaemonSpawnFn;
+    } = {},
 ) {
-    const { lumpName, cronSetup, spawnFn = aliveDaemonSpawnFn } = options;
+    const {
+        lumpName,
+        daemonId,
+        include,
+        exclude,
+        maxParallelRun,
+        cronSetup,
+        spawnFn = aliveDaemonSpawnFn,
+    } = options;
     const handle = makeStartHandler(deps, { spawnFn });
     const result = await handle({
         options: {
             ...(lumpName !== undefined ? { lumpName } : {}),
+            ...(daemonId !== undefined ? { daemonId } : {}),
+            ...(include !== undefined ? { include } : {}),
+            ...(exclude !== undefined ? { exclude } : {}),
+            ...(maxParallelRun !== undefined ? { maxParallelRun } : {}),
             ...(cronSetup !== undefined ? { cronSetup } : {}),
-        },
+        } as never,
         arguments: {},
     });
     expect(result.success).toBe(true);
 
+    // Prefer daemonId path shape when provided; else legacy lumpName / bare global.
+    const pathLumpName = daemonId ?? lumpName;
     const pathsResult = await resolveDaemonPaths({
         projectRoot: deps.projectRoot,
         localConfigFolderPath:
             deps.localConfigFolderPath ?? localConfigFolderPath(deps.projectRoot),
         globalConfigFolderPath: deps.globalConfigFolderPath,
-        lumpName,
+        lumpName: pathLumpName,
     });
     if (!pathsResult.success) {
         throw new Error(pathsResult.data);
@@ -144,7 +167,7 @@ export async function runDetachedStart(
 
 export async function stopDaemon(
     deps: StartHandlerDeps,
-    options: { lumpName?: string } = {},
+    options: { lumpName?: string; daemonId?: string } = {},
 ) {
     const handle = stopCommand.handlerMaker({
         projectRoot: deps.projectRoot,
@@ -153,17 +176,28 @@ export async function stopDaemon(
         globalConfigFolderPath: deps.globalConfigFolderPath,
     });
     await handle({
-        options: options.lumpName !== undefined ? { lumpName: options.lumpName } : {},
+        options: {
+            ...(options.daemonId !== undefined ? { daemonId: options.daemonId } : {}),
+            ...(options.lumpName !== undefined ? { lumpName: options.lumpName } : {}),
+        } as never,
         arguments: {},
     });
 }
 
+/**
+ * Meta path helper. Third arg is daemonId (preferred) or legacy lumpName.
+ * When omitted, uses bare `<project>.daemon.meta.json` (pre-migration global).
+ * Post daemon-id-and-filters, callers should pass `'global'` explicitly.
+ */
 export function daemonMetaPath(
     globalConfigFolderPath: string,
     projectName: string,
-    lumpName?: string,
+    daemonIdOrLumpName?: string,
 ): string {
-    const scope = lumpName === undefined ? projectName : `${projectName}.${lumpName}`;
+    const scope =
+        daemonIdOrLumpName === undefined
+            ? projectName
+            : `${projectName}.${daemonIdOrLumpName}`;
     return path.join(globalConfigFolderPath, 'daemons', `${scope}.daemon.meta.json`);
 }
 
