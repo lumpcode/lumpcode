@@ -80,7 +80,7 @@ describe('resolvePrimaryBranch', () => {
  * Primary = first **exact** entry; all-glob configs fail.
  * Skipped until resolvePrimaryBranch / validation lands.
  */
-describe.skip('resolvePrimaryBranches first-exact primary (dynamic-discovery-branch P*)', () => {
+describe('resolvePrimaryBranches first-exact primary (dynamic-discovery-branch P*)', () => {
     it('P1: first exact amid leading globs', () => {
         const localConfig: LocalConfig = {
             mode: 'dedicated',

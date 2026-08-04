@@ -1,3 +1,4 @@
+export * from './BaseBranchFn';
 export * from './ChatHistory';
 export * from './ChatHistoryItem';
 export * from './Command';
@@ -15,6 +16,7 @@ export * from './ContextRunHistoryJson';
 export * from './ContextStatusRecord';
 export * from './FilePath';
 export * from './FilePathOrString';
+export * from './GetContextListFn';
 export * from './LocalConfig';
 export * from './LumpJsConfig';
 export * from './LumpJsConfigSteps';

@@ -10,9 +10,9 @@ import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import { discoverLoadableLumpNames } from '../../utils/discoverLoadableLumpNames';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import { readLocalConfig } from '../../utils/readLocalConfig';
-import { resolvePrimaryBranches } from '../../utils/resolvePrimaryBranches';
-import { resolveLumpBranches } from '../../utils/resolveLumpBranches';
-import { validateLumpDiscoveryBranchAllowlist } from '../../utils/validateLumpDiscoveryBranchAllowlist';
+import { resolveEffectiveDiscoveryBranch } from '../../utils/resolveEffectiveDiscoveryBranch';
+import { resolveLumpBaseBranch } from '../../utils/resolveLumpBranches';
+import { resolvePrimaryBranch } from '../../utils/resolvePrimaryBranches';
 import { updateContextStatusRecord } from '../../utils/updateContextStatusRecord';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
@@ -23,6 +23,12 @@ const inputSchema = z.object({
             .boolean()
             .optional()
             .describe('Print summary lines only; omit pretty-printed status JSON (default is verbose output)'),
+        discoveryBranch: z
+            .string()
+            .optional()
+            .describe(
+                'Concrete discovery branch (dedicated; required when lump discovery rules are pattern-only)',
+            ),
     }),
     arguments: z.object({}),
 });
@@ -52,7 +58,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const localConfigResult = await readLocalConfig({ localConfigFolderPath });
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const localConfig = localConfigResult.data;
-    const effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
+    const discoveryBranchOpt = input.options.discoveryBranch?.trim() || undefined;
 
     const lumpNameOpt = rawLumpName?.trim() ? rawLumpName.trim() : undefined;
 
@@ -77,19 +83,23 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             });
         }
 
-        const { resolvedDiscoveryBranch, resolvedBaseBranch } = resolveLumpBranches({
-            lumpConfig: jsConfResult.data,
-            localConfig,
-        });
-        const allowlistResult = validateLumpDiscoveryBranchAllowlist({
-            mode: localConfig.mode,
+        const discoveryResult = await resolveEffectiveDiscoveryBranch({
+            discoveryBranchOpt,
             lumpName,
-            resolvedDiscoveryBranch,
-            effectivePrimaryBranches,
+            localConfigFolderPath,
+            localConfig,
+            warnSharedDiscoveryBranchIgnored: true,
         });
-        if (!allowlistResult.success) {
-            return failure({ messages: [allowlistResult.data] });
+        if (!discoveryResult.success) {
+            return failure({ messages: [discoveryResult.data] });
         }
+
+        const resolvedBaseBranch = resolveLumpBaseBranch({
+            lumpConfig: jsConfResult.data,
+            primaryBranch: resolvePrimaryBranch(localConfig),
+            mode: localConfig.mode,
+            effectiveDiscoveryBranch: discoveryResult.data,
+        });
 
         const updateResult = await updateContextStatusRecord({
             projectRoot,

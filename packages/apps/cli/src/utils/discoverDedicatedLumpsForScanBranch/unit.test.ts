@@ -124,7 +124,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
  * Pattern-match eligibility for discoveryBranches. Fixture uses `main` as exact primary.
  * Skipped until discover filters by rule match (exact or glob).
  */
-describe.skip('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch D*)', () => {
+describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch D*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;

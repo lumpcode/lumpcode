@@ -11,7 +11,7 @@ import {
 } from './testHelpers';
 
 // Post-impl: jsConfigToRunLumpInput gains optional effectiveDiscoveryBranch (concrete discovery bind).
-describe.skip('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBranch (B*)', () => {
+describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBranch (B*)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
     });
@@ -182,6 +182,7 @@ describe.skip('jsConfigToRunLumpInput dynamic-discovery-branch author bind + bas
             codeBasePaths: inputCodeBasePaths,
             lumpVariables: {},
         });
-        expect(receivedDiscoveryBranches).toEqual([DISCOVERY, DISCOVERY, DISCOVERY]);
+        // One match invocation per codeBasePath entry (fixture has a single path).
+        expect(receivedDiscoveryBranches).toEqual([DISCOVERY]);
     });
 });

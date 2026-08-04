@@ -24,7 +24,8 @@
         "minLength": 1
       },
       "uniqueItems": true,
-      "description": "Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular primaryBranch."
+      "description": "Ordered list of integration lines the dedicated daemon scans each tick. Entries may be exact branch names or git ls-remote refname globs (e.g. feature/*). Primary = first exact entry (at least one exact required). Dedicated mode expands globs via git ls-remote each launch/tick; shared mode does not expand globs. When non-empty, wins over singular primaryBranch.",
+      "examples": [["main"], ["dev", "feature/*"]]
     },
     "workspaceStrategy": {
       "type": "string",

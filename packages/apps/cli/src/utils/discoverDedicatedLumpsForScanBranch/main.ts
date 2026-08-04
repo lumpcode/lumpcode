@@ -5,7 +5,11 @@ import { DISCOVERY_SCAN_LOCK_HOLDER } from '../../consts';
 import type { LocalConfig } from '../../types/LocalConfig';
 import { discoverLoadableLumps, type LoadableLump } from '../discoverLoadableLumpNames';
 import { preflightDiscoveryBranchWithLock } from '../preflightDiscoveryBranchWithLock';
-import { resolveLumpBranches } from '../resolveLumpBranches';
+import {
+    discoveryRulesMatchScanBranch,
+    normalizeDiscoveryRules,
+} from '../resolveLumpBranches';
+import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { isWorkspacePathBusyError } from '../workspacePathLock';
 
 export async function discoverDedicatedLumpsForScanBranch(input: {
@@ -36,15 +40,31 @@ export async function discoverDedicatedLumpsForScanBranch(input: {
         logger,
         holdForRun: false,
         fn: async () => {
+            let primaryBranch: string;
+            try {
+                primaryBranch = resolvePrimaryBranch(localConfig, logger);
+            } catch (err) {
+                return failure(err instanceof Error ? err.message : String(err));
+            }
+
             const loadableLumps = await discoverLoadableLumps({ localConfigFolderPath, logger });
             const matchingLumps: LoadableLump[] = [];
 
             for (const lump of loadableLumps) {
-                const branches = resolveLumpBranches({
+                const rulesResult = normalizeDiscoveryRules({
                     lumpConfig: lump.jsConfig,
-                    localConfig,
+                    primaryBranch,
                 });
-                if (branches.resolvedDiscoveryBranch === scanBranch) {
+                if (!rulesResult.success) {
+                    logger.warn(`lump "${lump.lumpName}": ${rulesResult.data}; skipping`);
+                    continue;
+                }
+                if (
+                    discoveryRulesMatchScanBranch({
+                        rules: rulesResult.data,
+                        scanBranch,
+                    })
+                ) {
                     matchingLumps.push(lump);
                 }
             }

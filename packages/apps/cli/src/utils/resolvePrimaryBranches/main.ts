@@ -1,6 +1,7 @@
 import type { Logger } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
+import { isGitRefGlob } from '../isGitRefGlob';
 
 const DEPRECATED_PROJECT_BASE_BRANCH =
     'local.json projectBaseBranch is deprecated; use primaryBranch or primaryBranches instead.';
@@ -19,6 +20,7 @@ function warnDeprecatedProjectBaseBranch(localConfig: LocalConfig, logger?: Pick
     logger.warn(DEPRECATED_PROJECT_BASE_BRANCH);
 }
 
+/** Configured effective list (exact + glob strings); does not expand remotes. */
 export function resolvePrimaryBranches(localConfig: LocalConfig, logger?: Pick<Logger, 'warn'>): string[] {
     warnDeprecatedProjectBaseBranch(localConfig, logger);
 
@@ -34,6 +36,17 @@ export function resolvePrimaryBranches(localConfig: LocalConfig, logger?: Pick<L
     throw new Error('local config has no primaryBranch or primaryBranches');
 }
 
+/**
+ * Primary = first **exact** entry in the effective list.
+ * Throws when the effective list has no exact branch (all-glob).
+ */
 export function resolvePrimaryBranch(localConfig: LocalConfig, logger?: Pick<Logger, 'warn'>): string {
-    return resolvePrimaryBranches(localConfig, logger)[0]!;
+    const branches = resolvePrimaryBranches(localConfig, logger);
+    const firstExact = branches.find((b) => !isGitRefGlob(b));
+    if (firstExact === undefined) {
+        throw new Error(
+            'local.json primaryBranches/primaryBranch must include at least one exact branch name (not only globs)',
+        );
+    }
+    return firstExact;
 }

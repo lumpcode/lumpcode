@@ -9,7 +9,6 @@ import { getProjectName } from '../getProjectName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
 import { readLocalConfig } from '../readLocalConfig';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
-import { resolveLumpBranches } from '../resolveLumpBranches';
 import { runProjectPreflight } from '../runProjectPreflight';
 import { updateContextStatusRecord } from '../updateContextStatusRecord';
 import type { ReleaseWorkspacePathLockFn } from '../workspacePathLock';
@@ -62,6 +61,8 @@ export async function runLumpFromJsConfig(input: {
     releaseLock?: ReleaseWorkspacePathLockFn;
     /** When aborted, in-flight commands are killed and the lump run stops. */
     signal?: AbortSignal;
+    /** Concrete discovery branch from phase 1 / CLI flag (dedicated). */
+    effectiveDiscoveryBranch?: string;
 }): Promise<Success<RunLumpFromJsConfigSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         jsConfig,
@@ -75,6 +76,7 @@ export async function runLumpFromJsConfig(input: {
         localConfig: providedLocalConfig,
         releaseLock,
         signal,
+        effectiveDiscoveryBranch,
     } = input;
 
     const session = createWorkspaceLockSession();
@@ -96,12 +98,6 @@ export async function runLumpFromJsConfig(input: {
 
         const projectBaseBranch = resolvePrimaryBranch(localConfig, logger);
         const workspaceStrategy = localConfig.workspaceStrategy ?? 'checkout';
-
-        const branches = resolveLumpBranches({
-            lumpConfig: jsConfig,
-            localConfig,
-        });
-        const resolvedBaseBranch = branches.resolvedBaseBranch;
 
         const projectNameResult = await getProjectName({
             localConfigFolderPath,
@@ -127,9 +123,12 @@ export async function runLumpFromJsConfig(input: {
             workspaceStrategy,
             logger,
             localConfig,
+            effectiveDiscoveryBranch,
         });
 
         if (!runLumpInputResult.success) return failure(toRunLumpMessageFailure(runLumpInputResult.data));
+
+        const resolvedBaseBranch = runLumpInputResult.data.baseBranch;
 
         const tooManySkip = await evaluateTooManyOpenBranchesSkip({
             jsConfig,

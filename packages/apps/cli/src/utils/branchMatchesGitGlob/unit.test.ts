@@ -10,7 +10,7 @@ import { branchMatchesGitGlob } from './main';
  * cases below; if git treats multi-segment names differently, align the
  * implementation (and these expectations) to observed git behavior.
  */
-describe.skip('branchMatchesGitGlob (dynamic-discovery-branch G*)', () => {
+describe('branchMatchesGitGlob (dynamic-discovery-branch G*)', () => {
     it('G3: exact equality when pattern is an exact name', () => {
         // Prefer exact string equality at call sites for non-glob rules.
         // When this helper is used with an exact pattern, equality must hold.

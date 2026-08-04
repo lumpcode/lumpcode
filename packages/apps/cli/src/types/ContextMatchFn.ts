@@ -4,6 +4,7 @@ export type ContextMatchFn<V extends LumpVariables = LumpVariables> = (params: {
     codeBasePath: CodeBasePath;
     codeBasePaths: CodeBasePath[];
     lumpVariables: V;
+    discoveryBranch: string;
 }) => MaybePromise<Maybe<{
     contextName: Context['name'],
     filePathVariableName: string,

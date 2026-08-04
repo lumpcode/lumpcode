@@ -213,7 +213,7 @@ describe('lump-status command', () => {
  * Skipped until lump-status wires discoveryBranch resolution (mirrors run C1–C4).
  * Fixture default branch is `main`.
  */
-describe.skip('lump-status command — dynamic-discovery-branch (F*)', () => {
+describe('lump-status command — dynamic-discovery-branch (F*)', () => {
     let projectRoot: string;
     let bareDir: string;
     let localConfigFolderPath: string;

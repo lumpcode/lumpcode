@@ -202,7 +202,7 @@ describe('lump-plan command', () => {
  * Skipped until lump-plan wires discoveryBranch resolution (mirrors run C1–C4).
  * Fixture default branch is `main`.
  */
-describe.skip('lump-plan command — dynamic-discovery-branch (F*)', () => {
+describe('lump-plan command — dynamic-discovery-branch (F*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let localConfigFolderPath: string;

@@ -367,7 +367,7 @@ describe('start command — multi discovery branches', () => {
  * Skipped until primaryBranches glob expand and per-scan fan-out land.
  * Fixture default branch is `main`.
  */
-describe.skip('start command — dynamic-discovery-branch (T*, S*)', () => {
+describe('start command — dynamic-discovery-branch (T*, S*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;

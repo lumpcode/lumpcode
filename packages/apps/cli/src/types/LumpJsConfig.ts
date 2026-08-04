@@ -1,9 +1,11 @@
 import type { LumpVariables, MaybePromise, RunLumpInput, StepVariables } from "@lumpcode/core";
 
+import type { BaseBranchFn } from "./BaseBranchFn";
 import { LumpJsConfigStep } from "./LumpJsConfigStep";
 import type { ContextMatchFn } from "./ContextMatchFn";
 import type { ContextOptionsFn } from "./ContextOptionsFn";
 import { FilePath } from "./FilePath";
+import type { GetContextListFn } from "./GetContextListFn";
 import { LumpJsConfigSteps, LumpJsConfigStepsItem } from "./LumpJsConfigSteps";
 import { MergeObjs } from "./MergeObjs";
 
@@ -30,19 +32,25 @@ export type LumpJsConfig<
     | 'gitAddCommandFn' 
     | 'gitCommitCommandFn' 
     | 'gitPushCommandFn'
+    | 'getContextListFn'
 >, {
-    baseBranch?: RunLumpInput<V, SV>['baseBranch'];
-    /** Which integration line this lump is discovered and scheduled on (defaults to primary branch from local.json). Exact or git-glob. */
+    /**
+     * Execution integration branch. Exact string, `BaseBranchFn`, or FilePath to a module.
+     * Omit → concrete effective discovery branch. Pattern strings are rejected at resolve.
+     */
+    baseBranch?: string | BaseBranchFn | FilePath;
+    /** Which integration line this lump is discovered and scheduled on (defaults to primary). Exact or git-glob. */
     discoveryBranch?: string;
     /**
      * Discovery rules (exact and/or git-glob). Mutually exclusive with `discoveryBranch`.
-     * Stub field for dynamic-discovery-branch — wire validation during feature stage.
      */
     discoveryBranches?: string[];
     command?: LumpJsConfigStep<V, SV>['command'];
     contextListJson?: FilePath | Record<string, string>;
     contextMatchFn?: FilePath | ContextMatchFn<V>;
     contextOptionsFn?: FilePath | ContextOptionsFn;
+    /** Author context list fn (CLI shape with required `discoveryBranch`). */
+    getContextListFn?: FilePath | GetContextListFn<V>;
     disabled?: boolean | (() => MaybePromise<boolean>) | FilePath;
     /**
      * When `true`, the global daemon omits this lump from its tick queue.

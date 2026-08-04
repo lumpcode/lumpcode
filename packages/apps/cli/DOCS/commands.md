@@ -172,7 +172,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 
 | Option              | Type   | Required | Description                                                                                    |
 | ------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------- |
-| `--discoveryBranch` | string | No       | Dedicated mode only: override the lump discovery branch (must be listed in `primaryBranches`) |
+| `--discoveryBranch` | string | No       | Dedicated mode only: concrete discovery branch (not a glob). Must be allowlisted by `primaryBranches` and match the lump's discovery rules. Required when the lump's rules are pattern-only. |
 
 
 Plus global [`--json`](#ref-json-output).
@@ -210,13 +210,14 @@ With **`--json`**, busy responses include a stable `code` field (`workspacePathB
 
 
 
-| Option          | Type   | Required | Description                                                                 |
-| --------------- | ------ | -------- | --------------------------------------------------------------------------- |
-| `--contexts`    | flag   | No       | Include resolved context names and variables                                |
-| `--todoOnly`    | flag   | No       | With `--contexts`, `--prompts`, or `--plan`: only contexts `run` would pick next (read-only git status queries) |
-| `--prompts`     | flag   | No       | Include per-context prompt text and resolved agent command (`executable` + `args`) |
-| `--plan`        | flag   | No       | Full dry-run: branch name, workspace setup/teardown shell commands, batch contexts, git add/commit/push strings, concurrent-branch skip reason |
-| `--contextName` | string | No       | Scope contexts / prompts / plan to one context                              |
+| Option              | Type   | Required | Description                                                                 |
+| ------------------- | ------ | -------- | --------------------------------------------------------------------------- |
+| `--contexts`        | flag   | No       | Include resolved context names and variables                                |
+| `--todoOnly`        | flag   | No       | With `--contexts`, `--prompts`, or `--plan`: only contexts `run` would pick next (read-only git status queries) |
+| `--prompts`         | flag   | No       | Include per-context prompt text and resolved agent command (`executable` + `args`) |
+| `--plan`            | flag   | No       | Full dry-run: branch name, workspace setup/teardown shell commands, batch contexts, git add/commit/push strings, concurrent-branch skip reason |
+| `--contextName`     | string | No       | Scope contexts / prompts / plan to one context                              |
+| `--discoveryBranch` | string | No       | Concrete discovery branch (same rules as [`run`](#ref-cmd-run); required when lump discovery rules are pattern-only) |
 
 Plus global [`--json`](#ref-json-output).
 
@@ -255,7 +256,7 @@ Plus global [`--json`](#ref-json-output).
 | `--foreground`      | flag    | No       | Blocking in this terminal; omit to detach a background daemon            |
 | `--cronSetup`       | string  | No       | Cron expression (default `*/5 * * * *` — every 5 minutes)              |
 | `--lumpName`        | string  | No       | Run the scheduler for a single lump only                                 |
-| `--discoveryBranch` | string  | No       | With `--lumpName` in dedicated mode: override discovery branch (must be in `primaryBranches`); ignored on a global daemon |
+| `--discoveryBranch` | string  | No       | With `--lumpName` in dedicated mode: concrete discovery branch (same rules as `run`); ignored on a global daemon |
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 
@@ -402,11 +403,12 @@ If meta is missing or invalid, restart uses **`stop --force`** then starts again
 **Usage:** `lumpcode lump-status [options]`
 
 
-| Option       | Type   | Default | Description                                                                                                                   |
-| ------------ | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `--lumpName` | string | —       | If omitted, all lumps with loadable configs                                                                                   |
-| `--silent`   | flag   | No      | Omit pretty-printed status JSON; print summary lines only (default is verbose when not using `--json`)                         |
-| `--json`     | flag   | No      | JSON output mode                                                                                                              |
+| Option              | Type   | Default | Description                                                                                                                   |
+| ------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `--lumpName`        | string | —       | If omitted, all lumps with loadable configs                                                                                   |
+| `--discoveryBranch` | string | —       | Concrete discovery branch (same rules as [`run`](#ref-cmd-run); required when lump discovery rules are pattern-only) |
+| `--silent`          | flag   | No      | Omit pretty-printed status JSON; print summary lines only (default is verbose when not using `--json`)                         |
+| `--json`            | flag   | No      | JSON output mode                                                                                                              |
 
 
 **Data:** `data.statusByLump` holds the in-memory maps keyed by lump name.

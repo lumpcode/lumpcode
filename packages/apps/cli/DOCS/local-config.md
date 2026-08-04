@@ -22,7 +22,7 @@ Legacy keys `discoveryBranch` / `discoveryBranches` are **not** accepted; use `p
 |-------|------|-------------|
 | `mode` | `"shared"` \| `"dedicated"` | How Lumpcode treats the current checkout. See [Modes](#modes) below. |
 | `primaryBranch` | string | Singular primary integration branch for this install. Required when `primaryBranches` is omitted. Also the default lump `baseBranch` when a lump omits both `baseBranch` and `discoveryBranch`. Status checks (`finished`) compare against each lump's resolved `baseBranch` (typically this branch). |
-| `primaryBranches` | string[] | Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular `primaryBranch`. The **primary branch** is the first entry (or `primaryBranch` when the array is omitted). See [Multiple primary branches](#multiple-primary-branches-dedicated-daemons). |
+| `primaryBranches` | string[] | Ordered list of integration lines the dedicated daemon scans each tick. Entries may be exact names or git `ls-remote` globs (e.g. `feature/*`). When non-empty, wins over singular `primaryBranch`. The **primary branch** is the first **exact** entry (all-glob configs fail). Dedicated expands globs each launch/tick; shared does not. See [Multiple primary branches](#multiple-primary-branches-dedicated-daemons). |
 | `workspaceStrategy` | `"checkout"` \| `"worktree"` | How each lump run prepares git inside the [execution workspace](concepts.md#three-workspaces). Default: `"checkout"`. See [Workspace strategies](#workspace-strategies). |
 | `disabled` | boolean | When `true`, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected. |
 | `maxParallelRun` | positive integer | Cap on concurrent lump runs in one **global** daemon tick when `workspaceStrategy` is `"worktree"`. Default `1` (sequential). Ignored for per-lump daemons and under `"checkout"`. See [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks). |
@@ -63,18 +63,19 @@ Pick `worktree` when you want the base branch checked out in the main tree durin
 
 ## Multiple primary branches (dedicated daemons)
 
-`primaryBranches` lets **one dedicated daemon** serve several long-lived integration branches (e.g. `main` plus a release line). It is a **dedicated-mode feature**: in shared mode a multi-entry list is noted once in the logs and only the first entry is used.
+`primaryBranches` lets **one dedicated daemon** serve several integration lines (e.g. `dev` plus every remote `feature/*`). It is a **dedicated-mode feature**: in shared mode a multi-entry list is noted once in the logs and only the exact primary is used (globs are not expanded).
 
 How a dedicated global daemon uses the list, each tick:
 
-1. For **each** listed branch in order: run a locked pre-flight to that branch, then discover the lumps whose resolved discovery branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)) is that branch.
-2. Merge discovered lump names into **one** tick-wide queue (dedupe by name), omit `ignoredByGlobalDaemon` lumps, then run the queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1). A failure on one branch or lump is logged and does not stop the rest of the tick.
+1. Expand configured entries (exact kept as-is; globs via `git ls-remote --heads origin <pattern>`). Empty glob matches log and skip that entry; `ls-remote` failure fails the expand path.
+2. For **each** concrete scan branch in expand order: locked pre-flight, then discover lumps whose discovery rules match that branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)).
+3. Merge into **one** tick-wide queue (same `lumpName` on different scan branches is allowed and runs once per matching line), omit `ignoredByGlobalDaemon` lumps, then run the queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1). A failure on one branch or lump is logged and does not stop the rest of the tick.
 
 Rules:
 
-- A lump's `discoveryBranch` **must be listed** in `primaryBranches` — `run`, `start`, and daemon launch fail otherwise (allowlist check).
-- The **same `lumpName`** may exist on different primary branches (each branch has its own checkout state of `.lumpcode/lumps/`); two lumps with the same name on the **same** scan branch fail daemon launch.
-- The **primary branch** (used for project-wide defaults) is always the **first** entry.
+- Every configured lump discovery rule must be allowlisted against **unexpanded** `primaryBranches` (exact entry, same glob string, or concrete name matching a primary glob).
+- The **same `lumpName`** may run on different scan branches; two lumps with the same name on the **same** scan branch fail daemon launch.
+- The **primary branch** (project-wide default) is the first **exact** entry in the configured list.
 
 ## Pre-flight
 

@@ -61,7 +61,7 @@ describe('validateLumpDiscoveryBranchAllowlist', () => {
  * Allowlist against **unexpanded** primaryBranches (exact-via-glob + pattern equality).
  * Skipped until glob allowlist lands. Input shape may grow to accept rule lists.
  */
-describe.skip('validateLumpDiscoveryBranchAllowlist globs (dynamic-discovery-branch A*)', () => {
+describe('validateLumpDiscoveryBranchAllowlist globs (dynamic-discovery-branch A*)', () => {
     const primaries = ['dev', 'feature/*'];
 
     it('A1: exact primary entry succeeds', () => {

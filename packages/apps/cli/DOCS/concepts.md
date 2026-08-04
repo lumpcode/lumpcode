@@ -15,7 +15,7 @@ This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (ca
 | **Tick**          | One scheduler iteration: for each enabled lump, run the same engine path as `lumpcode run <lumpName>`.                                                                                                           |
 | **Work branch**   | Branch Lumpcode creates/updates for the batch. Default `lump/<lumpName>/<contextName…>`, customizable with `branchFn`.                                                                                           |
 | **Marker commit** | Commit whose subject is exactly `LUMP: <lumpName> - <contextName>`. **Not configurable** so `clean`, `lump-status`, and `context-status` stay aligned with the engine.                                           |
-| **primaryBranch** | First integration branch from `.lumpcode/local.json` (`primaryBranches[0]` when set, else `primaryBranch`). Lumpcode pulls it before project-wide pre-flight; it is the default for both discovery and execution — see [Branch resolution](#branch-resolution). |
+| **primaryBranch** | First **exact** integration branch from `.lumpcode/local.json` (`primaryBranches` when set, else `primaryBranch`). Lumpcode uses it as the project-wide default for discovery and execution — see [Branch resolution](#branch-resolution). |
 | **baseBranch**  | Per-lump execution integration branch — see [Branch resolution](#branch-resolution). Use `baseBranch` when execution should differ from discovery (e.g. a long-lived release branch). |
 | **mode**        | `shared` or `dedicated` (in `.lumpcode/local.json`). Decides whether Lumpcode operates on the current checkout or a separate copy under `~/.lumpcode/project-copies/<projectName>/`. |
 
@@ -66,19 +66,30 @@ Three subcommand names include “status” (`daemon-status`, `lump-status`, `co
 
 Lumpcode distinguishes two branch roles per lump. This section is the canonical definition; other pages link here.
 
-- **Discovery branch** — the integration branch a lump is *found and scheduled from* (which checkout state the daemon or `run` reads the lump config and contexts on).
+- **Discovery branch** — the concrete integration branch a lump is *found and scheduled from* (which checkout state the daemon or `run` reads the lump config and contexts on).
 - **Base branch (execution)** — the integration branch work *branches off of*, where marker commits are checked for `finished`, and where the workspace returns after a run.
 
-Resolution order (first set value wins):
+Resolution sketch:
 
 ```text
-resolved discovery branch = lump discoveryBranch  →  primary branch
-resolved base branch      = lump baseBranch  →  lump discoveryBranch  →  primary branch
+effectivePrimaryBranches = configured list (exact + optional git globs such as feature/*)
+primary                = first exact entry in that list   # fail if none
+scanBranches           = expand(effectivePrimaryBranches)  # dedicated only; shared uses exact primary
+
+effectiveDiscovery     = --discoveryBranch <concrete>
+                       | first exact lump discovery rule (discoveryBranch / discoveryBranches)
+                       | fail if lump discovery is pattern-only without the flag
+
+resolvedBaseBranch     = baseBranch string
+                       | BaseBranchFn({ effectiveDiscoveryBranch, contexts })  # JS/TS
+                       | effectiveDiscovery
 ```
 
-The **primary branch** comes from `.lumpcode/local.json`: the first entry of `primaryBranches` when set, else `primaryBranch`. On a single-branch project you configure nothing — everything resolves to `main` (or whatever your primary branch is).
+The **primary branch** is the first **exact** entry of `primaryBranches` when set, else `primaryBranch`. Glob entries in `primaryBranches` are discovery/scan rules only (dedicated expands them via `git ls-remote`); they are never used as checkout refs. Shared mode does not expand globs.
 
-The per-lump **`discoveryBranch`** field is **dedicated mode only** and must be listed in `local.json` `primaryBranches`; shared mode ignores it with a warning (discovery always reads your source checkout). Set per-lump **`baseBranch`** when execution should target a different branch than discovery (e.g. a long-lived release branch). Multiple primary branches on one dedicated daemon: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
+Per-lump **`discoveryBranch`** or **`discoveryBranches`** (mutually exclusive) accept exact names and/or git refname globs. Dedicated allowlist checks each rule against **configured** (unexpanded) `primaryBranches` (exact match, pattern-entry equality, or concrete via a primary glob). Shared mode ignores lump discovery rules for scheduling. Manual `run` / `lump-plan` / `lump-status` without `--discoveryBranch` use the first exact discovery rule; pattern-only lumps require a concrete `--discoveryBranch`. Author `getContextListFn` / `contextMatchFn` receive that concrete `discoveryBranch`.
+
+`maximumNumberOfConcurrentBranches` remains a single cap per `lumpName` across all discovery lines. Multiple primary branches / globs: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
 
 ## One run, end to end
 
