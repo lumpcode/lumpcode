@@ -23,7 +23,8 @@
     "src/e2e/**",
     "**/*.test.ts",
     "**/*.spec.ts",
-    "**/commands/**/testing/**"
+    "**/commands/**/testing/**",
+    "**/utils/**/testing/**"
   ]
 }
 

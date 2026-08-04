@@ -32,8 +32,13 @@ export type LumpJsConfig<
     | 'gitPushCommandFn'
 >, {
     baseBranch?: RunLumpInput<V, SV>['baseBranch'];
-    /** Which integration line this lump is discovered and scheduled on (defaults to primary branch from local.json). */
+    /** Which integration line this lump is discovered and scheduled on (defaults to primary branch from local.json). Exact or git-glob. */
     discoveryBranch?: string;
+    /**
+     * Discovery rules (exact and/or git-glob). Mutually exclusive with `discoveryBranch`.
+     * Stub field for dynamic-discovery-branch — wire validation during feature stage.
+     */
+    discoveryBranches?: string[];
     command?: LumpJsConfigStep<V, SV>['command'];
     contextListJson?: FilePath | Record<string, string>;
     contextMatchFn?: FilePath | ContextMatchFn<V>;

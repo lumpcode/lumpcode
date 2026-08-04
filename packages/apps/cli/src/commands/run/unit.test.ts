@@ -242,6 +242,166 @@ describe('run command — multi discovery branches', () => {
 });
 
 /**
+ * dynamic-discovery-branch C1–C5.
+ * Skipped until glob discovery rules and concrete flag binding land.
+ * Fixture default branch is `main`.
+ */
+describe.skip('run command — dynamic-discovery-branch (C*)', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-ddb-'));
+        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-ddb-remote-'));
+        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-ddb-global-'));
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+
+        initBareRemoteAndCheckout(projectRoot, remoteDir);
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName: 'run-ddb-test' }),
+            'utf-8',
+        );
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.success({
+                result: {
+                    branchName: 'lump/run-ddb-test/README',
+                    contextNames: ['README'],
+                    contextRunStateList: [],
+                },
+            } as unknown as core.RunLumpOutput),
+        );
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(remoteDir, { recursive: true, force: true });
+        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        vi.restoreAllMocks();
+    });
+
+    function makeHandler() {
+        return command.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+    }
+
+    async function setupMultiRuleDedicated() {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'feature/*'],
+        });
+        await writeMinimalLump(projectRoot, 'multi', {
+            discoveryBranches: ['main', 'feature/*'],
+        });
+        execSync('git add -A', { cwd: projectRoot });
+        execSync('git commit -m "multi lump"', { cwd: projectRoot });
+        execSync('git push origin main', { cwd: projectRoot });
+    }
+
+    it('C1: flagless multi-rule lump uses first exact discovery (main)', async () => {
+        await setupMultiRuleDedicated();
+        const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'multi' },
+        });
+
+        expect(result.success).toBe(true);
+        expect(runLumpSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                lumpName: 'multi',
+                effectiveDiscoveryBranch: 'main',
+            }),
+        );
+    });
+
+    it('C2: pattern-only lump without flag fails before preflight', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'feature/*'],
+        });
+        await writeMinimalLump(projectRoot, 'patternOnly', { discoveryBranch: 'feature/*' });
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'patternOnly' },
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/--discoveryBranch/);
+        expect(preflightSpy).not.toHaveBeenCalled();
+    });
+
+    it('C3: --discoveryBranch feature/a reaches runLumpFromLumpName with concrete discovery', async () => {
+        await setupMultiRuleDedicated();
+        await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'feature/a' });
+        const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
+
+        const result = await makeHandler()({
+            options: { discoveryBranch: 'feature/a' },
+            arguments: { lumpName: 'multi' },
+        });
+
+        expect(result.success).toBe(true);
+        expect(runLumpSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                lumpName: 'multi',
+                effectiveDiscoveryBranch: 'feature/a',
+            }),
+        );
+    });
+
+    it('C4: --discoveryBranch feature/* fails (concrete-only flag)', async () => {
+        await setupMultiRuleDedicated();
+
+        const result = await makeHandler()({
+            options: { discoveryBranch: 'feature/*' },
+            arguments: { lumpName: 'multi' },
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/concrete|pattern|discoveryBranch/i);
+    });
+
+    it('C5: shared mode warn-and-ignores flag; does not fail for unlisted discovery', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'shared',
+            primaryBranch: 'main',
+            primaryBranches: ['main'],
+        });
+        await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        try {
+            const result = await makeHandler()({
+                options: { discoveryBranch: 'feature/a' },
+                arguments: { lumpName: 'legacyLine' },
+            });
+
+            expect(result.success).toBe(true);
+            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
+            expect(logged).toMatch(/discoveryBranch|ignored|shared/i);
+        } finally {
+            logSpy.mockRestore();
+            warnSpy.mockRestore();
+        }
+    });
+});
+
+/**
  * Target abort wiring for kill-spawned-command-on-timeout-abort.
  * Skipped until run owns an AbortController and passes signal into runLumpFromLumpName.
  */
