@@ -85,7 +85,7 @@
 
 - `contextListJson` (static JSON), `getContextListFn` (dynamic), or `contextMatchFn` (file scanner)
 - `contextMatchFn`: each call gets `codeBasePath`, full `codeBasePaths`, `lumpVariables`; same `contextName` merges (variables accumulate; later match wins duplicate keys/`contextOptions`)
-- `GetContextListFnInput`: `codeBasePaths` + `lumpVariables` only — no `projectRoot`/`baseBranch`
+- CLI `GetContextListFnInput`: `codeBasePaths` + `lumpVariables` + concrete `discoveryBranch` (core omits discovery; CLI adapts at the run boundary) — no `projectRoot`/`baseBranch`; daemon/CLI discovery matching selects lumps only — per-branch context filtering belongs in the author's `getContextListFn` / recipe `resolveItem`
 
 ### Engine execution
 
@@ -110,13 +110,13 @@
 
 ### Branch resolution (v0.0.9)
 
-- Split **execution** (`baseBranch`) from **discovery** (`discoveryBranch`); design ref: `.lumpcode/lumps/v0.0.9/multi-project-base-branches.reference.md`
+- Split **execution** (`baseBranch`) from **discovery** (`discoveryBranch` / `discoveryBranches`, mutually exclusive; exact and/or git refname globs); design ref: `.lumpcode/lumps/v0.0.9/multi-project-base-branches.reference.md`
 - `effectivePrimaryBranches` = non-empty `primaryBranches` else `[primaryBranch]`; resolved `primaryBranch` = first
-- `resolvedDiscoveryBranch` = lump `discoveryBranch ?? primaryBranch`
-- `resolvedBaseBranch` = lump `baseBranch ?? discoveryBranch ?? primaryBranch`
+- `resolvedDiscoveryBranch` = concrete discovery (CLI `--discoveryBranch`, else first exact discovery rule, else `primaryBranch`); pattern-only `discoveryBranch(es)` require `--discoveryBranch` for manual `run`/`lump-plan`/`lump-status`
+- `resolvedBaseBranch` = lump `baseBranch ??` concrete discovery `?? primaryBranch`
 - `resolvedBaseBranch` on `RunLumpInput` drives context status and worktree fetch; pre-flight/teardown use `resolvedBaseBranch`
-- **Dedicated allowlist**: `resolvedDiscoveryBranch` must be in `effectivePrimaryBranches` — enforce in **`runLumpFromJsConfig`** and explicit `--lumpName` daemon launch (`validateLumpDiscoveryBranchAllowlist`); redundant in dedicated global **`validateDaemonLaunch`** loop after `discoverDedicatedLumpsForScanBranch` (helper filters by scan branch); not `baseBranch`; command handlers must not duplicate
-- **Shared mode**: no allowlist; lump `discoveryBranch` ignored; multi-`primaryBranches` logs once (dedicated-only feature); executes on copy at `resolvedBaseBranch`, discovers from source `projectRoot`
+- **Dedicated allowlist**: each discovery rule must be allowlisted against configured (unexpanded) `effectivePrimaryBranches` — enforce in **`runLumpFromJsConfig`** and explicit `--lumpName` daemon launch (`validateLumpDiscoveryBranchAllowlist`); redundant in dedicated global **`validateDaemonLaunch`** loop after `discoverDedicatedLumpsForScanBranch` (helper filters by scan branch); not `baseBranch`; command handlers must not duplicate
+- **Shared mode**: no allowlist; lump `discoveryBranch`/`discoveryBranches` and `--discoveryBranch` ignored for scheduling; multi-`primaryBranches` logs once (dedicated-only feature); executes on copy at `resolvedBaseBranch`, discovers from source `projectRoot`
 - Dedicated daemon: loops `effectivePrimaryBranches` per tick; same `lumpName` on different primary branches OK; duplicate `lumpName` on same primary-branch scan fails launch
 - `lump-plan`/`lump-status`: non-destructive (no pre-flight); manual `run` requires lump config on current checkout
 
@@ -215,7 +215,7 @@
 - Version planning: `.lumpcode/lumps/v0.0.7/`, `v0.0.8/`, `v0.0.9/`; long-horizon ideas in root `IDEAS.yaml`
 - Tasks: `name`, `task`, `priority` (lower = sooner), optional `dependsOn`, optional `manualReq`; `backlogItems/todo/<name>/requirements.md` and `testPlan.md` gate stages; item names must not end in `_req`, `_testPlan`, or `_tests_impl`
 - `@lumpcode/recipes` two layers: **recipes** (`backlog`, `featureBacklog`, `abstractionFinder`, `abstractionBacklog` — config from params) and **kit** (`src/kit/` — shared plumbing, barrel-exported; folder modules or single-file helpers); path-resolving recipes need lump `configUrl: import.meta.url` (derive lump dir via `fileURLToPath` + `lumpPathAndName` — never `path.join(import.meta.url, …)`); `defineRecipe`/`defineConfig` and engine hooks do not expose caller `lumpName` to recipe factories or `getContextListFn`; exported recipes/`defineRecipe` and variable-carrying kit (`retryUntilGreen`, `getRecursiveSteps`, …) must preserve caller dual generics `<V, SV>` with defaults (untyped `featureBacklog({…})` stays valid); context-list kit (`folderBacklogContexts`, `ephemeralContextListFn`) takes `<V>` only — not `SV`
-- `backlog` recipe: typed stage map (`stages` + `resolveItem`); injects `TASK_NAME`, `TASK`, `BACKLOG_ITEMS_DIR`, `BACKLOG_ITEM_DIR`, `BACKLOG_STAGE`; `moveToDone` stages append `folderSetTaskDoneStep` (rename `todo/<name>/` → `completed/<name>/` first, then stamp `completedAt` on the completed `desc.yml`; `continueOnError: true` so move failures do not abort the lump); reserves `getContextListFn`/`steps`; optional project-root-relative `backlogItemsDir` override
+- `backlog` recipe: typed stage map (`stages` + `resolveItem`); `resolveItem` receives concrete `discoveryBranch` from each context-list call (for per-scan staging/ignore); injects `TASK_NAME`, `TASK`, `BACKLOG_ITEMS_DIR`, `BACKLOG_ITEM_DIR`, `BACKLOG_STAGE`; `moveToDone` stages append `folderSetTaskDoneStep` (rename `todo/<name>/` → `completed/<name>/` first, then stamp `completedAt` on the completed `desc.yml`; `continueOnError: true` so move failures do not abort the lump); reserves `getContextListFn`/`steps`; optional project-root-relative `backlogItemsDir` override
 - `featureBacklog`: requires `configUrl: import.meta.url`, `baseBranch`, `implValidateCommand`; legacy context names `<name>_req`, `<name>_testPlan`, `<name>_tests_impl`, then unsuffixed `<name>`; `manualReq: true` waits for human requirements; only merged `tests_impl` unlocks implementation; `testImpl` marks both new and updated cases with `it.skip`/`describe.skip` so the suite stays green (unskip during implementation); artifact stages (`makeReq`/`makeTestPlan`) use `retryUntilGreen` + `requireArtifactStep` as `validationCommandFn`
 - `retryUntilGreen`: kit wrapper over `getRecursiveSteps` — iteration 0 runs `steps`, retries run optional `fixSteps` resolver (`GetFirstStepsInput` → steps) or default fix prompt (formatted `prevValidateCommandDescriptor` + output); `validationCommandFn` required; barrel-exported; `abstractionBacklog` and `featureBacklog` use it; recursion returns next iteration steps from validation `postCommandExecFn` (not a trailing `StepFn` + run-state flag)
 - `requireArtifactStep`: returns a `ValidationCommandFn` that exits 0 when the context-var path exists, else exits 1 with an error message (missing variable still throws)

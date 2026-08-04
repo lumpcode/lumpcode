@@ -1,0 +1,8 @@
+name: daemon-id-and-filters
+manualReq: true
+task: >-
+  Unify daemons: every daemon is a global-style scheduler with optional
+  --include/--exclude lump-name filters and a unique daemonId for PID/log/meta.
+  Drop global vs per-lump distinction, ignoredByGlobalDaemon, and start
+  --discoveryBranch. Deprecate --lumpName on daemon companions and start.
+priority: 3
