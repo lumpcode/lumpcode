@@ -59,17 +59,17 @@ Each lump run switches the main worktree to a fresh `lump/<lumpName>/…` branch
 
 Each lump run uses a **linked git worktree** under `.lumpcode/worktrees/<branch>/` inside the execution workspace (the project copy in `shared` mode, the checkout in `dedicated`). The main worktree stays on the lump's resolved `baseBranch` while the agent runs inside the worktree (the **branch workspace**). Worktree paths mirror branch segments (e.g. branch `lump/migrate-vue/Button.tsx` → `.lumpcode/worktrees/lump/migrate-vue/Button.tsx`). `project-setup` gitignores `.lumpcode/worktrees/`. `lumpcode clean` removes worktrees when it deletes lump branches.
 
-Pick `worktree` when you want the base branch checked out in the main tree during runs, or when using `maxParallelRun` so a global daemon can run multiple lumps concurrently in one tick.
+Pick `worktree` when you want the base branch checked out in the main tree during runs, or when using `maxParallelRun` so a daemon can run multiple matching lumps concurrently in one tick.
 
 ## Multiple primary branches (dedicated daemons)
 
 `primaryBranches` lets **one dedicated daemon** serve several integration lines (e.g. `dev` plus every remote `feature/*`). It is a **dedicated-mode feature**: in shared mode a multi-entry list is noted once in the logs and only the exact primary is used (globs are not expanded).
 
-How a dedicated global daemon uses the list, each tick:
+How a dedicated daemon uses the list, each tick:
 
 1. Expand configured entries (exact kept as-is; globs via `git ls-remote --heads origin <pattern>`). Empty glob matches log and skip that entry; `ls-remote` failure fails the expand path.
 2. For **each** concrete scan branch in expand order: locked pre-flight, then discover lumps whose discovery rules match that branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)).
-3. Merge into **one** tick-wide queue (same `lumpName` on different scan branches is allowed and runs once per matching line), omit `ignoredByGlobalDaemon` lumps, then run the queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1). A failure on one branch or lump is logged and does not stop the rest of the tick.
+3. Merge into **one** tick-wide queue (same `lumpName` on different scan branches is allowed and runs once per matching line), apply the daemon's `--include` / `--exclude` filters, then run the queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1, including CLI `--maxParallelRun` override). A failure on one branch or lump is logged and does not stop the rest of the tick.
 
 Rules:
 

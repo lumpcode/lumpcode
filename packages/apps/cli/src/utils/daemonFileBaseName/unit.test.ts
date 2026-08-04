@@ -9,7 +9,7 @@ type DaemonFileBaseName = (input: { projectName: string; daemonId: string }) => 
  * daemon-id-and-filters P1–P2.
  * Skipped until path helpers require daemonId and always include the id segment.
  */
-describe.skip('daemonFileBaseName (daemon-id-and-filters P*)', () => {
+describe('daemonFileBaseName (daemon-id-and-filters P*)', () => {
     const baseName = daemonFileBaseName as unknown as DaemonFileBaseName;
 
     it('P1: basename always includes id (global)', () => {

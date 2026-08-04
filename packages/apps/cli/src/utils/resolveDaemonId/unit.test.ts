@@ -7,7 +7,7 @@ import { resolveDaemonId } from './main';
  * daemon-id-and-filters ID1–ID14.
  * Skipped until resolveDaemonId is implemented.
  */
-describe.skip('resolveDaemonId (daemon-id-and-filters ID*)', () => {
+describe('resolveDaemonId (daemon-id-and-filters ID*)', () => {
     it('ID1: unfiltered default → global', () => {
         const result = resolveDaemonId({
             existingDaemonIds: new Set(),

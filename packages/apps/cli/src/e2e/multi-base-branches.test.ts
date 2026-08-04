@@ -188,7 +188,7 @@ describe('E2E multi discovery branches', () => {
      * daemon-id-and-filters D1 e2e smoke: filtered include still multi-primary discovers.
      * Skipped until --include is supported on start (no --discoveryBranch on start).
      */
-    it.skip('DAEMON-MDB-D1 start --include=releaseLine multi-primary (daemon-id-and-filters)', async () => {
+    it('DAEMON-MDB-D1 start --include=releaseLine multi-primary (daemon-id-and-filters)', async () => {
         const project = await createProject({
             localJson: {
                 mode: 'dedicated',

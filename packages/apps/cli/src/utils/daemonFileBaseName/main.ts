@@ -1,4 +1,3 @@
-export function daemonFileBaseName(input: { projectName: string; lumpName?: string }): string {
-    const { projectName, lumpName } = input;
-    return lumpName ? `${projectName}.${lumpName}` : projectName;
+export function daemonFileBaseName(input: { projectName: string; daemonId: string }): string {
+    return `${input.projectName}.${input.daemonId}`;
 }

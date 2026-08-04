@@ -150,14 +150,13 @@ export async function runDetachedStart(
     });
     expect(result.success).toBe(true);
 
-    // Prefer daemonId path shape when provided; else legacy lumpName / bare global.
-    const pathLumpName = daemonId ?? lumpName;
+    const resolvedDaemonId = daemonId ?? lumpName ?? 'global';
     const pathsResult = await resolveDaemonPaths({
         projectRoot: deps.projectRoot,
         localConfigFolderPath:
             deps.localConfigFolderPath ?? localConfigFolderPath(deps.projectRoot),
         globalConfigFolderPath: deps.globalConfigFolderPath,
-        lumpName: pathLumpName,
+        daemonId: resolvedDaemonId,
     });
     if (!pathsResult.success) {
         throw new Error(pathsResult.data);
@@ -185,20 +184,18 @@ export async function stopDaemon(
 }
 
 /**
- * Meta path helper. Third arg is daemonId (preferred) or legacy lumpName.
- * When omitted, uses bare `<project>.daemon.meta.json` (pre-migration global).
- * Post daemon-id-and-filters, callers should pass `'global'` explicitly.
+ * Meta path helper. Third arg is daemonId (defaults to `global`).
  */
 export function daemonMetaPath(
     globalConfigFolderPath: string,
     projectName: string,
-    daemonIdOrLumpName?: string,
+    daemonId = 'global',
 ): string {
-    const scope =
-        daemonIdOrLumpName === undefined
-            ? projectName
-            : `${projectName}.${daemonIdOrLumpName}`;
-    return path.join(globalConfigFolderPath, 'daemons', `${scope}.daemon.meta.json`);
+    return path.join(
+        globalConfigFolderPath,
+        'daemons',
+        `${projectName}.${daemonId}.daemon.meta.json`,
+    );
 }
 
 export async function writeCommittedLumps(

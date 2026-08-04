@@ -19,7 +19,7 @@ type ResolveDaemonPaths = (input: {
  * daemon-id-and-filters P4–P6.
  * Skipped until resolveDaemonPaths takes required daemonId.
  */
-describe.skip('resolveDaemonPaths (daemon-id-and-filters P*)', () => {
+describe('resolveDaemonPaths (daemon-id-and-filters P*)', () => {
     let base: string;
     let projectRoot: string;
     let localConfigFolderPath: string;

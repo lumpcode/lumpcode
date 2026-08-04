@@ -600,7 +600,7 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
  * Skipped until filtered daemons still multi-primary discover (no start --discoveryBranch).
  * S3 (shared start --lumpName + --discoveryBranch warn) deleted — flag removed from start.
  */
-describe.skip('start command — filtered multi-primary (daemon-id-and-filters D*)', () => {
+describe('start command — filtered multi-primary (daemon-id-and-filters D*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;

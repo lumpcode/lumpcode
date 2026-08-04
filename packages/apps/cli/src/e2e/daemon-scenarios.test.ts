@@ -104,7 +104,7 @@ describe('E2E daemon scenarios', () => {
  * daemon-id-and-filters E1–E3.
  * Skipped until start/stop/status speak --daemonId / --include.
  */
-describe.skip('E2E daemon scenarios (daemon-id-and-filters E*)', () => {
+describe('E2E daemon scenarios (daemon-id-and-filters E*)', () => {
     const { createProject } = useE2eProjects({ stopDaemonOnTeardown: true });
 
     it('E1: start/stop with --include + --daemonId', async () => {

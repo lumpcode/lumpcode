@@ -18,8 +18,7 @@ import { subprocessEnv } from './subprocessEnv';
 
 /**
  * PID and meta file paths for a daemon under the project's isolated HOME.
- * Prefer `{ daemonId }` (post daemon-id-and-filters). Legacy `lumpName` string/arg still works.
- * Omit both → current bare global basename (pre-migration); pass `daemonId: 'global'` for new path.
+ * Prefer `{ daemonId }` (default `global`). Legacy `lumpName` string/arg maps to daemonId.
  */
 export function daemonPathsForProject(
     project: E2eProject,
@@ -30,8 +29,8 @@ export function daemonPathsForProject(
         typeof lumpNameOrOpts === 'string'
             ? { lumpName: lumpNameOrOpts }
             : (lumpNameOrOpts ?? {});
-    const lumpName = opts.daemonId ?? opts.lumpName;
-    const base = { daemonsDir, projectName: project.projectName, lumpName };
+    const daemonId = opts.daemonId ?? opts.lumpName ?? 'global';
+    const base = { daemonsDir, projectName: project.projectName, daemonId };
     return {
         pidFilePath: daemonPidPath(base),
         metaFilePath: daemonMetaPath(base),
@@ -184,7 +183,8 @@ export async function runForegroundUntilMarkers(input: {
         await stopDaemonSafely({
             project: input.project,
             runCli: (stopArgs) => runE2eCli({ project: input.project, args: stopArgs }),
-            lumpName: input.lumpName,
+            // Deprecated --lumpName start auto-ids to that name.
+            daemonId: input.lumpName,
         });
         await waitForChildExitAfterStop(child, 15_000);
         if (process.platform === 'win32') {

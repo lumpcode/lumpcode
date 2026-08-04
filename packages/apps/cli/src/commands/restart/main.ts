@@ -7,11 +7,15 @@ import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { command as startCommand, defaultCronPattern } from '../start/main';
 import { command as stopCommand } from '../stop/main';
-import { readDaemonMeta, resolveDaemonCommandScope } from '../../utils';
+import { createCliLogger, readDaemonMeta, resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
-        lumpName: z.string().optional().describe('Restart the daemon scoped to a single lump'),
+        daemonId: z.string().optional().describe('Restart the daemon with this id (default: global)'),
+        lumpName: z
+            .string()
+            .optional()
+            .describe('Deprecated. Treated as --daemonId'),
     }),
     arguments: z.object({}),
 });
@@ -24,7 +28,9 @@ export type Output = {
         cronSetup: string;
         lumpNames: string[];
         ticks: number;
-        lumpName?: string;
+        daemonId: string;
+        include?: string[];
+        exclude?: string[];
     };
 };
 
@@ -40,24 +46,33 @@ export interface Injections {
 
 async function readDaemonMetaForRestart(input: {
     metaFilePath: string;
-}): Promise<{ cronSetup: string; lumpName?: string; metaCorrupt: boolean }> {
-    const { metaFilePath } = input;
+    daemonId: string;
+}): Promise<{
+    cronSetup: string;
+    daemonId: string;
+    include?: string[];
+    exclude?: string[];
+    maxParallelRun?: number;
+    metaCorrupt: boolean;
+}> {
+    const { metaFilePath, daemonId } = input;
     const metaResult = await readDaemonMeta(metaFilePath);
     if (!metaResult.success) {
-        return { cronSetup: defaultCronPattern, metaCorrupt: true };
+        return { cronSetup: defaultCronPattern, daemonId, metaCorrupt: true };
     }
     const cronSetup =
         typeof metaResult.data.cronSetup === 'string' && metaResult.data.cronSetup.trim()
             ? metaResult.data.cronSetup.trim()
             : defaultCronPattern;
-    const lumpName =
-        typeof metaResult.data.lumpName === 'string' && metaResult.data.lumpName.trim()
-            ? metaResult.data.lumpName.trim()
-            : undefined;
     return {
         cronSetup,
+        daemonId: metaResult.data.daemonId ?? daemonId,
         metaCorrupt: false,
-        ...(lumpName !== undefined ? { lumpName } : {}),
+        ...(metaResult.data.include !== undefined ? { include: metaResult.data.include } : {}),
+        ...(metaResult.data.exclude !== undefined ? { exclude: metaResult.data.exclude } : {}),
+        ...(metaResult.data.maxParallelRun !== undefined
+            ? { maxParallelRun: metaResult.data.maxParallelRun }
+            : {}),
     };
 }
 
@@ -65,18 +80,31 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath, waitForShutdownOverride, spawnFn } =
         injections;
     const json = input.options.json === true;
+    const logger = createCliLogger({
+        verbose: !!input.options.verbose,
+        json,
+        prefix: '[lumpcode restart]',
+    });
+
+    if (input.options.lumpName?.trim() && !input.options.daemonId?.trim()) {
+        logger.warn('--lumpName on restart is deprecated; use --daemonId instead.');
+    }
 
     const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
+        daemonId: input.options.daemonId,
         lumpName: input.options.lumpName,
     });
     if (!scopeResult.success) return scopeResult;
 
-    const meta = await readDaemonMetaForRestart({ metaFilePath: scopeResult.data.paths.metaFilePath });
+    const meta = await readDaemonMetaForRestart({
+        metaFilePath: scopeResult.data.paths.metaFilePath,
+        daemonId: scopeResult.data.daemonId,
+    });
     const cronSetup = meta.cronSetup;
-    const lumpNameOpt = scopeResult.data.lumpName ?? meta.lumpName;
+    const daemonId = meta.daemonId;
 
     const stopHandle = stopCommand.handlerMaker({
         projectRoot,
@@ -86,7 +114,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const stopResult = await stopHandle({
         options: {
             json,
-            ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+            daemonId,
             ...(meta.metaCorrupt ? { force: true } : {}),
         },
         arguments: {},
@@ -106,7 +134,10 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         options: {
             json,
             cronSetup,
-            ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+            daemonId,
+            ...(meta.include !== undefined ? { include: meta.include.join(',') } : {}),
+            ...(meta.exclude !== undefined ? { exclude: meta.exclude.join(',') } : {}),
+            ...(meta.maxParallelRun !== undefined ? { maxParallelRun: meta.maxParallelRun } : {}),
         },
         arguments: {},
     });
@@ -124,6 +155,6 @@ export const command = {
     handlerMaker,
     name: 'restart',
     description:
-        'Restart the background daemon (stop, then start with the same cron schedule and scope as before, or the default if unknown). Pass `--lumpName` for a per-lump daemon.',
+        'Restart a background daemon (stop, then start replaying daemonId / include / exclude / maxParallelRun / cron from meta). Default daemonId=global.',
     inputSchema,
 } satisfies Command;

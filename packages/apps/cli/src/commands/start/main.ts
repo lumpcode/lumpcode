@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { isSea } from 'node:sea';
 import * as z from 'zod';
@@ -17,10 +18,10 @@ import {
     discoverDedicatedLumpsForScanBranch,
     discoverLoadableLumps,
     expandPrimaryBranches,
-    formatDeamonLumpScopeCliOutput,
+    filterLumpNames,
     listRunningProjectDaemons,
     readLocalConfig,
-    resolveEffectiveDiscoveryBranch,
+    resolveDaemonId,
     resolvePrimaryBranches,
     resolveTargetLumpNames,
     runLumpFromJsConfigFailureMessage,
@@ -47,13 +48,30 @@ const inputSchema = z.object({
             .boolean()
             .optional()
             .describe('Run blocking in this terminal (omit to detach a background daemon)'),
-        lumpName: z.string().optional().describe('Run the scheduler for a single lump only'),
-        discoveryBranch: z
+        include: z
             .string()
             .optional()
+            .describe('Comma-separated exact names and *-globs (omit = all loadable before exclude)'),
+        exclude: z
+            .string()
+            .optional()
+            .describe('Comma-separated exact names and *-globs applied after include'),
+        daemonId: z
+            .string()
+            .optional()
+            .describe('Explicit daemon id ([a-zA-Z0-9_-]+); owns PID/log/meta paths'),
+        maxParallelRun: z
+            .number()
+            .int()
+            .positive()
+            .optional()
             .describe(
-                'Discovery branch override for solo daemon (dedicated; must be listed in primaryBranches)',
+                'Worktree-only override of local.json maxParallelRun for this daemon',
             ),
+        lumpName: z
+            .string()
+            .optional()
+            .describe('Deprecated. Equivalent to --include=<name>'),
     }),
     arguments: z.object({}),
 });
@@ -66,7 +84,9 @@ export type Output = {
         cronSetup: string;
         lumpNames: string[];
         ticks: number;
-        lumpName?: string;
+        daemonId: string;
+        include?: string[];
+        exclude?: string[];
     };
 };
 
@@ -100,6 +120,17 @@ const waitForShutdown: () => Promise<void> = () =>
         process.on('SIGINT', onSignal);
         process.on('SIGTERM', onSignal);
     });
+
+function normalizePatternList(value: string | string[] | undefined): string[] | undefined {
+    if (value === undefined) return undefined;
+    const parts = (Array.isArray(value) ? value : [value]).flatMap((entry) =>
+        String(entry)
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean),
+    );
+    return parts.length > 0 ? parts : undefined;
+}
 
 async function writeDaemonArtifacts(input: {
     daemonsDir: string;
@@ -140,6 +171,7 @@ async function tryRemoveOwnDaemonArtifacts(pidFilePath: string, metaFilePath: st
 function createInFlightMetaUpdater(
     metaFilePath: string,
     logger: Logger,
+    baseMeta: DaemonMetaWrite,
 ): {
     adjust: (delta: 1 | -1) => Promise<void>;
 } {
@@ -157,9 +189,26 @@ function createInFlightMetaUpdater(
             const current = metaResult.data;
             const next = Math.max(0, (current.inFlightLumpCount ?? 0) + delta);
             const payload: Record<string, unknown> = {
-                ...(current.cronSetup !== undefined ? { cronSetup: current.cronSetup } : {}),
+                daemonId: current.daemonId ?? baseMeta.daemonId,
+                ...(current.cronSetup !== undefined
+                    ? { cronSetup: current.cronSetup }
+                    : { cronSetup: baseMeta.cronSetup }),
                 workspaceStrategy: current.workspaceStrategy,
-                ...(current.lumpName !== undefined ? { lumpName: current.lumpName } : {}),
+                ...(current.include !== undefined
+                    ? { include: current.include }
+                    : baseMeta.include !== undefined
+                      ? { include: baseMeta.include }
+                      : {}),
+                ...(current.exclude !== undefined
+                    ? { exclude: current.exclude }
+                    : baseMeta.exclude !== undefined
+                      ? { exclude: baseMeta.exclude }
+                      : {}),
+                ...(current.maxParallelRun !== undefined
+                    ? { maxParallelRun: current.maxParallelRun }
+                    : baseMeta.maxParallelRun !== undefined
+                      ? { maxParallelRun: baseMeta.maxParallelRun }
+                      : {}),
                 inFlightLumpCount: next,
             };
             await fs.writeFile(metaFilePath, `${JSON.stringify(payload)}\n`, 'utf8');
@@ -175,6 +224,12 @@ function createInFlightMetaUpdater(
     return { adjust };
 }
 
+function pushCsvFlag(args: string[], flag: string, values: string[] | undefined): void {
+    if (!values?.length) return;
+    // Commander option is a single string; comma-join so the child re-parses the full list.
+    args.push(flag, values.join(','));
+}
+
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath, waitForShutdownOverride, spawnFn } =
         injections;
@@ -182,13 +237,34 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const foreground = input.options.foreground === true;
     const cronSetup = input.options.cronSetup?.trim() || defaultCronPattern;
     const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
-    const discoveryBranchOpt = input.options.discoveryBranch?.trim() || undefined;
+    const explicitDaemonId = input.options.daemonId?.trim() || undefined;
+    const cliMaxParallelRun = input.options.maxParallelRun;
     const spawnImpl = spawnFn ?? nodeSpawn;
     const logger = createCliLogger({
         verbose: !!cliVerbose,
         json: !!json,
         prefix: '[lumpcode start]',
     });
+
+    const includeFromFlags = normalizePatternList(input.options.include);
+    const exclude = normalizePatternList(input.options.exclude);
+
+    if (lumpNameOpt !== undefined && includeFromFlags !== undefined) {
+        return failure({
+            messages: [
+                'Pass only one of --lumpName (deprecated) or --include; they cannot be used together.',
+            ],
+        });
+    }
+
+    if (lumpNameOpt !== undefined) {
+        logger.warn(
+            '--lumpName on start is deprecated; use --include=<name> (and optional --daemonId) instead.',
+        );
+    }
+
+    const include =
+        lumpNameOpt !== undefined ? [lumpNameOpt] : includeFromFlags;
 
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
@@ -199,23 +275,39 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const workspaceStrategy = frozenLocalConfig.workspaceStrategy ?? 'checkout';
     const effectivePrimaryBranches = resolvePrimaryBranches(frozenLocalConfig);
 
-    const targetLumpsResult = await resolveTargetLumpNames({
-        localConfigFolderPath,
-        lumpName: lumpNameOpt,
-    });
-    let initialLumps: string[];
+    if (cliMaxParallelRun !== undefined && workspaceStrategy !== 'worktree') {
+        return failure({
+            messages: [
+                '--maxParallelRun requires workspaceStrategy "worktree" in local.json (checkout stays sequential).',
+            ],
+        });
+    }
+
+    const targetLumpsResult = await resolveTargetLumpNames({ localConfigFolderPath });
+    let allLoadableNames: string[];
     if (!targetLumpsResult.success) {
         const allowEmptyDedicatedDiscovery =
-            !lumpNameOpt &&
             frozenLocalConfig.mode === 'dedicated' &&
             (frozenLocalConfig.primaryBranches?.length ?? 0) > 1 &&
             targetLumpsResult.data.includes('No lumps');
-        if (!allowEmptyDedicatedDiscovery) {
+        const filteredStart = include !== undefined || exclude !== undefined;
+        if (!allowEmptyDedicatedDiscovery && !filteredStart) {
             return failure({ messages: [targetLumpsResult.data] });
         }
-        initialLumps = [];
+        allLoadableNames = [];
     } else {
-        initialLumps = targetLumpsResult.data;
+        allLoadableNames = targetLumpsResult.data;
+    }
+
+    const matchedAtStart = filterLumpNames({
+        names: allLoadableNames,
+        include,
+        exclude,
+    });
+    if (matchedAtStart.length === 0 && (include !== undefined || exclude !== undefined)) {
+        logger.warn(
+            'No lumps match the include/exclude filters at start; the daemon will stay up and idle until a later tick matches.',
+        );
     }
 
     try {
@@ -227,24 +319,45 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         });
     }
 
-    const daemonPathsResult = await resolveDaemonPaths({
+    // Resolve project name early via a temporary global path resolve.
+    const nameProbe = await resolveDaemonPaths({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
-        lumpName: lumpNameOpt,
+        daemonId: 'global',
     });
-    if (!daemonPathsResult.success) return commandFailure(daemonPathsResult.data);
-
-    const { daemonsDir, pidFilePath, logFilePath, metaFilePath, projectName } = daemonPathsResult.data;
+    if (!nameProbe.success) return commandFailure(nameProbe.data);
+    const { daemonsDir, projectName } = nameProbe.data;
 
     const runningResult = await listRunningProjectDaemons({ daemonsDir, projectName });
     if (!runningResult.success) {
         return failure({ messages: [runningResult.data] });
     }
+    const existingDaemonIds = new Set(Object.keys(runningResult.data));
+
+    const idResult = resolveDaemonId({
+        explicitDaemonId,
+        include,
+        exclude,
+        existingDaemonIds,
+    });
+    if (!idResult.success) {
+        return failure({ messages: [idResult.data] });
+    }
+    const daemonId = idResult.data;
+
+    const daemonPathsResult = await resolveDaemonPaths({
+        projectRoot,
+        localConfigFolderPath,
+        globalConfigFolderPath,
+        daemonId,
+    });
+    if (!daemonPathsResult.success) return commandFailure(daemonPathsResult.data);
+    const { pidFilePath, logFilePath, metaFilePath } = daemonPathsResult.data;
+
     const startAllowed = assertDaemonStartAllowed({
         projectName,
-        targetLumpName: lumpNameOpt,
-        workspaceStrategy,
+        daemonId,
         running: runningResult.data,
     });
 
@@ -263,6 +376,16 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 : {}),
         });
     }
+
+    const localJsonMaxParallelRun = frozenLocalConfig.maxParallelRun ?? 1;
+    const effectiveConcurrency =
+        workspaceStrategy === 'worktree'
+            ? (cliMaxParallelRun ?? localJsonMaxParallelRun ?? 1)
+            : 1;
+    const effectiveMaxParallelRunForMeta =
+        workspaceStrategy === 'worktree'
+            ? (cliMaxParallelRun ?? localJsonMaxParallelRun)
+            : undefined;
 
     if (!foreground) {
         await fs.mkdir(daemonsDir, { recursive: true });
@@ -285,12 +408,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             }
             spawnArgs.push(cliEntry);
         }
-        spawnArgs.push('start', '--foreground', '--cronSetup', cronSetup);
-        if (lumpNameOpt) {
-            spawnArgs.push('--lumpName', lumpNameOpt);
-        }
-        if (discoveryBranchOpt) {
-            spawnArgs.push('--discoveryBranch', discoveryBranchOpt);
+        spawnArgs.push('start', '--foreground', '--cronSetup', cronSetup, '--daemonId', daemonId);
+        pushCsvFlag(spawnArgs, '--include', include);
+        pushCsvFlag(spawnArgs, '--exclude', exclude);
+        if (cliMaxParallelRun !== undefined) {
+            spawnArgs.push('--maxParallelRun', String(cliMaxParallelRun));
         }
         if (json) {
             spawnArgs.push('--json');
@@ -326,33 +448,32 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             await logHandle.close();
         }
 
-        const stopHint = lumpNameOpt
-            ? `\`lumpcode stop --lumpName ${lumpNameOpt}\``
-            : '`lumpcode stop`';
-        const scopeLine = `${formatDeamonLumpScopeCliOutput({
-            lumpName: lumpNameOpt,
-            lumpNames: initialLumps,
-            quoteLumpName: true,
-        })}.`;
-
+        const stopHint = `\`lumpcode stop --daemonId=${daemonId}\``;
         return success({
             messages: [
-                `Lumpcode daemon started. PID file: ${pidFilePath}. Logs: ${logFilePath}.`,
-                `Project: "${projectName}". ${scopeLine} Run ${stopHint} to stop.`,
+                `Lumpcode daemon started (daemonId=${daemonId}). PID file: ${pidFilePath}. Logs: ${logFilePath}.`,
+                `Project: "${projectName}". Run ${stopHint} to stop.`,
             ],
             data: {
                 cronSetup,
-                lumpNames: initialLumps,
+                lumpNames: matchedAtStart,
                 ticks: 0,
-                ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+                daemonId,
+                ...(include !== undefined ? { include } : {}),
+                ...(exclude !== undefined ? { exclude } : {}),
             },
         });
     }
 
     const metaPayload: DaemonMetaWrite = {
+        daemonId,
         cronSetup,
         workspaceStrategy,
-        ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+        ...(effectiveMaxParallelRunForMeta !== undefined
+            ? { maxParallelRun: effectiveMaxParallelRunForMeta }
+            : {}),
+        ...(include !== undefined ? { include } : {}),
+        ...(exclude !== undefined ? { exclude } : {}),
     };
 
     const writeArtifactsResult = await writeDaemonArtifacts({
@@ -370,29 +491,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const projectDisabled = frozenLocalConfig.disabled === true;
     let sharedMultiDiscoveryWarningLogged = false;
     let checkoutParallelismWarningLogged = false;
-    const inFlightMeta = createInFlightMetaUpdater(metaFilePath, logger);
-    const configuredMaxParallelRun = frozenLocalConfig.maxParallelRun ?? 1;
-    const effectiveConcurrency =
-        !lumpNameOpt && workspaceStrategy === 'worktree' ? configuredMaxParallelRun : 1;
-
-    let frozenEffectiveDiscoveryBranch: string | undefined;
-    if (lumpNameOpt) {
-        const discoveryResult = await resolveEffectiveDiscoveryBranch({
-            discoveryBranchOpt,
-            lumpName: lumpNameOpt,
-            localConfigFolderPath,
-            localConfig: frozenLocalConfig,
-            logger,
-            warnSharedDiscoveryBranchIgnored: true,
-        });
-        if (!discoveryResult.success) {
-            await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
-            return failure({ messages: [discoveryResult.data] });
-        }
-        frozenEffectiveDiscoveryBranch = discoveryResult.data;
-    } else if (discoveryBranchOpt) {
-        logger.info('--discoveryBranch has no effect on a global daemon; ignoring.');
-    }
+    const inFlightMeta = createInFlightMetaUpdater(metaFilePath, logger, metaPayload);
 
     if (projectDisabled) {
         logger.info('project disabled in local.json; skipping tick.');
@@ -418,9 +517,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         }
 
         if (
-            !lumpNameOpt &&
             workspaceStrategy !== 'worktree' &&
-            configuredMaxParallelRun > 1 &&
+            localJsonMaxParallelRun > 1 &&
             !checkoutParallelismWarningLogged
         ) {
             logger.info(
@@ -456,11 +554,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     projectName,
                     localConfig: frozenLocalConfig,
                     logger: lumpLogger,
-                    effectiveDiscoveryBranch:
-                        lumpName === lumpNameOpt
-                            ? frozenEffectiveDiscoveryBranch
-                            : input.effectiveDiscoveryBranch,
-                    discoveryBranchOpt: lumpName === lumpNameOpt ? discoveryBranchOpt : undefined,
+                    effectiveDiscoveryBranch: input.effectiveDiscoveryBranch,
                     signal: abortController.signal,
                 });
                 if (!runLumpRes.success) {
@@ -484,13 +578,6 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 await inFlightMeta.adjust(-1);
             }
         };
-
-        if (lumpNameOpt) {
-            ticks += 1;
-            logger.info(`tick ${ticks} — running lump "${lumpNameOpt}"…`);
-            await runOneLump({ lumpName: lumpNameOpt });
-            return;
-        }
 
         if (frozenLocalConfig.mode === 'dedicated') {
             ticks += 1;
@@ -521,16 +608,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     logger.error(`discovery branch "${scanBranch}": ${discoverResult.data}; skipping`);
                     continue;
                 }
-                for (const { lumpName, jsConfig } of discoverResult.data) {
+                const discoveredNames = discoverResult.data.map((l) => l.lumpName);
+                const filteredNames = new Set(
+                    filterLumpNames({ names: discoveredNames, include, exclude }),
+                );
+                for (const { lumpName } of discoverResult.data) {
+                    if (!filteredNames.has(lumpName)) continue;
                     const seenKey = `${lumpName}\0${scanBranch}`;
                     if (seenOnScan.has(seenKey)) {
                         logger.warn(`duplicate lump "${lumpName}" on branch "${scanBranch}"; skipping`);
                         continue;
                     }
                     seenOnScan.add(seenKey);
-                    if (jsConfig.ignoredByGlobalDaemon === true) {
-                        continue;
-                    }
                     eligible.push({ lumpName, effectiveDiscoveryBranch: scanBranch });
                 }
             }
@@ -550,9 +639,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         }
 
         const loadable = await discoverLoadableLumps({ localConfigFolderPath, logger });
-        const names = loadable
-            .filter((lump) => lump.jsConfig.ignoredByGlobalDaemon !== true)
-            .map((lump) => lump.lumpName);
+        const names = filterLumpNames({
+            names: loadable.map((lump) => lump.lumpName),
+            include,
+            exclude,
+        });
         if (names.length === 0) {
             logger.warn('no lumps found this tick; skipping.');
             return;
@@ -567,12 +658,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         });
     };
 
-    const scopeLabel = formatDeamonLumpScopeCliOutput({
-        lumpName: lumpNameOpt,
-        lumpNames: initialLumps,
-    });
     logger.info(
-        `Lumpcode daemon on ${cronSetup}. ${scopeLabel}. First run now, then on schedule. Press Ctrl+C to stop.`,
+        `Lumpcode daemon on ${cronSetup} (daemonId=${daemonId}). First run now, then on schedule. Press Ctrl+C to stop.`,
     );
 
     const launchValidation = await validateDaemonLaunch({
@@ -580,24 +667,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         localConfigFolderPath,
         globalConfigFolderPath,
         localConfig: frozenLocalConfig,
-        lumpNameOpt,
-        effectiveDiscoveryBranch: frozenEffectiveDiscoveryBranch,
-        discoveryBranchOpt,
         logger,
     });
     if (!launchValidation.success) {
         await tryRemoveOwnDaemonArtifacts(pidFilePath, metaFilePath);
         return failure({ messages: [launchValidation.data] });
-    }
-
-    if (!lumpNameOpt) {
-        const loadableAtStart = await discoverLoadableLumps({ localConfigFolderPath, logger });
-        const ignoredNames = loadableAtStart
-            .filter((lump) => lump.jsConfig.ignoredByGlobalDaemon === true)
-            .map((lump) => lump.lumpName);
-        if (ignoredNames.length > 0) {
-            logger.info(`Global daemon ignoring lump(s): ${ignoredNames.join(', ')}`);
-        }
     }
 
     // Arm native SIGINT/SIGTERM shutdown *before* the first tick so a stop during runTick
@@ -617,9 +691,14 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         await runTick();
 
         try {
+            // Croner keeps a process-wide registry of job names; parallel tests (and rare
+            // same-process multi-daemon cases) collide if the name is only daemonId.
             cronJob = new Cron(
                 cronSetup,
-                { protect: true, name: 'lumpcode' + (lumpNameOpt ? '-' + lumpNameOpt : '') },
+                {
+                    protect: true,
+                    name: `lumpcode-${daemonId}-${process.pid}-${randomBytes(4).toString('hex')}`,
+                },
                 async () => {
                     try {
                         await runTick();
@@ -648,15 +727,20 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         }
     }
 
-    const summaryLines = [`Stopped after ${ticks} run(s).`, `Schedule was: ${cronSetup}`];
+    const summaryLines = [
+        `Stopped after ${ticks} run(s) (daemonId=${daemonId}).`,
+        `Schedule was: ${cronSetup}`,
+    ];
 
     return success({
         messages: summaryLines,
         data: {
             cronSetup,
-            lumpNames: initialLumps,
+            lumpNames: matchedAtStart,
             ticks,
-            ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+            daemonId,
+            ...(include !== undefined ? { include } : {}),
+            ...(exclude !== undefined ? { exclude } : {}),
         },
     });
 };
@@ -665,6 +749,6 @@ export const command = {
     handlerMaker,
     name: 'start',
     description:
-        'Detach a background scheduler that re-runs lumps on a cron schedule (PID under ~/.lumpcode/daemons/). Pass `--foreground` to run blocking in this terminal. Pass `--lumpName` to scope the daemon to one lump. You can invoke multiple daemons per-lump, but only one global.',
+        'Detach a background scheduler that discovers lumps (global-style) then applies optional --include/--exclude filters on a cron schedule. Pass --daemonId to name the daemon; pass --foreground to run blocking in this terminal.',
     inputSchema,
 } satisfies Command;

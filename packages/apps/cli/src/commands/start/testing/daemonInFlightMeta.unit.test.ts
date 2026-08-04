@@ -63,9 +63,13 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
 
     function assertMetaKeysAreAllowed(raw: Record<string, unknown>) {
         const allowed = new Set([
+            'daemonId',
             'cronSetup',
             'workspaceStrategy',
             'lumpName',
+            'include',
+            'exclude',
+            'maxParallelRun',
             'inFlightLumpCount',
         ]);
         for (const key of Object.keys(raw)) {

@@ -23,7 +23,7 @@ type AssertFn = (input: AssertInput) => AssertResult;
  * Skipped until assertDaemonStartAllowed is id-only + corrupt meta.
  * Old global/per-lump/checkout mutual-exclusion cases are deleted (A6).
  */
-describe.skip('assertDaemonStartAllowed (daemon-id-and-filters A*)', () => {
+describe('assertDaemonStartAllowed (daemon-id-and-filters A*)', () => {
     const projectName = 'proj';
     const assert = assertDaemonStartAllowed as unknown as AssertFn;
 

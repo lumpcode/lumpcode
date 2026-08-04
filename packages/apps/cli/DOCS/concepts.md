@@ -129,29 +129,29 @@ stateDiagram-v2
 ## When to use `run` vs `start` (daemon)
 
 - **`lumpcode run <lumpName>`** — Run **one tick** for one lump, then exit. Best for **sporadic** work: tickets you step through locally, one-off codemods, or anything you start and review in the same session.
-- **`lumpcode start`** — **Scheduler**: on a cron (default every 5 minutes), runs **every** loadable lump in the project (skipping `"disabled": true` at run time, and omitting `"ignoredByGlobalDaemon": true` from the global queue). With `workspaceStrategy: "worktree"` and `maxParallelRun` > 1 in `local.json`, a global tick can run multiple lumps concurrently. Best for **sustained agent loop campaigns**: run it on a **machine that stays on** (your dev box or a small remote server with the same git push access). You merge good branches; the next tick picks up the next eligible context.
+- **`lumpcode start`** — **Scheduler**: on a cron (default every 5 minutes), discovers loadable lumps (dedicated: all `primaryBranches` subticks), then optionally filters with `--include` / `--exclude`. Each start has a unique **`daemonId`** (default `global` when unfiltered). With `workspaceStrategy: "worktree"` and `maxParallelRun` > 1 (from `local.json` or `--maxParallelRun`), a tick can run multiple matching lumps concurrently. Best for **sustained agent loop campaigns**: run it on a **machine that stays on** (your dev box or a small remote server with the same git push access). You merge good branches; the next tick picks up the next eligible context.
 
 Useful pairings on a server:
 
 - **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`) — caps how many open `lump/<lumpName>/*` branches on `origin` exist before a run is skipped (local-only branches are not counted). See [lump-config.md](./lump-config.md#optional-top-level-fields).
 - **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to the primary branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
 - **`"disabled": true`** on a lump — on the next tick, the daemon soft-skips that lump without stopping the scheduler.
-- **`"ignoredByGlobalDaemon": true`** on a lump — the global daemon never schedules it; drive it with `start --lumpName` or manual `run` instead.
-- **`maxParallelRun`** in `local.json` (with **`workspaceStrategy: "worktree"`**) — caps how many lumps a global daemon tick runs at once. Default `1`. See [Concurrency and locks](#concurrency-and-locks).
+- **`--include` / `--exclude`** — run a subset of lumps under a named `--daemonId` (overlapping daemons are allowed; locks serialize the same lump).
+- **`maxParallelRun`** in `local.json` or `--maxParallelRun` on start (with **`workspaceStrategy: "worktree"`**) — caps how many lumps a daemon tick runs at once. Default `1`. See [Concurrency and locks](#concurrency-and-locks).
 
 **Daemon files** (under `~/.lumpcode/daemons/`):
 
 
-| File                                 | Role                                               |
-| ------------------------------------ | -------------------------------------------------- |
-| `<projectName>.daemon.pid`           | PID of the foreground scheduler child              |
-| `<projectName>.daemon.log`           | Child stdout/stderr                                |
-| `<projectName>.daemon.meta.json`     | Stores `cronSetup`, `workspaceStrategy`, and `inFlightLumpCount` for `restart` / `daemon-status` / `stop` |
+| File | Role |
+| ---- | ---- |
+| `<projectName>.<daemonId>.daemon.pid` | PID of the foreground scheduler child |
+| `<projectName>.<daemonId>.daemon.log` | Child stdout/stderr |
+| `<projectName>.<daemonId>.daemon.meta.json` | `daemonId`, `cronSetup`, `workspaceStrategy`, filters, `maxParallelRun`, `inFlightLumpCount` for companions |
 
 
-**Common flags:** `lumpcode start --foreground` (blocking), `lumpcode start --cronSetup '*/10 * * * *'`. Inspect: `lumpcode daemon-status`. Stop: `lumpcode stop`. Restart: `lumpcode restart`.
+**Common flags:** `lumpcode start --foreground` (blocking), `lumpcode start --include=backlog,refacto-* --daemonId=agents`, `lumpcode start --cronSetup '*/10 * * * *'`. Inspect: `lumpcode daemon-status` (lists all). Stop: `lumpcode stop --daemonId=agents`. Restart: `lumpcode restart`.
 
-**Tick behavior:** list `.lumpcode/lumps/*`, keep directories with loadable `config.json`, `config.js`, or `config.ts`, omit `ignoredByGlobalDaemon` lumps from the global queue, soft-skip disabled lumps at run time, then run the same engine path as `lumpcode run <lumpName>` for each (optionally in parallel under worktree + `maxParallelRun`).
+**Tick behavior:** discover loadable lumps (global-style multi-primary in dedicated), apply include/exclude filters, soft-skip disabled lumps at run time, then run the same engine path as `lumpcode run <lumpName>` for each (optionally in parallel under worktree + `maxParallelRun`).
 
 Full flag reference: [commands.md](./commands.md).
 
@@ -183,8 +183,8 @@ Lumpcode serializes work with **per-path locks** so that runs, daemons, and work
 - **One writer per workspace path.** Each execution workspace and each branch workspace is protected by its own lock. Two runs never mutate the same path at the same time.
 - **Manual `run` fails fast; daemons wait.** If another run or daemon holds the workspace lock, `lumpcode run` exits with a **`workspacePathBusy`** error (with `--json`: `data.code: "workspacePathBusy"` plus the path and the holder's pid/lump when known). A daemon tick instead **waits** for the lock and proceeds when it frees up.
 - **`checkout` strategy = one lock for the whole run.** Execution and branch workspaces are the same path, so the lock is held from pre-flight to teardown — one lump at a time per workspace.
-- **`worktree` strategy allows parallelism.** Pre-flight and worktree setup on the main checkout are serialized (one lump at a time per machine), but once set up, agents on different worktrees run **concurrently**, each behind its own branch-workspace lock. A **global** daemon with `maxParallelRun` > 1 in `local.json` schedules up to that many lumps per tick into those worktrees; `"checkout"` stays sequential regardless of `maxParallelRun`. Per-lump daemons (`start --lumpName`) always run one lump per tick.
-- **Daemon collisions are checked at `start`.** A global daemon refuses to start while any daemon for the project runs; per-lump daemons can coexist only when every running daemon uses the `worktree` strategy. Full rules: [commands.md § start](./commands.md#ref-cmd-start).
+- **`worktree` strategy allows parallelism.** Pre-flight and worktree setup on the main checkout are serialized (one lump at a time per machine), but once set up, agents on different worktrees run **concurrently**, each behind its own branch-workspace lock. Any worktree daemon with `maxParallelRun` > 1 (from `local.json` or `--maxParallelRun`) schedules up to that many matching lumps per tick; `"checkout"` stays sequential and rejects `--maxParallelRun`.
+- **Daemon collisions are checked at `start`.** Start fails only when the same `daemonId` is already alive, or any alive peer has corrupt/missing meta. Overlapping filters are allowed; locks serialize shared lumps. Full rules: [commands.md § start](./commands.md#ref-cmd-start).
 - **Stale locks self-heal.** After a crash or `lumpcode stop --force`, a lock file may be left behind. The next acquire detects that the holding process is dead and removes the stale lock automatically — no manual cleanup needed.
 
 ## Related documentation

@@ -1,3 +1,4 @@
+import * as path from 'node:path';
 import * as z from 'zod';
 
 import { failure, success, type Failure, type Success } from '@lumpcode/core';
@@ -7,16 +8,25 @@ import { readJsonFile } from '../readJsonFile';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 
 const daemonMetaSchema = z.object({
+    daemonId: z.string().optional(),
     cronSetup: z.string().optional(),
     lumpName: z.string().optional(),
+    include: z.array(z.string()).optional(),
+    exclude: z.array(z.string()).optional(),
+    maxParallelRun: z.number().int().positive().optional(),
     workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
     busy: z.boolean().optional(),
     inFlightLumpCount: z.number().int().nonnegative().optional(),
 });
 
 export type DaemonMeta = {
+    daemonId?: string;
     cronSetup?: string;
+    /** @deprecated read-only; if set and include omitted → include: [lumpName] */
     lumpName?: string;
+    include?: string[];
+    exclude?: string[];
+    maxParallelRun?: number;
     workspaceStrategy: WorkspaceStrategy;
     /** @deprecated Writers use `inFlightLumpCount`; kept for upgrade-safety reads. */
     busy?: boolean;
@@ -38,10 +48,31 @@ export function isDaemonMidRun(meta: Pick<DaemonMeta, 'busy' | 'inFlightLumpCoun
 
 /** Fields written when a detached daemon starts. */
 export type DaemonMetaWrite = {
+    daemonId: string;
     cronSetup: string;
     workspaceStrategy: WorkspaceStrategy;
-    lumpName?: string;
+    maxParallelRun?: number;
+    include?: string[];
+    exclude?: string[];
 };
+
+/**
+ * Infer daemonId from meta filename:
+ * - `<project>.daemon.meta.json` (legacy bare) → `global`
+ * - `<project>.<daemonId>.daemon.meta.json` → `<daemonId>`
+ */
+export function inferDaemonIdFromMetaPath(metaFilePath: string): string | undefined {
+    const fileName = path.basename(metaFilePath);
+    if (!fileName.endsWith('.daemon.meta.json')) {
+        return undefined;
+    }
+    const core = fileName.slice(0, -'.daemon.meta.json'.length);
+    const parts = core.split('.');
+    if (parts.length === 1) {
+        return 'global';
+    }
+    return parts[parts.length - 1];
+}
 
 /**
  * Reads daemon metadata written at start time.
@@ -83,14 +114,27 @@ export async function readDaemonMeta(
         });
     }
 
+    const data = validated.data;
+    const include =
+        data.include !== undefined
+            ? data.include
+            : data.lumpName !== undefined
+              ? [data.lumpName]
+              : undefined;
+    const daemonId = data.daemonId ?? inferDaemonIdFromMetaPath(metaFilePath);
+
     return success({
-        ...(validated.data.cronSetup !== undefined ? { cronSetup: validated.data.cronSetup } : {}),
-        ...(validated.data.lumpName !== undefined ? { lumpName: validated.data.lumpName } : {}),
-        ...(validated.data.busy !== undefined ? { busy: validated.data.busy } : {}),
-        ...(validated.data.inFlightLumpCount !== undefined
-            ? { inFlightLumpCount: validated.data.inFlightLumpCount }
+        ...(daemonId !== undefined ? { daemonId } : {}),
+        ...(data.cronSetup !== undefined ? { cronSetup: data.cronSetup } : {}),
+        ...(data.lumpName !== undefined ? { lumpName: data.lumpName } : {}),
+        ...(include !== undefined ? { include } : {}),
+        ...(data.exclude !== undefined ? { exclude: data.exclude } : {}),
+        ...(data.maxParallelRun !== undefined ? { maxParallelRun: data.maxParallelRun } : {}),
+        ...(data.busy !== undefined ? { busy: data.busy } : {}),
+        ...(data.inFlightLumpCount !== undefined
+            ? { inFlightLumpCount: data.inFlightLumpCount }
             : {}),
-        workspaceStrategy: validated.data.workspaceStrategy ?? 'checkout',
+        workspaceStrategy: data.workspaceStrategy ?? 'checkout',
     });
 }
 

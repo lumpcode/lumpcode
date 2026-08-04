@@ -22,7 +22,7 @@ import {
  * daemon-id-and-filters F*, O*, S* (filter/overlap/start flags).
  * Skipped until include/exclude/daemonId land on start.
  */
-describe.skip('start command — daemon filters (daemon-id-and-filters F*/O*/S*)', () => {
+describe('start command — daemon filters (daemon-id-and-filters F*/O*/S*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;

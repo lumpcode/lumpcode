@@ -6,11 +6,15 @@ import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { resolveDaemonCommandScope } from '../../utils';
+import { createCliLogger, resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
-        lumpName: z.string().optional().describe('Read the log for a per-lump daemon'),
+        daemonId: z.string().optional().describe('Read the log for this daemon id (default: global)'),
+        lumpName: z
+            .string()
+            .optional()
+            .describe('Deprecated. Treated as --daemonId'),
         lines: z.number().int().positive().optional().describe('Number of initial lines to show'),
         noFollow: z.boolean().optional().describe('Print lines and exit instead of following live'),
     }),
@@ -22,7 +26,7 @@ export type Input = z.infer<typeof inputSchema>;
 export type LogData = {
     logFilePath: string;
     lines: string[];
-    lumpName?: string;
+    daemonId: string;
 };
 
 export type Output = {
@@ -108,15 +112,25 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const spawnImpl = spawnFn ?? nodeSpawn;
     const linesOpt = input.options.lines;
     const noFollow = input.options.noFollow === true;
+    const logger = createCliLogger({
+        verbose: !!input.options.verbose,
+        json: !!input.options.json,
+        prefix: '[lumpcode daemon-log]',
+    });
+
+    if (input.options.lumpName?.trim() && !input.options.daemonId?.trim()) {
+        logger.warn('--lumpName on daemon-log is deprecated; use --daemonId instead.');
+    }
 
     const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
+        daemonId: input.options.daemonId,
         lumpName: input.options.lumpName,
     });
     if (!scopeResult.success) return scopeResult;
-    const { lumpName: lumpNameOpt, scopeLabel, paths } = scopeResult.data;
+    const { daemonId, scopeLabel, paths } = scopeResult.data;
     const { logFilePath, projectName } = paths;
 
     try {
@@ -124,7 +138,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     } catch {
         return failure({
             messages: [
-                `No daemon log file for "${projectName}"${scopeLabel} at ${logFilePath}. Start the daemon first or check --lumpName.`,
+                `No daemon log file for "${projectName}"${scopeLabel} at ${logFilePath}. Start the daemon first or check --daemonId.`,
             ],
         });
     }
@@ -144,7 +158,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             data: {
                 logFilePath,
                 lines: outputLines,
-                ...(lumpNameOpt !== undefined ? { lumpName: lumpNameOpt } : {}),
+                daemonId,
             },
         });
     }
@@ -162,6 +176,6 @@ export const command = {
     handlerMaker,
     name: 'daemon-log',
     description:
-        'Tail the background daemon log file (follows live by default). Pass --lines to limit initial output; pass --noFollow to print and exit. Pass --lumpName for a per-lump daemon.',
+        'Tail a background daemon log file (follows live by default; default daemonId=global). Pass --lines to limit initial output; pass --noFollow to print and exit.',
     inputSchema,
 } satisfies Command;

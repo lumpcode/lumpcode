@@ -13,7 +13,7 @@ type DaemonMetaPath = (input: {
  * daemon-id-and-filters P3 (meta).
  * Skipped until path helpers require daemonId.
  */
-describe.skip('daemonMetaPath (daemon-id-and-filters P*)', () => {
+describe('daemonMetaPath (daemon-id-and-filters P*)', () => {
     const daemonsDir = '/home/.lumpcode/daemons';
     const metaPath = daemonMetaPath as unknown as DaemonMetaPath;
 

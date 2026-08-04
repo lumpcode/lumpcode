@@ -3,8 +3,7 @@ import * as fs from 'node:fs/promises';
 import { failure, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
 
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
-import { daemonFileBaseName } from '../daemonFileBaseName';
-import { daemonPidPath } from '../daemonPidPath';
+import { daemonPidPath, legacyBareGlobalDaemonPidPath } from '../daemonPidPath';
 import { metaFilePathFromPidFilePath, readDaemonMeta } from '../readDaemonMeta';
 import { readDaemonPidIfAlive } from '../readDaemonPidIfAlive';
 
@@ -19,19 +18,24 @@ export type RunningDaemonInfo =
           meta: 'missing' | 'invalid';
       };
 
-export type RunningProjectDaemons = {
-    global?: RunningDaemonInfo;
-    lumps: Record<string, RunningDaemonInfo>;
-};
+/** Alive project daemons keyed by daemonId. */
+export type RunningProjectDaemons = Record<string, RunningDaemonInfo>;
 
 function escapeRegExp(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function perLumpDaemonPidFilePattern(projectName: string): RegExp {
-    const exampleBase = daemonFileBaseName({ projectName, lumpName: '__LUMP__' });
-    const pattern = `^${escapeRegExp(exampleBase).replace('__LUMP__', '([^.]+)')}\\.daemon\\.pid$`;
-    return new RegExp(pattern);
+function daemonIdPidFilePattern(projectName: string): RegExp {
+    return new RegExp(`^${escapeRegExp(projectName)}\\.([^.]+)\\.daemon\\.pid$`);
+}
+
+async function pathExists(filePath: string): Promise<boolean> {
+    try {
+        await fs.access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 async function readRunningDaemonInfo(
@@ -62,23 +66,16 @@ async function readRunningDaemonInfo(
 
 /**
  * Lists alive background daemons for a project under `daemonsDir`.
+ * Keys are daemonIds. Legacy bare `<project>.daemon.pid` maps to `global`
+ * when `<project>.global.daemon.pid` is absent.
  */
 export async function listRunningProjectDaemons(input: {
     daemonsDir: string;
     projectName: string;
 }): Promise<Success<RunningProjectDaemons> | Failure<string>> {
     const { daemonsDir, projectName } = input;
-    const result: RunningProjectDaemons = { lumps: {} };
-
-    const globalInfoResult = await readRunningDaemonInfo(
-        daemonPidPath({ daemonsDir, projectName }),
-    );
-    if (!globalInfoResult.success) return globalInfoResult;
-    if (globalInfoResult.data !== undefined) {
-        result.global = globalInfoResult.data;
-    }
-
-    const perLumpPattern = perLumpDaemonPidFilePattern(projectName);
+    const result: RunningProjectDaemons = {};
+    const idPattern = daemonIdPidFilePattern(projectName);
 
     let entries: string[];
     try {
@@ -92,15 +89,26 @@ export async function listRunningProjectDaemons(input: {
     }
 
     for (const name of entries) {
-        const match = perLumpPattern.exec(name);
+        const match = idPattern.exec(name);
         if (!match) continue;
-        const lumpName = match[1];
+        const daemonId = match[1]!;
         const infoResult = await readRunningDaemonInfo(
-            daemonPidPath({ daemonsDir, projectName, lumpName }),
+            daemonPidPath({ daemonsDir, projectName, daemonId }),
         );
         if (!infoResult.success) return infoResult;
         if (infoResult.data !== undefined) {
-            result.lumps[lumpName] = infoResult.data;
+            result[daemonId] = infoResult.data;
+        }
+    }
+
+    if (result.global === undefined) {
+        const legacyPid = legacyBareGlobalDaemonPidPath({ daemonsDir, projectName });
+        if (await pathExists(legacyPid)) {
+            const legacyInfo = await readRunningDaemonInfo(legacyPid);
+            if (!legacyInfo.success) return legacyInfo;
+            if (legacyInfo.data !== undefined) {
+                result.global = legacyInfo.data;
+            }
         }
     }
 

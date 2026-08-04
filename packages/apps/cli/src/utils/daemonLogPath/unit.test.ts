@@ -13,7 +13,7 @@ type DaemonLogPath = (input: {
  * daemon-id-and-filters P3 (log).
  * Skipped until path helpers require daemonId.
  */
-describe.skip('daemonLogPath (daemon-id-and-filters P*)', () => {
+describe('daemonLogPath (daemon-id-and-filters P*)', () => {
     const daemonsDir = '/home/.lumpcode/daemons';
     const logPath = daemonLogPath as unknown as DaemonLogPath;
 

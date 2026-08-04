@@ -30,7 +30,7 @@ type ScopeFn = (input: ScopeInput) => Promise<ScopeResult>;
  * daemon-id-and-filters C1–C4.
  * Skipped until resolveDaemonCommandScope uses --daemonId / default global.
  */
-describe.skip('resolveDaemonCommandScope (daemon-id-and-filters C*)', () => {
+describe('resolveDaemonCommandScope (daemon-id-and-filters C*)', () => {
     let base: string;
     let projectRoot: string;
     let localConfigFolderPath: string;

@@ -31,7 +31,7 @@ describe('stop command', () => {
     let localConfigFolderPath: string;
     const projectName = 'stop-test-project';
     const pidPath = () =>
-        path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+        path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-global-'));
@@ -765,7 +765,7 @@ describe('stop command', () => {
  * daemon-id-and-filters K1–K5.
  * Skipped until stop defaults to daemonId global + new paths / --daemonId.
  */
-describe.skip('stop command (daemon-id-and-filters K*)', () => {
+describe('stop command (daemon-id-and-filters K*)', () => {
     let projectRoot: string;
     let globalConfigFolderPath: string;
     let localConfigFolderPath: string;

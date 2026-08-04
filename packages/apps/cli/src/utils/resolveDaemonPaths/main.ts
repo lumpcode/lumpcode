@@ -14,17 +14,16 @@ export type ResolvedDaemonPaths = {
     /** Written when a detached daemon starts; holds scheduling fields (e.g. cron). */
     metaFilePath: string;
     projectName: string;
-    /** Set when paths are scoped to a single lump daemon. */
-    lumpName?: string;
+    daemonId: string;
 };
 
 export async function resolveDaemonPaths(input: {
     projectRoot: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
-    lumpName?: string;
+    daemonId: string;
 }): Promise<Success<ResolvedDaemonPaths> | Failure<string>> {
-    const { projectRoot, localConfigFolderPath, globalConfigFolderPath, lumpName } = input;
+    const { projectRoot, localConfigFolderPath, globalConfigFolderPath, daemonId } = input;
     const nameResult = await getProjectName({ localConfigFolderPath, projectRoot });
     if (!nameResult.success) {
         return failure(nameResult.data);
@@ -32,7 +31,7 @@ export async function resolveDaemonPaths(input: {
 
     const projectName = nameResult.data;
     const daemonsDir = daemonsDirPath({ globalConfigFolderPath });
-    const pathInput = { daemonsDir, projectName, lumpName };
+    const pathInput = { daemonsDir, projectName, daemonId };
 
     return success({
         daemonsDir,
@@ -40,6 +39,6 @@ export async function resolveDaemonPaths(input: {
         logFilePath: daemonLogPath(pathInput),
         metaFilePath: daemonMetaPath(pathInput),
         projectName,
-        ...(lumpName !== undefined ? { lumpName } : {}),
+        daemonId,
     });
 }

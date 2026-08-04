@@ -19,7 +19,7 @@ type ListRunning = (input: {
  * daemon-id-and-filters L1–L7.
  * Skipped until listRunningProjectDaemons returns Record<daemonId, info>.
  */
-describe.skip('listRunningProjectDaemons (daemon-id-and-filters L*)', () => {
+describe('listRunningProjectDaemons (daemon-id-and-filters L*)', () => {
     let daemonsDir: string;
     const projectName = 'proj';
     const list = listRunningProjectDaemons as unknown as ListRunning;

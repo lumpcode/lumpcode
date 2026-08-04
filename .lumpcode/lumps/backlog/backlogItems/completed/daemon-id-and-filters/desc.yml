@@ -6,3 +6,4 @@ task: >-
   Drop global vs per-lump distinction, ignoredByGlobalDaemon, and start
   --discoveryBranch. Deprecate --lumpName on daemon companions and start.
 priority: 3
+completedAt: '2026-08-04T20:07:36.711Z'

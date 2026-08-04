@@ -318,7 +318,7 @@ describe('start command', () => {
     });
 
     // daemon-id-and-filters path / collision hosts (S*, O*). Skipped until daemonId paths land.
-    it.skip('S1: writes PID and meta at project.global.daemon.* in foreground', async () => {
+    it('S1: writes PID and meta at project.global.daemon.* in foreground', async () => {
         const projectName = 'test-foreground-daemon-project';
         await writeDefaultProjectJson(projectRoot, projectName);
         await writeDefaultLocalJson(projectRoot);
@@ -360,7 +360,7 @@ describe('start command', () => {
         if (!result.success) throw new Error('unreachable');
     });
 
-    it.skip('S3/M4: deprecated --lumpName writes include not lumpName', async () => {
+    it('S3/M4: deprecated --lumpName writes include not lumpName', async () => {
         const projectName = 'test-foreground-lump-daemon-project';
         await writeDefaultProjectJson(projectRoot, projectName);
         await writeDefaultLocalJson(projectRoot);
@@ -400,7 +400,7 @@ describe('start command', () => {
         if (!result.success) throw new Error('unreachable');
     });
 
-    it.skip('O1/A4: overlapping daemons with distinct ids both start', async () => {
+    it('O1/A4: overlapping daemons with distinct ids both start', async () => {
         await writeDefaultProjectJson(projectRoot, 'overlap-project');
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'worktree' });
         await writeMinimalLump(projectRoot, 'backlog');
@@ -427,7 +427,7 @@ describe('start command', () => {
         }
     });
 
-    it.skip('A5: checkout allows second distinct-id daemon', async () => {
+    it('A5: checkout allows second distinct-id daemon', async () => {
         await writeDefaultProjectJson(projectRoot, 'checkout-multi-project');
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'checkout' });
 
@@ -454,7 +454,7 @@ describe('start command', () => {
         }
     });
 
-    it.skip('S7: duplicate daemonId fails', async () => {
+    it('S7: duplicate daemonId fails', async () => {
         await writeDefaultProjectJson(projectRoot, 'id-in-use-project');
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'worktree' });
         await writeMinimalLump(projectRoot, 'alpha');

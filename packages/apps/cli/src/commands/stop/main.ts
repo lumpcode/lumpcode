@@ -6,6 +6,7 @@ import { failure, isProcessAlive, killProcessTree, nodeErrnoCode, success } from
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
+    createCliLogger,
     isDaemonMidRun,
     pollUntil,
     readDaemonMeta,
@@ -18,7 +19,11 @@ const FORCE_STOP_WAIT_MS = 5000;
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
-        lumpName: z.string().optional().describe('Stop the daemon scoped to a single lump'),
+        daemonId: z.string().optional().describe('Stop the daemon with this id (default: global)'),
+        lumpName: z
+            .string()
+            .optional()
+            .describe('Deprecated. Treated as --daemonId'),
         force: z
             .boolean()
             .optional()
@@ -43,15 +48,25 @@ export interface Injections {
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
     const force = input.options.force === true;
+    const logger = createCliLogger({
+        verbose: !!input.options.verbose,
+        json: !!input.options.json,
+        prefix: '[lumpcode stop]',
+    });
+
+    if (input.options.lumpName?.trim() && !input.options.daemonId?.trim()) {
+        logger.warn('--lumpName on stop is deprecated; use --daemonId instead.');
+    }
 
     const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
+        daemonId: input.options.daemonId,
         lumpName: input.options.lumpName,
     });
     if (!scopeResult.success) return scopeResult;
-    const { lumpName: lumpNameOpt, scopeLabel, paths } = scopeResult.data;
+    const { daemonId, scopeLabel, paths } = scopeResult.data;
     const { pidFilePath, metaFilePath, projectName } = paths;
 
     const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
@@ -101,6 +116,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 messages: [
                     `Force-stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
                 ],
+                data: { daemonId },
             });
         }
 
@@ -158,6 +174,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             messages: [
                 `Stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
             ],
+            data: { daemonId },
         });
     }
 
@@ -172,6 +189,6 @@ export const command = {
     handlerMaker,
     name: 'stop',
     description:
-        'Stop the background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--lumpName` to stop a per-lump daemon. Pass `--force` for immediate process-tree kill.',
+        'Stop a background Lumpcode daemon for this project (default daemonId=global). Pass `--daemonId` to target a filtered daemon. Pass `--force` for immediate process-tree kill.',
     inputSchema,
 } satisfies Command;

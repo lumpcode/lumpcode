@@ -6,7 +6,7 @@ import { filterLumpNames, matchLumpNamePattern } from './main';
  * daemon-id-and-filters FL1–FL11.
  * Skipped until filterLumpNames is implemented.
  */
-describe.skip('filterLumpNames (daemon-id-and-filters FL*)', () => {
+describe('filterLumpNames (daemon-id-and-filters FL*)', () => {
     it('FL1: omit include returns all names in source order', () => {
         expect(
             filterLumpNames({ names: ['a', 'b', 'c'] }),

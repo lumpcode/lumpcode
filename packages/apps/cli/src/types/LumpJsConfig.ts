@@ -52,11 +52,6 @@ export type LumpJsConfig<
     /** Author context list fn (CLI shape with required `discoveryBranch`). */
     getContextListFn?: FilePath | GetContextListFn<V>;
     disabled?: boolean | (() => MaybePromise<boolean>) | FilePath;
-    /**
-     * When `true`, the global daemon omits this lump from its tick queue.
-     * Per-lump daemon and manual `run` still execute it. Boolean only (v1).
-     */
-    ignoredByGlobalDaemon?: boolean;
     maximumNumberOfConcurrentBranches?: number;
     prompt?: LumpJsConfigSoloStep<V, SV>;
     steps?: LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>;

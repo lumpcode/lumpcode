@@ -485,7 +485,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
  * and checkout rejects --maxParallelRun.
  * Old S1 (per-lump ignores maxParallel) and I1–I4 (ignoredByGlobalDaemon) deleted.
  */
-describe.skip('start command — concurrency (daemon-id-and-filters Q*)', () => {
+describe('start command — concurrency (daemon-id-and-filters Q*)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;
@@ -524,12 +524,19 @@ describe.skip('start command — concurrency (daemon-id-and-filters Q*)', () => 
         local: Record<string, unknown>;
         lumps: string[];
         startOptions: Record<string, unknown>;
+        /** How many lumps should eventually start (defaults to lumps.length). */
+        expectedStarts?: number;
     }): Promise<number> {
         await writeLocal(options.local);
         await writeLumps(options.lumps);
+        const expectedStarts = options.expectedStarts ?? options.lumps.length;
         const gates = new Map<string, PromiseGate>();
         let inFlight = 0;
         let peak = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
         const runLumpSpy = vi
             .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
             .mockImplementation(async (input) => {
@@ -544,11 +551,7 @@ describe.skip('start command — concurrency (daemon-id-and-filters Q*)', () => 
 
         try {
             const handlePromise = makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {
-                    for (const gate of gates.values()) {
-                        gate.resolve();
-                    }
-                },
+                waitForShutdownOverride: () => shutdownGate,
             })({
                 options: {
                     foreground: true,
@@ -558,12 +561,21 @@ describe.skip('start command — concurrency (daemon-id-and-filters Q*)', () => 
                 arguments: {},
             });
 
-            await vi.waitFor(() => expect(gates.size).toBeGreaterThan(0));
-            // Release in waves so peak can be observed
-            const names = [...gates.keys()];
-            for (const name of names) {
-                gates.get(name)!.resolve();
-            }
+            await vi.waitFor(() => {
+                if (peak < 1) throw new Error('waiting for first in-flight lump');
+            });
+            // Keep releasing gates across waves until all expected lumps finish.
+            await vi.waitFor(() => {
+                for (const gate of gates.values()) {
+                    gate.resolve();
+                }
+                if (gates.size < expectedStarts || inFlight > 0) {
+                    throw new Error(
+                        `draining starts=${gates.size}/${expectedStarts} inFlight=${inFlight}`,
+                    );
+                }
+            });
+            releaseShutdown();
             await handlePromise;
             return peak;
         } finally {
@@ -585,6 +597,7 @@ describe.skip('start command — concurrency (daemon-id-and-filters Q*)', () => 
             local: { maxParallelRun: 1 },
             lumps: ['refacto-a', 'refacto-b', 'refacto-c', 'other'],
             startOptions: { include: 'refacto-*', maxParallelRun: 2 },
+            expectedStarts: 3,
         });
         expect(peak).toBe(2);
     });

@@ -16,6 +16,17 @@ function parseSpawnArg(args: readonly string[], flag: string): string | undefine
     return args[index + 1];
 }
 
+function collectRepeatableFlag(args: readonly string[], flag: string): string[] {
+    const values: string[] = [];
+    for (let i = 0; i < args.length; i += 1) {
+        if (args[i] === flag && i + 1 < args.length) {
+            values.push(args[i + 1]!);
+            i += 1;
+        }
+    }
+    return values;
+}
+
 /**
  * Spawn fn for daemon command tests: starts a detached child that writes PID/meta
  * the same way foreground `start` does, then stays alive for stop/status checks.
@@ -25,10 +36,12 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
     args: readonly string[],
     options: SpawnOptions,
 ) => {
-    // Prefer --daemonId (daemon-id-and-filters); fall back to deprecated --lumpName.
-    const pathScope =
-        parseSpawnArg(args, '--daemonId') ?? parseSpawnArg(args, '--lumpName');
+    const daemonId =
+        parseSpawnArg(args, '--daemonId') ?? parseSpawnArg(args, '--lumpName') ?? 'global';
     const cronSetup = parseSpawnArg(args, '--cronSetup') ?? '*/5 * * * *';
+    const includeParts = collectRepeatableFlag(args, '--include');
+    const excludeParts = collectRepeatableFlag(args, '--exclude');
+    const maxParallelRun = parseSpawnArg(args, '--maxParallelRun');
     let workspaceStrategy = 'checkout';
     const projectRoot = options.cwd ? String(options.cwd) : '';
     if (projectRoot) {
@@ -55,8 +68,10 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
             LUMPCODE_DAEMON_PROJECT_ROOT: projectRoot,
             LUMPCODE_DAEMON_GLOBAL_CONFIG: getDaemonTestGlobalConfigFolder(),
             LUMPCODE_DAEMON_CRON_SETUP: cronSetup,
-            // Child still uses LUMPCODE_DAEMON_LUMP_NAME as the path middle segment.
-            LUMPCODE_DAEMON_LUMP_NAME: pathScope ?? '',
+            LUMPCODE_DAEMON_ID: daemonId,
+            LUMPCODE_DAEMON_INCLUDE: includeParts.join(','),
+            LUMPCODE_DAEMON_EXCLUDE: excludeParts.join(','),
+            LUMPCODE_DAEMON_MAX_PARALLEL_RUN: maxParallelRun ?? '',
             LUMPCODE_DAEMON_WORKSPACE_STRATEGY: workspaceStrategy,
         },
     });

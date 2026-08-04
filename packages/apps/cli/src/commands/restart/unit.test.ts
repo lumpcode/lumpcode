@@ -32,8 +32,8 @@ describe('restart command', () => {
     let globalConfigFolderPath: string;
     let localConfigFolderPath: string;
     const projectName = 'restart-test-project';
-    const pidPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
-    const metaPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+    const pidPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+    const metaPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-'));
@@ -231,7 +231,7 @@ describe('restart command', () => {
  * daemon-id-and-filters R1–R2.
  * Skipped until restart replays daemonId / include / exclude / maxParallelRun from meta.
  */
-describe.skip('restart command (daemon-id-and-filters R*)', () => {
+describe('restart command (daemon-id-and-filters R*)', () => {
     let projectRoot: string;
     let globalConfigFolderPath: string;
     let localConfigFolderPath: string;

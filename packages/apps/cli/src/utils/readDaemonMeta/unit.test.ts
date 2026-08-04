@@ -57,6 +57,7 @@ describe('readDaemonMeta', () => {
             cronSetup: '*/7 * * * *',
             workspaceStrategy: 'worktree',
             lumpName: 'alpha',
+            include: ['alpha'],
         });
     });
 
@@ -179,7 +180,7 @@ describe('readDaemonMeta', () => {
      * Skipped until meta schema accepts daemonId / include / exclude / maxParallelRun
      * and compat readers map lumpName → include / infer id from path.
      */
-    describe.skip('daemon-id-and-filters meta fields (M1–M3)', () => {
+    describe('daemon-id-and-filters meta fields (M1–M3)', () => {
         it('M1: parse new fields', async () => {
             const metaPath = path.join(dir, 'new-fields.meta.json');
             await fs.writeFile(

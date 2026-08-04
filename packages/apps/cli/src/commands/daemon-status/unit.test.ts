@@ -97,19 +97,24 @@ describe('daemon-status command', () => {
         const result = await makeDaemonStatusHandler()({ options: {}, arguments: {} });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.data!.running).toBe(false);
+        const data = result.data.data as { daemons?: unknown[] };
+        expect(data.daemons).toEqual([]);
         expect(result.data.messages[0]).toContain('not running');
     });
 
     it('reports stale PID when the PID file references a dead process', async () => {
         const daemonsDir = path.join(globalConfigFolderPath, 'daemons');
         await fs.mkdir(daemonsDir, { recursive: true });
+        // Legacy bare global — single-detail --daemonId=global still reads it.
         const pidPath = path.join(daemonsDir, `${projectName}.daemon.pid`);
         const metaPath = path.join(daemonsDir, `${projectName}.daemon.meta.json`);
         await fs.writeFile(pidPath, '999999999\n', 'utf8');
         await fs.writeFile(metaPath, `${JSON.stringify({ cronSetup: '0 * * * *' })}\n`, 'utf8');
 
-        const result = await makeDaemonStatusHandler()({ options: {}, arguments: {} });
+        const result = await makeDaemonStatusHandler()({
+            options: { daemonId: 'global' } as never,
+            arguments: {},
+        });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
         expect(result.data.data!.running).toBe(false);
@@ -131,11 +136,14 @@ describe('daemon-status command', () => {
         });
         expect(startResult.success).toBe(true);
         await waitForDaemonPidFile(
-            path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`),
+            path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`),
         );
 
         try {
-            const statusResult = await makeDaemonStatusHandler()({ options: { json: true }, arguments: {} });
+            const statusResult = await makeDaemonStatusHandler()({
+                options: { json: true, daemonId: 'global' } as never,
+                arguments: {},
+            });
             expect(statusResult.success).toBe(true);
             if (!statusResult.success) throw new Error('unreachable');
             expect(statusResult.data.data!.running).toBe(true);
@@ -164,13 +172,14 @@ describe('daemon-status command', () => {
                 arguments: {},
             });
             expect(startResult.success).toBe(true);
-            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
-            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
             await waitForDaemonPidFile(pidPath);
 
             await fs.writeFile(
                 metaPath,
                 `${JSON.stringify({
+                    daemonId: 'global',
                     cronSetup: '15 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount: 2,
@@ -180,7 +189,7 @@ describe('daemon-status command', () => {
 
             try {
                 const statusResult = await makeDaemonStatusHandler()({
-                    options: { json: true },
+                    options: { json: true, daemonId: 'global' } as never,
                     arguments: {},
                 });
                 expect(statusResult.success).toBe(true);
@@ -212,13 +221,14 @@ describe('daemon-status command', () => {
                 arguments: {},
             });
             expect(startResult.success).toBe(true);
-            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
-            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
             await waitForDaemonPidFile(pidPath);
 
             await fs.writeFile(
                 metaPath,
                 `${JSON.stringify({
+                    daemonId: 'global',
                     cronSetup: '15 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount: 0,
@@ -228,7 +238,7 @@ describe('daemon-status command', () => {
 
             try {
                 const statusResult = await makeDaemonStatusHandler()({
-                    options: { json: true },
+                    options: { json: true, daemonId: 'global' } as never,
                     arguments: {},
                 });
                 expect(statusResult.success).toBe(true);
@@ -259,14 +269,14 @@ describe('daemon-status command', () => {
                 arguments: {},
             });
             expect(startResult.success).toBe(true);
-            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
-            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
             await waitForDaemonPidFile(pidPath);
             await fs.unlink(metaPath);
 
             try {
                 const statusResult = await makeDaemonStatusHandler()({
-                    options: { json: true },
+                    options: { json: true, daemonId: 'global' } as never,
                     arguments: {},
                 });
                 expect(statusResult.success).toBe(true);
@@ -292,7 +302,7 @@ describe('daemon-status command', () => {
  * daemon-id-and-filters DS1–DS6.
  * Skipped until daemon-status lists all project daemons / --daemonId detail.
  */
-describe.skip('daemon-status command (daemon-id-and-filters DS*)', () => {
+describe('daemon-status command (daemon-id-and-filters DS*)', () => {
     let projectRoot: string;
     let globalConfigFolderPath: string;
     let localConfigFolderPath: string;
