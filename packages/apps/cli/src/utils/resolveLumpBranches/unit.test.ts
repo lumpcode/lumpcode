@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import type { LocalConfig } from '../../types/LocalConfig';
 import {
     resolveLumpBaseBranch,
-    resolveLumpBranches,
     resolveLumpDiscoveryBranch,
 } from './main';
 
@@ -52,18 +51,6 @@ describe('resolveLumpBranches', () => {
             }),
         ).toBe('main');
     });
-
-    it('returns both resolved branches via resolveLumpBranches (LUMP-SPLIT)', () => {
-        expect(
-            resolveLumpBranches({
-                lumpConfig: { discoveryBranch: 'main', baseBranch: 'ver/0.0.9' },
-                localConfig,
-            }),
-        ).toEqual({
-            resolvedDiscoveryBranch: 'main',
-            resolvedBaseBranch: 'ver/0.0.9',
-        });
-    });
 });
 
 /**
@@ -87,29 +74,7 @@ describe('resolveLumpBranches discovery rules (dynamic-discovery-branch N*)', ()
         ).toBe('dev');
     });
 
-    it('N2: plural discoveryBranches preserves order', () => {
-        const config = { discoveryBranches: ['dev', 'feature/*'] };
-        // Post-impl: normalizeDiscoveryRules(config) === ['dev', 'feature/*']
-        expect(config.discoveryBranches).toEqual(['dev', 'feature/*']);
-        void resolveLumpBranches({
-            lumpConfig: config as Parameters<typeof resolveLumpBranches>[0]['lumpConfig'],
-            localConfig,
-        });
-    });
-
-    it('N3: singular + plural fails validation', () => {
-        expect(() =>
-            resolveLumpBranches({
-                lumpConfig: {
-                    discoveryBranch: 'dev',
-                    discoveryBranches: ['feature/*'],
-                } as Parameters<typeof resolveLumpBranches>[0]['lumpConfig'],
-                localConfig,
-            }),
-        ).toThrow(/discoveryBranch|discoveryBranches|mutually|exclusive/i);
-    });
-
-    it('N4: omit both → effective exact primary', () => {
+    it('N2: omit both → effective exact primary', () => {
         expect(
             resolveLumpDiscoveryBranch({
                 lumpConfig: {},
@@ -118,7 +83,7 @@ describe('resolveLumpBranches discovery rules (dynamic-discovery-branch N*)', ()
         ).toBe('dev');
     });
 
-    it('N5: scan matches exact rule → eligible (via discovery match helper)', async () => {
+    it('N3: scan matches exact rule → eligible (via discovery match helper)', async () => {
         // Post-impl: export or reuse match helper from resolveLumpBranches / discover filter.
         const { branchMatchesGitGlob } = await import('../branchMatchesGitGlob');
         const { isGitRefGlob } = await import('../isGitRefGlob');
@@ -132,7 +97,7 @@ describe('resolveLumpBranches discovery rules (dynamic-discovery-branch N*)', ()
         expect(eligible).toBe(true);
     });
 
-    it('N6: scan matches pattern rule → eligible', async () => {
+    it('N4: scan matches pattern rule → eligible', async () => {
         const { branchMatchesGitGlob } = await import('../branchMatchesGitGlob');
         const { isGitRefGlob } = await import('../isGitRefGlob');
         const rules = ['dev', 'feature/*'];
@@ -145,7 +110,7 @@ describe('resolveLumpBranches discovery rules (dynamic-discovery-branch N*)', ()
         expect(eligible).toBe(true);
     });
 
-    it('N7: scan non-match is not eligible', async () => {
+    it('N5: scan non-match is not eligible', async () => {
         const { branchMatchesGitGlob } = await import('../branchMatchesGitGlob');
         const { isGitRefGlob } = await import('../isGitRefGlob');
         const rules = ['dev', 'feature/*'];
@@ -158,7 +123,7 @@ describe('resolveLumpBranches discovery rules (dynamic-discovery-branch N*)', ()
         expect(eligible).toBe(false);
     });
 
-    it('N8: omitted baseBranch falls back to concrete discovery (string path)', () => {
+    it('N6: omitted baseBranch falls back to concrete discovery (string path)', () => {
         expect(
             resolveLumpBaseBranch({
                 lumpConfig: { discoveryBranch: 'feature/a' },

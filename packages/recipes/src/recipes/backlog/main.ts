@@ -102,53 +102,61 @@ export function backlog<
     const absoluteBacklogItemsDir = path.join(projectRoot, paths.backlogItemsDir);
 
     return defineConfig<V, SV>({
-        getContextListFn: folderBacklogContexts<Item, V>({
-            backlogItemsDir: absoluteBacklogItemsDir,
-            parseItem,
-            async parseContext(item, folderName) {
-                const resolution = await resolveItem({ item, paths });
+        getContextListFn: async (input) => {
+            const listFn = folderBacklogContexts<Item, V>({
+                backlogItemsDir: absoluteBacklogItemsDir,
+                parseItem,
+                async parseContext(item, folderName) {
+                    const resolution = await resolveItem({
+                        item,
+                        paths,
+                        discoveryBranch: input.discoveryBranch,
+                    });
 
-                if (isIgnoredResolution(resolution)) {
-                    return { ignored: true };
-                }
+                    if (isIgnoredResolution(resolution)) {
+                        return { ignored: true };
+                    }
 
-                const {
-                    stage,
-                    contextName,
-                    variables,
-                    additionalDependsOnContexts,
-                } = resolution;
+                    const {
+                        stage,
+                        contextName,
+                        variables,
+                        additionalDependsOnContexts,
+                    } = resolution;
 
-                const dependsOnContexts = [
-                    ...(item.dependsOn ?? []),
-                    ...(additionalDependsOnContexts ?? []),
-                ];
+                    const dependsOnContexts = [
+                        ...(item.dependsOn ?? []),
+                        ...(additionalDependsOnContexts ?? []),
+                    ];
 
-                const backlogItemDir = path.join(
-                    paths.backlogItemsDir,
-                    'todo',
-                    folderName,
-                );
+                    const backlogItemDir = path.join(
+                        paths.backlogItemsDir,
+                        'todo',
+                        folderName,
+                    );
 
-                return {
-                    parsed: {
-                        name: contextName ?? item.name,
-                        variables: {
-                            [BACKLOG_TASK_NAME_VAR]: item.name,
-                            [BACKLOG_TASK_VAR]: item.task,
-                            [BACKLOG_ITEMS_DIR_VAR]: paths.backlogItemsDir,
-                            [BACKLOG_ITEM_DIR_VAR]: backlogItemDir,
-                            [BACKLOG_STAGE_VAR]: stage,
-                            ...variables,
+                    return {
+                        parsed: {
+                            name: contextName ?? item.name,
+                            variables: {
+                                [BACKLOG_TASK_NAME_VAR]: item.name,
+                                [BACKLOG_TASK_VAR]: item.task,
+                                [BACKLOG_ITEMS_DIR_VAR]: paths.backlogItemsDir,
+                                [BACKLOG_ITEM_DIR_VAR]: backlogItemDir,
+                                [BACKLOG_STAGE_VAR]: stage,
+                                ...variables,
+                            },
+                            options: {
+                                priority: item.priority,
+                                dependsOnContexts:
+                                    dependsOnContexts.length > 0 ? dependsOnContexts : undefined,
+                            },
                         },
-                        options: {
-                            priority: item.priority,
-                            dependsOnContexts: dependsOnContexts.length > 0 ? dependsOnContexts : undefined,
-                        },
-                    },
-                };
-            },
-        }),
+                    };
+                },
+            });
+            return listFn(input);
+        },
         steps: [
             ({ context }) => {
                 const ctx = context as Context;

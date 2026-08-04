@@ -113,23 +113,3 @@ export function resolveLumpBaseBranch(input: {
     }
     return primaryBranch;
 }
-
-export function resolveLumpBranches(input: {
-    lumpConfig: Pick<LumpJsConfig, 'baseBranch' | 'discoveryBranch' | 'discoveryBranches'>;
-    localConfig: LocalConfig;
-}): { resolvedDiscoveryBranch: string; resolvedBaseBranch: string } {
-    const primaryBranch = resolvePrimaryBranch(input.localConfig);
-    const mode = input.localConfig.mode;
-    const resolvedDiscoveryBranch = resolveLumpDiscoveryBranch({
-        lumpConfig: input.lumpConfig,
-        primaryBranch,
-        mode,
-    });
-    const resolvedBaseBranch = resolveLumpBaseBranch({
-        lumpConfig: input.lumpConfig,
-        primaryBranch,
-        mode,
-        effectiveDiscoveryBranch: resolvedDiscoveryBranch,
-    });
-    return { resolvedDiscoveryBranch, resolvedBaseBranch };
-}
