@@ -1,6 +1,0 @@
-name: docs-recipes-mini-tutorials
-manualReq: true
-task: >-
-  Cleaner recipes examples in DOCS: concise mini-tutorials that show how to
-  use each recipe clearly without excess detail.
-priority: 14

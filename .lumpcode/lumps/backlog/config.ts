@@ -18,6 +18,7 @@ import {
 
 type FeatureBacklogItem = BaseBacklogItem & {
     manualReq?: boolean;
+    completedAt?: string;
 };
 
 type FeatureBacklogStage = 'makeReq' | 'makeTestPlan' | 'testImpl' | 'implementation';
@@ -84,8 +85,8 @@ async function resolveFeatureBacklogItem(input: {
       }
 > {
     const { item, paths, projectRoot, discoveryBranch } = input;
-
-    if (!itemMatchesDiscoveryBranch(item.name, discoveryBranch)) {
+    
+    if (!!item.completedAt || !itemMatchesDiscoveryBranch(item.name, discoveryBranch)) {
         return { ignored: true };
     }
 
@@ -93,6 +94,7 @@ async function resolveFeatureBacklogItem(input: {
     const testPlanFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'testPlan.md');
 
     const hasReq = await pathExists(path.join(projectRoot, reqFilePath));
+    
     if (!hasReq) {
         if (item.manualReq === true) {
             return { ignored: true };
