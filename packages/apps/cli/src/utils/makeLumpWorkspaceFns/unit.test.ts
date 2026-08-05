@@ -29,10 +29,10 @@ describe('makeLumpWorkspaceFns', () => {
             expect(out.workspacePath).toBe(path.resolve(executionWorkspacePath));
             expect(out.command).toMatch(/^cd '/);
             expect(out.command).toContain(`cd '${executionWorkspacePath}'`);
-            expect(out.command).toContain('git fetch origin feature/x');
-            expect(out.command).toContain('git switch feature/x');
+            expect(out.command).toContain(`git fetch --no-write-fetch-head origin ${shellSingleQuote('feature/x')}`);
+            expect(out.command).toContain(`git switch ${shellSingleQuote('feature/x')}`);
             expect(out.command).toContain('git reset --hard origin/feature/x');
-            expect(out.command).toContain('git pull origin feature/x');
+            expect(out.command).not.toContain('git pull origin');
             expect(out.command).toContain(shellBestEffort(`git branch -D ${shellSingleQuote('lump/foo/ctx')}`));
             expect(out.command).toContain(`git switch -c ${shellSingleQuote('lump/foo/ctx')}`);
         });
@@ -50,7 +50,7 @@ describe('makeLumpWorkspaceFns', () => {
                 workspacePath: executionWorkspacePath,
             });
             expect(cmd).toContain(`cd '${executionWorkspacePath}'`);
-            expect(cmd).toContain('git switch main');
+            expect(cmd).toContain(`git switch ${shellSingleQuote('main')}`);
         });
 
         it('teardown uses lump resolved baseBranch when lumpBaseBranch differs from projectBaseBranch', async () => {
@@ -66,8 +66,8 @@ describe('makeLumpWorkspaceFns', () => {
                 contextList: [{ name: 'ctx', variables: {} }],
                 workspacePath: executionWorkspacePath,
             });
-            expect(cmd).toContain('git switch ver/0.0.9');
-            expect(cmd).not.toContain('git switch main');
+            expect(cmd).toContain(`git switch ${shellSingleQuote('ver/0.0.9')}`);
+            expect(cmd).not.toContain(`git switch ${shellSingleQuote('main')}`);
         });
     });
 
@@ -145,8 +145,8 @@ describe('makeLumpWorkspaceFns', () => {
                 contextList: [{ name: 'ctx', variables: {} }],
                 workspacePath: branchWorkspacePath,
             });
-            expect(cmd).toContain('git switch ver/0.0.9');
-            expect(cmd).not.toContain('git switch main');
+            expect(cmd).toContain(`git switch ${shellSingleQuote('ver/0.0.9')}`);
+            expect(cmd).not.toContain(`git switch ${shellSingleQuote('main')}`);
         });
     });
 

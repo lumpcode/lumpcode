@@ -90,6 +90,13 @@ export async function preflightDiscoveryBranchWithLock<T>(input: {
         globalConfigFolderPath,
         localConfig,
         targetBranch: discoveryBranch,
+        gitLock: {
+            globalConfigFolderPath,
+            lumpName,
+            lockMode,
+            projectName,
+            logger,
+        },
     });
     if (!preflightResult.success) {
         return releaseAndFail(preflightResult.data);

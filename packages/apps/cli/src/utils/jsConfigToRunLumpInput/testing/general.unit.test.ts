@@ -46,10 +46,10 @@ describe('jsConfigToRunLumpInput', () => {
             });
             expect(setupOut.workspacePath).toBe(path.resolve('/wkspace'));
             expect(setupOut.command).toContain(`cd '/wkspace'`);
-            expect(setupOut.command).toContain('git fetch origin main');
-            expect(setupOut.command).toContain('git switch main');
+            expect(setupOut.command).toContain(`git fetch --no-write-fetch-head origin ${shellSingleQuote('main')}`);
+            expect(setupOut.command).toContain(`git switch ${shellSingleQuote('main')}`);
             expect(setupOut.command).toContain('git reset --hard origin/main');
-            expect(setupOut.command).toContain('git pull origin main');
+            expect(setupOut.command).not.toContain('git pull origin');
             expect(setupOut.command).toContain(shellBestEffort(`git branch -D ${shellSingleQuote('lump/foo/ctx')}`));
             expect(setupOut.command).toContain(`git switch -c ${shellSingleQuote('lump/foo/ctx')}`);
         });
@@ -68,8 +68,8 @@ describe('jsConfigToRunLumpInput', () => {
                 workspacePath: '/wkspace',
             });
             expect(teardownCmd).toContain(`cd '/wkspace'`);
-            expect(teardownCmd).toContain('git switch release/2.0');
-            expect(teardownCmd).not.toContain('git switch main');
+            expect(teardownCmd).toContain(`git switch ${shellSingleQuote('release/2.0')}`);
+            expect(teardownCmd).not.toContain(`git switch ${shellSingleQuote('main')}`);
         });
 
         it('setup uses the lump-level baseBranch in its git commands', async () => {
@@ -85,8 +85,10 @@ describe('jsConfigToRunLumpInput', () => {
                 contextList: [{ name: 'ctx', variables: {} }],
             });
             expect(setupOut.workspacePath).toBe(path.resolve('/wkspace'));
-            expect(setupOut.command).toContain('git fetch origin release/2.0');
-            expect(setupOut.command).toContain('git pull origin release/2.0');
+            expect(setupOut.command).toContain(
+                `git fetch --no-write-fetch-head origin ${shellSingleQuote('release/2.0')}`,
+            );
+            expect(setupOut.command).not.toContain('git pull origin');
         });
 
         it('worktree strategy returns worktree path and worktree add command', async () => {

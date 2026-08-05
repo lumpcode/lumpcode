@@ -1,0 +1,13 @@
+name: hoist-lock-context-status-fetch
+task: >-
+  Stop per-call git fetch inside context status. Hoist one refresh per status
+  batch (getToDoContextList, buildContextStatusRecord, and similar), add
+  skipFetch (or equivalent) on core getContextStatus so per-context calls only
+  read local remote-tracking state, and run that single fetch under the
+  git-common-dir lock. Add a CLI util (e.g. getContextStatus with lock / batch
+  helper) that owns the locked fetch; recipes and other CLI callers must use
+  the CLI util, not core getContextStatus, because the lock lives in the CLI
+  only. Fix getToDoContextList's Promise.all of full fetches and
+  buildContextStatusRecord's fetch-then-per-context-fetch duplication.
+priority: 6
+completedAt: '2026-08-05T15:41:32.000Z'

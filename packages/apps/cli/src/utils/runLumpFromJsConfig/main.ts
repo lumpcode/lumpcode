@@ -4,6 +4,7 @@ import { failure, Failure, runLump, RunLumpOutput, success, Success, type Logger
 
 import { LumpJsConfig } from '../../types';
 import type { LocalConfig } from '../../types/LocalConfig';
+import type { GitCommonDirLockContext } from '../gitCommonDirLock';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { getProjectName } from '../getProjectName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
@@ -113,6 +114,15 @@ export async function runLumpFromJsConfig(input: {
             projectName,
         });
 
+        const gitLock: GitCommonDirLockContext = {
+            globalConfigFolderPath,
+            gitCwd: tentativeExecutionWorkspacePath,
+            lumpName,
+            lockMode,
+            projectName,
+            logger,
+        };
+
         const runLumpInputResult = await jsConfigToRunLumpInput({
             config: jsConfig,
             lumpName,
@@ -124,6 +134,7 @@ export async function runLumpFromJsConfig(input: {
             logger,
             localConfig,
             effectiveDiscoveryBranch,
+            gitLock,
         });
 
         if (!runLumpInputResult.success) return failure(toRunLumpMessageFailure(runLumpInputResult.data));
@@ -161,6 +172,13 @@ export async function runLumpFromJsConfig(input: {
                             globalConfigFolderPath,
                             localConfig,
                             targetBranch: resolvedBaseBranch,
+                            gitLock: {
+                                globalConfigFolderPath,
+                                lumpName,
+                                lockMode,
+                                projectName,
+                                logger,
+                            },
                         }).then((result) =>
                             result.success ? success(undefined) : failure(result.data),
                         ),
