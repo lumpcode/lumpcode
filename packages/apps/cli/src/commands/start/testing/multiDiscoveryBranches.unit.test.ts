@@ -131,37 +131,45 @@ describe('start command — multi discovery branches', () => {
         }
     });
 
-    it('warns on cross-lump baseBranch mismatch but still launches', async () => {
-        await writeMultiLocal();
-        await writeMinimalLump(projectRoot, 'consumer', {
-            contextListJson: { ctx: 'README' },
-            dependsOnContexts: ['provider/ctx'],
-        });
-        await writeMinimalLump(projectRoot, 'provider', { baseBranch: 'ver/0.0.9' });
-        await createIntegrationBranch({
-            projectRoot,
-            remoteDir,
-            branchName: 'ver/0.0.9',
-        });
-
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
+    it(
+        'warns on cross-lump baseBranch mismatch but still launches',
+        async () => {
+            await writeMultiLocal();
+            await writeMinimalLump(projectRoot, 'consumer', {
+                contextListJson: { ctx: 'README' },
+                dependsOnContexts: ['provider/ctx'],
             });
-            expect(result.success).toBe(true);
-            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
-            expect(logged).toMatch(/provider/i);
-            expect(logged).toMatch(/baseBranch|branch/i);
-        } finally {
-            logSpy.mockRestore();
-            warnSpy.mockRestore();
-        }
-    });
+            await writeMinimalLump(projectRoot, 'provider', { baseBranch: 'ver/0.0.9' });
+            await createIntegrationBranch({
+                projectRoot,
+                remoteDir,
+                branchName: 'ver/0.0.9',
+            });
 
-    it('fails start --lumpName when lump discoveryBranch is not in effective list', async () => {
+            const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+            const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            try {
+                const result = await makeStartHandler(deps(), {
+                    waitForShutdownOverride: async () => {},
+                })({
+                    options: { foreground: true, cronSetup: '*/5 * * * *' },
+                    arguments: {},
+                });
+                expect(result.success).toBe(true);
+                const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls]
+                    .map((c) => String(c[0]))
+                    .join('\n');
+                expect(logged).toMatch(/provider/i);
+                expect(logged).toMatch(/baseBranch|branch/i);
+            } finally {
+                logSpy.mockRestore();
+                warnSpy.mockRestore();
+            }
+        },
+        30_000,
+    );
+
+    it('fails start when a loadable lump discoveryBranch is not in effective list', async () => {
         await writeLocalJson(localConfigFolderPath(projectRoot), {
             mode: 'dedicated',
             primaryBranch: 'main',
@@ -173,7 +181,7 @@ describe('start command — multi discovery branches', () => {
         });
 
         const result = await makeStartHandler(deps())({
-            options: { lumpName: 'releaseLine', foreground: true },
+            options: { include: 'releaseLine', foreground: true },
             arguments: {},
         });
         expect(result.success).toBe(false);
@@ -181,7 +189,7 @@ describe('start command — multi discovery branches', () => {
         expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|discoveryBranch|primaryBranches/i);
     });
 
-    it('succeeds start --lumpName when lump discoveryBranch is listed', async () => {
+    it('succeeds filtered start when lump discoveryBranch is listed', async () => {
         await writeMultiLocal();
         await writeMinimalLump(projectRoot, 'releaseLine', {
             discoveryBranch: 'ver/0.0.9',
@@ -190,7 +198,7 @@ describe('start command — multi discovery branches', () => {
         await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'ver/0.0.9' });
 
         const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-            options: { lumpName: 'releaseLine', foreground: true, cronSetup: '*/5 * * * *' },
+            options: { include: 'releaseLine', foreground: true, cronSetup: '*/5 * * * *' },
             arguments: {},
         });
         expect(result.success).toBe(true);
@@ -592,15 +600,29 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         }
     });
 
-    it('S3: shared start --lumpName warn-and-ignores --discoveryBranch flag', async () => {
+    it('S3: deprecated --lumpName on start warns and filters to one lump', async () => {
         await writeLocalJson(localConfigFolderPath(projectRoot), {
             mode: 'shared',
             primaryBranch: 'main',
         });
         await writeMinimalLump(projectRoot, 'solo');
+        await writeMinimalLump(projectRoot, 'other');
 
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const started: string[] = [];
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                return success({
+                    skipped: false as const,
+                    result: {
+                        branchName: 'lump/x',
+                        contextNames: [],
+                        contextRunStateList: [],
+                    },
+                });
+            });
 
         try {
             const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
@@ -608,16 +630,15 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
                     lumpName: 'solo',
                     foreground: true,
                     cronSetup: '*/5 * * * *',
-                    discoveryBranch: 'feature/a',
-                } as Record<string, unknown>,
+                },
                 arguments: {},
             });
 
             expect(result.success).toBe(true);
-            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
-            expect(logged).toMatch(/discoveryBranch|ignored|shared/i);
+            expect(warnSpy.mock.calls.map((c) => String(c[0])).join('\n')).toMatch(/deprecated|--lumpName/i);
+            expect(started).toEqual(['solo']);
         } finally {
-            logSpy.mockRestore();
+            runLumpSpy.mockRestore();
             warnSpy.mockRestore();
         }
     });

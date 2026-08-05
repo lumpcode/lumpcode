@@ -111,7 +111,6 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Default agent command for all prompt items that don’t set their own `command` |
 | `branchFn` | [Function reference](#field-forms-conventions) | Custom branch naming; default is `lump/<lumpName>/<contextNames…>` |
 | `disabled` | boolean | When `true`, the background daemon skips this lump (`lumpcode start`); `run` still executes if invoked manually |
-| `ignoredByGlobalDaemon` | boolean | When `true`, the **global** daemon omits this lump from its tick queue. Per-lump daemon (`start --lumpName`) and manual `run` still execute it. Boolean only (not a function or file path). |
 | `maximumNumberOfConcurrentBranches` | number | If set (≥ 0), `run` / daemon tick **skips** when open `lump/<lumpName>/*` branches on `origin` ≥ limit (local-only branches are not counted) |
 | `numberOfContextsPerBranch` | number | How many contexts share one branch (default `1`) |
 | `lumpVariables` | object | Arbitrary JSON passed into hooks and prompt functions as `lumpVariables` |

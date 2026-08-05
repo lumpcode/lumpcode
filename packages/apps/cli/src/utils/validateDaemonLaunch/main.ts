@@ -6,7 +6,6 @@ import type { LumpJsConfig } from '../../types/LumpJsConfig';
 import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
 import { discoverLoadableLumps } from '../discoverLoadableLumpNames';
 import { expandPrimaryBranches } from '../expandPrimaryBranches';
-import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
 import { resolvePrimaryBranch, resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import {
     normalizeDiscoveryRules,
@@ -65,14 +64,14 @@ function warnCrossLumpBaseBranchMismatches(input: {
     }
 }
 
+/**
+ * Validates daemon launch for any daemon (all use global-style discovery).
+ */
 export async function validateDaemonLaunch(input: {
     projectRoot: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
     localConfig: LocalConfig;
-    lumpNameOpt?: string;
-    effectiveDiscoveryBranch?: string;
-    discoveryBranchOpt?: string;
     logger: Logger;
 }): Promise<Success<void> | Failure<string>> {
     const {
@@ -80,46 +79,15 @@ export async function validateDaemonLaunch(input: {
         localConfigFolderPath,
         globalConfigFolderPath,
         localConfig,
-        lumpNameOpt,
-        effectiveDiscoveryBranch: providedDiscoveryBranch,
-        discoveryBranchOpt,
         logger,
     } = input;
 
     let effectivePrimaryBranches: string[];
     try {
         effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
-        // Fail all-glob configs early (V1).
         resolvePrimaryBranch(localConfig);
     } catch (err) {
         return failure(err instanceof Error ? err.message : String(err));
-    }
-
-    if (lumpNameOpt) {
-        if (providedDiscoveryBranch !== undefined) {
-            return validateLumpDiscoveryBranchAllowlist({
-                mode: localConfig.mode,
-                lumpName: lumpNameOpt,
-                resolvedDiscoveryBranch: providedDiscoveryBranch,
-                effectivePrimaryBranches,
-            });
-        }
-
-        const discoveryResult = await resolveEffectiveDiscoveryBranch({
-            discoveryBranchOpt,
-            lumpName: lumpNameOpt,
-            localConfigFolderPath,
-            localConfig,
-            logger,
-        });
-        if (!discoveryResult.success) {
-            return failure(discoveryResult.data);
-        }
-        return success(undefined);
-    }
-
-    if (discoveryBranchOpt?.trim()) {
-        logger.info('--discoveryBranch has no effect on a global daemon; ignoring.');
     }
 
     if (localConfig.mode !== 'dedicated') {
@@ -143,8 +111,6 @@ export async function validateDaemonLaunch(input: {
         return failure(err instanceof Error ? err.message : String(err));
     }
 
-    // Validate every loadable lump's configured discovery rules against unexpanded primaries (V3).
-    // Use a quiet logger so invalid-dir warns are not duplicated when scan discovery reloads.
     const quietLogger: Logger = {
         ...logger,
         warn: () => {},

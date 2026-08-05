@@ -48,6 +48,12 @@ function isDaemonStatusData(data: Record<string, unknown>): data is { running: b
     return typeof data.running === 'boolean';
 }
 
+function isDaemonStatusListData(
+    data: Record<string, unknown>,
+): data is { daemons: Array<{ daemonId?: string; running: boolean }> } {
+    return Array.isArray(data.daemons);
+}
+
 /** Asserts `run --json` returned the given executed context names. */
 export function expectRunContextNames(result: RunCliResult, expected: string[]): void {
     const data = requireJsonData(result, 'run contextNames');
@@ -85,11 +91,26 @@ export function expectLumpStatus(
     expect(lump[input.contextName].status).toBe(input.status);
 }
 
-/** Asserts `daemon-status --json` reports the expected running flag. */
-export function expectDaemonRunning(result: RunCliResult, running: boolean): void {
+/**
+ * Asserts `daemon-status --json` reports the expected running flag.
+ * Accepts single-daemon detail (`--daemonId`) or the no-flag list envelope.
+ */
+export function expectDaemonRunning(
+    result: RunCliResult,
+    running: boolean,
+    daemonId = 'global',
+): void {
     const data = requireJsonData(result, 'daemon-status');
-    if (!isDaemonStatusData(data)) {
-        throw new Error(`daemon-status: expected running boolean\n${cliJsonDetail(result)}`);
+    if (isDaemonStatusData(data)) {
+        expect(data.running).toBe(running);
+        return;
     }
-    expect(data.running).toBe(running);
+    if (isDaemonStatusListData(data)) {
+        const entry = data.daemons.find((d) => d.daemonId === daemonId);
+        expect(entry?.running ?? false).toBe(running);
+        return;
+    }
+    throw new Error(
+        `daemon-status: expected running boolean or daemons list\n${cliJsonDetail(result)}`,
+    );
 }

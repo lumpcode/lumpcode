@@ -69,7 +69,7 @@ How a dedicated global daemon uses the list, each tick:
 
 1. Expand configured entries (exact kept as-is; globs via `git ls-remote --heads origin <pattern>`). Empty glob matches log and skip that entry; `ls-remote` failure fails the expand path.
 2. For **each** concrete scan branch in expand order: locked pre-flight, then discover lumps whose discovery rules match that branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)).
-3. Merge into **one** tick-wide queue (same `lumpName` on different scan branches is allowed and runs once per matching line), omit `ignoredByGlobalDaemon` lumps, then run the queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1). A failure on one branch or lump is logged and does not stop the rest of the tick.
+3. Per scan branch (subtick): discover loadable lumps, apply the daemon's `--include` / `--exclude` filter, then run the filtered queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1, including `--maxParallelRun` on `start`). Same `lumpName` on different scan branches is allowed and runs once per matching line. A failure on one branch or lump is logged and does not stop the rest of the tick.
 
 Rules:
 

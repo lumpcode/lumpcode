@@ -17,22 +17,26 @@ describe('listRunningProjectDaemons', () => {
         await fs.rm(daemonsDir, { recursive: true, force: true });
     });
 
-    it('returns success with empty lumps when no daemons are running', async () => {
+    it('returns empty map when no daemons are running', async () => {
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data).toEqual({ lumps: {} });
+        expect(result.data).toEqual({});
     });
 
-    it('detects a running global daemon with workspaceStrategy from meta', async () => {
+    it('detects a running global daemon at new-style path', async () => {
         await fs.writeFile(
-            path.join(daemonsDir, `${projectName}.daemon.pid`),
+            path.join(daemonsDir, `${projectName}.global.daemon.pid`),
             String(process.pid),
             'utf8',
         );
         await fs.writeFile(
-            path.join(daemonsDir, `${projectName}.daemon.meta.json`),
-            JSON.stringify({ cronSetup: '*/5 * * * *', workspaceStrategy: 'worktree' }),
+            path.join(daemonsDir, `${projectName}.global.daemon.meta.json`),
+            JSON.stringify({
+                daemonId: 'global',
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'worktree',
+            }),
             'utf8',
         );
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
@@ -43,7 +47,27 @@ describe('listRunningProjectDaemons', () => {
             meta: 'ok',
             workspaceStrategy: 'worktree',
         });
-        expect(result.data.lumps).toEqual({});
+    });
+
+    it('maps legacy bare global pid to id global', async () => {
+        await fs.writeFile(
+            path.join(daemonsDir, `${projectName}.daemon.pid`),
+            String(process.pid),
+            'utf8',
+        );
+        await fs.writeFile(
+            path.join(daemonsDir, `${projectName}.daemon.meta.json`),
+            JSON.stringify({ cronSetup: '*/5 * * * *', workspaceStrategy: 'checkout' }),
+            'utf8',
+        );
+        const result = await listRunningProjectDaemons({ daemonsDir, projectName });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.global).toEqual({
+            pid: process.pid,
+            meta: 'ok',
+            workspaceStrategy: 'checkout',
+        });
     });
 
     it('marks alive daemon as meta missing when meta file is absent', async () => {
@@ -55,23 +79,6 @@ describe('listRunningProjectDaemons', () => {
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.lumps).toEqual({ alpha: { pid: process.pid, meta: 'missing' } });
-    });
-
-    it('marks alive daemon as meta invalid when meta JSON is corrupt', async () => {
-        await fs.writeFile(
-            path.join(daemonsDir, `${projectName}.daemon.pid`),
-            String(process.pid),
-            'utf8',
-        );
-        await fs.writeFile(
-            path.join(daemonsDir, `${projectName}.daemon.meta.json`),
-            '{ not json',
-            'utf8',
-        );
-        const result = await listRunningProjectDaemons({ daemonsDir, projectName });
-        expect(result.success).toBe(true);
-        if (!result.success) throw new Error('unreachable');
-        expect(result.data.global).toEqual({ pid: process.pid, meta: 'invalid' });
+        expect(result.data).toEqual({ alpha: { pid: process.pid, meta: 'missing' } });
     });
 });

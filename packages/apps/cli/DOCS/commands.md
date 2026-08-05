@@ -246,7 +246,7 @@ Plus global [`--json`](#ref-json-output).
 
 ### `lumpcode start`
 
-**Description:** Run the **scheduler** that periodically executes lumps in the project (all loadable lumps by default, or one lump with `--lumpName`).
+**Description:** Run a **scheduler** that periodically discovers and executes lumps (all loadable lumps by default, or a filtered subset). Every daemon uses the same discovery path; identity is a unique `daemonId`.
 
 **Usage:** `lumpcode start [options]`
 
@@ -255,39 +255,38 @@ Plus global [`--json`](#ref-json-output).
 | ------------------- | ------- | -------- | ------------------------------------------------------------------------ |
 | `--foreground`      | flag    | No       | Blocking in this terminal; omit to detach a background daemon            |
 | `--cronSetup`       | string  | No       | Cron expression (default `*/5 * * * *` — every 5 minutes)              |
-| `--lumpName`        | string  | No       | Run the scheduler for a single lump only                                 |
-| `--discoveryBranch` | string  | No       | With `--lumpName` in dedicated mode: concrete discovery branch (same rules as `run`); ignored on a global daemon |
+| `--include`         | string  | No       | Comma-separated lump name patterns (exact or `*` globs) to include       |
+| `--exclude`         | string  | No       | Comma-separated patterns subtracted after include                        |
+| `--daemonId`        | string  | No       | Unique id for PID/log/meta (`[a-zA-Z0-9_-]+`). Default unfiltered: `global` |
+| `--maxParallelRun`  | number  | No       | Override `local.json` maxParallelRun for this worktree daemon            |
+| `--lumpName`        | string  | No       | **Deprecated.** Equivalent to `--include=<name>`                         |
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 
 **`local.json` at startup:** `.lumpcode/local.json` is read **once** when the daemon starts (`mode`, `primaryBranch`, `primaryBranches`, `workspaceStrategy`, `disabled`, `maxParallelRun`). Those values are frozen for every tick until you restart the daemon. Edit the file and restart to pick up changes.
 
-**Parallel global ticks:** when `workspaceStrategy` is `"worktree"` and `maxParallelRun` is greater than `1`, an unscoped global daemon keeps up to that many lumps in flight within a tick (work-queue pool). `"checkout"` and per-lump daemons (`--lumpName`) stay sequential. Lumps with `"ignoredByGlobalDaemon": true` are omitted from the global queue (logged once at startup) but still validated at launch and remain runnable via `--lumpName` or `run`.
+**Parallel ticks:** when `workspaceStrategy` is `"worktree"`, every daemon uses `maxParallelRun` from `--maxParallelRun` or `local.json` (default `1`) as the in-tick concurrency for its filtered queue. `"checkout"` stays sequential; passing `--maxParallelRun` with checkout fails.
 
-**Pre-flight per tick:** skips the tick when `disabled` is `true` in the frozen config (no pre-flight, no lump runs). Otherwise it discovers eligible lumps, then runs them (soft-skipping per-lump `disabled` at phase 1). If discovery/pre-flight fails for a branch the daemon logs and continues with other branches; the next tick tries again.
+**Pre-flight per tick:** skips the tick when `disabled` is `true` in the frozen config (no pre-flight, no lump runs). Otherwise it discovers eligible lumps per primary branch (subtick), applies include/exclude, then runs the filtered queue (soft-skipping per-lump `disabled` at phase 1). Empty filter matches idle; the daemon stays up. If discovery/pre-flight fails for a branch the daemon logs and continues with other branches.
 
 **Daemon files** under `~/.lumpcode/daemons/`:
 
 | Scope | PID / log / meta |
 | ----- | ---------------- |
-| Project (default) | `<projectName>.daemon.pid`, `.daemon.log`, `.daemon.meta.json` |
-| Single lump (`--lumpName`) | `<projectName>.<lumpName>.daemon.pid`, `.daemon.log`, `.daemon.meta.json` |
+| Any daemon | `<projectName>.<daemonId>.daemon.pid`, `.daemon.log`, `.daemon.meta.json` |
 
-Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | "worktree"` (frozen from `local.json` at daemon start), `"inFlightLumpCount": <number>` (`0` when idle; increments while lump runs are in flight), and for per-lump daemons optional `"lumpName": "…"`.
+Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `workspaceStrategy`, optional `include` / `exclude` / `maxParallelRun`, and `inFlightLumpCount`.
 
 **Collision rules:**
 
-- Starting the **global** daemon fails if **any** daemon for this project is already running (global or per-lump).
-- With **`checkout`** workspace strategy, only **one** daemon may run for the project (global or per-lump). Starting a new daemon fails while any other is alive.
-- With **`worktree`** strategy, multiple **per-lump** daemons may run together only when **all** running daemons (including any you start against) use `worktree`. Starting a `worktree` daemon fails while a daemon started with **`checkout`** is still running — stop it first.
-- If a running daemon's meta file is **missing or invalid**, start **refuses** (with `--json`, `data.code: "daemonMetaCorrupt"`) and suggests `lumpcode stop --force` for that scope. Missing meta is never treated as `checkout`.
+- Start fails only when the chosen **`daemonId` is already in use**, or any alive peer has **missing/invalid** meta (`data.code: "daemonMetaCorrupt"`). Overlapping filters are allowed; workspace locks coordinate the same lump.
 - The workspace strategy recorded in each daemon's meta file is the value frozen at **that daemon's** startup (not re-read from `local.json` on each tick).
 
 **Detached mode (default):**
 
 - Ensures `~/.lumpcode/daemons/` exists.
 - Applies the collision rules above.
-- Re-launches itself with `--foreground --cronSetup <expr>` (and `--lumpName` when scoped) and detaches, redirecting stdio to the log file.
+- Re-launches itself with `--foreground --cronSetup <expr> --daemonId <id>` (and include/exclude/maxParallelRun when set) and detaches, redirecting stdio to the log file.
 - Writes PID + meta for `restart` and `daemon-status`.
 
 **Foreground mode:**
@@ -295,7 +294,7 @@ Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | 
 - Validates cron, runs an immediate tick, then schedules ticks on the same cron.
 - On SIGINT/SIGTERM, stops the scheduler and removes PID/meta if they belong to this process.
 
-**Fails if:** No lumps with loadable config (or unknown `--lumpName`), invalid cron, daemon already running per the rules above, cannot write PID/log/meta, or `local.json` missing/invalid.
+**Fails if:** Invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-5-run-continuously-optional).
 
@@ -303,13 +302,14 @@ Meta JSON includes `{ "cronSetup": "…" }`, `"workspaceStrategy": "checkout" | 
 
 ### `lumpcode stop`
 
-**Description:** Stop the background daemon using the PID file (project-wide or per-lump).
+**Description:** Stop a background daemon using its PID file (default id `global`).
 
 **Usage:** `lumpcode stop [options]`
 
 | Option       | Type    | Required | Description                                      |
 | ------------ | ------- | -------- | ------------------------------------------------ |
-| `--lumpName` | string  | No       | Stop the daemon scoped to a single lump          |
+| `--daemonId` | string  | No       | Stop this daemon id (default: `global`)          |
+| `--lumpName` | string  | No       | **Deprecated.** Treated as `--daemonId`          |
 | `--force`    | boolean | No       | Force-stop the daemon and its child processes    |
 
 **Behavior:** Reads the scoped PID file under `~/.lumpcode/daemons/` and daemon meta.
@@ -330,15 +330,14 @@ When the PID is alive but daemon **meta is missing or invalid**, default stop **
 
 ### `lumpcode restart`
 
-**Description:** `lumpcode stop` then `lumpcode start` with the **same** `cronSetup` and scope read from meta (or the default if missing).
+**Description:** `lumpcode stop` then `lumpcode start`, restoring `cronSetup`, `include` / `exclude`, `maxParallelRun`, and `daemonId` from meta.
 
 **Usage:** `lumpcode restart [options]`
 
 | Option       | Type   | Required | Description                                      |
 | ------------ | ------ | -------- | ------------------------------------------------ |
-| `--lumpName` | string | No       | Restart the daemon scoped to a single lump       |
-
-When `--lumpName` is omitted, `lumpName` from the meta file is used if present (so a bare `restart` preserves a per-lump daemon).
+| `--daemonId` | string | No       | Restart this daemon id (default: `global`)       |
+| `--lumpName` | string | No       | **Deprecated.** Treated as `--daemonId`          |
 
 If meta is missing or invalid, restart uses **`stop --force`** then starts again (repair path). Mid-run with readable meta still refuses via normal stop (`daemonBusy`).
 
@@ -348,21 +347,19 @@ If meta is missing or invalid, restart uses **`stop --force`** then starts again
 
 ### `lumpcode daemon-status`
 
-**Description:** Inspect daemon PID file and process liveness (project-wide or per-lump).
+**Description:** List all project daemons (no flags), or inspect one by `--daemonId`.
 
 **Usage:** `lumpcode daemon-status [options]`
 
 | Option       | Type   | Required | Description                                      |
 | ------------ | ------ | -------- | ------------------------------------------------ |
-| `--lumpName` | string | No       | Inspect the daemon scoped to a single lump       |
+| `--daemonId` | string | No       | Inspect this daemon id                           |
+| `--lumpName` | string | No       | **Deprecated.** Treated as `--daemonId`          |
 
 **Output highlights:**
 
-- Whether a daemon is currently running for this scope
-- Paths to the PID, log, and meta files
-- Stale PID detection (process no longer exists)
-- `cronSetup`, `workspaceStrategy`, and `inFlightLumpCount` from meta when present and valid
-- When the PID is alive but meta is missing/invalid: `metaStatus` in `--json` output and a message suggesting `lumpcode stop --force` (no invented idle/checkout fields)
+- With no flags: every alive daemon id for the project (plus pid / running summary)
+- With `--daemonId`: single-daemon detail (paths, stale PID, cron, filters, `inFlightLumpCount`, `metaStatus` when corrupt)
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon) (daemon files table).
 
@@ -370,13 +367,14 @@ If meta is missing or invalid, restart uses **`stop --force`** then starts again
 
 ### `lumpcode daemon-log`
 
-**Description:** Tail the background daemon log file (project-wide or per-lump). **Follows live by default** (`tail -f`); pass **`--noFollow`** to print and exit.
+**Description:** Tail a background daemon log file. **Follows live by default** (`tail -f`); pass **`--noFollow`** to print and exit.
 
 **Usage:** `lumpcode daemon-log [options]`
 
 | Option       | Type    | Required | Description                                                                 |
 | ------------ | ------- | -------- | --------------------------------------------------------------------------- |
-| `--lumpName` | string  | No       | Read the log for a per-lump daemon                                          |
+| `--daemonId` | string  | No       | Log for this daemon id (default: `global`)                                  |
+| `--lumpName` | string  | No       | **Deprecated.** Treated as `--daemonId`                                     |
 | `--lines`    | number  | No       | Number of initial lines to show (with follow, uses `tail -n N -f`)            |
 | `--noFollow` | flag    | No       | Print lines and exit instead of following live                              |
 | `--json`     | flag    | No       | With `--noFollow`, output structured JSON (`logFilePath`, `lines`, …)       |

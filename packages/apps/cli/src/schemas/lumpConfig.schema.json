@@ -106,12 +106,6 @@
       "default": false,
       "examples": [true, "./isDisabled.ts"]
     },
-    "ignoredByGlobalDaemon": {
-      "type": "boolean",
-      "description": "When true, the global daemon (lumpcode start with no --lumpName) omits this lump from its tick queue. Per-lump daemons (start --lumpName) and manual lumpcode run still execute it. Boolean only in v1 (not a function or file path).",
-      "default": false,
-      "examples": [true]
-    },
     "getContextListFn": {
       "type": "string",
       "description": "File path to a module exporting a GetContextListFn — a function that dynamically retrieves the list of contexts to process. In the JS config this can be the function itself; in JSON it must be a file path. Use contextListJson instead if your context list is static.",
