@@ -59,6 +59,7 @@ export function validateBaseBacklogItem(raw: unknown, location: string): BaseBac
     }
 
     return {
+        ...raw,
         name: raw.name,
         task: raw.task,
         priority: raw.priority,
