@@ -444,11 +444,9 @@ describe('runLumpFromJsConfig', () => {
                 branchName: 'lump/my-lump/ctx1',
                 contextList: [{ name: 'ctx1', variables: {} }],
             });
-            expect(setup.afterExec).toBeTypeOf('function');
-            expect(await countLockFiles()).toBe(2);
-
-            await setup.afterExec!({ workspacePath: branchWorkspacePath });
-
+            // Execution-path lock released when setup returns; branch lock remains.
+            expect(setup.afterExec).toBeUndefined();
+            expect(setup.workspacePath).toBe(branchWorkspacePath);
             expect(await countLockFiles()).toBe(1);
 
             return core.success({

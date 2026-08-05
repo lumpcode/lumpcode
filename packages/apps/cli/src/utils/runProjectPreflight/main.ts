@@ -6,7 +6,7 @@ import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { getProjectName } from '../getProjectName';
 import { readLocalConfig } from '../readLocalConfig';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
-import { runPreflight } from '../runPreflight';
+import { runPreflight, type RunPreflightGitLock } from '../runPreflight';
 
 export interface RunProjectPreflightInput {
     sourceProjectRoot: string;
@@ -16,6 +16,8 @@ export interface RunProjectPreflightInput {
     localConfig?: LocalConfig;
     /** Integration branch to pre-flight; defaults to primary project base branch. */
     targetBranch?: string;
+    /** When set, preflight git mutations use the git-common-dir lock. */
+    gitLock?: RunPreflightGitLock;
 }
 
 export interface RunProjectPreflightOutput {
@@ -68,6 +70,7 @@ export async function runProjectPreflight(
         sourceProjectRoot,
         globalConfigFolderPath,
         projectName: projectNameResult.data,
+        gitLock: input.gitLock,
     });
     if (!preflightResult.success) return preflightResult;
 

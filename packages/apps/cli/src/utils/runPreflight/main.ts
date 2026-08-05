@@ -4,8 +4,15 @@ import * as path from 'node:path';
 import { execAsync, failure, type Failure, shellSingleQuote, success, type Success } from '@lumpcode/core';
 
 import type { Mode } from '../../types/Mode';
+import {
+    type GitCommonDirLockContext,
+    withGitCommonDirLock,
+} from '../gitCommonDirLock';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { projectCopiesRootPath } from '../projectCopiesRootPath';
+
+export type RunPreflightGitLock = Omit<GitCommonDirLockContext, 'gitCwd'>;
+
 export interface RunPreflightInput {
     mode: Mode;
     projectBaseBranch: string;
@@ -14,6 +21,11 @@ export interface RunPreflightInput {
     /** Used for `<globalConfigFolderPath>/project-copies/<projectName>` in `shared` mode. */
     globalConfigFolderPath: string;
     projectName: string;
+    /**
+     * When set, preflight git mutations run under the git-common-dir lock.
+     * `gitCwd` is set to the execution workspace after copy setup.
+     */
+    gitLock?: RunPreflightGitLock;
 }
 
 export interface RunPreflightOutput {
@@ -28,9 +40,9 @@ export interface RunPreflightOutput {
  * Prepares the execution workspace before a lump is run. In `shared` mode, ensures a
  * project copy exists under `<globalConfigFolderPath>/project-copies/<projectName>`,
  * and when reusing an existing copy, aligns its `origin` URL with the source clone
- * if they differ; then pulls `projectBaseBranch` inside the copy. The source clone
+ * if they differ; then resets `projectBaseBranch` inside the copy. The source clone
  * is never touched.
- * In `dedicated` mode, pulls `projectBaseBranch` in `sourceProjectRoot` in
+ * In `dedicated` mode, resets `projectBaseBranch` in `sourceProjectRoot` in
  * place (destructive: `git reset --hard origin/<projectBaseBranch>` wipes any
  * uncommitted work).
  *
@@ -39,7 +51,7 @@ export interface RunPreflightOutput {
  * resets back to `projectBaseBranch`. Keep the reset destructive.
  */
 export async function runPreflight(input: RunPreflightInput): Promise<Success<RunPreflightOutput> | Failure<string>> {
-    const { mode, projectBaseBranch, sourceProjectRoot, globalConfigFolderPath, projectName } = input;
+    const { mode, projectBaseBranch, sourceProjectRoot, globalConfigFolderPath, projectName, gitLock } = input;
 
     let executionWorkspacePath: string;
     if (mode === 'shared') {
@@ -58,7 +70,11 @@ export async function runPreflight(input: RunPreflightInput): Promise<Success<Ru
         executionWorkspacePath = sourceProjectRoot;
     }
 
-    const pullResult = await pullProjectBaseBranch({ executionWorkspacePath, projectBaseBranch });
+    const pullResult = await resetProjectBaseBranch({
+        executionWorkspacePath,
+        projectBaseBranch,
+        gitLock,
+    });
     if (!pullResult.success) return pullResult;
 
     return success({ executionWorkspacePath });
@@ -139,30 +155,48 @@ async function syncReusedCopyOriginRemote({
     return success(undefined);
 }
 
-async function pullProjectBaseBranch({
+async function resetProjectBaseBranch({
     executionWorkspacePath,
     projectBaseBranch,
+    gitLock,
 }: {
     executionWorkspacePath: string;
     projectBaseBranch: string;
+    gitLock?: RunPreflightGitLock;
 }): Promise<Success<void> | Failure<string>> {
     const quotedOriginRef = shellSingleQuote(`origin/${projectBaseBranch}`);
     const quotedBranch = shellSingleQuote(projectBaseBranch);
     const commands = [
-        'git fetch --all',
+        `git fetch --no-write-fetch-head origin ${quotedBranch}`,
         `git switch ${quotedBranch}`,
         `git reset --hard ${quotedOriginRef}`,
-        `git pull origin ${quotedBranch}`,
     ];
 
-    for (const command of commands) {
-        const result = await execAsync(command, { cwd: executionWorkspacePath });
-        if (!result.success) {
-            return failure(
-                `Pre-flight failed while running "${command}" in ${executionWorkspacePath}: ${result.data.message}`,
-            );
+    const runCommands = async (): Promise<Success<void> | Failure<string>> => {
+        for (const command of commands) {
+            const result = await execAsync(command, { cwd: executionWorkspacePath });
+            if (!result.success) {
+                return failure(
+                    `Pre-flight failed while running "${command}" in ${executionWorkspacePath}: ${result.data.message}`,
+                );
+            }
         }
+        return success(undefined);
+    };
+
+    if (!gitLock) {
+        return runCommands();
     }
 
-    return success(undefined);
+    const locked = await withGitCommonDirLock({
+        lock: {
+            ...gitLock,
+            gitCwd: executionWorkspacePath,
+        },
+        fn: runCommands,
+    });
+    if (!locked.success) {
+        return failure(typeof locked.data === 'string' ? locked.data : locked.data.message);
+    }
+    return locked.data;
 }

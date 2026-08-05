@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { failure, success } from '../../utils';
 import { execAsync } from '../execAsync';
 import { getToDoContextList } from './main';
 import type { GitCommitMessageFn } from '../../types/GitCommitMessageFn';
+import type { RefreshRemoteTrackingRefsFn } from '../refreshRemoteTrackingRefs';
 
 const baseBranch = 'main';
 const gitCommitMessageFn: GitCommitMessageFn = ({ context }) => `LUMP:${context.name}`;
@@ -86,4 +88,66 @@ describe('getToDoContextList', () => {
         // Index bug: later-finished would read otherLump/unfinished's "toDo" and stay eligible.
         expect(result.data.map((c) => c.name)).toEqual([]);
     });
+
+    it('soft-falls to all toDo when refreshRemoteTrackingRefsFn fails', async () => {
+        await git(projectRoot, 'commit --allow-empty -m "LUMP:finished-ctx"');
+        await git(projectRoot, 'push origin main');
+
+        const refreshRemoteTrackingRefsFn: RefreshRemoteTrackingRefsFn = vi.fn(async () =>
+            failure('simulated refresh failure'),
+        );
+        const warn = vi.fn();
+
+        const result = await getToDoContextList({
+            getContextListFn: async () => [
+                { name: 'finished-ctx', variables: {} },
+                { name: 'other-todo', variables: {} },
+            ],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot,
+            baseBranch,
+            refreshRemoteTrackingRefsFn,
+            logger: {
+                info: vi.fn(),
+                warn,
+                error: vi.fn(),
+                verbose: vi.fn(),
+                child: vi.fn(),
+            },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(result.data.map((c) => c.name)).toEqual(['finished-ctx', 'other-todo']);
+        expect(refreshRemoteTrackingRefsFn).toHaveBeenCalledTimes(1);
+        expect(warn).toHaveBeenCalled();
+    });
+
+    it('uses injected refresh once then skipFetch status reads', async () => {
+        await git(projectRoot, 'commit --allow-empty -m "LUMP:finished-ctx"');
+        await git(projectRoot, 'push origin main');
+
+        const refreshRemoteTrackingRefsFn: RefreshRemoteTrackingRefsFn = vi.fn(async () =>
+            success(undefined),
+        );
+
+        const result = await getToDoContextList({
+            getContextListFn: async () => [
+                { name: 'finished-ctx', variables: {} },
+                { name: 'other-todo', variables: {} },
+            ],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot,
+            baseBranch,
+            refreshRemoteTrackingRefsFn,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(result.data.map((c) => c.name)).toEqual(['other-todo']);
+        expect(refreshRemoteTrackingRefsFn).toHaveBeenCalledTimes(1);
+    });
 });
+

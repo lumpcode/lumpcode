@@ -1,5 +1,8 @@
 /** Runtime helpers (from `@lumpcode/cli` sources). */
-export { getContextStatus } from '../../src/utils/getContextStatus/main';
+export {
+    getContextStatus,
+    getContextStatuses,
+} from '../../src/utils/getContextStatus/main';
 export { makeGitCommitMessageFnFromLumpName } from '../../src/utils/makeGitCommitMessageFnFromLumpName/main';
 export {
     getGitCommitMessage,

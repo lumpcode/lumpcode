@@ -1,12 +1,15 @@
 name: clean-local-project-json-config
 manualReq: true
 task: >-
-  Clean up local.json / project.json ownership and precedence. Allow local.json
-  properties in project.json with project.json taking priority for those shared
-  fields; enable running a solo-lump or global daemon with custom
-  local.json/project.json properties. Keep only mode and workspaceStrategy as
-  local.json-only properties, and projectName as project.json-only. Allow some
-  LumpJsConfig params (e.g. command, maximumNumberOfConcurrentBranches) in
-  project.json/local.json with precedence lump config > local.json >
-  project.json. Add a clean TypeScript type for this shared config surface.
+  Clean up local.json / project.json ownership and merge. local-only: mode,
+  workspaceStrategy, disabled, maxParallelRun. project-only: projectName.
+  shared (local wins): primaryBranch, primaryBranches, projectBaseBranch —
+  validate primary branch on the merged result (either file may supply it).
+  Lump defaults by layer membership (precedence always lump > local > project
+  where present): command, maximumNumberOfConcurrentBranches, and keepHistory
+  on all three; verbose on local+lump; numberOfContextsPerBranch lump-only.
+  Misplaced keys hard-fail. No new CLI override flags — run and start both
+  consume the same merged project+local surface. Zod schema validates the
+  resolved project+local config; infer type T from it; file shapes reuse
+  T['field'] so shared fields stay type-identical.
 priority: 5

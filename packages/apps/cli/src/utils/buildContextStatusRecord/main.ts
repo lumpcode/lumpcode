@@ -1,7 +1,17 @@
-import { execAsync, Failure, failure, parseGitLogHashSubjectLines, shellSingleQuote, Success, success } from "@lumpcode/core";
+import {
+    execAsync,
+    Failure,
+    failure,
+    parseGitLogHashSubjectLines,
+    shellSingleQuote,
+    Success,
+    success,
+} from "@lumpcode/core";
 import { ContextStatusRecord } from "../../types";
-import { getContextStatus } from "../getContextStatus";
+import { globalConfigFolderPath as defaultGlobalConfigFolderPath } from "../../constants/globalConfigFolderPath";
 import { getGitCommitMessage, getLumpCommitPrefixForLump } from "../getGitCommitMessage";
+import { getContextStatuses } from "../getContextStatus";
+import { makeLockedRefreshRemoteTrackingRefsFn } from "../makeLockedRefreshRemoteTrackingRefsFn";
 import { LUMP_BRANCH_PREFIX } from "../../consts";
 
 export async function buildContextStatusRecord(input: {
@@ -11,9 +21,18 @@ export async function buildContextStatusRecord(input: {
 }): Promise<Success<ContextStatusRecord> | Failure<string>> {
     const { projectRoot, lumpName, baseBranch } = input;
 
-    const fetchResult = await execAsync(`git fetch --all`, { cwd: projectRoot });
+    const refreshRemoteTrackingRefsFn = makeLockedRefreshRemoteTrackingRefsFn({
+        gitLock: {
+            globalConfigFolderPath: defaultGlobalConfigFolderPath,
+            gitCwd: projectRoot,
+            lumpName,
+            lockMode: 'wait',
+        },
+    });
+
+    const fetchResult = await refreshRemoteTrackingRefsFn({ projectRoot });
     if (!fetchResult.success) {
-        return failure(`Failed to fetch from remote: ${fetchResult.data.message}`);
+        return failure(`Failed to fetch from remote: ${fetchResult.data}`);
     }
 
     const lumpPrefix = getLumpCommitPrefixForLump({ lumpName });
@@ -38,10 +57,18 @@ export async function buildContextStatusRecord(input: {
         matches.push({ hash, contextName });
     }
 
+    const statuses = await getContextStatuses({
+        projectRoot,
+        lumpName,
+        baseBranch,
+        contextNames: matches.map((m) => m.contextName),
+        skipRefresh: true,
+    });
+
     const record: ContextStatusRecord = {};
 
     for (const { hash, contextName } of matches) {
-        const status = await getContextStatus({ projectRoot, contextName, lumpName, baseBranch });
+        const status = statuses.get(contextName) ?? 'toDo';
 
         const branchesResult = await execAsync(
             `git branch -r --contains ${hash} --format=${shellSingleQuote('%(refname:short)')}`,

@@ -2,6 +2,7 @@ import { ContextStatus, Logger, LumpVariables } from "../../types";
 import { GitCommitMessageFn } from "../../types/GitCommitMessageFn";
 import { parseGitLogHashSubjectLines, shellSingleQuote } from "../../utils";
 import { execAsync } from "../execAsync";
+import { refreshRemoteTrackingRefs } from "../refreshRemoteTrackingRefs";
 
 export async function getContextStatus<V extends LumpVariables = LumpVariables>(params: {
     contextName: string;
@@ -12,6 +13,11 @@ export async function getContextStatus<V extends LumpVariables = LumpVariables>(
     contextVariables?: Record<string, string>;
     remoteName?: string;
     logger?: Logger;
+    /**
+     * When true, skip network fetch and read existing remote-tracking refs only.
+     * Callers that batch status must refresh once first (e.g. `refreshRemoteTrackingRefs`).
+     */
+    skipFetch?: boolean;
 }): Promise<ContextStatus> {
     const {
         contextName,
@@ -22,6 +28,7 @@ export async function getContextStatus<V extends LumpVariables = LumpVariables>(
         contextVariables = {},
         remoteName = "origin",
         logger,
+        skipFetch = false,
     } = params;
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -31,8 +38,10 @@ export async function getContextStatus<V extends LumpVariables = LumpVariables>(
         baseBranch,
     });
 
-    const fetchAll = await execAsync(`git fetch --all --prune`, { cwd: projectRoot });
-    if (!fetchAll.success) return 'toDo';
+    if (!skipFetch) {
+        const fetchResult = await refreshRemoteTrackingRefs({ projectRoot, remoteName });
+        if (!fetchResult.success) return 'toDo';
+    }
 
     const logResult = await execAsync(
         `git log --remotes=${remoteName} -F --grep=${shellSingleQuote(commitMessage)} --format=${shellSingleQuote('%H %s')}`,

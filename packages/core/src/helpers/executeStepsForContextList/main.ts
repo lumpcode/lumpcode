@@ -7,6 +7,8 @@ import {
     Failure,
     Logger,
     LumpVariables,
+    Maybe,
+    MaybePromise,
     PromptFnInput,
     Step,
     Steps,
@@ -21,6 +23,32 @@ import {
 } from '../../utils';
 import { GitAndWorkspaceFnsInput } from '../../types/GitAndWorkspaceFnsInput';
 import type { RunLumpInput } from '../../usages';
+
+async function runOptionalGitCommand(input: {
+    label: string;
+    getCommand: () => MaybePromise<Maybe<string>>;
+    cwd: string;
+    logger: Logger;
+}): Promise<'ok' | 'failed'> {
+    const { label, getCommand, cwd, logger } = input;
+    try {
+        const command = await getCommand();
+        if (command == null || command === '') {
+            return 'ok';
+        }
+        const result = await execAsync(command, { cwd });
+        logger.verbose(`${label} ${JSON.stringify(result)}`);
+        if (!result.success) {
+            logger.error(formatExecFailureMessage({ label, failure: result }));
+            return 'failed';
+        }
+        return 'ok';
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        logger.error(`Failed to run ${label}: ${message}`);
+        return 'failed';
+    }
+}
 
 export type ExecuteStepsForContextListParams<
     V extends LumpVariables = LumpVariables,
@@ -322,15 +350,17 @@ export async function executeStepsForContextList<
                 context,
             };
 
-            const gitAddCommand = await execAsync(gitAddCommandFn(perContextInput), { cwd: workspacePath });
-
-            logger.verbose(`gitAddCommand ${JSON.stringify(gitAddCommand)}`);
-
-            if (!gitAddCommand.success) {
+            const addOutcome = await runOptionalGitCommand({
+                label: `git add for context ${context.name}`,
+                getCommand: () => gitAddCommandFn(perContextInput),
+                cwd: workspacePath,
+                logger,
+            });
+            if (addOutcome === 'failed') {
                 runFailure = {
                     success: false,
                     data: {
-                        message: `Failed to add the changes for context ${context.name}: ${gitAddCommand.data.message}`,
+                        message: `Failed to add the changes for context ${context.name}`,
                     },
                 };
                 break;
@@ -338,32 +368,25 @@ export async function executeStepsForContextList<
 
             const commitMessage = gitCommitMessageFn({ context, lumpVariables, baseBranch });
 
-            const commitCommand = await execAsync(gitCommitCommandFn({
-                ...perContextInput,
-                commitMessage,
-            }), { cwd: workspacePath });
-
-            logger.verbose(`commitCommand ${JSON.stringify(commitCommand)}`);
-
-            if (!commitCommand.success) {
-                logger.error(formatExecFailureMessage({
-                    label: `git commit for context ${context.name}`,
-                    failure: commitCommand,
-                }));
-            }
+            await runOptionalGitCommand({
+                label: `git commit for context ${context.name}`,
+                getCommand: () =>
+                    gitCommitCommandFn({
+                        ...perContextInput,
+                        commitMessage,
+                    }),
+                cwd: workspacePath,
+                logger,
+            });
         }
 
         if (!runFailure) {
-            const pushCommand = await execAsync(gitPushCommandFn(injectedGitAndWorkspaceFnsInput), { cwd: workspacePath });
-
-            logger.verbose(`pushCommand ${JSON.stringify(pushCommand)}`);
-
-            if (!pushCommand.success) {
-                logger.error(formatExecFailureMessage({
-                    label: `git push on branch ${branchName}`,
-                    failure: pushCommand,
-                }));
-            }
+            await runOptionalGitCommand({
+                label: `git push on branch ${branchName}`,
+                getCommand: () => gitPushCommandFn(injectedGitAndWorkspaceFnsInput),
+                cwd: workspacePath,
+                logger,
+            });
         }
     } finally {
         const teardownWorkspaceCommand = await teardownWorkspaceFn(injectedGitAndWorkspaceFnsInput);

@@ -160,11 +160,11 @@ Full flag reference: [commands.md](./commands.md).
 Before every `run` and every daemon tick, Lumpcode runs a **pre-flight** that:
 
 1. Resolves the execution workspace from `local.json.mode`.
-2. In that workspace runs `git fetch --all`, switches to the target branch (primary branch or a lump's resolved `baseBranch`), `git reset --hard origin/<branch>`, then `git pull`.
+2. In that workspace runs `git fetch --no-write-fetch-head origin <branch>`, switches to the target branch (primary branch or a lump's resolved `baseBranch`), then `git reset --hard origin/<branch>` (no `git pull` after reset).
 
 After pre-flight, each lump prepares git inside the execution workspace according to `local.json.workspaceStrategy` (default `checkout`):
 
-- **`checkout`:** fetch/pull `baseBranch`, create a fresh `lump/<lumpName>/<context…>` branch in the main worktree, run, commit, push, then switch back to the lump's resolved `baseBranch`.
+- **`checkout`:** fetch `baseBranch`, create a fresh `lump/<lumpName>/<context…>` branch in the main worktree, run, commit, push, then switch back to the lump's resolved `baseBranch`.
 - **`worktree`:** add a linked worktree at `.lumpcode/worktrees/<branch>/` (paths mirror branch segments), run the agent there, commit, push, then remove the worktree. The main worktree stays on the lump's resolved `baseBranch`.
 
 The next lump in the same tick starts from a clean, known state.
@@ -178,13 +178,20 @@ Worktrees always live under the execution workspace (the copy in `shared`, the c
 
 ## Concurrency and locks
 
-Lumpcode serializes work with **per-path locks** so that runs, daemons, and worktrees never fight over the same git checkout. What you need to know as an operator:
+Lumpcode uses two lock layers so multiple filtered daemons can share one dedicated clone safely:
+
+- **Path locks** — one writer per execution workspace path and per branch workspace (worktree) path.
+- **Git common-dir locks** — one writer for Lumpcode-owned mutations against the shared `.git` (pre-flight fetch/switch/reset, worktree add/remove, add/commit/push, and context-status remote refresh). Keyed by `git rev-parse --git-common-dir`. Manual `run` fails with **`gitCommonDirBusy`** when contended; daemons **wait**. Status reads hoist one fetch under the lock, then classify from local remote-tracking refs.
+
+What you need to know as an operator:
 
 - **One writer per workspace path.** Each execution workspace and each branch workspace is protected by its own lock. Two runs never mutate the same path at the same time.
-- **Manual `run` fails fast; daemons wait.** If another run or daemon holds the workspace lock, `lumpcode run` exits with a **`workspacePathBusy`** error (with `--json`: `data.code: "workspacePathBusy"` plus the path and the holder's pid/lump when known). A daemon tick instead **waits** for the lock and proceeds when it frees up.
-- **`checkout` strategy = one lock for the whole run.** Execution and branch workspaces are the same path, so the lock is held from pre-flight to teardown — one lump at a time per workspace.
-- **`worktree` strategy allows parallelism.** Pre-flight and worktree setup on the main checkout are serialized (one lump at a time per machine), but once set up, agents on different worktrees run **concurrently**, each behind its own branch-workspace lock. A **global** daemon with `maxParallelRun` > 1 in `local.json` schedules up to that many lumps per tick into those worktrees; `"checkout"` stays sequential regardless of `maxParallelRun`. Per-lump daemons (`start --lumpName`) always run one lump per tick.
-- **Daemon collisions are checked at `start`.** A global daemon refuses to start while any daemon for the project runs; per-lump daemons can coexist only when every running daemon uses the `worktree` strategy. Full rules: [commands.md § start](./commands.md#ref-cmd-start).
+- **One writer per git object database.** Path locks alone do not cover linked worktrees sharing one `.git`. The git-common-dir lock serializes fetch/reset/worktree lifecycle, finish git, and status refresh so overlapping daemons do not corrupt `FETCH_HEAD` or race ref updates.
+- **Lock order.** Path lock first, then git-common-dir lock. Git sections stay short; the agent think loop does not hold the git lock. Coding agents should not run `git` themselves (presets typically deny it).
+- **Manual `run` fails fast; daemons wait.** If another run or daemon holds a path or git-common-dir lock, `lumpcode run` exits with **`workspacePathBusy`** or **`gitCommonDirBusy`** (with `--json`: `data.code` plus path/holder when known). A daemon tick **waits** and proceeds when the lock frees up.
+- **`checkout` strategy = one path lock for the whole run.** Execution and branch workspaces are the same path, so the path lock is held from pre-flight to teardown — one lump at a time per workspace.
+- **`worktree` strategy allows agent parallelism.** Pre-flight and worktree setup on the main checkout take the execution-path lock (then release it after setup); agents on different worktrees run **concurrently**, each behind its own branch-workspace lock, while git mutations still serialize on the common-dir lock. A daemon with `maxParallelRun` > 1 in `local.json` schedules up to that many lumps per tick into those worktrees; `"checkout"` stays sequential regardless of `maxParallelRun`.
+- **Overlapping filtered daemons** (`--include` / `--daemonId`) on one dedicated clone are supported when every daemon uses `worktree` (and the git-common-dir lock is in play). Full start rules: [commands.md § start](./commands.md#ref-cmd-start).
 - **Stale locks self-heal.** After a crash or `lumpcode stop --force`, a lock file may be left behind. The next acquire detects that the holding process is dead and removes the stale lock automatically — no manual cleanup needed.
 
 ## Related documentation

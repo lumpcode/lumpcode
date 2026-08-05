@@ -18,6 +18,7 @@ import {
 import { countOpenLumpBranches } from '../countOpenLumpBranches';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
+import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { readLocalConfig } from '../readLocalConfig';
 import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
@@ -158,12 +159,21 @@ export async function planLumpFromJsConfig(input: {
     });
 
     if (todoOnly) {
+        const refreshRemoteTrackingRefsFn = makeLockedRefreshRemoteTrackingRefsFn({
+            gitLock: {
+                globalConfigFolderPath,
+                gitCwd: projectRoot,
+                lumpName,
+                lockMode: 'wait',
+            },
+        });
         const todoResult = await getToDoContextList({
             getContextListFn: runLumpInput.getContextListFn,
             lumpVariables,
             projectRoot,
             baseBranch,
             gitCommitMessageFn: runLumpInput.gitCommitMessageFn!,
+            refreshRemoteTrackingRefsFn,
         });
         if (!todoResult.success) {
             return failure(todoResult.data.message);
@@ -280,8 +290,8 @@ export async function planLumpFromJsConfig(input: {
             baseBranch,
         });
         gitCommandsByContext[context.name] = {
-            gitAdd: gitAddCommandFn(perContextInput),
-            gitCommit: gitCommitCommandFn({ ...perContextInput, commitMessage }),
+            gitAdd: (await gitAddCommandFn(perContextInput)) ?? '',
+            gitCommit: (await gitCommitCommandFn({ ...perContextInput, commitMessage })) ?? '',
         };
     }
 
@@ -299,12 +309,13 @@ export async function planLumpFromJsConfig(input: {
         contextNames: batchContexts.map((c) => c.name),
         teardownWorkspaceCommand,
         gitCommandsByContext,
-        gitPushCommand: gitPushCommandFn({
-            baseBranch,
-            branchName,
-            contextList: batchContexts,
-            workspacePath: workspaceSetup.workspacePath,
-        }),
+        gitPushCommand:
+            (await gitPushCommandFn({
+                baseBranch,
+                branchName,
+                contextList: batchContexts,
+                workspacePath: workspaceSetup.workspacePath,
+            })) ?? '',
     };
 
     return success(baseOutput);

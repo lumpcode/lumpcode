@@ -42,6 +42,9 @@ import { makeGitCommitMessageFnFromLumpName } from '../makeGitCommitMessageFnFro
 import { resolveImportable } from '../resolveImportable';
 import { resolveFnOrDefaultImport } from '../resolveFnOrDefaultImport';
 import { resolvePromptTemplateString } from '../resolvePromptTemplateString';
+import type { GitCommonDirLockContext } from '../gitCommonDirLock';
+import { makeGatedGitCommandFns } from '../makeGatedGitCommandFns';
+import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
 import { makeLumpWorkspaceFns } from '../makeLumpWorkspaceFns';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import type { LocalConfig } from '../../types/LocalConfig';
@@ -63,6 +66,7 @@ export async function jsConfigToRunLumpInput({
     logger = noopLogger,
     localConfig,
     effectiveDiscoveryBranch: providedEffectiveDiscoveryBranch,
+    gitLock,
 }: {
     config: LumpJsConfig;
     lumpName: string;
@@ -78,6 +82,8 @@ export async function jsConfigToRunLumpInput({
     localConfig?: LocalConfig;
     /** Concrete discovery branch bound for author context source + baseBranch resolve. */
     effectiveDiscoveryBranch?: string;
+    /** When set, workspace setup/teardown and git add/commit/push use the common-dir lock. */
+    gitLock?: GitCommonDirLockContext;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
         baseBranch: lumpBaseBranchOverride,
@@ -176,9 +182,14 @@ export async function jsConfigToRunLumpInput({
         projectBaseBranch,
         lumpBaseBranch: baseBranch,
         workspaceStrategy,
+        gitLock,
     });
 
     const gitCommitMessageFn = makeGitCommitMessageFnFromLumpName(lumpName);
+    const gatedGitFns = gitLock ? makeGatedGitCommandFns({ gitLock }) : undefined;
+    const refreshRemoteTrackingRefsFn = gitLock
+        ? makeLockedRefreshRemoteTrackingRefsFn({ gitLock })
+        : undefined;
 
     const commandModules = new Map<string, CommandModule>();
     
@@ -227,6 +238,8 @@ export async function jsConfigToRunLumpInput({
         branchFn: branchFnResult.data,
         getContextListFn: coreGetContextListFn,
         gitCommitMessageFn,
+        ...(gatedGitFns ?? {}),
+        ...(refreshRemoteTrackingRefsFn ? { refreshRemoteTrackingRefsFn } : {}),
         steps: stepsResult.data,
         setupFn: composeSetupFn({ userSetupFn: resolvedUserSetupFn, commandModules }),
         teardownFn: composeTeardownFn({ userTeardownFn: resolvedUserTeardownFn, commandModules }),

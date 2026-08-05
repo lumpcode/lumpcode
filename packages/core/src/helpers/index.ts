@@ -5,4 +5,6 @@ export * from './executeStepsForContextList';
 export * from './getCodeBasePaths';
 export * from './getContextStatus';
 export * from './getToDoContextList';
+export * from './refreshRemoteTrackingRefs';
 export * from './validateContextListNames';
+
