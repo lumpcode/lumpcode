@@ -60,27 +60,11 @@ describe('readLocalConfig', () => {
     });
 
     /**
-     * Pre-clean-local-project-json-config: primary required on local alone.
-     * Kept green against current production; replaced by skipped L1/L8 below.
-     */
-    it('fails when primaryBranch is missing and primaryBranches is absent', async () => {
-        await fs.writeFile(
-            path.join(dir, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode: 'shared' }),
-            'utf-8',
-        );
-        const result = await readLocalConfig({ localConfigFolderPath: dir });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/primaryBranch|primaryBranches/i);
-    });
-
-    /**
-     * clean-local-project-json-config L* — skipped until local allowlist + optional primary land.
+     * clean-local-project-json-config L*.
      * L1/L8: mode-only succeeds (primary validated on merge, not per-file).
      * workspaceStrategy default is asserted on merge (M5); here we only require mode-only success.
      */
-    describe.skip('readLocalConfig (clean-local-project-json-config L*)', () => {
+    describe('readLocalConfig (clean-local-project-json-config L*)', () => {
         it('L1/L8: mode-only succeeds without primary', async () => {
             await fs.writeFile(
                 path.join(dir, LOCAL_CONFIG_FILE_NAME),

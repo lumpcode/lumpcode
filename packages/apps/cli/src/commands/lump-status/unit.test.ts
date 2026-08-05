@@ -36,6 +36,11 @@ describe('lump-status command', () => {
         await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName: 'status-project' }),
+            'utf-8',
+        );
+        await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
             'utf-8',
@@ -315,7 +320,7 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
     /**
      * clean-local-project-json-config W3 — skipped until status path applies lump defaults.
      */
-    describe.skip('lump defaults on status path (clean-local-project-json-config W3)', () => {
+    describe('lump defaults on status path (clean-local-project-json-config W3)', () => {
         it('W3: applyLumpConfigDefaults called; local verbose inherited when lump omits', async () => {
             await fs.writeFile(
                 path.join(localConfigFolderPath, 'project.json'),
@@ -327,7 +332,7 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
                 JSON.stringify({ mode: 'shared', primaryBranch: 'main', verbose: true }),
                 'utf-8',
             );
-            await writeLump('alpha');
+            await writeMinimalLump(projectRoot, 'alpha');
             // Lump without verbose
             const lumpPath = path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json');
             const lump = JSON.parse(await fs.readFile(lumpPath, 'utf-8')) as Record<string, unknown>;

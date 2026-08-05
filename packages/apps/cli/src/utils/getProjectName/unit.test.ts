@@ -64,7 +64,7 @@ describe('getProjectName', () => {
     /**
      * clean-local-project-json-config N* — skipped until getProjectName routes through readProjectJson.
      */
-    describe.skip('getProjectName strict membership (clean-local-project-json-config N*)', () => {
+    describe('getProjectName strict membership (clean-local-project-json-config N*)', () => {
         it('N2: unknown key fails', async () => {
             await fs.writeFile(
                 path.join(localConfig, 'project.json'),

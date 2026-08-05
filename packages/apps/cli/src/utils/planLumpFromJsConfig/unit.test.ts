@@ -236,7 +236,7 @@ describe('planLumpFromJsConfig', () => {
     /**
      * clean-local-project-json-config W2 / C4 — skipped until plan path applies lump defaults.
      */
-    describe.skip('plan lump defaults (clean-local-project-json-config W2/C4)', () => {
+    describe('plan lump defaults (clean-local-project-json-config W2/C4)', () => {
         it('W2: plan uses inherited command from project via applyLumpConfigDefaults', async () => {
             const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
             const applySpy = vi.spyOn(
@@ -316,11 +316,11 @@ describe('planLumpFromJsConfig', () => {
                     localConfigFolderPath,
                     globalConfigFolderPath,
                     projectRoot,
-                    depth: 'validate',
+                    depth: 'plan',
                 });
                 expect(result.success).toBe(true);
                 if (!result.success) throw new Error('unreachable');
-                expect(result.data.skipped).toMatchObject({
+                expect(result.data.plan?.skipped).toMatchObject({
                     reason: 'tooManyOpenBranches',
                     maximumNumberOfConcurrentBranches: 2,
                 });

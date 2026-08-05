@@ -15,7 +15,7 @@ import { readProjectLocalConfig, resolvedProjectLocalConfigSchema } from './main
 /**
  * clean-local-project-json-config M* / T* — skipped until merge + Zod land.
  */
-describe.skip('readProjectLocalConfig (clean-local-project-json-config)', () => {
+describe('readProjectLocalConfig (clean-local-project-json-config)', () => {
     let dir: string;
 
     beforeEach(async () => {
@@ -170,7 +170,7 @@ describe.skip('readProjectLocalConfig (clean-local-project-json-config)', () => 
     });
 });
 
-describe.skip('ResolvedProjectLocalConfig types (clean-local-project-json-config T*)', () => {
+describe('ResolvedProjectLocalConfig types (clean-local-project-json-config T*)', () => {
     it('T1: ResolvedProjectLocalConfig equals z.infer of resolved schema', () => {
         expectTypeOf<ResolvedProjectLocalConfig>().toEqualTypeOf<
             z.infer<typeof resolvedProjectLocalConfigSchema>

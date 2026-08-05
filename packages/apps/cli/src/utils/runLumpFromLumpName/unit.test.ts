@@ -171,7 +171,7 @@ describe('runLumpFromLumpName', () => {
     /**
      * clean-local-project-json-config W1 / C* via phase 1 — skipped until defaults apply before phase 2.
      */
-    describe.skip('lump defaults + cap wiring (clean-local-project-json-config W*/C*)', () => {
+    describe('lump defaults + cap wiring (clean-local-project-json-config W*/C*)', () => {
         it('W1: applies project command when lump omits command', async () => {
             await fs.writeFile(
                 path.join(localConfigFolderPath, 'project.json'),

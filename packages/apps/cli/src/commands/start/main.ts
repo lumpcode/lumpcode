@@ -8,9 +8,10 @@ import type { Failure, Logger, Success } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
 import { Command, CommandHandlerMaker } from '../../types';
-import type { LocalConfig } from '../../types/LocalConfig';
+import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
+    applyLumpConfigDefaults,
     assertDaemonStartAllowed,
     commandFailure,
     createCliLogger,
@@ -21,7 +22,7 @@ import {
     isLumpNameFilterActive,
     listRunningProjectDaemons,
     parseLumpNameFilterPatterns,
-    readLocalConfig,
+    readProjectLocalConfig,
     resolveDaemonId,
     resolvePrimaryBranches,
     runLumpFromJsConfigFailureMessage,
@@ -235,10 +236,10 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
+    const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath });
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
-    const frozenLocalConfig: LocalConfig = localConfigResult.data;
-    const workspaceStrategy = frozenLocalConfig.workspaceStrategy ?? 'checkout';
+    const frozenLocalConfig: ResolvedProjectLocalConfig = localConfigResult.data;
+    const workspaceStrategy = frozenLocalConfig.workspaceStrategy;
     const effectivePrimaryBranches = resolvePrimaryBranches(frozenLocalConfig);
 
     if (lumpNameOpt && input.options.include !== undefined && input.options.include.trim() !== '') {
@@ -515,10 +516,14 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             daemonLumpAbortControllers.add(abortController);
             try {
                 const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
+                const effectiveForVerbose = jsConfForVerbose.success
+                    ? applyLumpConfigDefaults({
+                          jsConfig: jsConfForVerbose.data,
+                          resolved: frozenLocalConfig,
+                      })
+                    : undefined;
                 const lumpLogger = createCliLogger({
-                    verbose:
-                        !!cliVerbose ||
-                        !!(jsConfForVerbose.success && jsConfForVerbose.data.verbose),
+                    verbose: !!cliVerbose || !!effectiveForVerbose?.verbose,
                     json: !!json,
                     prefix: '[lumpcode start]',
                 });

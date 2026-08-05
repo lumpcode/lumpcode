@@ -15,7 +15,7 @@ This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (ca
 | **Tick**          | One scheduler iteration: for each enabled lump, run the same engine path as `lumpcode run <lumpName>`.                                                                                                           |
 | **Work branch**   | Branch Lumpcode creates/updates for the batch. Default `lump/<lumpName>/<contextName…>`, customizable with `branchFn`.                                                                                           |
 | **Marker commit** | Commit whose subject is exactly `LUMP: <lumpName> - <contextName>`. **Not configurable** so `clean`, `lump-status`, and `context-status` stay aligned with the engine.                                           |
-| **primaryBranch** | First **exact** integration branch from `.lumpcode/local.json` (`primaryBranches` when set, else `primaryBranch`). Lumpcode uses it as the project-wide default for discovery and execution — see [Branch resolution](#branch-resolution). |
+| **primaryBranch** | First **exact** integration branch from the merged project/local config (`primaryBranches` when set, else `primaryBranch`). Either file may supply it; local wins when both set. See [Branch resolution](#branch-resolution) and [project-config.md](./project-config.md#merge-and-lump-defaults). |
 | **baseBranch**  | Per-lump execution integration branch — see [Branch resolution](#branch-resolution). Use `baseBranch` when execution should differ from discovery (e.g. a long-lived release branch). |
 | **mode**        | `shared` or `dedicated` (in `.lumpcode/local.json`). Decides whether Lumpcode operates on the current checkout or a separate copy under `~/.lumpcode/project-copies/<projectName>/`. |
 

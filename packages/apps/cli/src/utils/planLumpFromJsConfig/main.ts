@@ -15,12 +15,13 @@ import {
     type Success,
 } from '@lumpcode/core';
 
+import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
 import { countOpenLumpBranches } from '../countOpenLumpBranches';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
 import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
 import { lumpImportBasePath } from '../lumpDirPath';
-import { readLocalConfig } from '../readLocalConfig';
+import { readProjectLocalConfig } from '../readProjectLocalConfig';
 import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
 import { resolveProjectExecutionContext } from '../resolveProjectExecutionContext';
@@ -82,18 +83,21 @@ export async function planLumpFromJsConfig(input: {
         discoveryBranchOpt,
     } = input;
 
+    const resolvedResult = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!resolvedResult.success) return resolvedResult;
+    const localConfig = resolvedResult.data;
+
     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
     if (!jsConfResult.success) return jsConfResult;
-    const jsConfig = jsConfResult.data;
+    const jsConfig = applyLumpConfigDefaults({
+        jsConfig: jsConfResult.data,
+        resolved: resolvedResult.data,
+    });
 
     const disabledResult = await resolveLumpDisabled(jsConfig.disabled, {
         importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
     });
     if (!disabledResult.success) return disabledResult;
-
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return localConfigResult;
-    const localConfig = localConfigResult.data;
 
     const discoveryResult = await resolveEffectiveDiscoveryBranch({
         discoveryBranchOpt,

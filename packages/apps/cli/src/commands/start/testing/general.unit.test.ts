@@ -69,6 +69,7 @@ describe('start command', () => {
     });
 
     it('fails on an invalid cron expression before running lumps', async () => {
+        await writeDefaultProjectJson(projectRoot, 'invalid-cron-project');
         await writeDefaultLocalJson(projectRoot);
         await writeMinimalLump(projectRoot, 'alpha');
 
@@ -482,7 +483,7 @@ describe('start command', () => {
     /**
      * clean-local-project-json-config W4–W5 — skipped until start freezes readProjectLocalConfig.
      */
-    describe.skip('merged project+local freeze (clean-local-project-json-config W4/W5)', () => {
+    describe('merged project+local freeze (clean-local-project-json-config W4/W5)', () => {
         it('W4: readProjectLocalConfig called once at startup; disk mutate after freeze ignored', async () => {
             await writeDefaultProjectJson(projectRoot, 'freeze-merged-project');
             await writeDefaultLocalJson(projectRoot);

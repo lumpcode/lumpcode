@@ -25,10 +25,6 @@ describe('project-setup command', () => {
         return command.handlerMaker({});
     }
 
-    /**
-     * Current scaffold (primary + workspaceStrategy on local). Stays green until
-     * clean-local-project-json-config S* expectations below are unskipped.
-     */
     it('creates .lumpcode layout, project.json and local.json with explicit projectName', async () => {
         const handle = makeHandler();
         const prev = process.cwd();
@@ -42,24 +38,17 @@ describe('project-setup command', () => {
             expect(result.success).toBe(true);
 
             const raw = await fs.readFile(path.join(projectRoot, '.lumpcode', 'project.json'), 'utf-8');
-            const json = JSON.parse(raw) as { projectName: string };
-            expect(json.projectName).toBe('my-app');
+            expect(JSON.parse(raw)).toEqual({
+                projectName: 'my-app',
+                primaryBranch: 'main',
+            });
             await Promise.all([
                 fs.access(path.join(projectRoot, '.lumpcode', 'lumps')),
                 fs.access(path.join(projectRoot, '.lumpcode', 'commands')),
             ]);
 
             const localRaw = await fs.readFile(path.join(projectRoot, '.lumpcode', 'local.json'), 'utf-8');
-            const local = JSON.parse(localRaw) as {
-                mode: string;
-                primaryBranch: string;
-                workspaceStrategy: string;
-            };
-            expect(local).toEqual({
-                mode: 'shared',
-                primaryBranch: 'main',
-                workspaceStrategy: 'checkout',
-            });
+            expect(JSON.parse(localRaw)).toEqual({ mode: 'shared' });
 
             const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
             expect(gitignore).toContain('.lumpcode/**/contextStatusRecord.json');
@@ -72,33 +61,10 @@ describe('project-setup command', () => {
         }
     });
 
-    it('honors --mode and --primaryBranch when scaffolding local.json', async () => {
-        const handle = makeHandler();
-        const prev = process.cwd();
-        process.chdir(projectRoot);
-        try {
-            const result = await handle({
-                options: { projectName: 'my-app', mode: 'dedicated', primaryBranch: 'develop' },
-                arguments: {},
-            });
-            expect(result.success).toBe(true);
-
-            const localRaw = await fs.readFile(path.join(projectRoot, '.lumpcode', 'local.json'), 'utf-8');
-            const local = JSON.parse(localRaw) as { mode: string; primaryBranch: string };
-            expect(local).toEqual({
-                mode: 'dedicated',
-                primaryBranch: 'develop',
-                workspaceStrategy: 'checkout',
-            });
-        } finally {
-            process.chdir(prev);
-        }
-    });
-
     /**
-     * clean-local-project-json-config S* — new scaffold: primary on project.json; local mode-only.
+     * clean-local-project-json-config S* — primary on project.json; local mode-only.
      */
-    describe.skip('project-setup scaffold (clean-local-project-json-config S*)', () => {
+    describe('project-setup scaffold (clean-local-project-json-config S*)', () => {
         it('S1: default scaffold writes projectName+primaryBranch on project; mode-only local', async () => {
             const handle = makeHandler();
             const prev = process.cwd();

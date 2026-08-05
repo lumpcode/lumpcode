@@ -89,9 +89,7 @@ export async function setupStartTestRepo(options: {
     execGit('push -u origin main', projectRoot);
     await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
     await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-    if (projectName !== undefined) {
-        await writeDefaultProjectJson(projectRoot, projectName);
-    }
+    await writeDefaultProjectJson(projectRoot, projectName ?? 'start-test-project');
     return { projectRoot, remoteDir, globalConfigFolderPath };
 }
 

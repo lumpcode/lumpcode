@@ -2,9 +2,9 @@ import { type Failure, success, type Success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { Mode } from '../../types/Mode';
+import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
-import { getProjectName } from '../getProjectName';
-import { readLocalConfig } from '../readLocalConfig';
+import { coerceResolvedProjectLocalConfig } from '../coerceResolvedProjectLocalConfig';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { runPreflight, type RunPreflightGitLock } from '../runPreflight';
 
@@ -12,8 +12,8 @@ export interface RunProjectPreflightInput {
     sourceProjectRoot: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
-    /** When set, skips reading `.lumpcode/local.json` (e.g. daemon frozen config at startup). */
-    localConfig?: LocalConfig;
+    /** When set, skips re-reading local.json (e.g. daemon frozen config at startup). */
+    localConfig?: LocalConfig | ResolvedProjectLocalConfig;
     /** Integration branch to pre-flight; defaults to primary project base branch. */
     targetBranch?: string;
     /** When set, preflight git mutations use the git-common-dir lock. */
@@ -29,9 +29,8 @@ export interface RunProjectPreflightOutput {
 }
 
 /**
- * Reads `.lumpcode/local.json`, resolves the project name, then runs the
- * workspace pre-flight. Returns the data the run loop needs to call
- * `runLumpFromJsConfig`.
+ * Reads merged project+local config, then runs the workspace pre-flight.
+ * Returns the data the run loop needs to call `runLumpFromJsConfig`.
  */
 export async function runProjectPreflight(
     input: RunProjectPreflightInput,
@@ -39,37 +38,23 @@ export async function runProjectPreflight(
     const { sourceProjectRoot, localConfigFolderPath, globalConfigFolderPath, localConfig: providedLocalConfig } =
         input;
 
-    let projectBaseBranch: string;
-    let effectiveMode: Mode;
-    let workspaceStrategy: WorkspaceStrategy;
-
-
-    let finalLocalConfig: LocalConfig;
-
-    if (providedLocalConfig) {
-        finalLocalConfig = providedLocalConfig;
-    } else {
-        const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-        if (!localConfigResult.success) return localConfigResult;
-        finalLocalConfig = localConfigResult.data;
-    }
-
-    projectBaseBranch = input.targetBranch ?? resolvePrimaryBranch(finalLocalConfig);
-    effectiveMode = finalLocalConfig.mode;
-    workspaceStrategy = finalLocalConfig.workspaceStrategy ?? 'checkout';
-
-    const projectNameResult = await getProjectName({
+    const resolvedResult = await coerceResolvedProjectLocalConfig({
         localConfigFolderPath,
-        projectRoot: sourceProjectRoot,
+        localConfig: providedLocalConfig,
     });
-    if (!projectNameResult.success) return projectNameResult;
+    if (!resolvedResult.success) return resolvedResult;
+    const finalLocalConfig = resolvedResult.data;
+
+    const projectBaseBranch = input.targetBranch ?? resolvePrimaryBranch(finalLocalConfig);
+    const effectiveMode = finalLocalConfig.mode;
+    const workspaceStrategy = finalLocalConfig.workspaceStrategy;
 
     const preflightResult = await runPreflight({
         mode: effectiveMode,
         projectBaseBranch,
         sourceProjectRoot,
         globalConfigFolderPath,
-        projectName: projectNameResult.data,
+        projectName: finalLocalConfig.projectName,
         gitLock: input.gitLock,
     });
     if (!preflightResult.success) return preflightResult;

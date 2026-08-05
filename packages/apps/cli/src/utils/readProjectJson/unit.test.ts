@@ -8,7 +8,7 @@ import { PROJECT_JSON_FILE_NAME, readProjectJson } from './main';
 /**
  * clean-local-project-json-config P* — skipped until readProjectJson lands.
  */
-describe.skip('readProjectJson (clean-local-project-json-config)', () => {
+describe('readProjectJson (clean-local-project-json-config)', () => {
     let dir: string;
 
     beforeEach(async () => {

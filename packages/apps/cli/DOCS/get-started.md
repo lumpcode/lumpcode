@@ -9,7 +9,7 @@ Follow this guide in order to get started with your first `lumpcode run`. Links 
 Install and prepare the following:
 
 1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
-2. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare in `.lumpcode/local.json` (typically `main`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode pulls it during pre-flight and reads it via `origin/<branch>` for status.
+2. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare (typically in `.lumpcode/project.json`, optionally overridden in gitignored `local.json`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode pulls it during pre-flight and reads it via `origin/<branch>` for status.
 3. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** work out of the box when `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` is on `PATH`; other agents (e.g. **`aider`**) need a custom module.
 
 ---
@@ -51,20 +51,19 @@ This creates:
 
 ```text
 .lumpcode/
-├── project.json      # project name and optional project-wide settings (commit this)
-├── local.json        # per-machine mode + primaryBranch (gitignored)
+├── project.json      # projectName + primaryBranch (+ optional team defaults; commit this)
+├── local.json        # per-machine mode (gitignored; may override shared keys)
 ├── lumps/            # one folder per lump
 └── commands/         # optional custom agent command modules (.js)
 ```
 
-**`project.json`** stores **`projectName`**: letters, digits, `_`, and `-` only. If you omit **`--projectName`**, `project-setup` infers a name from **`origin`** or the directory basename and normalizes it to those rules. That same value is used for daemon files and for `~/.lumpcode/project-copies/<projectName>/` when `local.json.mode` is `shared`—Lumpcode does not rename or “slug” it at runtime.
+**`project.json`** stores **`projectName`** (letters, digits, `_`, and `-` only) and **`primaryBranch`** (from `--primaryBranch`, default `main`). If you omit **`--projectName`**, `project-setup` infers a name from **`origin`** or the directory basename and normalizes it to those rules. That same value is used for daemon files and for `~/.lumpcode/project-copies/<projectName>/` when `local.json.mode` is `shared`. You can also set team defaults such as `"command": "cursor"` here so lumps can omit top-level `command`.
 
-**`local.json`** is per machine and gitignored. The default is:
+**`local.json`** is per machine and gitignored. The default scaffold is:
 
 ```json
 {
-  "mode": "shared",
-  "primaryBranch": "main"
+  "mode": "shared"
 }
 ```
 
@@ -75,7 +74,7 @@ Optional flags:
 - `--projectPath <dir>` — Initialize another directory (default: current working directory).
 - `--projectName <name>` — Stored verbatim; must already satisfy the character rules (see [project-config.md](./project-config.md#projectname-rules)).
 - `--mode <shared|dedicated>` — Initial `local.json.mode` (default `shared`).
-- `--primaryBranch <branch>` — Initial `local.json.primaryBranch` (default `main`).
+- `--primaryBranch <branch>` — Initial `project.json.primaryBranch` (default `main`).
 
 Extra fields (`maximumNumberOfConcurrentBranches`, …): [project-config.md](./project-config.md).
 
@@ -122,7 +121,7 @@ Edit your scaffolded config (`lump-create` defaults look like this — adjust th
 }
 ```
 
-The base branch comes from `.lumpcode/local.json` (`primaryBranch` or the first entry of `primaryBranches`). Add a per-lump `"baseBranch": "release/2.0"` only if this lump needs to branch off something else.
+The base branch comes from the merged project/local primary (`primaryBranch` or the first entry of `primaryBranches`). Add a per-lump `"baseBranch": "release/2.0"` only if this lump needs to branch off something else.
 
 A richer pattern (several files per context, naming-convention transforms) is shown in the [README's React-component example](../README.md#configjson-example-one-branch-per-react-component). More ways to define contexts — transforms, ordering and dependencies, fully custom sourcing: [lump-config.md § contextListJson](./lump-config.md#contextlistjson).
 
@@ -134,7 +133,7 @@ A richer pattern (several files per context, naming-convention transforms) is sh
 lumpcode run myFirstLump
 ```
 
-In one tick, Lumpcode first runs **pre-flight** (pulls the primary branch from `local.json` in the resolved workspace), then picks the next context(s); prepares the work branch `lump/myFirstLump/…`; runs your agent; commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above); pushes to **`origin`**; refreshes **`contextStatusRecord.json`**; and finally switches the workspace back to the lump's resolved `baseBranch`.
+In one tick, Lumpcode first runs **pre-flight** (pulls the merged primary branch in the resolved workspace), then picks the next context(s); prepares the work branch `lump/myFirstLump/…`; runs your agent; commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above); pushes to **`origin`**; refreshes **`contextStatusRecord.json`**; and finally switches the workspace back to the lump's resolved `baseBranch`.
 
 **Workspace:** `local.json.mode` decides where the run happens — `shared` uses **`~/.lumpcode/project-copies/<projectName>/`** (a copy of your repo); `dedicated` uses **this checkout** in place (destructive reset). [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes) · [local-config.md](./local-config.md)
 
@@ -172,7 +171,8 @@ Details — cron flags, caps, trade-offs: [concepts.md § When to use run vs sta
 | Artifact | Location |
 |----------|----------|
 | Lump configs | `.lumpcode/lumps/<lumpName>/` |
-| Per-machine mode + primaryBranch | `.lumpcode/local.json` (gitignored) |
+| Project name + team defaults (primary, command, …) | `.lumpcode/project.json` (commit) |
+| Per-machine mode (+ optional overrides) | `.lumpcode/local.json` (gitignored) |
 | Context status cache | `.lumpcode/lumps/<lumpName>/contextStatusRecord.json` |
 | Prompt run history (optional, `keepHistory: true`) | `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored) |
 | TypeScript transpile cache | `.lumpcode/.cache/transpile/` (gitignored) |

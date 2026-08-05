@@ -1,10 +1,7 @@
 import type { Failure, Success } from '@lumpcode/core';
-import { failure, pathExists, success } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
 
-import { readJsonFile } from '../readJsonFile';
-
-import type { ProjectConfig } from '../../types/ProjectConfig';
-import { projectJsonPath } from '../projectJsonPath';
+import { readProjectJson } from '../readProjectJson';
 
 const VALID_PROJECT_NAME = /^[a-zA-Z0-9_-]+$/;
 
@@ -27,38 +24,17 @@ export function rawRepoSegmentFromRemoteUrl(url: string): string | undefined {
     return segment;
 }
 
-const invalidProjectNameMessage =
-    'Invalid projectName in .lumpcode/project.json: use only letters, digits, underscores (_), and hyphens (-), with no spaces. Edit project.json or re-run lumpcode project-setup.';
-
+/**
+ * Reads and returns `projectName` from `.lumpcode/project.json` via strict `readProjectJson`.
+ */
 export async function getProjectName(input: {
     localConfigFolderPath: string;
     projectRoot: string;
 }): Promise<Success<string> | Failure<string>> {
     const { localConfigFolderPath } = input;
-    const projectJsonFilePath = projectJsonPath({ localConfigFolderPath });
-
-    const jsonExists = await pathExists(projectJsonFilePath);
-    if (!jsonExists) {
-        return failure(
-            'Missing .lumpcode/project.json with a projectName. Run lumpcode project-setup in the repository root.',
-        );
+    const result = await readProjectJson({ localConfigFolderPath });
+    if (!result.success) {
+        return result;
     }
-
-    const readResult = await readJsonFile<ProjectConfig>({ filePath: projectJsonFilePath });
-    if (!readResult.success) {
-        return readResult;
-    }
-
-    const projectName = readResult.data.projectName?.trim();
-    if (!projectName) {
-        return failure(
-            'project.json must set projectName (non-empty). Run lumpcode project-setup or add projectName to .lumpcode/project.json.',
-        );
-    }
-
-    if (!isValidProjectName(projectName)) {
-        return failure(invalidProjectNameMessage);
-    }
-
-    return success(projectName);
+    return success(result.data.projectName);
 }
