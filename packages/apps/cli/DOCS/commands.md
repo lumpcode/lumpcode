@@ -105,13 +105,13 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 | `--projectPath` | string | No | Directory to initialize (default: `.` resolved from cwd) |
 | `--projectName` | string | No | Stored in `project.json`; must be letters, digits, `_`, `-` only; if omitted, inferred from `origin` or directory basename and normalized |
 | `--mode` | `shared` \| `dedicated` | No | Initial `local.json.mode` (default `shared`) — see [local-config.md](./local-config.md) |
-| `--primaryBranch` | string | No | Initial `local.json.primaryBranch` (default `main`) |
+| `--primaryBranch` | string | No | Initial `project.json.primaryBranch` (default `main`) |
 
 
 **Creates:**
 
-- `.lumpcode/project.json` — minimal `{ "projectName": "…" }`
-- `.lumpcode/local.json` — `{ "mode": "shared", "primaryBranch": "main" }` (per machine, gitignored)
+- `.lumpcode/project.json` — `{ "projectName": "…", "primaryBranch": "main" }` (commit this)
+- `.lumpcode/local.json` — `{ "mode": "shared" }` (per machine, gitignored)
 - `.lumpcode/lumps/` — empty
 - `.lumpcode/commands/` — empty
 - Appends `.lumpcode/**/contextStatusRecord.json`, `.lumpcode/**/history/`, `.lumpcode/.cache/`, and `.lumpcode/local.json` to `.gitignore`
@@ -263,7 +263,7 @@ Plus global [`--json`](#ref-json-output).
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 
-**`local.json` at startup:** `.lumpcode/local.json` is read **once** when the daemon starts (`mode`, `primaryBranch`, `primaryBranches`, `workspaceStrategy`, `disabled`, `maxParallelRun`). Those values are frozen for every tick until you restart the daemon. Edit the file and restart to pick up changes.
+**Merged project/local at startup:** `.lumpcode/project.json` and `.lumpcode/local.json` are merged **once** when the daemon starts (local wins on shared keys; includes lump-default fields such as `command`). That surface is frozen for every tick until you restart the daemon. Edit either file and restart to pick up changes.
 
 **Parallel ticks:** when `workspaceStrategy` is `"worktree"`, every daemon uses `maxParallelRun` from `--maxParallelRun` or `local.json` (default `1`) as the in-tick concurrency for its filtered queue. `"checkout"` stays sequential; passing `--maxParallelRun` with checkout fails.
 

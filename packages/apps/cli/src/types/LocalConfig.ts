@@ -1,35 +1,6 @@
-import type { Mode } from './Mode';
-import type { WorkspaceStrategy } from './WorkspaceStrategy';
+import type { LocalJsonConfig } from './LocalJsonConfig';
 
 /**
- * Shape of `.lumpcode/local.json` — gitignored, per-machine configuration that
- * tells Lumpcode where and how to run lumps from this checkout.
+ * Shape of `.lumpcode/local.json` — alias of {@link LocalJsonConfig}.
  */
-export interface LocalConfig {
-    mode: Mode;
-    /** Required when `primaryBranches` is omitted or empty. Primary integration branch for this install. */
-    primaryBranch?: string;
-    /**
-     * @deprecated Use `primaryBranch` instead.
-     * Legacy alias kept for existing `.lumpcode/local.json` files.
-     */
-    projectBaseBranch?: string;
-    /** When non-empty, wins over singular `primaryBranch` for the effective primary-branch list. Dedicated daemon scans these lines. */
-    primaryBranches?: string[];
-    workspaceStrategy?: WorkspaceStrategy;
-    /** When `true`, the background daemon skips every lump on this machine (`lumpcode start`). */
-    disabled?: boolean;
-    /**
-     * Max concurrent lump runs in a global-daemon tick when `workspaceStrategy` is `worktree`.
-     * Positive integer; omit defaults to `1` (sequential).
-     */
-    maxParallelRun?: number;
-    /**
-     * Optional lump-default fields (clean-local-project-json-config).
-     * Accepted on `local.json` after implementation; typed early for fixtures/tests.
-     */
-    command?: string;
-    maximumNumberOfConcurrentBranches?: number;
-    keepHistory?: boolean;
-    verbose?: boolean;
-}
+export type LocalConfig = LocalJsonConfig;

@@ -1,10 +1,6 @@
-export interface ProjectConfig {
-    projectName?: string;
-    primaryBranch?: string;
-    primaryBranches?: string[];
-    /** @deprecated Use `primaryBranch` instead. */
-    projectBaseBranch?: string;
-    command?: string;
-    maximumNumberOfConcurrentBranches?: number;
-    keepHistory?: boolean;
-}
+import type { ProjectJsonConfig } from './ProjectJsonConfig';
+
+/**
+ * Shape of `.lumpcode/project.json` — alias of {@link ProjectJsonConfig}.
+ */
+export type ProjectConfig = ProjectJsonConfig;

@@ -8,6 +8,7 @@ export * from './branchMatchesGitGlob';
 export * from './branchWorkspacePath';
 export * from './buildContextStatusRecord';
 export * from './cliLog';
+export * from './coerceResolvedProjectLocalConfig';
 export * from './createCliLogger';
 export * from './commandFailure';
 export * from './contextStatusRecordPath';

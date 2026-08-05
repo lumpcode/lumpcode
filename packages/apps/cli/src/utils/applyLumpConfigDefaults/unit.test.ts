@@ -7,7 +7,7 @@ import { applyLumpConfigDefaults } from './main';
 /**
  * clean-local-project-json-config D* — skipped until applyLumpConfigDefaults lands.
  */
-describe.skip('applyLumpConfigDefaults (clean-local-project-json-config)', () => {
+describe('applyLumpConfigDefaults (clean-local-project-json-config)', () => {
     const baseResolved: ResolvedProjectLocalConfig = {
         projectName: 'demo',
         mode: 'shared',

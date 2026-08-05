@@ -136,7 +136,7 @@ describe('resolvePrimaryBranches first-exact primary (dynamic-discovery-branch P
  * clean-local-project-json-config R* — feed merged primary fields (ResolvedProjectLocalConfig Pick).
  * Skipped until helper input type is documented as merged T; behavior already matches.
  */
-describe.skip('resolvePrimaryBranches from merged T (clean-local-project-json-config R*)', () => {
+describe('resolvePrimaryBranches from merged T (clean-local-project-json-config R*)', () => {
     it('R1: merged singular primaryBranch', () => {
         const merged = { mode: 'dedicated' as const, primaryBranch: 'dev' };
         expect(resolvePrimaryBranches(merged)).toEqual(['dev']);

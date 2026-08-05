@@ -593,7 +593,7 @@ describe('runLumpFromJsConfig', () => {
      * clean-local-project-json-config C* — branch cap from project/local via applyLumpConfigDefaults.
      * Skipped until overlay + call-path wiring land.
      */
-    describe.skip('branch cap from project/local (clean-local-project-json-config C*)', () => {
+    describe('branch cap from project/local (clean-local-project-json-config C*)', () => {
         it('C1: cap on resolved (project), lump omits → tooManyOpenBranches', async () => {
             const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
             createAndPushLumpBranch('my-lump', 'ctx-a');

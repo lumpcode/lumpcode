@@ -4,11 +4,12 @@ import { failure, Failure, runLump, RunLumpOutput, success, Success, type Logger
 
 import { LumpJsConfig } from '../../types';
 import type { LocalConfig } from '../../types/LocalConfig';
+import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
+import { coerceResolvedProjectLocalConfig } from '../coerceResolvedProjectLocalConfig';
 import type { GitCommonDirLockContext } from '../gitCommonDirLock';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { getProjectName } from '../getProjectName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
-import { readLocalConfig } from '../readLocalConfig';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { runProjectPreflight } from '../runProjectPreflight';
 import { updateContextStatusRecord } from '../updateContextStatusRecord';
@@ -56,8 +57,8 @@ export async function runLumpFromJsConfig(input: {
     lockMode?: WorkspaceLockMode;
     projectName?: string;
     logger: Logger;
-    /** When set, skips reading `.lumpcode/local.json` (e.g. daemon frozen config). */
-    localConfig?: LocalConfig;
+    /** When set, skips re-reading local.json (e.g. daemon frozen merged config). */
+    localConfig?: LocalConfig | ResolvedProjectLocalConfig;
     /** Held execution workspace path lock from dedicated discovery preflight; adopted in setup hooks. */
     releaseLock?: ReleaseWorkspacePathLockFn;
     /** When aborted, in-flight commands are killed and the lump run stops. */
@@ -88,17 +89,17 @@ export async function runLumpFromJsConfig(input: {
     try {
         const projectRoot = path.dirname(localConfigFolderPath);
 
-        let localConfig: LocalConfig;
-        if (providedLocalConfig) {
-            localConfig = providedLocalConfig;
-        } else {
-            const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-            if (!localConfigResult.success) return failure(toRunLumpMessageFailure(localConfigResult.data));
-            localConfig = localConfigResult.data;
+        const resolvedResult = await coerceResolvedProjectLocalConfig({
+            localConfigFolderPath,
+            localConfig: providedLocalConfig,
+        });
+        if (!resolvedResult.success) {
+            return failure(toRunLumpMessageFailure(resolvedResult.data));
         }
+        const localConfig = resolvedResult.data;
 
         const projectBaseBranch = resolvePrimaryBranch(localConfig, logger);
-        const workspaceStrategy = localConfig.workspaceStrategy ?? 'checkout';
+        const workspaceStrategy = localConfig.workspaceStrategy;
 
         const projectNameResult = await getProjectName({
             localConfigFolderPath,

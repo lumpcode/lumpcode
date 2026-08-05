@@ -3,11 +3,12 @@ import * as z from 'zod';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
+    applyLumpConfigDefaults,
     commandFailure,
     createCliLogger,
     getJsConfigFromLumpName,
     isRunLumpWorkspacePathBusyFailure,
-    readLocalConfig,
+    readProjectLocalConfig,
     resolveEffectiveDiscoveryBranch,
     runLumpFromJsConfigFailureMessage,
     runLumpFromLumpName,
@@ -47,9 +48,9 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { json, verbose: cliVerbose } = input.options;
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
-    const localConfig = localConfigResult.data;
+    const resolvedResult = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!resolvedResult.success) return commandFailure(resolvedResult.data);
+    const localConfig = resolvedResult.data;
 
     const discoveryResult = await resolveEffectiveDiscoveryBranch({
         discoveryBranchOpt,
@@ -77,10 +78,14 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
     try {
         const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
+        const effectiveForVerbose = jsConfForVerbose.success
+            ? applyLumpConfigDefaults({
+                  jsConfig: jsConfForVerbose.data,
+                  resolved: resolvedResult.data,
+              })
+            : undefined;
         const logger = createCliLogger({
-            verbose:
-                !!cliVerbose ||
-                !!(jsConfForVerbose.success && jsConfForVerbose.data.verbose),
+            verbose: !!cliVerbose || !!effectiveForVerbose?.verbose,
             json: !!json,
         });
 

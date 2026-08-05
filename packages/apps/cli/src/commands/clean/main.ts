@@ -13,12 +13,11 @@ import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { commandFailure } from '../../utils/commandFailure';
 import { getExecutionWorkspacePath } from '../../utils/getExecutionWorkspacePath';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
-import { getProjectName } from '../../utils/getProjectName';
 import { lumpWorktreePath } from '../../utils/getLumpWorktreePath';
 import { listRemoteHeadBranches } from '../../utils/listRemoteHeadBranches';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpBranchGlob } from '../../utils/lumpBranchGlob';
-import { readLocalConfig } from '../../utils/readLocalConfig';
+import { readProjectLocalConfig } from '../../utils/readProjectLocalConfig';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
 const inputSchema = z.object({
@@ -168,30 +167,24 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     const localConfigDir = localConfigFolderPath({ projectRoot });
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath: localConfigDir });
+    const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath: localConfigDir });
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
 
     const executionWorkspaces: string[] = [path.resolve(projectRoot)];
     if (localConfigResult.data.mode === 'shared') {
-        const projectNameResult = await getProjectName({
-            localConfigFolderPath: localConfigDir,
-            projectRoot,
+        const copyPath = getExecutionWorkspacePath({
+            mode: 'shared',
+            sourceProjectRoot: projectRoot,
+            globalConfigFolderPath,
+            projectName: localConfigResult.data.projectName,
         });
-        if (projectNameResult.success) {
-            const copyPath = getExecutionWorkspacePath({
-                mode: 'shared',
-                sourceProjectRoot: projectRoot,
-                globalConfigFolderPath,
-                projectName: projectNameResult.data,
-            });
-            try {
-                const stat = await fs.stat(copyPath);
-                if (stat.isDirectory()) {
-                    executionWorkspaces.push(path.resolve(copyPath));
-                }
-            } catch {
-                // no shared copy at this path
+        try {
+            const stat = await fs.stat(copyPath);
+            if (stat.isDirectory()) {
+                executionWorkspaces.push(path.resolve(copyPath));
             }
+        } catch {
+            // no shared copy at this path
         }
     }
 

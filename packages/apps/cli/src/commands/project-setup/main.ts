@@ -38,7 +38,7 @@ const inputSchema = z.object({
         primaryBranch: z
             .string()
             .optional()
-            .describe('Initial `primaryBranch` written to .lumpcode/local.json (default: main)'),
+            .describe('Initial `primaryBranch` written to .lumpcode/project.json (default: main)'),
     }),
     arguments: z.object({}),
 });
@@ -135,12 +135,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
 
     const projectConfig: ProjectConfig = {
         projectName,
+        primaryBranch: input.options.primaryBranch?.trim() || DEFAULT_PRIMARY_BRANCH,
     };
 
     const localConfig = {
         mode: input.options.mode ?? DEFAULT_MODE,
-        primaryBranch: input.options.primaryBranch?.trim() || DEFAULT_PRIMARY_BRANCH,
-        workspaceStrategy: 'checkout' as const,
     };
 
     try {

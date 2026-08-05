@@ -15,7 +15,7 @@ import {
 /**
  * clean-local-project-json-config E* — skipped until scaffold + inherited command land.
  */
-describe.skip('E2E project/local config (clean-local-project-json-config)', () => {
+describe('E2E project/local config (clean-local-project-json-config)', () => {
     const { createProject } = useE2eProjects();
 
     it('E1: fresh project-setup writes project primary + mode-only local', async () => {
@@ -54,7 +54,7 @@ describe.skip('E2E project/local config (clean-local-project-json-config)', () =
 
     it('E2: run inherits command from project.json when lump omits it', async () => {
         const lumpName = 'inheritCmd';
-        const ctx = 'NAME';
+        const ctx = 'README';
         const project = await createProject({
             projectName: 'e2e-inherit-cmd',
             projectJson: { command: 'e2e-agent' },
@@ -63,7 +63,7 @@ describe.skip('E2E project/local config (clean-local-project-json-config)', () =
                     name: lumpName,
                     // configJs omits top-level command so project/local default applies after overlay.
                     configJs: `export default {
-  contextListJson: { NAME: 'README.md' },
+  contextListJson: { NAME: '{NAME}.md' },
   prompt: { promptTemplate: 'E2E @{NAME}' },
   numberOfContextsPerBranch: 1,
 };

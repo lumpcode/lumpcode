@@ -8,8 +8,9 @@ import { ContextStatusRecord } from '../../types/ContextStatusRecord';
 import { commandFailure } from '../../utils/commandFailure';
 import { contextStatusRecordPath } from '../../utils/contextStatusRecordPath';
 import { discoverLoadableLumpNames } from '../../utils/discoverLoadableLumpNames';
+import { applyLumpConfigDefaults } from '../../utils/applyLumpConfigDefaults';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
-import { readLocalConfig } from '../../utils/readLocalConfig';
+import { readProjectLocalConfig } from '../../utils/readProjectLocalConfig';
 import { resolveEffectiveDiscoveryBranch } from '../../utils/resolveEffectiveDiscoveryBranch';
 import { resolveLumpBaseBranch } from '../../utils/resolveLumpBranches';
 import { resolvePrimaryBranch } from '../../utils/resolvePrimaryBranches';
@@ -55,9 +56,9 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
-    const localConfig = localConfigResult.data;
+    const resolvedResult = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!resolvedResult.success) return commandFailure(resolvedResult.data);
+    const localConfig = resolvedResult.data;
     const discoveryBranchOpt = input.options.discoveryBranch?.trim() || undefined;
 
     const lumpNameOpt = rawLumpName?.trim() ? rawLumpName.trim() : undefined;
@@ -82,6 +83,10 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 messages: [`Lump "${lumpName}": ${jsConfResult.data}`],
             });
         }
+        const jsConfig = applyLumpConfigDefaults({
+            jsConfig: jsConfResult.data,
+            resolved: resolvedResult.data,
+        });
 
         const discoveryResult = await resolveEffectiveDiscoveryBranch({
             discoveryBranchOpt,
@@ -95,7 +100,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         }
 
         const resolvedBaseBranch = resolveLumpBaseBranch({
-            lumpConfig: jsConfResult.data,
+            lumpConfig: jsConfig,
             primaryBranch: resolvePrimaryBranch(localConfig),
             mode: localConfig.mode,
             effectiveDiscoveryBranch: discoveryResult.data,
