@@ -1,5 +1,0 @@
-name: docs-shared-install-guide
-manualReq: true
-task: >-
-  Add a quick guide to shared-mode installation in DOCS.
-priority: 16
