@@ -1,5 +1,6 @@
 export * from './addCommand';
 export * from './appendMissingGitignoreLines';
+export * from './applyLumpConfigDefaults';
 export * from './assertDaemonStartAllowed';
 export * from './atDirectory';
 export * from './workspacePathLock';
@@ -60,6 +61,8 @@ export * from './projectJsonPath';
 export * from './readDaemonMeta';
 export * from './readDaemonPidIfAlive';
 export * from './readLocalConfig';
+export * from './readProjectJson';
+export * from './readProjectLocalConfig';
 export * from './readJsonFile';
 export * from './readYamlList';
 export * from './resolveDaemonCommandScope';
