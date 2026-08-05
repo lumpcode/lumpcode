@@ -24,4 +24,12 @@ export interface LocalConfig {
      * Positive integer; omit defaults to `1` (sequential).
      */
     maxParallelRun?: number;
+    /**
+     * Optional lump-default fields (clean-local-project-json-config).
+     * Accepted on `local.json` after implementation; typed early for fixtures/tests.
+     */
+    command?: string;
+    maximumNumberOfConcurrentBranches?: number;
+    keepHistory?: boolean;
+    verbose?: boolean;
 }

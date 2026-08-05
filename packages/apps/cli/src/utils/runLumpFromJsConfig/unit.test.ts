@@ -588,4 +588,94 @@ describe('runLumpFromJsConfig', () => {
             ),
         ).toBe(false);
     });
+
+    /**
+     * clean-local-project-json-config C* — branch cap from project/local via applyLumpConfigDefaults.
+     * Skipped until overlay + call-path wiring land.
+     */
+    describe.skip('branch cap from project/local (clean-local-project-json-config C*)', () => {
+        it('C1: cap on resolved (project), lump omits → tooManyOpenBranches', async () => {
+            const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+
+            const jsConfig = applyLumpConfigDefaults({
+                jsConfig: makeJsConfig(),
+                resolved: {
+                    projectName: 'run-from-js-test',
+                    mode: 'dedicated',
+                    workspaceStrategy: 'checkout',
+                    primaryBranch: 'main',
+                    maximumNumberOfConcurrentBranches: 2,
+                },
+            });
+
+            const result = await callRunLumpFromJsConfig(jsConfig);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(true);
+            if (!result.data.skipped) throw new Error('unreachable');
+            expect(result.data.reason).toBe('tooManyOpenBranches');
+            expect(result.data.maximumNumberOfConcurrentBranches).toBe(2);
+            expect(core.runLump).not.toHaveBeenCalled();
+        });
+
+        it('C2: local cap wins in resolved over project', async () => {
+            const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+
+            const jsConfig = applyLumpConfigDefaults({
+                jsConfig: makeJsConfig(),
+                resolved: {
+                    projectName: 'run-from-js-test',
+                    mode: 'dedicated',
+                    workspaceStrategy: 'checkout',
+                    primaryBranch: 'main',
+                    // merge already applied local-wins → effective cap 2
+                    maximumNumberOfConcurrentBranches: 2,
+                },
+            });
+
+            const result = await callRunLumpFromJsConfig(jsConfig);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(true);
+            if (!result.data.skipped) throw new Error('unreachable');
+            expect(result.data.maximumNumberOfConcurrentBranches).toBe(2);
+        });
+
+        it('C3: lump cap wins over resolved', async () => {
+            const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'some-branch',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const jsConfig = applyLumpConfigDefaults({
+                jsConfig: makeJsConfig({ maximumNumberOfConcurrentBranches: 10 }),
+                resolved: {
+                    projectName: 'run-from-js-test',
+                    mode: 'dedicated',
+                    workspaceStrategy: 'checkout',
+                    primaryBranch: 'main',
+                    maximumNumberOfConcurrentBranches: 2,
+                },
+            });
+
+            const result = await callRunLumpFromJsConfig(jsConfig);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(false);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
+    });
 });

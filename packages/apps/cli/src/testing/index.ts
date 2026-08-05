@@ -20,5 +20,6 @@ export {
     scaffoldMultiBranchProject,
     writeLocalJson,
     writeMinimalLump,
+    writeProjectJson,
 } from './multiBranchFixtures';
 export type { MultiBranchLumpSpec } from './multiBranchFixtures';

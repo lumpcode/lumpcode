@@ -93,6 +93,8 @@ function commandModuleFilename(moduleName: string, ext: 'ts' | 'js' = 'js'): str
 export async function createE2eProject(input: {
     projectName?: string;
     localJson?: Partial<LocalConfig>;
+    /** Merged into default `{ projectName }` (F3 / clean-local-project-json-config). */
+    projectJson?: Record<string, unknown>;
     lumps: E2eLumpSpec[];
     useE2eAgent?: boolean;
     extraFiles?: Record<string, string>;
@@ -117,7 +119,11 @@ export async function createE2eProject(input: {
     }
     const lumpcodeDir = path.join(projectRoot, '.lumpcode');
     await fs.mkdir(path.join(lumpcodeDir, 'lumps'), { recursive: true });
-    await fs.writeFile(path.join(lumpcodeDir, 'project.json'), JSON.stringify({ projectName }), 'utf-8');
+    await fs.writeFile(
+        path.join(lumpcodeDir, 'project.json'),
+        JSON.stringify({ projectName, ...input.projectJson }),
+        'utf-8',
+    );
     await fs.writeFile(
         path.join(lumpcodeDir, 'local.json'),
         JSON.stringify(
