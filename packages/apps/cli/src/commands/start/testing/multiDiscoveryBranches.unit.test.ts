@@ -10,6 +10,7 @@ import {
 } from '../../../testing';
 import * as runProjectPreflightModule from '../../../utils/runProjectPreflight';
 import { execGit } from '../../../utils/execGit';
+import { writeJsonFile } from '../../../utils/writeJsonFile';
 import {
     localConfigFolderPath,
     makeStartHandler,
@@ -107,7 +108,10 @@ describe('start command — multi discovery branches', () => {
         await writeMinimalLump(projectRoot, 'mainLine');
         const badLineDir = path.join(projectRoot, '.lumpcode', 'lumps', 'badLine');
         await fs.mkdir(badLineDir, { recursive: true });
-        await fs.writeFile(path.join(badLineDir, 'config.json'), JSON.stringify({ notValid: true }), 'utf-8');
+        await writeJsonFile({
+            filePath: path.join(badLineDir, 'config.json'),
+            data: { notValid: true },
+        });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,

@@ -11,6 +11,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
+import { writeJsonFile } from '../writeJsonFile';
 import { resolveEffectiveDiscoveryBranch } from './main';
 
 function createLogger(): Logger {
@@ -50,11 +51,10 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         initBareRemoteAndCheckout(projectRoot, remoteDir);
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'eff-discovery-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'eff-discovery-test' },
+        });
     });
 
     afterEach(async () => {
@@ -81,6 +81,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -109,6 +110,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -136,6 +138,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -163,6 +166,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -191,6 +195,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });
@@ -211,7 +216,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
             discoveryBranchOpt: 'feature/a',
             lumpName: 'sharedLump',
             localConfigFolderPath,
-            localConfig: { mode: 'shared', primaryBranch: 'main' },
+            localConfig: { mode: 'shared', primaryBranch: 'main', workspaceStrategy: 'checkout' },
             logger,
             warnSharedDiscoveryBranchIgnored: true,
         });
@@ -241,6 +246,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'feature/*'],
+                workspaceStrategy: 'checkout',
             },
             logger: createLogger(),
         });

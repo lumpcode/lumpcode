@@ -14,6 +14,7 @@ import { pollUntil } from '../../utils/pollUntil';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
 import { execGit } from '../../utils/execGit';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 const minimalLumpConfigJson = `{
   "baseBranch": "main",
   "contextListJson": {
@@ -42,22 +43,14 @@ describe('stop command', () => {
         execGit('config user.name "Test"', projectRoot);
         execGit('commit --allow-empty -m "init"', projectRoot);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
             minimalLumpConfigJson,
             'utf-8',
         );
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
     });
     afterEach(async () => {
         await fs.rm(projectRoot, { recursive: true, force: true });
@@ -134,32 +127,32 @@ describe('stop command', () => {
         const metaPath = () => metaFilePathFromPidFilePath(pidPath());
 
         async function writeBusyMeta(overrides: Record<string, unknown> = {}) {
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     busy: true,
                     ...overrides,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
         }
 
         async function writeInFlightMeta(
             inFlightLumpCount: number,
             overrides: Record<string, unknown> = {},
         ) {
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount,
                     ...overrides,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
         }
 
         async function readDaemonPid(): Promise<number> {
@@ -203,15 +196,15 @@ describe('stop command', () => {
 
             await fs.mkdir(path.dirname(pidPath()), { recursive: true });
             await fs.writeFile(pidPath(), `${pid}\n`, 'utf8');
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount: 0,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
 
             for (const fixturePid of childPids) {
                 activeFixturePids.add(fixturePid);
@@ -437,29 +430,29 @@ describe('stop command', () => {
             inFlightLumpCount: number,
             overrides: Record<string, unknown> = {},
         ) {
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount,
                     ...overrides,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
         }
 
         async function writeBusyMeta(overrides: Record<string, unknown> = {}) {
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     busy: true,
                     ...overrides,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
         }
 
         async function readDaemonPid(): Promise<number> {
@@ -513,15 +506,15 @@ describe('stop command', () => {
 
             await fs.mkdir(path.dirname(pidPath()), { recursive: true });
             await fs.writeFile(pidPath(), `${pid}\n`, 'utf8');
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount: 0,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
 
             for (const fixturePid of childPids) {
                 activeFixturePids.add(fixturePid);
@@ -580,11 +573,10 @@ describe('stop command', () => {
 
         it('ST4/K1: per-lump mid-run stop refuses with daemonBusy', async () => {
             const lumpProjectName = 'stop-mid-run-lump-project';
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'project.json'),
-                JSON.stringify({ projectName: lumpProjectName }),
-                'utf-8',
-            );
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: { projectName: lumpProjectName },
+            });
 
             const lumpPidPath = path.join(
                 globalConfigFolderPath,
@@ -607,16 +599,16 @@ describe('stop command', () => {
             await waitForDaemonPidFile(lumpPidPath);
 
             const lumpPid = Number.parseInt((await fs.readFile(lumpPidPath, 'utf8')).trim(), 10);
-            await fs.writeFile(
-                lumpMetaPath,
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: lumpMetaPath,
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     lumpName: 'alpha',
                     inFlightLumpCount: 1,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
 
             const result = await makeStopHandler()({
                 options: { lumpName: 'alpha', json: true },

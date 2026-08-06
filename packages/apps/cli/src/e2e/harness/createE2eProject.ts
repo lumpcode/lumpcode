@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { LocalConfig } from '../../types/LocalConfig';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 import {
     createE2eAgentCommandModule,
     createE2eMockAgentScript,
@@ -119,20 +120,20 @@ export async function createE2eProject(input: {
     }
     const lumpcodeDir = path.join(projectRoot, '.lumpcode');
     await fs.mkdir(path.join(lumpcodeDir, 'lumps'), { recursive: true });
-    await fs.writeFile(
-        path.join(lumpcodeDir, 'project.json'),
-        JSON.stringify({ projectName, ...input.projectJson }),
-        'utf-8',
-    );
-    await fs.writeFile(
-        path.join(lumpcodeDir, 'local.json'),
-        JSON.stringify(
-            { mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
-            null,
-            2,
-        ),
-        'utf-8',
-    );
+    await writeJsonFile({
+        filePath: path.join(lumpcodeDir, 'project.json'),
+        data: { projectName, ...input.projectJson },
+    });
+    await writeJsonFile({
+        filePath: path.join(lumpcodeDir, 'local.json'),
+        data: {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            workspaceStrategy: 'checkout',
+            ...input.localJson,
+        },
+        pretty: true,
+    });
 
     const agentLumps = input.lumps
         .filter((l) => l.useE2eAgent !== false && !l.usePathAgent && !l.e2eCommandModule)
@@ -186,7 +187,7 @@ export async function createE2eProject(input: {
                 await fs.writeFile(path.join(lumpDir, 'config.js'), config.body, 'utf-8');
                 break;
             case 'json':
-                await fs.writeFile(path.join(lumpDir, 'config.json'), JSON.stringify(config.body, null, 2), 'utf-8');
+                await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: config.body, pretty: true });
                 break;
             default: {
                 const _exhaustive: never = config;
@@ -302,18 +303,14 @@ export async function writeE2eLumpFixture(input: {
     const commandsDir = path.join(projectRoot, '.lumpcode', 'commands');
     await fs.mkdir(lumpDir, { recursive: true });
     await fs.mkdir(commandsDir, { recursive: true });
-    await fs.writeFile(
-        path.join(lumpDir, 'config.json'),
-        JSON.stringify(
-            {
-                ...defaultE2eLumpConfigJson({ command: commandName }),
-                ...configOverrides,
-            },
-            null,
-            2,
-        ),
-        'utf-8',
-    );
+    await writeJsonFile({
+        filePath: path.join(lumpDir, 'config.json'),
+        data: {
+            ...defaultE2eLumpConfigJson({ command: commandName }),
+            ...configOverrides,
+        },
+        pretty: true,
+    });
     await fs.writeFile(
         path.join(lumpDir, E2E_MOCK_AGENT_SCRIPT_BASENAME),
         createE2eMockAgentScript({ lumpName }),

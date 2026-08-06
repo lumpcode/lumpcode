@@ -1,9 +1,8 @@
-import fs from "node:fs/promises";
-
 import { failure, success } from "@lumpcode/core";
 
 import { buildContextStatusRecord } from "../buildContextStatusRecord";
 import { contextStatusRecordPath } from "../contextStatusRecordPath";
+import { writeJsonFile } from "../writeJsonFile";
 
 export async function updateContextStatusRecord(input: {
     projectRoot: string;
@@ -21,16 +20,11 @@ export async function updateContextStatusRecord(input: {
     if (!nextContextStatusRecordResult.success) return failure(nextContextStatusRecordResult.data);
 
     const nextContextStatusRecord = nextContextStatusRecordResult.data;
-
-    try {
-        await fs.writeFile(
-            contextStatusRecordPath({ projectRoot, lumpName }),
-            JSON.stringify(nextContextStatusRecord, null, 2),
-            { encoding: 'utf-8' }
-        );    
-    } catch (error) {
+    const filePath = contextStatusRecordPath({ projectRoot, lumpName });
+    const writeResult = await writeJsonFile({ filePath, data: nextContextStatusRecord, pretty: 2 });
+    if (!writeResult.success) {
         return failure({
-            message: `Failed to update context status record file: ${error}`,
+            message: `Failed to update context status record file: ${writeResult.data}`,
         });
     }
 

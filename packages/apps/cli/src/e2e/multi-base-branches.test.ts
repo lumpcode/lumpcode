@@ -16,6 +16,7 @@ import {
     useE2eProjects,
     writeE2eLumpFixture,
 } from './harness';
+import { writeJsonFile } from '../utils/writeJsonFile';
 
 const releaseLineConfig = {
     discoveryBranch: 'ver/0.0.9',
@@ -134,14 +135,13 @@ describe('E2E multi discovery branches', () => {
         await pushIntegrationBranch(project, 'ver/0.0.9', async (root) => {
             const lumpDir = path.join(root, '.lumpcode', 'lumps', 'sharedName');
             await fs.mkdir(lumpDir, { recursive: true });
-            await fs.writeFile(
-                path.join(lumpDir, 'config.json'),
-                JSON.stringify({
+            await writeJsonFile({
+                filePath: path.join(lumpDir, 'config.json'),
+                data: {
                     ...defaultE2eLumpConfigJson(),
                     discoveryBranch: 'ver/0.0.9',
-                }),
-                'utf-8',
-            );
+                },
+            });
         });
 
         await runForegroundUntilMarkers({

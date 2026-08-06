@@ -29,6 +29,7 @@ import {
     runLumpFromLumpName,
     runLumpQueueWithConcurrency,
     validateDaemonLaunch,
+    writeJsonFile,
     type LumpNameFilter,
 } from '../../utils';
 import { RESERVED_DAEMON_ID } from '../../utils/daemonFileBaseName';
@@ -131,7 +132,8 @@ async function writeDaemonArtifacts(input: {
     await fs.mkdir(daemonsDir, { recursive: true });
     try {
         await fs.writeFile(pidFilePath, String(process.pid), 'utf8');
-        await fs.writeFile(metaFilePath, `${JSON.stringify(metaPayload)}\n`, 'utf8');
+        const metaWrite = await writeJsonFile({ filePath: metaFilePath, data: metaPayload, trailingNewline: true });
+        if (!metaWrite.success) throw new Error(metaWrite.data);
     } catch (e) {
         await fs.unlink(pidFilePath).catch(() => {});
         const msg = e instanceof Error ? e.message : String(e);
@@ -198,7 +200,12 @@ function createInFlightMetaUpdater(
                       ? { exclude: baseMeta.exclude }
                       : {}),
             };
-            await fs.writeFile(metaFilePath, `${JSON.stringify(payload)}\n`, 'utf8');
+            const writeResult = await writeJsonFile({
+                filePath: metaFilePath,
+                data: payload,
+                trailingNewline: true,
+            });
+            if (!writeResult.success) throw new Error(writeResult.data);
         };
         const next = chain.then(run, run);
         chain = next.then(

@@ -13,6 +13,7 @@ import {
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
 import { execGit } from '../../utils/execGit';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 
 const minimalLumpConfigJson = `{
@@ -45,22 +46,14 @@ describe('restart command', () => {
         execGit('config user.name "Test"', projectRoot);
         execGit('commit --allow-empty -m "init"', projectRoot);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
             minimalLumpConfigJson,
             'utf-8',
         );
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
     });
 
     afterEach(async () => {
@@ -204,15 +197,15 @@ describe('restart command', () => {
         const pid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
         expect(Number.isNaN(pid)).toBe(false);
 
-        await fs.writeFile(
-            metaPath(),
-            `${JSON.stringify({
+        await writeJsonFile({
+            filePath: metaPath(),
+            data: {
                 cronSetup: '*/5 * * * *',
                 workspaceStrategy: 'checkout',
                 inFlightLumpCount: 2,
-            })}\n`,
-            'utf8',
-        );
+            },
+            trailingNewline: true,
+        });
 
         const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
         const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });

@@ -1,5 +1,3 @@
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as readline from 'node:readline/promises';
 import { stdin, stdout } from 'node:process';
 import * as z from 'zod';
@@ -12,6 +10,7 @@ const NON_INTERACTIVE_ERROR =
 import { failure, success } from '@lumpcode/core';
 
 import { readJsonFile } from '../../utils/readJsonFile';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 import { env } from '../../env';
 import { AUTH_FILE_PATH } from '../../consts';
@@ -111,11 +110,8 @@ async function saveAuthData(
     authData: AuthData,
     authFilePath: string = AUTH_FILE_PATH
 ): Promise<void> {
-    const authDir = path.dirname(authFilePath);
-    await fs.mkdir(authDir, { recursive: true });
-    await fs.writeFile(authFilePath, JSON.stringify(authData, null, 2), {
-        mode: 0o600, // Read/write only for owner
-    });
+    const writeResult = await writeJsonFile({ filePath: authFilePath, data: authData, pretty: true, mkdir: true, mode: 0o600 });
+    if (!writeResult.success) throw new Error(writeResult.data);
 }
 
 async function getAuthData(authFilePath: string = AUTH_FILE_PATH): Promise<AuthData | null> {

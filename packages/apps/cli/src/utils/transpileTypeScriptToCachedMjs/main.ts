@@ -10,6 +10,7 @@ import { failure, Failure, pathExists, success, Success } from '@lumpcode/core';
 
 import { appendMissingGitignoreLines } from '../appendMissingGitignoreLines';
 import { readJsonFile } from '../readJsonFile';
+import { writeJsonFile } from '../writeJsonFile';
 
 const execFileAsync = promisify(execFile);
 
@@ -359,7 +360,8 @@ export async function transpileTypeScriptToCachedMjs(
             outPath,
             dependencyMtimes,
         };
-        await fs.writeFile(paths.metaPath, JSON.stringify(meta), 'utf-8');
+        const metaWrite = await writeJsonFile({ filePath: paths.metaPath, data: meta });
+        if (!metaWrite.success) throw new Error(metaWrite.data);
 
         return success(outPath);
     } catch (error) {

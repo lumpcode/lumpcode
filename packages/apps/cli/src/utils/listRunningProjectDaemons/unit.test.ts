@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { listRunningProjectDaemons } from './main';
+import { writeJsonFile } from '../writeJsonFile';
 
 describe('listRunningProjectDaemons', () => {
     let daemonsDir: string;
@@ -30,15 +31,14 @@ describe('listRunningProjectDaemons', () => {
             String(process.pid),
             'utf8',
         );
-        await fs.writeFile(
-            path.join(daemonsDir, `${projectName}.global.daemon.meta.json`),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(daemonsDir, `${projectName}.global.daemon.meta.json`),
+            data: {
                 daemonId: 'global',
                 cronSetup: '*/5 * * * *',
                 workspaceStrategy: 'worktree',
-            }),
-            'utf8',
-        );
+            },
+        });
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
@@ -55,11 +55,10 @@ describe('listRunningProjectDaemons', () => {
             String(process.pid),
             'utf8',
         );
-        await fs.writeFile(
-            path.join(daemonsDir, `${projectName}.daemon.meta.json`),
-            JSON.stringify({ cronSetup: '*/5 * * * *', workspaceStrategy: 'checkout' }),
-            'utf8',
-        );
+        await writeJsonFile({
+            filePath: path.join(daemonsDir, `${projectName}.daemon.meta.json`),
+            data: { cronSetup: '*/5 * * * *', workspaceStrategy: 'checkout' },
+        });
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');

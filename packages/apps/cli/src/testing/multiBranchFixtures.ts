@@ -6,6 +6,7 @@ import { pathExists } from '@lumpcode/core';
 
 import { appendMissingGitignoreLines } from '../utils/appendMissingGitignoreLines';
 import { execGit } from '../utils/execGit';
+import { writeJsonFile } from '../utils/writeJsonFile';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';
@@ -54,11 +55,7 @@ export async function writeLocalJson(
     const projectRoot = path.dirname(localConfigFolderPath);
     await appendMissingGitignoreLines({ projectRoot, lines: ['.lumpcode/local.json'] });
 
-    await fs.writeFile(
-        path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
-        JSON.stringify(config),
-        'utf-8',
-    );
+    await writeJsonFile({ filePath: path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME), data: config });
 }
 
 /** Writes `.lumpcode/project.json` (F* fixture helper for clean-local-project-json-config). */
@@ -67,11 +64,10 @@ export async function writeProjectJson(
     config: Partial<ProjectJsonConfig> & Pick<ProjectJsonConfig, 'projectName'>,
 ): Promise<void> {
     await fs.mkdir(localConfigFolderPath, { recursive: true });
-    await fs.writeFile(
-        path.join(localConfigFolderPath, PROJECT_JSON_FILE_NAME),
-        JSON.stringify(config),
-        'utf-8',
-    );
+    await writeJsonFile({
+        filePath: path.join(localConfigFolderPath, PROJECT_JSON_FILE_NAME),
+        data: config,
+    });
 }
 
 export async function writeMinimalLump(
@@ -81,11 +77,7 @@ export async function writeMinimalLump(
 ): Promise<void> {
     const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', lumpName);
     await fs.mkdir(lumpDir, { recursive: true });
-    await fs.writeFile(
-        path.join(lumpDir, 'config.json'),
-        JSON.stringify({ ...MINIMAL_RUNNABLE_LUMP_JSON, ...configOverrides }),
-        'utf-8',
-    );
+    await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: { ...MINIMAL_RUNNABLE_LUMP_JSON, ...configOverrides } });
 }
 
 export function gitCurrentBranch(cwd: string): string {
@@ -136,7 +128,7 @@ export async function createIntegrationBranch(input: {
                   : { ...MINIMAL_RUNNABLE_LUMP_JSON };
         const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', spec.name);
         await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(path.join(lumpDir, 'config.json'), JSON.stringify(config), 'utf-8');
+        await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: config });
     }
 
     const pathsToStage = [
@@ -232,11 +224,7 @@ export async function scaffoldMultiBranchProject(input: {
 
     initBareRemoteAndCheckout(projectRoot, remoteDir);
     await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
-    await fs.writeFile(
-        path.join(localConfigFolderPath, 'project.json'),
-        JSON.stringify({ projectName: input.projectName }),
-        'utf-8',
-    );
+    await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: input.projectName } });
     await writeLocalJson(localConfigFolderPath, input.localConfig);
 
     for (const spec of input.mainLumps ?? []) {

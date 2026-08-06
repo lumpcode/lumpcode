@@ -20,6 +20,7 @@ import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpsDirPath } from '../../utils/lumpDirPath';
 import { projectJsonPath } from '../../utils/projectJsonPath';
 import { LOCAL_CONFIG_FILE_NAME } from '../../utils/readLocalConfig';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 const DEFAULT_MODE: Mode = 'shared';
 const DEFAULT_PRIMARY_BRANCH = 'main';
@@ -144,20 +145,20 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = () => async
 
     try {
         await fs.mkdir(lumpcodeDir, { recursive: true });
-        await Promise.all([
+        const [, , projectWrite, localWrite] = await Promise.all([
             fs.mkdir(lumpsDirPath({ localConfigFolderPath: lumpcodeDir })),
             fs.mkdir(path.join(lumpcodeDir, 'commands')),
-            fs.writeFile(
-                projectJsonPath({ localConfigFolderPath: lumpcodeDir }),
-                `${JSON.stringify(projectConfig, null, 2)}\n`,
-                'utf-8',
-            ),
-            fs.writeFile(
-                path.join(lumpcodeDir, LOCAL_CONFIG_FILE_NAME),
-                `${JSON.stringify(localConfig, null, 2)}\n`,
-                'utf-8',
-            ),
+            writeJsonFile({
+                filePath: projectJsonPath({ localConfigFolderPath: lumpcodeDir }),
+                data: projectConfig, pretty: true, trailingNewline: true,
+            }),
+            writeJsonFile({
+                filePath: path.join(lumpcodeDir, LOCAL_CONFIG_FILE_NAME),
+                data: localConfig, pretty: true, trailingNewline: true,
+            }),
         ]);
+        if (!projectWrite.success) throw new Error(projectWrite.data);
+        if (!localWrite.success) throw new Error(localWrite.data);
     }
     catch (error) {
         return failure({

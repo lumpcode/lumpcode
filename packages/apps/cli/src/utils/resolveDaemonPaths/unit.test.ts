@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { resolveDaemonPaths } from './main';
+import { writeJsonFile } from '../writeJsonFile';
 
 describe('resolveDaemonPaths', () => {
     let base: string;
@@ -18,11 +19,7 @@ describe('resolveDaemonPaths', () => {
         globalConfigFolderPath = path.join(base, 'global');
         await fs.mkdir(localConfigFolderPath, { recursive: true });
         await fs.mkdir(globalConfigFolderPath, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'demo_proj' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'demo_proj' } });
     });
 
     afterEach(async () => {

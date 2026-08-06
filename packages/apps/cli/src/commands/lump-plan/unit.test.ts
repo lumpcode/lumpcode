@@ -14,6 +14,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { execGit } from '../../utils/execGit';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 const LUMP_CONFIG_JS = `export default {
   getContextListFn: () => [{ name: 'alpha', variables: {} }],
@@ -35,16 +36,8 @@ describe('lump-plan command', () => {
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'my-lump'), { recursive: true });
         await fs.mkdir(globalConfigFolderPath, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'plan-cmd-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'plan-cmd-test' } });
 
         execGit('init -b main', projectRoot);
         execGit('config user.email "test@test.com"', projectRoot);
@@ -126,15 +119,14 @@ describe('lump-plan command', () => {
     });
 
     it('fails allowlist validation for unlisted discoveryBranch (dedicated)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: {
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main'],
-            }),
-            'utf-8',
-        );
+            },
+        });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),
             `export default {
@@ -158,15 +150,14 @@ describe('lump-plan command', () => {
     });
 
     it('succeeds in shared mode when discoveryBranch is unlisted (no allowlist)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: {
                 mode: 'shared',
                 primaryBranch: 'main',
                 primaryBranches: ['main'],
-            }),
-            'utf-8',
-        );
+            },
+        });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),
             `export default {
@@ -215,11 +206,10 @@ describe('lump-plan command — dynamic-discovery-branch (F*)', () => {
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.mkdir(globalConfigFolderPath, { recursive: true });
         initBareRemoteAndCheckout(projectRoot, remoteDir);
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'plan-ddb-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'plan-ddb-test' },
+        });
     });
 
     afterEach(async () => {

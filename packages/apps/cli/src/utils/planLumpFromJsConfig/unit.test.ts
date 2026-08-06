@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing/tsLumpFixtures';
 import { planLumpFromJsConfig } from './main';
 import { execGit } from '../execGit';
+import { writeJsonFile } from '../writeJsonFile';
 
 const FIXTURES_GLOBAL = path.resolve(__dirname, '../jsConfigToRunLumpInput/__fixtures__/global-config');
 
@@ -30,16 +31,8 @@ describe('planLumpFromJsConfig', () => {
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         globalConfigFolderPath = FIXTURES_GLOBAL;
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'preview-lump'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'preview-project' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'preview-project' } });
 
         execGit('init -b main', projectRoot);
         execGit('config user.email "test@test.com"', projectRoot);
@@ -153,15 +146,14 @@ describe('planLumpFromJsConfig', () => {
     });
 
     it('fails with allowlist message when discoveryBranch is unlisted (dedicated)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: {
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'ver/0.0.9'],
-            }),
-            'utf-8',
-        );
+            },
+        });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
             `export default {
@@ -188,15 +180,14 @@ describe('planLumpFromJsConfig', () => {
     });
 
     it('succeeds plan preview when discoveryBranch is listed (no pre-flight)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: {
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'ver/0.0.9'],
-            }),
-            'utf-8',
-        );
+            },
+        });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
             `export default {
@@ -244,14 +235,13 @@ describe('planLumpFromJsConfig', () => {
                 'applyLumpConfigDefaults',
             );
 
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'project.json'),
-                JSON.stringify({
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
                     projectName: 'preview-project',
                     command: 'cursor',
-                }),
-                'utf-8',
-            );
+                },
+            });
             await fs.writeFile(
                 path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
                 `export default {
@@ -302,14 +292,13 @@ describe('planLumpFromJsConfig', () => {
                 makeOpen('ctx-a');
                 makeOpen('ctx-b');
 
-                await fs.writeFile(
-                    path.join(localConfigFolderPath, 'project.json'),
-                    JSON.stringify({
+                await writeJsonFile({
+                    filePath: path.join(localConfigFolderPath, 'project.json'),
+                    data: {
                         projectName: 'preview-project',
                         maximumNumberOfConcurrentBranches: 2,
-                    }),
-                    'utf-8',
-                );
+                    },
+                });
 
                 const result = await planLumpFromJsConfig({
                     lumpName: 'preview-lump',
