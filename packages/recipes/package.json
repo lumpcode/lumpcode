@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/recipes",
-  "version": "0.0.19",
+  "version": "0.1.0",
   "description": "Lumpcode lump recipes and kit helpers",
   "keywords": [
     "lumpcode",
@@ -44,8 +44,8 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "@lumpcode/cli-utils": "^0.0.16",
-    "@lumpcode/core": "^0.0.16",
+    "@lumpcode/cli-utils": "^0.1.0",
+    "@lumpcode/core": "^0.1.0",
     "js-yaml": "^5.0.0"
   },
   "devDependencies": {
