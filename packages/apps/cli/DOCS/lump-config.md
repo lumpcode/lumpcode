@@ -45,7 +45,9 @@ Minimal shape:
 }
 ```
 
-The base branch comes from **`.lumpcode/local.json`** (`primaryBranch` or the first entry of `primaryBranches`) by default — set `baseBranch` here only when this specific lump should run against a different branch. Workspace setup (in-place vs. on a copy) is also per machine, configured in `.lumpcode/local.json.mode` — see [local-config.md](./local-config.md).
+The base branch comes from the merged **project/local** primary (`primaryBranch` or the first entry of `primaryBranches`) by default — set `baseBranch` here only when this specific lump should run against a different branch. Workspace setup (in-place vs. on a copy) is per machine (`local.json.mode`) — see [local-config.md](./local-config.md).
+
+Top-level **`command`**, **`maximumNumberOfConcurrentBranches`**, **`keepHistory`**, and **`verbose`** may be omitted here and inherited from `project.json` / `local.json` (lump > local > project; `verbose` is local-only). See [project-config.md § Merge and lump defaults](./project-config.md#merge-and-lump-defaults).
 
 Everything else (`command` at top level when using shorthand strings, hooks, etc.) is optional — see [Optional top-level fields](#optional-top-level-fields).
 

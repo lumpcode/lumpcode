@@ -9,7 +9,9 @@ import { execGit } from '../utils/execGit';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';
+import type { ProjectJsonConfig } from '../types/ProjectJsonConfig';
 import { LOCAL_CONFIG_FILE_NAME } from '../utils/readLocalConfig';
+import { PROJECT_JSON_FILE_NAME } from '../utils/readProjectJson';
 
 export const MINIMAL_RUNNABLE_LUMP_JSON = {
     contextListJson: { NAME: 'README' },
@@ -54,6 +56,19 @@ export async function writeLocalJson(
 
     await fs.writeFile(
         path.join(localConfigFolderPath, LOCAL_CONFIG_FILE_NAME),
+        JSON.stringify(config),
+        'utf-8',
+    );
+}
+
+/** Writes `.lumpcode/project.json` (F* fixture helper for clean-local-project-json-config). */
+export async function writeProjectJson(
+    localConfigFolderPath: string,
+    config: Partial<ProjectJsonConfig> & Pick<ProjectJsonConfig, 'projectName'>,
+): Promise<void> {
+    await fs.mkdir(localConfigFolderPath, { recursive: true });
+    await fs.writeFile(
+        path.join(localConfigFolderPath, PROJECT_JSON_FILE_NAME),
         JSON.stringify(config),
         'utf-8',
     );

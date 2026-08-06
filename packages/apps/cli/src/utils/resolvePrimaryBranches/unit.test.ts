@@ -131,3 +131,33 @@ describe('resolvePrimaryBranches first-exact primary (dynamic-discovery-branch P
         expect(warn).toHaveBeenCalledOnce();
     });
 });
+
+/**
+ * clean-local-project-json-config R* — feed merged primary fields (ResolvedProjectLocalConfig Pick).
+ * Skipped until helper input type is documented as merged T; behavior already matches.
+ */
+describe('resolvePrimaryBranches from merged T (clean-local-project-json-config R*)', () => {
+    it('R1: merged singular primaryBranch', () => {
+        const merged = { mode: 'dedicated' as const, primaryBranch: 'dev' };
+        expect(resolvePrimaryBranches(merged)).toEqual(['dev']);
+        expect(resolvePrimaryBranch(merged)).toBe('dev');
+    });
+
+    it('R2: merged non-empty primaryBranches wins over singular', () => {
+        const merged = {
+            mode: 'dedicated' as const,
+            primaryBranch: 'develop',
+            primaryBranches: ['main', 'ver/0.0.9'],
+        };
+        expect(resolvePrimaryBranches(merged)).toEqual(['main', 'ver/0.0.9']);
+    });
+
+    it('R3: merged projectBaseBranch only warns once', () => {
+        const merged = { mode: 'dedicated' as const, projectBaseBranch: 'legacy' };
+        const warn = vi.fn();
+        expect(resolvePrimaryBranch(merged, { warn })).toBe('legacy');
+        resolvePrimaryBranch(merged, { warn });
+        expect(warn).toHaveBeenCalledOnce();
+        expect(warn.mock.calls[0]![0]).toMatch(/projectBaseBranch.*deprecated/i);
+    });
+});

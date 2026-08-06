@@ -3,8 +3,7 @@ import { failure, type Failure, success, type Success } from '@lumpcode/core';
 import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
-import { getProjectName } from '../getProjectName';
-import { readLocalConfig } from '../readLocalConfig';
+import { readProjectLocalConfig } from '../readProjectLocalConfig';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 
 export interface ResolveProjectExecutionContextInput {
@@ -21,7 +20,7 @@ export interface ResolveProjectExecutionContextOutput {
 }
 
 /**
- * Resolves execution workspace path and local.json settings without running
+ * Resolves execution workspace path and project/local settings without running
  * destructive pre-flight (no copy creation, fetch, or reset).
  */
 export async function resolveProjectExecutionContext(
@@ -29,22 +28,16 @@ export async function resolveProjectExecutionContext(
 ): Promise<Success<ResolveProjectExecutionContextOutput> | Failure<string>> {
     const { sourceProjectRoot, localConfigFolderPath, globalConfigFolderPath } = input;
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return localConfigResult;
-    const { mode, workspaceStrategy = 'checkout' } = localConfigResult.data;
-    const projectBaseBranch = resolvePrimaryBranch(localConfigResult.data);
-
-    const projectNameResult = await getProjectName({
-        localConfigFolderPath,
-        projectRoot: sourceProjectRoot,
-    });
-    if (!projectNameResult.success) return projectNameResult;
+    const resolvedResult = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!resolvedResult.success) return resolvedResult;
+    const { mode, workspaceStrategy, projectName } = resolvedResult.data;
+    const projectBaseBranch = resolvePrimaryBranch(resolvedResult.data);
 
     const executionWorkspacePath = getExecutionWorkspacePath({
         mode,
         sourceProjectRoot,
         globalConfigFolderPath,
-        projectName: projectNameResult.data,
+        projectName,
     });
 
     return success({

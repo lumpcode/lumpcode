@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "projectConfig.schema.json",
+  "title": "Lumpcode project configuration",
+  "description": "Schema for committed `.lumpcode/project.json`. Holds projectName plus optional shared team defaults (primary branch, default agent command, open-branch cap, keepHistory). Local.json overrides shared keys on this machine. See DOCS/project-config.md.",
+  "type": "object",
+  "required": ["projectName"],
+  "additionalProperties": false,
+  "properties": {
+    "projectName": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Project identity for daemon filenames and ~/.lumpcode/project-copies/<projectName>/. Letters, digits, underscore, and hyphen only."
+    },
+    "primaryBranch": {
+      "type": "string",
+      "description": "Team default primary integration branch. Optional when local.json supplies a primary source; after merge, a primary source is required. Local wins when both set."
+    },
+    "primaryBranches": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true,
+      "description": "Team default ordered primary-branch list for dedicated daemons. Local wins when both set.",
+      "examples": [["main"], ["dev", "feature/*"]]
+    },
+    "projectBaseBranch": {
+      "type": "string",
+      "description": "Deprecated alias for primaryBranch. Prefer primaryBranch or primaryBranches."
+    },
+    "command": {
+      "type": "string",
+      "description": "Default lump `command` tag when a lump omits top-level command. Registered-tag shape only (not a .ts/.js file path). Overridden by local.json or the lump."
+    },
+    "maximumNumberOfConcurrentBranches": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Default cap on simultaneously open `lump/<lumpName>/*` branches when the lump omits the field. Overridden by local.json or the lump."
+    },
+    "keepHistory": {
+      "type": "boolean",
+      "description": "Default for lump `keepHistory` when the lump omits it. Overridden by local.json or the lump."
+    }
+  }
+}

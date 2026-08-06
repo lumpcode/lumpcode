@@ -2,21 +2,21 @@ import { failure, type Failure, success, type Success, type Logger } from '@lump
 
 import type { LumpJsConfig } from '../../types';
 import type { LocalConfig } from '../../types/LocalConfig';
+import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
+import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
+import { coerceResolvedProjectLocalConfig } from '../coerceResolvedProjectLocalConfig';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { preflightDiscoveryBranchWithLock } from '../preflightDiscoveryBranchWithLock';
-import { readLocalConfig } from '../readLocalConfig';
 import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
 import {
+    runLumpFromJsConfig,
     toRunLumpMessageFailure,
     workspacePathBusyFailure,
     type RunLumpFromJsConfigFailure,
-} from '../runLumpFromJsConfig/failures';
-import {
-    runLumpFromJsConfig,
     type RunLumpFromJsConfigSuccess,
-} from '../runLumpFromJsConfig/main';
+} from '../runLumpFromJsConfig';
 import { isWorkspacePathBusyError } from '../workspacePathLock';
 import type { WorkspaceLockMode } from '../workspaceFileLock';
 
@@ -41,7 +41,7 @@ export async function runLumpFromLumpName(input: {
     lockMode?: WorkspaceLockMode;
     projectName?: string;
     logger: Logger;
-    localConfig?: LocalConfig;
+    localConfig?: LocalConfig | ResolvedProjectLocalConfig;
     /** Pre-resolved discovery branch (dedicated). When omitted, resolved from lump config. */
     effectiveDiscoveryBranch?: string;
     /** Raw CLI `--discoveryBranch` for shared-mode warn-and-ignore. */
@@ -64,18 +64,16 @@ export async function runLumpFromLumpName(input: {
     } = input;
     const signal = providedSignal ?? new AbortController().signal;
 
-    let localConfig: LocalConfig;
-    if (providedLocalConfig) {
-        localConfig = providedLocalConfig;
-    } else {
-        const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-        if (!localConfigResult.success) {
-            return failure(toRunLumpMessageFailure(localConfigResult.data));
-        }
-        localConfig = localConfigResult.data;
+    const resolvedResult = await coerceResolvedProjectLocalConfig({
+        localConfigFolderPath,
+        localConfig: providedLocalConfig,
+    });
+    if (!resolvedResult.success) {
+        return failure(toRunLumpMessageFailure(resolvedResult.data));
     }
-
-    const workspaceStrategy = localConfig.workspaceStrategy ?? 'checkout';
+    const resolved = resolvedResult.data;
+    const localConfig = resolved;
+    const workspaceStrategy = localConfig.workspaceStrategy;
 
     if (discoveryBranchOpt?.trim() && localConfig.mode === 'shared') {
         logger.info(
@@ -89,7 +87,12 @@ export async function runLumpFromLumpName(input: {
             return failure(toRunLumpMessageFailure(jsConfResult.data));
         }
 
-        const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
+        const jsConfig = applyLumpConfigDefaults({
+            jsConfig: jsConfResult.data,
+            resolved,
+        });
+
+        const disabledResult = await resolveLumpDisabled(jsConfig.disabled, {
             importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
         });
         if (!disabledResult.success) {
@@ -104,7 +107,7 @@ export async function runLumpFromLumpName(input: {
         }
 
         return runLumpFromJsConfig({
-            jsConfig: jsConfResult.data,
+            jsConfig,
             lumpName,
             localConfigFolderPath,
             globalConfigFolderPath,
@@ -152,17 +155,22 @@ export async function runLumpFromLumpName(input: {
                 return failure(jsConfResult.data);
             }
 
-            const disabledResult = await resolveLumpDisabled(jsConfResult.data.disabled, {
+            const jsConfig = applyLumpConfigDefaults({
+                jsConfig: jsConfResult.data,
+                resolved,
+            });
+
+            const disabledResult = await resolveLumpDisabled(jsConfig.disabled, {
                 importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
             });
             if (!disabledResult.success) {
                 return failure(disabledResult.data);
             }
             if (disabledResult.data.disabled) {
-                return success({ jsConfig: jsConfResult.data, disabled: true });
+                return success({ jsConfig, disabled: true });
             }
 
-            return success({ jsConfig: jsConfResult.data, disabled: false });
+            return success({ jsConfig, disabled: false });
         },
     });
 

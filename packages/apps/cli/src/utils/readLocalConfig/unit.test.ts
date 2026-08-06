@@ -59,16 +59,121 @@ describe('readLocalConfig', () => {
         expect(result.data).toContain('mode');
     });
 
-    it('fails when primaryBranch is missing and primaryBranches is absent', async () => {
-        await fs.writeFile(
-            path.join(dir, LOCAL_CONFIG_FILE_NAME),
-            JSON.stringify({ mode: 'shared' }),
-            'utf-8',
-        );
-        const result = await readLocalConfig({ localConfigFolderPath: dir });
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data).toMatch(/primaryBranch|primaryBranches/i);
+    /**
+     * clean-local-project-json-config L*.
+     * L1/L8: mode-only succeeds (primary validated on merge, not per-file).
+     * workspaceStrategy default is asserted on merge (M5); here we only require mode-only success.
+     */
+    describe('readLocalConfig (clean-local-project-json-config L*)', () => {
+        it('L1/L8: mode-only succeeds without primary', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({ mode: 'shared' }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.mode).toBe('shared');
+        });
+
+        it('L2: accepts lump-default fields', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    command: 'cursor',
+                    maximumNumberOfConcurrentBranches: 2,
+                    keepHistory: true,
+                    verbose: true,
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.command).toBe('cursor');
+            expect(result.data.maximumNumberOfConcurrentBranches).toBe(2);
+            expect(result.data.keepHistory).toBe(true);
+            expect(result.data.verbose).toBe(true);
+        });
+
+        it('L3: rejects projectName', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({ mode: 'shared', projectName: 'x', primaryBranch: 'main' }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toContain('projectName');
+        });
+
+        it('L4: rejects unknown key', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({ mode: 'shared', primaryBranch: 'main', extra: true }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/extra|unrecognized|unknown|strict/i);
+        });
+
+        it('L5: path-shaped command fails', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({ mode: 'shared', primaryBranch: 'main', command: 'foo.js' }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/command|\.js|path/i);
+        });
+
+        it('L6: tag command succeeds', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({ mode: 'shared', primaryBranch: 'main', command: 'copilot' }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.command).toBe('copilot');
+        });
+
+        it('L9: invalid verbose type', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({ mode: 'shared', primaryBranch: 'main', verbose: 'yes' }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toContain('verbose');
+        });
+
+        it('accepts whitespace command string that is not path-shaped', async () => {
+            await fs.writeFile(
+                path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                JSON.stringify({
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                    command: 'use cursor.js carefully',
+                }),
+                'utf-8',
+            );
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.command).toBe('use cursor.js carefully');
+        });
     });
 
     it('accepts valid primaryBranches', async () => {

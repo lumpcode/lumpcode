@@ -36,6 +36,11 @@ describe('lump-status command', () => {
         await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.writeFile(
+            path.join(localConfigFolderPath, 'project.json'),
+            JSON.stringify({ projectName: 'status-project' }),
+            'utf-8',
+        );
+        await fs.writeFile(
             path.join(localConfigFolderPath, 'local.json'),
             JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
             'utf-8',
@@ -311,4 +316,42 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages.join(' ')).toMatch(/concrete|pattern|discoveryBranch/i);
     }, 60_000);
+
+    /**
+     * clean-local-project-json-config W3 — skipped until status path applies lump defaults.
+     */
+    describe('lump defaults on status path (clean-local-project-json-config W3)', () => {
+        it('W3: applyLumpConfigDefaults called; local verbose inherited when lump omits', async () => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'project.json'),
+                JSON.stringify({ projectName: 'status-project' }),
+                'utf-8',
+            );
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'local.json'),
+                JSON.stringify({ mode: 'shared', primaryBranch: 'main', verbose: true }),
+                'utf-8',
+            );
+            await writeMinimalLump(projectRoot, 'alpha');
+            // Lump without verbose
+            const lumpPath = path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json');
+            const lump = JSON.parse(await fs.readFile(lumpPath, 'utf-8')) as Record<string, unknown>;
+            delete lump.verbose;
+            await fs.writeFile(lumpPath, JSON.stringify(lump), 'utf-8');
+
+            const applySpy = vi.spyOn(
+                await import('../../utils/applyLumpConfigDefaults'),
+                'applyLumpConfigDefaults',
+            );
+            try {
+                const result = await makeHandler()({ options: {}, arguments: {} });
+                expect(result.success).toBe(true);
+                expect(applySpy).toHaveBeenCalled();
+                const call = applySpy.mock.calls[0]?.[0];
+                expect(call?.resolved.verbose).toBe(true);
+            } finally {
+                applySpy.mockRestore();
+            }
+        }, 60_000);
+    });
 });

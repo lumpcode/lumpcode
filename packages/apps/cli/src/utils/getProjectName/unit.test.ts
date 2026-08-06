@@ -60,6 +60,47 @@ describe('getProjectName', () => {
         const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
         expect(result.success).toBe(false);
     });
+
+    /**
+     * clean-local-project-json-config N* — skipped until getProjectName routes through readProjectJson.
+     */
+    describe('getProjectName strict membership (clean-local-project-json-config N*)', () => {
+        it('N2: unknown key fails', async () => {
+            await fs.writeFile(
+                path.join(localConfig, 'project.json'),
+                JSON.stringify({ projectName: 'x', foo: 1 }),
+                'utf-8',
+            );
+            const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/foo|unrecognized|unknown|strict/i);
+        });
+
+        it('N3: misplaced mode fails', async () => {
+            await fs.writeFile(
+                path.join(localConfig, 'project.json'),
+                JSON.stringify({ projectName: 'x', mode: 'shared' }),
+                'utf-8',
+            );
+            const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toContain('mode');
+        });
+
+        it('N4: path-shaped command fails', async () => {
+            await fs.writeFile(
+                path.join(localConfig, 'project.json'),
+                JSON.stringify({ projectName: 'x', command: './agent.ts' }),
+                'utf-8',
+            );
+            const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/command|\.ts|path/i);
+        });
+    });
 });
 
 describe('isValidProjectName', () => {

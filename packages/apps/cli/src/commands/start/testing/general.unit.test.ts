@@ -69,6 +69,7 @@ describe('start command', () => {
     });
 
     it('fails on an invalid cron expression before running lumps', async () => {
+        await writeDefaultProjectJson(projectRoot, 'invalid-cron-project');
         await writeDefaultLocalJson(projectRoot);
         await writeMinimalLump(projectRoot, 'alpha');
 
@@ -477,5 +478,59 @@ describe('start command', () => {
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toMatch(/worktree/i);
+    });
+
+    /**
+     * clean-local-project-json-config W4–W5 — skipped until start freezes readProjectLocalConfig.
+     */
+    describe('merged project+local freeze (clean-local-project-json-config W4/W5)', () => {
+        it('W4: readProjectLocalConfig called once at startup; disk mutate after freeze ignored', async () => {
+            await writeDefaultProjectJson(projectRoot, 'freeze-merged-project');
+            await writeDefaultLocalJson(projectRoot);
+            await writeMinimalLump(projectRoot, 'alpha', { disabled: true });
+
+            const readSpy = vi.spyOn(
+                await import('../../../utils/readProjectLocalConfig'),
+                'readProjectLocalConfig',
+            );
+
+            try {
+                const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
+                const result = await handle({
+                    options: { foreground: true, cronSetup: '*/5 * * * *' },
+                    arguments: {},
+                });
+                expect(result.success).toBe(true);
+                expect(readSpy).toHaveBeenCalledTimes(1);
+
+                // Mutate disk after freeze — next start would re-read; same process tick uses freeze.
+                await writeDefaultLocalJson(projectRoot, { disabled: true });
+                expect(readSpy).toHaveBeenCalledTimes(1);
+            } finally {
+                readSpy.mockRestore();
+            }
+        });
+
+        it('W5: missing merged primary fails start', async () => {
+            await fs.writeFile(
+                path.join(projectRoot, '.lumpcode', 'project.json'),
+                JSON.stringify({ projectName: 'no-primary-project' }),
+                'utf-8',
+            );
+            await fs.writeFile(
+                path.join(projectRoot, '.lumpcode', 'local.json'),
+                JSON.stringify({ mode: 'dedicated' }),
+                'utf-8',
+            );
+            await writeMinimalLump(projectRoot, 'alpha');
+
+            const result = await makeStartHandler(deps())({
+                options: { foreground: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages.join(' ')).toMatch(/primaryBranch|primaryBranches|project\.json|local\.json/i);
+        });
     });
 });

@@ -1,0 +1,16 @@
+name: clean-local-project-json-config
+manualReq: true
+task: >-
+  Clean up local.json / project.json ownership and merge. local-only: mode,
+  workspaceStrategy, disabled, maxParallelRun. project-only: projectName. shared
+  (local wins): primaryBranch, primaryBranches, projectBaseBranch — validate
+  primary branch on the merged result (either file may supply it). Lump defaults
+  by layer membership (precedence always lump > local > project where present):
+  command, maximumNumberOfConcurrentBranches, and keepHistory on all three;
+  verbose on local+lump; numberOfContextsPerBranch lump-only. Misplaced keys
+  hard-fail. No new CLI override flags — run and start both consume the same
+  merged project+local surface. Zod schema validates the resolved project+local
+  config; infer type T from it; file shapes reuse T['field'] so shared fields
+  stay type-identical.
+priority: 5
+completedAt: '2026-08-05T19:30:15.216Z'
