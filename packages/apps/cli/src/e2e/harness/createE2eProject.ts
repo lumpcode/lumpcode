@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { LocalConfig } from '../../types/LocalConfig';
-import { writeJsonFile } from '../../utils/writeJsonFile';
+import { initLocalGitRepo, writeJsonFile } from '../../utils';
 import {
     createE2eAgentCommandModule,
     createE2eMockAgentScript,
@@ -106,9 +106,7 @@ export async function createE2eProject(input: {
     const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-home-'));
 
     git('init --bare', remoteDir);
-    git('init -b main', projectRoot);
-    git('config user.email "e2e@t.com"', projectRoot);
-    git('config user.name "E2E"', projectRoot);
+    initLocalGitRepo({ cwd: projectRoot, userEmail: 'e2e@t.com', userName: 'E2E' });
     git('config core.autocrlf false', projectRoot);
     await fs.writeFile(path.join(projectRoot, 'README.md'), '# e2e\n', 'utf-8');
     if (input.extraFiles) {
@@ -229,7 +227,7 @@ export async function createE2eProject(input: {
     }
 
     git('add -A', projectRoot);
-    git('commit -m "init"', projectRoot);
+    git('commit --amend --no-edit', projectRoot);
     git(`remote add origin ${remoteDir}`, projectRoot);
     git('push -u origin main', projectRoot);
 

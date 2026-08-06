@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing/tsLumpFixtures';
 import { planLumpFromJsConfig } from './main';
 import { execGit } from '../execGit';
+import { initLocalGitRepo } from '../initLocalGitRepo';
 import { writeJsonFile } from '../writeJsonFile';
 
 const FIXTURES_GLOBAL = path.resolve(__dirname, '../jsConfigToRunLumpInput/__fixtures__/global-config');
@@ -19,7 +20,6 @@ const LUMP_CONFIG_JS = `export default {
   },
 };
 `;
-
 
 describe('planLumpFromJsConfig', () => {
     let projectRoot: string;
@@ -34,10 +34,7 @@ describe('planLumpFromJsConfig', () => {
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'preview-project' } });
 
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
 
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),

@@ -6,7 +6,7 @@ import { buildContextStatusRecord } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { getGitCommitMessage } from '../getGitCommitMessage';
 import { execGit } from '../execGit';
-
+import { initLocalGitRepo } from '../initLocalGitRepo';
 
 const lumpName = 'myLump';
 
@@ -23,10 +23,7 @@ describe('buildContextStatusRecord', () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-build-bcsr-${dateId}-`));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-build-bcsr-remote-${dateId}-`));
         execGit('init --bare', remoteDir);
-        execGit('init -b main', tmpDir);
-        execGit('config user.email "test@test.com"', tmpDir);
-        execGit('config user.name "Test"', tmpDir);
-        execGit('commit --allow-empty -m "init"', tmpDir);
+        initLocalGitRepo({ cwd: tmpDir });
         execGit(`remote add origin ${remoteDir}`, tmpDir);
         execGit('push -u origin main', tmpDir);
     });

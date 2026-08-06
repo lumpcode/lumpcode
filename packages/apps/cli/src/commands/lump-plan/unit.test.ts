@@ -13,7 +13,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
-import { execGit } from '../../utils/execGit';
+import { execGit, initLocalGitRepo } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 const LUMP_CONFIG_JS = `export default {
@@ -24,7 +24,6 @@ const LUMP_CONFIG_JS = `export default {
   },
 };
 `;
-
 
 describe('lump-plan command', () => {
     let projectRoot: string;
@@ -39,10 +38,7 @@ describe('lump-plan command', () => {
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'plan-cmd-test' } });
 
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
 
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),

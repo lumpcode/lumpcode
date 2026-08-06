@@ -36,6 +36,7 @@ export * from './getGitCommitMessage';
 export * from './getJsConfigFromLumpName';
 export * from './getProjectName';
 export * from './gitCommonDirLock';
+export * from './initLocalGitRepo';
 export * from './isGitRefGlob';
 export * from './isValidLumpName';
 export * from './jsConfigToRunLumpInput';

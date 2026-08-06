@@ -13,8 +13,7 @@ import { metaFilePathFromPidFilePath } from '../../utils/readDaemonMeta';
 import { pollUntil } from '../../utils/pollUntil';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
-import { execGit } from '../../utils/execGit';
-import { writeJsonFile } from '../../utils/writeJsonFile';
+import { initLocalGitRepo, writeJsonFile } from '../../utils';
 const minimalLumpConfigJson = `{
   "baseBranch": "main",
   "contextListJson": {
@@ -38,10 +37,7 @@ describe('stop command', () => {
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-global-'));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
         await fs.writeFile(

@@ -3,18 +3,14 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { command } from './main';
-import { execGit } from '../../utils/execGit';
-
+import { execGit, initLocalGitRepo } from '../../utils';
 
 describe('project-setup command', () => {
     let projectRoot: string;
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-project-setup-'));
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
     });
 
     afterEach(async () => {
@@ -212,10 +208,7 @@ describe('project-setup command', () => {
         const parent = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-project-setup-parent-'));
         const nestedRoot = path.join(parent, 'my silly app');
         await fs.mkdir(nestedRoot, { recursive: true });
-        execGit('init -b main', nestedRoot);
-        execGit('config user.email "test@test.com"', nestedRoot);
-        execGit('config user.name "Test"', nestedRoot);
-        execGit('commit --allow-empty -m "init"', nestedRoot);
+        initLocalGitRepo({ cwd: nestedRoot });
 
         const handle = makeHandler();
         const prev = process.cwd();
