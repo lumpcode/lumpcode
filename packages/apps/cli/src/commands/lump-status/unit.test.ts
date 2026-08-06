@@ -13,9 +13,8 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
-import { execGit } from '../../utils/execGit';
+import { execGit, initLocalGitRepo } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
-
 
 describe('lump-status command', () => {
     let projectRoot: string;
@@ -27,10 +26,7 @@ describe('lump-status command', () => {
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-bare-'));
 
         execGit('init --bare', bareDir);
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         execGit(`remote add origin ${bareDir}`, projectRoot);
         execGit('push -u origin main', projectRoot);
 

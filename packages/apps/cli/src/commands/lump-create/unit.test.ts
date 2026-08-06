@@ -4,18 +4,14 @@ import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { command } from './main';
-import { execGit } from '../../utils/execGit';
-
+import { initLocalGitRepo } from '../../utils/initLocalGitRepo';
 
 describe('lump-create command', () => {
     let projectRoot: string;
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-create-'));
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
     });
 

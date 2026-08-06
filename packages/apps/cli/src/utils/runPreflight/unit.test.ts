@@ -6,14 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { runPreflight } from './main';
 import { execGit } from '../execGit';
-
+import { initLocalGitRepo } from '../initLocalGitRepo';
 
 function initRepoWithRemote(projectRoot: string, remoteDir: string) {
     execGit('init --bare', remoteDir);
-    execGit('init -b main', projectRoot);
-    execGit('config user.email "test@test.com"', projectRoot);
-    execGit('config user.name "Test"', projectRoot);
-    execGit('commit --allow-empty -m "init"', projectRoot);
+    initLocalGitRepo({ cwd: projectRoot });
     execGit(`remote add origin ${remoteDir}`, projectRoot);
     execGit('push -u origin main', projectRoot);
 }

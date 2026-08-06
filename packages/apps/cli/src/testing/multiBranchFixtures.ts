@@ -4,9 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathExists } from '@lumpcode/core';
 
-import { appendMissingGitignoreLines } from '../utils/appendMissingGitignoreLines';
-import { execGit } from '../utils/execGit';
-import { writeJsonFile } from '../utils/writeJsonFile';
+import { appendMissingGitignoreLines, execGit, initLocalGitRepo, writeJsonFile } from '../utils';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';
@@ -27,10 +25,7 @@ export type MultiBranchLumpSpec = {
 
 export function initBareRemoteAndCheckout(projectRoot: string, remoteDir: string): void {
     execGit('init --bare', remoteDir);
-    execGit('init -b main', projectRoot);
-    execGit('config user.email "test@test.com"', projectRoot);
-    execGit('config user.name "Test"', projectRoot);
-    execGit('commit --allow-empty -m "init"', projectRoot);
+    initLocalGitRepo({ cwd: projectRoot });
     execGit(`remote add origin ${remoteDir}`, projectRoot);
     execGit('push -u origin main', projectRoot);
     // Mirror project-setup: keep machine-local config out of integration-branch commits.

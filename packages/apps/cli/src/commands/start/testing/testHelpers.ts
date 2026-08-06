@@ -13,9 +13,7 @@ import {
 } from '../../../testing';
 import { command as stopCommand } from '../../stop/main';
 import { command } from '../main';
-import { execGit } from '../../../utils/execGit';
-import { resolveDaemonPaths } from '../../../utils/resolveDaemonPaths';
-import { writeJsonFile } from '../../../utils/writeJsonFile';
+import { execGit, initLocalGitRepo, resolveDaemonPaths, writeJsonFile } from '../../../utils';
 
 export type StartTestProject = {
     projectRoot: string;
@@ -80,10 +78,7 @@ export async function setupStartTestRepo(options: {
     const globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), `${tmpPrefix}-global-`));
     setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
     execGit('init --bare', remoteDir);
-    execGit('init -b main', projectRoot);
-    execGit('config user.email "test@test.com"', projectRoot);
-    execGit('config user.name "Test"', projectRoot);
-    execGit('commit --allow-empty -m "init"', projectRoot);
+    initLocalGitRepo({ cwd: projectRoot });
     execGit(`remote add origin ${remoteDir}`, projectRoot);
     execGit('push -u origin main', projectRoot);
     await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });

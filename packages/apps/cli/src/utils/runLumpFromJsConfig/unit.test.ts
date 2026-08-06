@@ -17,8 +17,8 @@ import {
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import type { LumpJsConfig } from '../../types';
 import { execGit } from '../execGit';
+import { initLocalGitRepo } from '../initLocalGitRepo';
 import { writeJsonFile } from '../writeJsonFile';
-
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -44,10 +44,7 @@ describe('runLumpFromJsConfig', () => {
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-from-js-test' } });
 
         execGit('init --bare', remoteDir);
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         execGit(`remote add origin ${remoteDir}`, projectRoot);
         execGit('push -u origin main', projectRoot);
 

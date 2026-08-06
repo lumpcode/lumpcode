@@ -9,7 +9,7 @@ import { shellBestEffort } from '../shellBestEffort';
 import { makeLumpWorkspaceFns } from './main';
 import { lumpWorktreePath } from '../getLumpWorktreePath';
 import { execGit } from '../execGit';
-
+import { initLocalGitRepo } from '../initLocalGitRepo';
 
 describe('makeLumpWorkspaceFns', () => {
     const executionWorkspacePath = '/wk';
@@ -159,10 +159,7 @@ describe('makeLumpWorkspaceFns', () => {
             remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-wt-int-remote-'));
 
             execGit('init --bare', remoteDir);
-            execGit('init -b main', gitExecutionWorkspacePath);
-            execGit('config user.email "test@test.com"', gitExecutionWorkspacePath);
-            execGit('config user.name "Test"', gitExecutionWorkspacePath);
-            execGit('commit --allow-empty -m "init"', gitExecutionWorkspacePath);
+            initLocalGitRepo({ cwd: gitExecutionWorkspacePath });
             execGit(`remote add origin ${remoteDir}`, gitExecutionWorkspacePath);
             execGit('push -u origin main', gitExecutionWorkspacePath);
         });
