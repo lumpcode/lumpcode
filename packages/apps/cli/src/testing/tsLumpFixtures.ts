@@ -2,6 +2,8 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
+import { writeJsonFile } from '../utils/writeJsonFile';
+
 export type TsLumpProjectContext = {
     projectRoot: string;
     localConfigFolderPath: string;
@@ -63,16 +65,8 @@ export async function withTsLumpProject(
 
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'ts-fixture-project' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'ts-fixture-project' } });
 
         await fn({
             projectRoot,

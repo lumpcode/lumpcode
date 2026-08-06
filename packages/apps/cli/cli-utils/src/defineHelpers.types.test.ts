@@ -5,7 +5,6 @@ import { describe, it, expectTypeOf } from 'vitest';
 import type {
   BranchFn,
   CommandFn,
-  GetContextListFn,
   GitAddCommandFn,
   GitCommitCommandFn,
   GitCommitMessageFn,
@@ -35,6 +34,7 @@ import {
   defineTeardownFn,
   type CommandModule,
   type ContextMatchFn,
+  type GetContextListFn,
   type LumpJsConfig,
   type LumpJsConfigPostCommandExecFn,
   type LumpJsConfigStep,
@@ -136,6 +136,7 @@ describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
     });
     const getList = defineGetContextListFn<V>((params) => {
       expectTypeOf(params.lumpVariables).toEqualTypeOf<V>();
+      expectTypeOf(params.discoveryBranch).toEqualTypeOf<string>();
       return [];
     });
     const commitMsg = defineGitCommitMessageFn<V>((params) => {
@@ -144,6 +145,7 @@ describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
     });
     const match = defineContextMatchFn<V>((params) => {
       expectTypeOf(params.lumpVariables).toEqualTypeOf<V>();
+      expectTypeOf(params.discoveryBranch).toEqualTypeOf<string>();
       return { contextName: 'c', filePathVariableName: 'F' };
     });
     expectTypeOf(setup).toEqualTypeOf<SetupFn<V>>();
@@ -185,5 +187,20 @@ describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
     });
     expectTypeOf(cfg).toEqualTypeOf<LumpJsConfig<V, SV>>();
     expectTypeOf(cfg).not.toEqualTypeOf<LumpJsConfig>();
+  });
+});
+
+describe('dynamic-discovery-branch author discoveryBranch types (G1t/G2t)', () => {
+  it('G1t/G2t: author GetContextListFn / ContextMatchFn require discoveryBranch', () => {
+    const getList = defineGetContextListFn<V>((params) => {
+      expectTypeOf(params.discoveryBranch).toEqualTypeOf<string>();
+      return [];
+    });
+    const match = defineContextMatchFn<V>((params) => {
+      expectTypeOf(params.discoveryBranch).toEqualTypeOf<string>();
+      return { contextName: 'c', filePathVariableName: 'F' };
+    });
+    expectTypeOf(getList).toEqualTypeOf<GetContextListFn<V>>();
+    expectTypeOf(match).toEqualTypeOf<ContextMatchFn<V>>();
   });
 });

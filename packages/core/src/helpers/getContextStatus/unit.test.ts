@@ -121,4 +121,36 @@ describe('getContextStatus', () => {
         expect(await getContextStatus({ contextName: 'feat', gitCommitMessageFn, projectRoot, baseBranch })).toBe('toDo');
         await rm(remoteDir, { recursive: true });
     });
+
+    it('skipFetch reads existing remote-tracking refs without requiring a successful fetch', async () => {
+        const remoteDir = await mkdtemp(join(tmpdir(), 'ctx-remote-'));
+        await git(remoteDir, 'init --bare');
+        await git(projectRoot, `remote add origin ${remoteDir}`);
+        await git(projectRoot, 'push -u origin main');
+        await git(projectRoot, 'checkout -b feat-branch');
+        await git(projectRoot, `commit --allow-empty -m "${commitMessage}"`);
+        await git(projectRoot, 'push origin feat-branch');
+        // Drop network path so a fetch would fail; skipFetch should still see tracking refs.
+        await git(projectRoot, 'remote set-url origin /nonexistent/remote-path');
+
+        expect(
+            await getContextStatus({
+                contextName,
+                gitCommitMessageFn,
+                projectRoot,
+                baseBranch,
+                skipFetch: true,
+            }),
+        ).toBe('branchPushed');
+        expect(
+            await getContextStatus({
+                contextName,
+                gitCommitMessageFn,
+                projectRoot,
+                baseBranch,
+            }),
+        ).toBe('toDo');
+        await rm(remoteDir, { recursive: true });
+    });
 });
+

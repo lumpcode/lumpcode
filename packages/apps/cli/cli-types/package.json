@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli-types",
-  "version": "0.0.16",
+  "version": "0.1.0",
   "description": "Types and defineX helpers for Lumpcode CLI lump config and command modules",
   "keywords": [
     "lumpcode",
@@ -37,7 +37,7 @@
     "build": "rollup -c"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.0.16"
+    "@lumpcode/core": "^0.1.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.1",

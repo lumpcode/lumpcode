@@ -1,0 +1,7 @@
+name: register-config-command
+manualReq: true
+task: >-
+  Bugfix: ensure the command specified in lump/step `command` is registered
+  (or otherwise resolved) so runs do not fail when that command tag or module
+  was not previously registered.
+priority: 10

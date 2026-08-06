@@ -156,10 +156,16 @@ describe('execBinary (win32 cmd shim)', () => {
 describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
     const activePids = new Set<number>();
     let tmpDir = '';
+    // Under parallel vitest load, Node fixture startup (and E5's nested child) can
+    // exceed a tight timeout before the ready file is written — keep these well
+    // above waitForReadyFile, still far below production defaults.
+    const treeTimeoutMillis = 15_000;
+    const readyWaitMs = 10_000;
 
     beforeEach(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lumpcode-execbinary-kill-'));
     });
+
 
     afterEach(async () => {
         for (const pid of activePids) {
@@ -218,9 +224,7 @@ describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
         const resultPromise = execBinaryObject({
             binaryPath: process.execPath,
             args: [processTreeChildScript],
-            // Generous under parallel vitest load so the fixture can write its ready file
-            // before timeout kill; still far below production defaults.
-            timeoutMillis: 2000,
+            timeoutMillis: treeTimeoutMillis,
             killGraceMs: 0,
             cwd: tmpDir,
             env: {
@@ -230,7 +234,7 @@ describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
             },
         });
 
-        const { pids } = await waitForReadyFile(readyFile);
+        const { pids } = await waitForReadyFile(readyFile, readyWaitMs);
         for (const pid of pids) activePids.add(pid);
 
         const result = await resultPromise;
@@ -238,7 +242,7 @@ describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
         if (!result.success) {
             expect(result.data.reason).toBe('timeout');
             expect(result.data.message).toMatch(/timed out/i);
-            expect(result.data.message).toMatch(/2000/);
+            expect(result.data.message).toMatch(new RegExp(String(treeTimeoutMillis)));
         }
 
         for (const pid of pids) {
@@ -254,7 +258,7 @@ describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
         const resultPromise = execBinaryObject({
             binaryPath: process.execPath,
             args: [processTreeChildScript],
-            timeoutMillis: 2000,
+            timeoutMillis: treeTimeoutMillis,
             killGraceMs: 0,
             cwd: tmpDir,
             env: {
@@ -264,7 +268,7 @@ describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
             },
         });
 
-        const { pids } = await waitForReadyFile(readyFile);
+        const { pids } = await waitForReadyFile(readyFile, readyWaitMs);
         expect(pids.length).toBeGreaterThanOrEqual(2);
         for (const pid of pids) activePids.add(pid);
 

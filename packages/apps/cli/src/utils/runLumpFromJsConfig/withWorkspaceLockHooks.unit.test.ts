@@ -156,7 +156,7 @@ describe('withWorkspaceLockHooks', () => {
         await releaseWorkspaceLockSession(session);
     });
 
-    it('releases execution path lock via afterExec for dedicated worktree', async () => {
+    it('releases execution path lock after setup returns for dedicated worktree', async () => {
         const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
         const branchWorkspacePath = path.join(
             executionWorkspacePath,
@@ -175,7 +175,7 @@ describe('withWorkspaceLockHooks', () => {
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({
             setupWorkspaceFn: async () => ({
-                command: 'echo setup',
+                command: '',
                 workspacePath: branchWorkspacePath,
             }),
             session,
@@ -183,10 +183,11 @@ describe('withWorkspaceLockHooks', () => {
         });
 
         const setup = await wrapped(setupInput);
-        expect(await countLockFiles()).toBe(2);
-
-        await setup.afterExec!({ workspacePath: branchWorkspacePath });
+        expect(setup.command).toBe('');
+        // execution path lock released; branch path lock still held
         expect(await countLockFiles()).toBe(1);
+        expect(session.releaseExecutionPathLock).toBeUndefined();
+        expect(session.releaseBranchPathLock).toBeTypeOf('function');
 
         await releaseWorkspaceLockSession(session);
         expect(await countLockFiles()).toBe(0);

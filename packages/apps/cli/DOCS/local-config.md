@@ -1,32 +1,52 @@
 # Local configuration (`.lumpcode/local.json`)
 
-`.lumpcode/local.json` is a **per-machine**, **gitignored** file that tells Lumpcode where and how to run lumps from the current checkout. **Every command that runs a lump (`run`, `start`) requires it**—Lumpcode hard-fails if it is missing or invalid.
+`.lumpcode/local.json` is a **per-machine**, **gitignored** file. **Every command that runs a lump (`run`, `start`) requires it**—Lumpcode hard-fails if it is missing or invalid.
 
-`lumpcode project-setup` scaffolds the file with safe defaults and appends it to `.gitignore` so it never makes it into commits or shared branches.
+`lumpcode project-setup` scaffolds `{ "mode": "shared" | "dedicated" }` and appends the file to `.gitignore`. Team defaults such as `primaryBranch` and default `command` belong in committed [`.lumpcode/project.json`](project-config.md). Shared keys present in both files resolve with **local wins**.
 
 Legacy keys `discoveryBranch` / `discoveryBranches` are **not** accepted; use `primaryBranch` / `primaryBranches`.
 
 ## Minimal example
 
+After `project-setup` (primary lives on `project.json`):
+
 ```json
 {
-  "mode": "shared",
-  "primaryBranch": "main",
-  "workspaceStrategy": "checkout"
+  "mode": "shared"
 }
 ```
 
-## Fields
+Machine overrides and lump defaults:
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `mode` | `"shared"` \| `"dedicated"` | How Lumpcode treats the current checkout. See [Modes](#modes) below. |
-| `primaryBranch` | string | Singular primary integration branch for this install. Required when `primaryBranches` is omitted. Also the default lump `baseBranch` when a lump omits both `baseBranch` and `discoveryBranch`. Status checks (`finished`) compare against each lump's resolved `baseBranch` (typically this branch). |
-| `primaryBranches` | string[] | Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular `primaryBranch`. The **primary branch** is the first entry (or `primaryBranch` when the array is omitted). See [Multiple primary branches](#multiple-primary-branches-dedicated-daemons). |
-| `workspaceStrategy` | `"checkout"` \| `"worktree"` | How each lump run prepares git inside the [execution workspace](concepts.md#three-workspaces). Default: `"checkout"`. See [Workspace strategies](#workspace-strategies). |
-| `disabled` | boolean | When `true`, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected. |
+```json
+{
+  "mode": "dedicated",
+  "workspaceStrategy": "worktree",
+  "maxParallelRun": 3,
+  "verbose": true,
+  "primaryBranch": "main"
+}
+```
 
-`mode` and either `primaryBranch` or `primaryBranches` are **required**. `workspaceStrategy` and `disabled` are optional (`workspaceStrategy` defaults to `"checkout"` when omitted). Unknown fields are rejected.
+## Field membership
+
+| Field | Required | Notes |
+|-------|----------|--------|
+| `mode` | yes | Local-only |
+| `workspaceStrategy` | no | Local-only; default `checkout` after merge |
+| `disabled` | no | Local-only; pauses the daemon on this machine (not lump `disabled`) |
+| `maxParallelRun` | no | Local-only |
+| `primaryBranch` / `primaryBranches` / `projectBaseBranch` | no on this file alone | Shared with `project.json`; **local wins**; after merge, one primary source is required |
+| `command` | no | Lump default (tag shape only); local > project; lump > both |
+| `maximumNumberOfConcurrentBranches` | no | Lump default; same precedence |
+| `keepHistory` | no | Lump default; same precedence |
+| `verbose` | no | Lump default; **local-only** (not on `project.json`) |
+
+Misplaced keys (for example `projectName`) and unknown keys **hard-fail**. `command` must be a registered tag, not a `.ts`/`.js` file path.
+
+Primary may live only on `project.json`. Missing from both files fails with an error naming both files.
+
+Merge and lump-default overlay are described in [project-config.md](project-config.md#merge-and-lump-defaults). Daemon `start` freezes one merged read for the process (restart to pick up edits).
 
 ## Modes
 
@@ -58,36 +78,32 @@ Each lump run switches the main worktree to a fresh `lump/<lumpName>/…` branch
 
 Each lump run uses a **linked git worktree** under `.lumpcode/worktrees/<branch>/` inside the execution workspace (the project copy in `shared` mode, the checkout in `dedicated`). The main worktree stays on the lump's resolved `baseBranch` while the agent runs inside the worktree (the **branch workspace**). Worktree paths mirror branch segments (e.g. branch `lump/migrate-vue/Button.tsx` → `.lumpcode/worktrees/lump/migrate-vue/Button.tsx`). `project-setup` gitignores `.lumpcode/worktrees/`. `lumpcode clean` removes worktrees when it deletes lump branches.
 
-Pick `worktree` when you want the base branch checked out in the main tree during runs, or when planning parallel lump execution later.
+Pick `worktree` when you want the base branch checked out in the main tree during runs, or when using `maxParallelRun` so a global daemon can run multiple lumps concurrently in one tick.
 
 ## Multiple primary branches (dedicated daemons)
 
-`primaryBranches` lets **one dedicated daemon** serve several long-lived integration branches (e.g. `main` plus a release line). It is a **dedicated-mode feature**: in shared mode a multi-entry list is noted once in the logs and only the first entry is used.
+`primaryBranches` lets **one dedicated daemon** serve several integration lines (e.g. `dev` plus every remote `feature/*`). It is a **dedicated-mode feature**: in shared mode a multi-entry list is noted once in the logs and only the exact primary is used (globs are not expanded).
 
 How a dedicated global daemon uses the list, each tick:
 
-1. For **each** listed branch in order: run a locked pre-flight to that branch, then discover the lumps whose resolved discovery branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)) is that branch.
-2. Run each discovered lump with the usual per-lump flow. A failure on one branch or lump is logged and does not stop the rest of the tick.
+1. Expand configured entries (exact kept as-is; globs via `git ls-remote --heads origin <pattern>`). Empty glob matches log and skip that entry; `ls-remote` failure fails the expand path.
+2. For **each** concrete scan branch in expand order: locked pre-flight, then discover lumps whose discovery rules match that branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)).
+3. Per scan branch (subtick): discover loadable lumps, apply the daemon's `--include` / `--exclude` filter, then run the filtered queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1, including `--maxParallelRun` on `start`). Same `lumpName` on different scan branches is allowed and runs once per matching line. A failure on one branch or lump is logged and does not stop the rest of the tick.
 
 Rules:
 
-- A lump's `discoveryBranch` **must be listed** in `primaryBranches` — `run`, `start`, and daemon launch fail otherwise (allowlist check).
-- The **same `lumpName`** may exist on different primary branches (each branch has its own checkout state of `.lumpcode/lumps/`); two lumps with the same name on the **same** scan branch fail daemon launch.
-- The **primary branch** (used for project-wide defaults) is always the **first** entry.
+- Every configured lump discovery rule must be allowlisted against **unexpanded** `primaryBranches` (exact entry, same glob string, or concrete name matching a primary glob).
+- The **same `lumpName`** may run on different scan branches; two lumps with the same name on the **same** scan branch fail daemon launch.
+- The **primary branch** (project-wide default) is the first **exact** entry in the configured list.
 
 ## Pre-flight
 
-Pre-flight mechanics (what runs, in which workspace, per mode) are defined once in [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes). Specific to this file: `mode` selects the execution workspace pre-flight operates on (project copy in `shared`, the checkout itself in `dedicated` — destructive reset), and `workspaceStrategy` selects the per-lump git flow that follows ([Workspace strategies](#workspace-strategies) above).
-
-If pre-flight fails, `run` reports a `commandFailure` and the daemon **skips the tick** (logged to the daemon log) and tries again on the next schedule.
-
-## Commit vs. gitignore
-
-`.lumpcode/local.json` is **gitignored**. `project-setup` writes the entry to `.gitignore` for you. Each machine gets its own `local.json`; you should never share it through git.
+See [concepts.md](concepts.md) for execution-workspace pre-flight and locks.
 
 ## Related topics
 
-- [project-config.md](./project-config.md) — `project.json`, project name rules
-- [lump-config.md](./lump-config.md) — Per-lump `config.json` / `config.js` / `config.ts`, optional `baseBranch` override
-- [commands.md](./commands.md) — `run` / `start` and other subcommands
-- [concepts.md](./concepts.md) — Pre-flight, lifecycle, daemon overview
+- [project-config.md](./project-config.md) — Committed `project.json`, shared keys, lump defaults
+- [concepts.md](./concepts.md) — Branch resolution, concurrency, workspaces
+- [get-started.md](./get-started.md) — First-time setup
+- [lump-config.md](./lump-config.md) — Per-lump config (may inherit project/local defaults)
+- [commands.md](./commands.md) — `project-setup`, `run`, `start`

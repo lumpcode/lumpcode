@@ -25,7 +25,9 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
     args: readonly string[],
     options: SpawnOptions,
 ) => {
-    const lumpName = parseSpawnArg(args, '--lumpName');
+    const daemonId = parseSpawnArg(args, '--daemonId') ?? 'global';
+    const include = parseSpawnArg(args, '--include') ?? '';
+    const exclude = parseSpawnArg(args, '--exclude') ?? '';
     const cronSetup = parseSpawnArg(args, '--cronSetup') ?? '*/5 * * * *';
     let workspaceStrategy = 'checkout';
     const projectRoot = options.cwd ? String(options.cwd) : '';
@@ -53,7 +55,9 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
             LUMPCODE_DAEMON_PROJECT_ROOT: projectRoot,
             LUMPCODE_DAEMON_GLOBAL_CONFIG: getDaemonTestGlobalConfigFolder(),
             LUMPCODE_DAEMON_CRON_SETUP: cronSetup,
-            LUMPCODE_DAEMON_LUMP_NAME: lumpName ?? '',
+            LUMPCODE_DAEMON_ID: daemonId,
+            LUMPCODE_DAEMON_INCLUDE: include,
+            LUMPCODE_DAEMON_EXCLUDE: exclude,
             LUMPCODE_DAEMON_WORKSPACE_STRATEGY: workspaceStrategy,
         },
     });

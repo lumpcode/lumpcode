@@ -1,9 +1,13 @@
 import { getCodeBasePaths } from "../getCodeBasePaths";
-import { GetContextListFn, Logger, LumpVariables } from "../../types";
+import { ContextStatus, GetContextListFn, Logger, LumpVariables } from "../../types";
 import { getContextStatus } from "../getContextStatus";
 import { validateContextListNames } from "../validateContextListNames";
 import { GitCommitMessageFn } from "../../types/GitCommitMessageFn";
 import { failure, success } from "../../utils";
+import {
+    refreshRemoteTrackingRefs,
+    type RefreshRemoteTrackingRefsFn,
+} from "../refreshRemoteTrackingRefs";
 
 export async function getToDoContextList<V extends LumpVariables = LumpVariables>(params: {
     getContextListFn: GetContextListFn<V>;
@@ -12,8 +16,21 @@ export async function getToDoContextList<V extends LumpVariables = LumpVariables
     projectRoot: string;
     baseBranch: string;
     logger?: Logger;
+    /**
+     * One refresh before status reads. Defaults to unlocked core refresh.
+     * CLI injects a git-common-dir-locked wrapper.
+     */
+    refreshRemoteTrackingRefsFn?: RefreshRemoteTrackingRefsFn;
 }) {
-    const { getContextListFn, lumpVariables, gitCommitMessageFn, projectRoot, baseBranch, logger } = params;
+    const {
+        getContextListFn,
+        lumpVariables,
+        gitCommitMessageFn,
+        projectRoot,
+        baseBranch,
+        logger,
+        refreshRemoteTrackingRefsFn = refreshRemoteTrackingRefs,
+    } = params;
 
     const codeBasePathsResult = await getCodeBasePaths({ cwd: projectRoot, logger });
 
@@ -38,25 +55,37 @@ export async function getToDoContextList<V extends LumpVariables = LumpVariables
     const allCtxNamesSet = new Set(allCtxNames);
     const allCtxNamesList = Array.from(allCtxNamesSet);
 
-    const contextStatusList = await Promise.all(allCtxNamesList.map((contextName) => {
-        return getContextStatus({
-            contextName: contextName,
-            contextVariables: {}, // TODO: Remove contextVariables from getContextStatus, really not needed
-            gitCommitMessageFn,
-            lumpVariables,
-            projectRoot,
-            baseBranch,
-            logger,
-        });
-    }));
+    const refreshResult = await refreshRemoteTrackingRefsFn({ projectRoot });
+    let contextStatusMap: Map<string, ContextStatus>;
 
-    const contextStatusMap = new Map(
-        allCtxNamesList.map((contextName, i) => [contextName, contextStatusList[i]])
-    );
+    if (!refreshResult.success) {
+        logger?.warn(
+            `Failed to refresh remote-tracking refs for context status; treating contexts as toDo: ${refreshResult.data}`,
+        );
+        contextStatusMap = new Map(allCtxNamesList.map((name) => [name, 'toDo' as const]));
+    } else {
+        const contextStatusList = await Promise.all(
+            allCtxNamesList.map((contextName) =>
+                getContextStatus({
+                    contextName,
+                    contextVariables: {}, // TODO: Remove contextVariables from getContextStatus, really not needed
+                    gitCommitMessageFn,
+                    lumpVariables,
+                    projectRoot,
+                    baseBranch,
+                    logger,
+                    skipFetch: true,
+                }),
+            ),
+        );
+        contextStatusMap = new Map(
+            allCtxNamesList.map((contextName, i) => [contextName, contextStatusList[i]!]),
+        );
+    }
 
     const contextListToDo = contextList
-    .filter((context, contextIndex) => {
-        const contextStatus = contextStatusList[contextIndex];
+    .filter((context) => {
+        const contextStatus = contextStatusMap.get(context.name);
         if (contextStatus && contextStatus !== 'toDo') return false;
 
         const deps = context.options?.dependsOnContexts;

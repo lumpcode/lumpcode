@@ -1,0 +1,6 @@
+name: docs-lump-run-lifecycle
+task: >-
+  Cleaner DOCS: add a clear schema/diagram of the whole lump run lifecycle in
+  the CLI, and generally make the operator docs clearer and less fragmented.
+priority: 13
+completedAt: '2026-08-05T07:28:12.597Z'

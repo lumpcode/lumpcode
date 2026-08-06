@@ -1,0 +1,12 @@
+name: initLocalGitRepo
+task: >-
+  Extract repeated local git repo bootstrap (`init -b`,
+  `user.email`/`user.name`, empty initial commit) into util `initLocalGitRepo`
+  built on `execGit`; refactor `beforeEach` / fixture setup in 20+ unit test
+  modules, `testing/multiBranchFixtures.ts` (`initBareRemoteAndCheckout`),
+  `utils/runPreflight/unit.test.ts` (`initRepoWithRemote`), and
+  `e2e/harness/createE2eProject.ts`.
+priority: 4
+dependsOn:
+  - execGit
+completedAt: '2026-08-06T07:55:01.019Z'

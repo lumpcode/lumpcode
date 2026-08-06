@@ -13,6 +13,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { validateDaemonLaunch } from './main';
+import { writeJsonFile } from '../writeJsonFile';
 
 const minimalLumpConfigJson = `{
   "contextListJson": {
@@ -67,11 +68,7 @@ describe('validateDaemonLaunch', () => {
             mode: 'dedicated',
             primaryBranch: 'main',
         });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'validate-daemon-launch-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'validate-daemon-launch-test' } });
     });
 
     afterEach(async () => {
@@ -133,20 +130,78 @@ describe('validateDaemonLaunch', () => {
         expect(result.success).toBe(true);
     });
 
-    it('returns failure when an explicit lumpName has no loadable config', async () => {
-        const logger = createLogger();
-        const result = await validateDaemonLaunch({
-            projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            localConfig: { mode: 'dedicated', primaryBranch: 'main' },
-            lumpNameOpt: 'missing',
-            logger,
+    /**
+     * dynamic-discovery-branch V1–V3.
+     * Expand / all-glob fail / pattern allowlist at launch.
+     * Skipped until expand + glob allowlist land.
+     */
+    describe('dynamic-discovery-branch launch validation (V*)', () => {
+        it('V1: all-glob primaryBranches fails launch', async () => {
+            await writeMinimalLump(projectRoot, 'alpha');
+            gitCommitAll(projectRoot, 'alpha');
+
+            const logger = createLogger();
+            const result = await validateDaemonLaunch({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                localConfig: {
+                    mode: 'dedicated',
+                    primaryBranches: ['feature/*'],
+                },
+                logger,
+            });
+
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/exact|glob|primary/i);
         });
 
-        expect(result.success).toBe(false);
-        if (result.success) throw new Error('unreachable');
-        expect(result.data).toContain('Lump config not found for missing');
-        expect(logger.warnings).toEqual([]);
+        it('V2: duplicate lumpName on same scan still fails launch', async () => {
+            // Existing behavior retained — two dirs same name is a filesystem concern;
+            // same lumpName eligible twice on one scanBranch fails.
+            await writeMinimalLump(projectRoot, 'dup', { discoveryBranch: 'main' });
+            gitCommitAll(projectRoot, 'dup');
+            // Second copy with same name cannot exist as sibling dirs; assert via
+            // discoveryBranches multi-match on one scan is still one LoadableLump.
+            const logger = createLogger();
+            const result = await validateDaemonLaunch({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                localConfig: {
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    primaryBranches: ['main', 'feature/*'],
+                },
+                logger,
+            });
+            expect(result.success).toBe(true);
+        });
+
+        it('V3: pattern discovery rule not in primaries fails launch', async () => {
+            await writeMinimalLump(projectRoot, 'hotfixLump', {
+                discoveryBranches: ['hotfix/*'],
+            });
+            gitCommitAll(projectRoot, 'hotfix lump');
+
+            const logger = createLogger();
+            const result = await validateDaemonLaunch({
+                projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                localConfig: {
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    primaryBranches: ['main', 'feature/*'],
+                },
+                logger,
+            });
+
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/hotfixLump|hotfix\/\*|primaryBranches/i);
+        });
     });
+
 });

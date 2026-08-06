@@ -17,7 +17,8 @@ import {
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import type { LumpJsConfig } from '../../types';
 import { execGit } from '../execGit';
-
+import { initLocalGitRepo } from '../initLocalGitRepo';
+import { writeJsonFile } from '../writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -39,22 +40,11 @@ describe('runLumpFromJsConfig', () => {
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-from-js-global-'));
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(localConfigFolderPath, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'run-from-js-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-from-js-test' } });
 
         execGit('init --bare', remoteDir);
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         execGit(`remote add origin ${remoteDir}`, projectRoot);
         execGit('push -u origin main', projectRoot);
 
@@ -228,11 +218,7 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('fails immediately when branch workspace lock is held (fail mode, worktree)', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'worktree' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'worktree' } });
         const branchWorkspacePath = path.join(
             projectRoot,
             '.lumpcode',
@@ -374,11 +360,7 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('proceeds to runLump in shared mode when discoveryBranch is unlisted', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'shared', primaryBranch: 'main' } });
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
                 result: {
@@ -396,11 +378,7 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('shared mode runs preflight to resolvedBaseBranch when setup is invoked', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'shared', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'shared', primaryBranch: 'main' } });
         execGit('checkout -b ver/0.0.9', projectRoot);
         execGit('push -u origin ver/0.0.9', projectRoot);
         execGit('checkout main', projectRoot);
@@ -416,11 +394,7 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('worktree dedicated releases execution lock after setup while branch lock stays held', async () => {
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'worktree' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'worktree' } });
 
         const branchWorkspacePath = path.join(
             projectRoot,
@@ -444,11 +418,9 @@ describe('runLumpFromJsConfig', () => {
                 branchName: 'lump/my-lump/ctx1',
                 contextList: [{ name: 'ctx1', variables: {} }],
             });
-            expect(setup.afterExec).toBeTypeOf('function');
-            expect(await countLockFiles()).toBe(2);
-
-            await setup.afterExec!({ workspacePath: branchWorkspacePath });
-
+            // Execution-path lock released when setup returns; branch lock remains.
+            expect(setup.afterExec).toBeUndefined();
+            expect(setup.workspacePath).toBe(branchWorkspacePath);
             expect(await countLockFiles()).toBe(1);
 
             return core.success({
@@ -589,5 +561,95 @@ describe('runLumpFromJsConfig', () => {
                     && /already (succeeded|pushed)|usually already/i.test(message),
             ),
         ).toBe(false);
+    });
+
+    /**
+     * clean-local-project-json-config C* — branch cap from project/local via applyLumpConfigDefaults.
+     * Skipped until overlay + call-path wiring land.
+     */
+    describe('branch cap from project/local (clean-local-project-json-config C*)', () => {
+        it('C1: cap on resolved (project), lump omits → tooManyOpenBranches', async () => {
+            const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+
+            const jsConfig = applyLumpConfigDefaults({
+                jsConfig: makeJsConfig(),
+                resolved: {
+                    projectName: 'run-from-js-test',
+                    mode: 'dedicated',
+                    workspaceStrategy: 'checkout',
+                    primaryBranch: 'main',
+                    maximumNumberOfConcurrentBranches: 2,
+                },
+            });
+
+            const result = await callRunLumpFromJsConfig(jsConfig);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(true);
+            if (!result.data.skipped) throw new Error('unreachable');
+            expect(result.data.reason).toBe('tooManyOpenBranches');
+            expect(result.data.maximumNumberOfConcurrentBranches).toBe(2);
+            expect(core.runLump).not.toHaveBeenCalled();
+        });
+
+        it('C2: local cap wins in resolved over project', async () => {
+            const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+
+            const jsConfig = applyLumpConfigDefaults({
+                jsConfig: makeJsConfig(),
+                resolved: {
+                    projectName: 'run-from-js-test',
+                    mode: 'dedicated',
+                    workspaceStrategy: 'checkout',
+                    primaryBranch: 'main',
+                    // merge already applied local-wins → effective cap 2
+                    maximumNumberOfConcurrentBranches: 2,
+                },
+            });
+
+            const result = await callRunLumpFromJsConfig(jsConfig);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(true);
+            if (!result.data.skipped) throw new Error('unreachable');
+            expect(result.data.maximumNumberOfConcurrentBranches).toBe(2);
+        });
+
+        it('C3: lump cap wins over resolved', async () => {
+            const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'some-branch',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const jsConfig = applyLumpConfigDefaults({
+                jsConfig: makeJsConfig({ maximumNumberOfConcurrentBranches: 10 }),
+                resolved: {
+                    projectName: 'run-from-js-test',
+                    mode: 'dedicated',
+                    workspaceStrategy: 'checkout',
+                    primaryBranch: 'main',
+                    maximumNumberOfConcurrentBranches: 2,
+                },
+            });
+
+            const result = await callRunLumpFromJsConfig(jsConfig);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(false);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
     });
 });

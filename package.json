@@ -21,7 +21,7 @@
   ],
   "devDependencies": {
     "@rollup/plugin-replace": "^6.0.3",
-    "@types/node": "^24.10.13",
+    "@types/node": "^24.13.3",
     "@vitest/ui": "^3.2.4",
     "js-yaml": "^5.0.0",
     "rollup": "^4.52.5",

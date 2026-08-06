@@ -37,6 +37,8 @@ export type BacklogOptions<
     resolveItem(input: {
         item: Item;
         paths: BacklogPaths;
+        /** Concrete scan/discovery branch for this context-list invocation. */
+        discoveryBranch: string;
     }): MaybePromise<BacklogItemResolution<Extract<keyof Stages, string>>>;
 } & Omit<
     LumpJsConfig<V, SV>,

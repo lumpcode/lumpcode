@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { LocalConfig } from '../../types/LocalConfig';
+import { initLocalGitRepo, writeJsonFile } from '../../utils';
 import {
     createE2eAgentCommandModule,
     createE2eMockAgentScript,
@@ -93,6 +94,8 @@ function commandModuleFilename(moduleName: string, ext: 'ts' | 'js' = 'js'): str
 export async function createE2eProject(input: {
     projectName?: string;
     localJson?: Partial<LocalConfig>;
+    /** Merged into default `{ projectName }` (F3 / clean-local-project-json-config). */
+    projectJson?: Record<string, unknown>;
     lumps: E2eLumpSpec[];
     useE2eAgent?: boolean;
     extraFiles?: Record<string, string>;
@@ -103,9 +106,7 @@ export async function createE2eProject(input: {
     const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-home-'));
 
     git('init --bare', remoteDir);
-    git('init -b main', projectRoot);
-    git('config user.email "e2e@t.com"', projectRoot);
-    git('config user.name "E2E"', projectRoot);
+    initLocalGitRepo({ cwd: projectRoot, userEmail: 'e2e@t.com', userName: 'E2E' });
     git('config core.autocrlf false', projectRoot);
     await fs.writeFile(path.join(projectRoot, 'README.md'), '# e2e\n', 'utf-8');
     if (input.extraFiles) {
@@ -117,16 +118,20 @@ export async function createE2eProject(input: {
     }
     const lumpcodeDir = path.join(projectRoot, '.lumpcode');
     await fs.mkdir(path.join(lumpcodeDir, 'lumps'), { recursive: true });
-    await fs.writeFile(path.join(lumpcodeDir, 'project.json'), JSON.stringify({ projectName }), 'utf-8');
-    await fs.writeFile(
-        path.join(lumpcodeDir, 'local.json'),
-        JSON.stringify(
-            { mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'checkout', ...input.localJson },
-            null,
-            2,
-        ),
-        'utf-8',
-    );
+    await writeJsonFile({
+        filePath: path.join(lumpcodeDir, 'project.json'),
+        data: { projectName, ...input.projectJson },
+    });
+    await writeJsonFile({
+        filePath: path.join(lumpcodeDir, 'local.json'),
+        data: {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            workspaceStrategy: 'checkout',
+            ...input.localJson,
+        },
+        pretty: true,
+    });
 
     const agentLumps = input.lumps
         .filter((l) => l.useE2eAgent !== false && !l.usePathAgent && !l.e2eCommandModule)
@@ -180,7 +185,7 @@ export async function createE2eProject(input: {
                 await fs.writeFile(path.join(lumpDir, 'config.js'), config.body, 'utf-8');
                 break;
             case 'json':
-                await fs.writeFile(path.join(lumpDir, 'config.json'), JSON.stringify(config.body, null, 2), 'utf-8');
+                await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: config.body, pretty: true });
                 break;
             default: {
                 const _exhaustive: never = config;
@@ -222,7 +227,7 @@ export async function createE2eProject(input: {
     }
 
     git('add -A', projectRoot);
-    git('commit -m "init"', projectRoot);
+    git('commit --amend --no-edit', projectRoot);
     git(`remote add origin ${remoteDir}`, projectRoot);
     git('push -u origin main', projectRoot);
 
@@ -296,18 +301,14 @@ export async function writeE2eLumpFixture(input: {
     const commandsDir = path.join(projectRoot, '.lumpcode', 'commands');
     await fs.mkdir(lumpDir, { recursive: true });
     await fs.mkdir(commandsDir, { recursive: true });
-    await fs.writeFile(
-        path.join(lumpDir, 'config.json'),
-        JSON.stringify(
-            {
-                ...defaultE2eLumpConfigJson({ command: commandName }),
-                ...configOverrides,
-            },
-            null,
-            2,
-        ),
-        'utf-8',
-    );
+    await writeJsonFile({
+        filePath: path.join(lumpDir, 'config.json'),
+        data: {
+            ...defaultE2eLumpConfigJson({ command: commandName }),
+            ...configOverrides,
+        },
+        pretty: true,
+    });
     await fs.writeFile(
         path.join(lumpDir, E2E_MOCK_AGENT_SCRIPT_BASENAME),
         createE2eMockAgentScript({ lumpName }),

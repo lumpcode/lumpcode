@@ -15,7 +15,7 @@ This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (ca
 | **Tick**          | One scheduler iteration: for each enabled lump, run the same engine path as `lumpcode run <lumpName>`.                                                                                                           |
 | **Work branch**   | Branch Lumpcode creates/updates for the batch. Default `lump/<lumpName>/<contextName…>`, customizable with `branchFn`.                                                                                           |
 | **Marker commit** | Commit whose subject is exactly `LUMP: <lumpName> - <contextName>`. **Not configurable** so `clean`, `lump-status`, and `context-status` stay aligned with the engine.                                           |
-| **primaryBranch** | First integration branch from `.lumpcode/local.json` (`primaryBranches[0]` when set, else `primaryBranch`). Lumpcode pulls it before project-wide pre-flight; it is the default for both discovery and execution — see [Branch resolution](#branch-resolution). |
+| **primaryBranch** | First **exact** integration branch from the merged project/local config (`primaryBranches` when set, else `primaryBranch`). Either file may supply it; local wins when both set. See [Branch resolution](#branch-resolution) and [project-config.md](./project-config.md#merge-and-lump-defaults). |
 | **baseBranch**  | Per-lump execution integration branch — see [Branch resolution](#branch-resolution). Use `baseBranch` when execution should differ from discovery (e.g. a long-lived release branch). |
 | **mode**        | `shared` or `dedicated` (in `.lumpcode/local.json`). Decides whether Lumpcode operates on the current checkout or a separate copy under `~/.lumpcode/project-copies/<projectName>/`. |
 
@@ -66,19 +66,30 @@ Three subcommand names include “status” (`daemon-status`, `lump-status`, `co
 
 Lumpcode distinguishes two branch roles per lump. This section is the canonical definition; other pages link here.
 
-- **Discovery branch** — the integration branch a lump is *found and scheduled from* (which checkout state the daemon or `run` reads the lump config and contexts on).
+- **Discovery branch** — the concrete integration branch a lump is *found and scheduled from* (which checkout state the daemon or `run` reads the lump config and contexts on).
 - **Base branch (execution)** — the integration branch work *branches off of*, where marker commits are checked for `finished`, and where the workspace returns after a run.
 
-Resolution order (first set value wins):
+Resolution sketch:
 
 ```text
-resolved discovery branch = lump discoveryBranch  →  primary branch
-resolved base branch      = lump baseBranch  →  lump discoveryBranch  →  primary branch
+effectivePrimaryBranches = configured list (exact + optional git globs such as feature/*)
+primary                = first exact entry in that list   # fail if none
+scanBranches           = expand(effectivePrimaryBranches)  # dedicated only; shared uses exact primary
+
+effectiveDiscovery     = --discoveryBranch <concrete>
+                       | first exact lump discovery rule (discoveryBranch / discoveryBranches)
+                       | fail if lump discovery is pattern-only without the flag
+
+resolvedBaseBranch     = baseBranch string
+                       | BaseBranchFn({ effectiveDiscoveryBranch, contexts })  # JS/TS
+                       | effectiveDiscovery
 ```
 
-The **primary branch** comes from `.lumpcode/local.json`: the first entry of `primaryBranches` when set, else `primaryBranch`. On a single-branch project you configure nothing — everything resolves to `main` (or whatever your primary branch is).
+The **primary branch** is the first **exact** entry of `primaryBranches` when set, else `primaryBranch`. Glob entries in `primaryBranches` are discovery/scan rules only (dedicated expands them via `git ls-remote`); they are never used as checkout refs. Shared mode does not expand globs.
 
-The per-lump **`discoveryBranch`** field is **dedicated mode only** and must be listed in `local.json` `primaryBranches`; shared mode ignores it with a warning (discovery always reads your source checkout). Set per-lump **`baseBranch`** when execution should target a different branch than discovery (e.g. a long-lived release branch). Multiple primary branches on one dedicated daemon: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
+Per-lump **`discoveryBranch`** or **`discoveryBranches`** (mutually exclusive) accept exact names and/or git refname globs. Dedicated allowlist checks each rule against **configured** (unexpanded) `primaryBranches` (exact match, pattern-entry equality, or concrete via a primary glob). Shared mode ignores lump discovery rules for scheduling. Manual `run` / `lump-plan` / `lump-status` without `--discoveryBranch` use the first exact discovery rule; pattern-only lumps require a concrete `--discoveryBranch`. Author `getContextListFn` / `contextMatchFn` receive that concrete `discoveryBranch`.
+
+`maximumNumberOfConcurrentBranches` remains a single cap per `lumpName` across all discovery lines. Multiple primary branches / globs: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
 
 ## One run, end to end
 
@@ -118,27 +129,29 @@ stateDiagram-v2
 ## When to use `run` vs `start` (daemon)
 
 - **`lumpcode run <lumpName>`** — Run **one tick** for one lump, then exit. Best for **sporadic** work: tickets you step through locally, one-off codemods, or anything you start and review in the same session.
-- **`lumpcode start`** — **Scheduler**: on a cron (default every 5 minutes), runs sequentially **every** lump in the project that has a loadable `config.json`, `config.js`, or `config.ts`, skipping lumps with `"disabled": true`. Best for **sustained agent loop campaigns**: run it on a **machine that stays on** (your dev box or a small remote server with the same git push access). You merge good branches; the next tick picks up the next eligible context.
+- **`lumpcode start`** — **Scheduler**: on a cron (default every 5 minutes), discovers loadable lumps (dedicated: each primary branch subtick), applies optional `--include` / `--exclude`, and runs the filtered queue (soft-skipping `"disabled": true` at run time). Default daemon id is `global`. With `workspaceStrategy: "worktree"` and `maxParallelRun` > 1, a tick can run multiple matching lumps concurrently. Best for **sustained agent loop campaigns**: run it on a **machine that stays on** (your dev box or a small remote server with the same git push access). You merge good branches; the next tick picks up the next eligible context.
 
 Useful pairings on a server:
 
 - **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`) — caps how many open `lump/<lumpName>/*` branches on `origin` exist before a run is skipped (local-only branches are not counted). See [lump-config.md](./lump-config.md#optional-top-level-fields).
 - **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to the primary branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
-- **`"disabled": true`** on a lump — on the next tick, the daemon skips that lump without stopping the scheduler.
+- **`"disabled": true`** on a lump — on the next tick, the daemon soft-skips that lump without stopping the scheduler.
+- **`--include` / `--exclude`** on `start` — run a subset of lumps in one daemon (or several overlapping daemons with different `--daemonId` values).
+- **`maxParallelRun`** in `local.json` or `--maxParallelRun` on `start` (with **`workspaceStrategy: "worktree"`**) — caps how many lumps a daemon tick runs at once. Default `1`. See [Concurrency and locks](#concurrency-and-locks).
 
 **Daemon files** (under `~/.lumpcode/daemons/`):
 
 
 | File                                 | Role                                               |
 | ------------------------------------ | -------------------------------------------------- |
-| `<projectName>.daemon.pid`           | PID of the foreground scheduler child              |
-| `<projectName>.daemon.log`           | Child stdout/stderr                                |
-| `<projectName>.daemon.meta.json`     | Stores `cronSetup` for `restart` / `daemon-status` |
+| `<projectName>.<daemonId>.daemon.pid` | PID of the foreground scheduler child             |
+| `<projectName>.<daemonId>.daemon.log` | Child stdout/stderr                               |
+| `<projectName>.<daemonId>.daemon.meta.json` | `daemonId`, `cronSetup`, filters, `workspaceStrategy`, `inFlightLumpCount` |
 
 
-**Common flags:** `lumpcode start --foreground` (blocking), `lumpcode start --cronSetup '*/10 * * * *'`. Inspect: `lumpcode daemon-status`. Stop: `lumpcode stop`. Restart: `lumpcode restart`.
+**Common flags:** `lumpcode start --foreground`, `lumpcode start --include=backlog,refacto-* --daemonId=agents`. Inspect: `lumpcode daemon-status` (lists all). Stop: `lumpcode stop --daemonId <id>`. Restart: `lumpcode restart --daemonId <id>`.
 
-**Tick behavior:** list `.lumpcode/lumps/*`, keep directories with loadable `config.json`, `config.js`, or `config.ts`, skip disabled lumps, then run the same engine path as `lumpcode run <lumpName>` for each.
+**Tick behavior:** discover loadable configs, apply include/exclude, soft-skip disabled lumps at run time, then run the same engine path as `lumpcode run <lumpName>` for each match (optionally in parallel under worktree + `maxParallelRun`).
 
 Full flag reference: [commands.md](./commands.md).
 
@@ -147,11 +160,11 @@ Full flag reference: [commands.md](./commands.md).
 Before every `run` and every daemon tick, Lumpcode runs a **pre-flight** that:
 
 1. Resolves the execution workspace from `local.json.mode`.
-2. In that workspace runs `git fetch --all`, switches to the target branch (primary branch or a lump's resolved `baseBranch`), `git reset --hard origin/<branch>`, then `git pull`.
+2. In that workspace runs `git fetch --no-write-fetch-head origin <branch>`, switches to the target branch (primary branch or a lump's resolved `baseBranch`), then `git reset --hard origin/<branch>` (no `git pull` after reset).
 
 After pre-flight, each lump prepares git inside the execution workspace according to `local.json.workspaceStrategy` (default `checkout`):
 
-- **`checkout`:** fetch/pull `baseBranch`, create a fresh `lump/<lumpName>/<context…>` branch in the main worktree, run, commit, push, then switch back to the lump's resolved `baseBranch`.
+- **`checkout`:** fetch `baseBranch`, create a fresh `lump/<lumpName>/<context…>` branch in the main worktree, run, commit, push, then switch back to the lump's resolved `baseBranch`.
 - **`worktree`:** add a linked worktree at `.lumpcode/worktrees/<branch>/` (paths mirror branch segments), run the agent there, commit, push, then remove the worktree. The main worktree stays on the lump's resolved `baseBranch`.
 
 The next lump in the same tick starts from a clean, known state.
@@ -165,13 +178,20 @@ Worktrees always live under the execution workspace (the copy in `shared`, the c
 
 ## Concurrency and locks
 
-Lumpcode serializes work with **per-path locks** so that runs, daemons, and worktrees never fight over the same git checkout. What you need to know as an operator:
+Lumpcode uses two lock layers so multiple filtered daemons can share one dedicated clone safely:
+
+- **Path locks** — one writer per execution workspace path and per branch workspace (worktree) path.
+- **Git common-dir locks** — one writer for Lumpcode-owned mutations against the shared `.git` (pre-flight fetch/switch/reset, worktree add/remove, add/commit/push, and context-status remote refresh). Keyed by `git rev-parse --git-common-dir`. Manual `run` fails with **`gitCommonDirBusy`** when contended; daemons **wait**. Status reads hoist one fetch under the lock, then classify from local remote-tracking refs.
+
+What you need to know as an operator:
 
 - **One writer per workspace path.** Each execution workspace and each branch workspace is protected by its own lock. Two runs never mutate the same path at the same time.
-- **Manual `run` fails fast; daemons wait.** If another run or daemon holds the workspace lock, `lumpcode run` exits with a **`workspacePathBusy`** error (with `--json`: `data.code: "workspacePathBusy"` plus the path and the holder's pid/lump when known). A daemon tick instead **waits** for the lock and proceeds when it frees up.
-- **`checkout` strategy = one lock for the whole run.** Execution and branch workspaces are the same path, so the lock is held from pre-flight to teardown — one lump at a time per workspace.
-- **`worktree` strategy allows parallelism.** Pre-flight and worktree setup on the main checkout are serialized (one lump at a time per machine), but once set up, agents on different worktrees run **concurrently**, each behind its own branch-workspace lock.
-- **Daemon collisions are checked at `start`.** A global daemon refuses to start while any daemon for the project runs; per-lump daemons can coexist only when every running daemon uses the `worktree` strategy. Full rules: [commands.md § start](./commands.md#ref-cmd-start).
+- **One writer per git object database.** Path locks alone do not cover linked worktrees sharing one `.git`. The git-common-dir lock serializes fetch/reset/worktree lifecycle, finish git, and status refresh so overlapping daemons do not corrupt `FETCH_HEAD` or race ref updates.
+- **Lock order.** Path lock first, then git-common-dir lock. Git sections stay short; the agent think loop does not hold the git lock. Coding agents should not run `git` themselves (presets typically deny it).
+- **Manual `run` fails fast; daemons wait.** If another run or daemon holds a path or git-common-dir lock, `lumpcode run` exits with **`workspacePathBusy`** or **`gitCommonDirBusy`** (with `--json`: `data.code` plus path/holder when known). A daemon tick **waits** and proceeds when the lock frees up.
+- **`checkout` strategy = one path lock for the whole run.** Execution and branch workspaces are the same path, so the path lock is held from pre-flight to teardown — one lump at a time per workspace.
+- **`worktree` strategy allows agent parallelism.** Pre-flight and worktree setup on the main checkout take the execution-path lock (then release it after setup); agents on different worktrees run **concurrently**, each behind its own branch-workspace lock, while git mutations still serialize on the common-dir lock. A daemon with `maxParallelRun` > 1 in `local.json` schedules up to that many lumps per tick into those worktrees; `"checkout"` stays sequential regardless of `maxParallelRun`.
+- **Overlapping filtered daemons** (`--include` / `--daemonId`) on one dedicated clone are supported when every daemon uses `worktree` (and the git-common-dir lock is in play). Full start rules: [commands.md § start](./commands.md#ref-cmd-start).
 - **Stale locks self-heal.** After a crash or `lumpcode stop --force`, a lock file may be left behind. The next acquire detects that the holding process is dead and removes the stale lock automatically — no manual cleanup needed.
 
 ## Related documentation

@@ -4,9 +4,13 @@ import { failure, success } from '@lumpcode/core';
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { LumpJsConfig } from '../../types/LumpJsConfig';
 import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
-import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
-import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
-import { resolveLumpBranches } from '../resolveLumpBranches';
+import { discoverLoadableLumps } from '../discoverLoadableLumpNames';
+import { expandPrimaryBranches } from '../expandPrimaryBranches';
+import { resolvePrimaryBranch, resolvePrimaryBranches } from '../resolvePrimaryBranches';
+import {
+    normalizeDiscoveryRules,
+    resolveLumpBaseBranch,
+} from '../resolveLumpBranches';
 import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
 
 type LumpRegistryEntry = {
@@ -60,14 +64,14 @@ function warnCrossLumpBaseBranchMismatches(input: {
     }
 }
 
+/**
+ * Validates daemon launch for any daemon (all use global-style discovery).
+ */
 export async function validateDaemonLaunch(input: {
     projectRoot: string;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
     localConfig: LocalConfig;
-    lumpNameOpt?: string;
-    effectiveDiscoveryBranch?: string;
-    discoveryBranchOpt?: string;
     logger: Logger;
 }): Promise<Success<void> | Failure<string>> {
     const {
@@ -75,48 +79,74 @@ export async function validateDaemonLaunch(input: {
         localConfigFolderPath,
         globalConfigFolderPath,
         localConfig,
-        lumpNameOpt,
-        effectiveDiscoveryBranch: providedDiscoveryBranch,
-        discoveryBranchOpt,
         logger,
     } = input;
 
-    const effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
-
-    if (lumpNameOpt) {
-        if (providedDiscoveryBranch !== undefined) {
-            return validateLumpDiscoveryBranchAllowlist({
-                mode: localConfig.mode,
-                lumpName: lumpNameOpt,
-                resolvedDiscoveryBranch: providedDiscoveryBranch,
-                effectivePrimaryBranches,
-            });
-        }
-
-        const discoveryResult = await resolveEffectiveDiscoveryBranch({
-            discoveryBranchOpt,
-            lumpName: lumpNameOpt,
-            localConfigFolderPath,
-            localConfig,
-            logger,
-        });
-        if (!discoveryResult.success) {
-            return failure(discoveryResult.data);
-        }
-        return success(undefined);
-    }
-
-    if (discoveryBranchOpt?.trim()) {
-        logger.info('--discoveryBranch has no effect on a global daemon; ignoring.');
+    let effectivePrimaryBranches: string[];
+    try {
+        effectivePrimaryBranches = resolvePrimaryBranches(localConfig);
+        resolvePrimaryBranch(localConfig);
+    } catch (err) {
+        return failure(err instanceof Error ? err.message : String(err));
     }
 
     if (localConfig.mode !== 'dedicated') {
         return success(undefined);
     }
 
+    const expandResult = await expandPrimaryBranches({
+        localConfig,
+        cwd: projectRoot,
+        logger,
+    });
+    if (!expandResult.success) {
+        return failure(expandResult.data);
+    }
+    const scanBranches = expandResult.data;
+
+    let primaryBranch: string;
+    try {
+        primaryBranch = resolvePrimaryBranch(localConfig);
+    } catch (err) {
+        return failure(err instanceof Error ? err.message : String(err));
+    }
+
+    const quietLogger: Logger = {
+        ...logger,
+        warn: () => {},
+        info: () => {},
+        verbose: () => {},
+        error: () => {},
+        child: () => quietLogger,
+    };
+    const allLoadable = await discoverLoadableLumps({
+        localConfigFolderPath,
+        logger: quietLogger,
+    });
+    for (const { lumpName, jsConfig } of allLoadable) {
+        const rulesResult = normalizeDiscoveryRules({
+            lumpConfig: jsConfig,
+            primaryBranch,
+        });
+        if (!rulesResult.success) {
+            return failure(`Lump "${lumpName}": ${rulesResult.data}`);
+        }
+        for (const rule of rulesResult.data) {
+            const allowlistResult = validateLumpDiscoveryBranchAllowlist({
+                mode: localConfig.mode,
+                lumpName,
+                resolvedDiscoveryBranch: rule,
+                effectivePrimaryBranches,
+            });
+            if (!allowlistResult.success) {
+                return failure(allowlistResult.data);
+            }
+        }
+    }
+
     const registry: LumpRegistryEntry[] = [];
 
-    for (const scanBranch of effectivePrimaryBranches) {
+    for (const scanBranch of scanBranches) {
         const discoverResult = await discoverDedicatedLumpsForScanBranch({
             scanBranch,
             sourceProjectRoot: projectRoot,
@@ -132,11 +162,6 @@ export async function validateDaemonLaunch(input: {
         const seenOnBranch = new Set<string>();
 
         for (const { lumpName, jsConfig } of discoverResult.data) {
-            const branches = resolveLumpBranches({
-                lumpConfig: jsConfig,
-                localConfig,
-            });
-
             if (seenOnBranch.has(lumpName)) {
                 return failure(
                     `Duplicate lump name "${lumpName}" on primary branch "${scanBranch}"`,
@@ -144,11 +169,18 @@ export async function validateDaemonLaunch(input: {
             }
             seenOnBranch.add(lumpName);
 
+            const resolvedBaseBranch = resolveLumpBaseBranch({
+                lumpConfig: jsConfig,
+                primaryBranch,
+                mode: localConfig.mode,
+                effectiveDiscoveryBranch: scanBranch,
+            });
+
             registry.push({
                 lumpName,
                 jsConfig,
-                resolvedDiscoveryBranch: branches.resolvedDiscoveryBranch,
-                resolvedBaseBranch: branches.resolvedBaseBranch,
+                resolvedDiscoveryBranch: scanBranch,
+                resolvedBaseBranch,
             });
         }
     }

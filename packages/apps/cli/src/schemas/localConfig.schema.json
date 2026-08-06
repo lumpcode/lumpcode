@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "localConfig.schema.json",
   "title": "Lumpcode local configuration",
-  "description": "Schema for .lumpcode/local.json — a gitignored, per-machine file that controls where and how Lumpcode runs lumps from this checkout. Created by `lumpcode project-setup`; edit it on a daemon machine (e.g. switch `mode` to \"dedicated\").",
+  "description": "Schema for .lumpcode/local.json — a gitignored, per-machine file. Created by `lumpcode project-setup` with `{ \"mode\" }` only; shared defaults (primary branch, default agent command, caps) may live in committed `.lumpcode/project.json`. Local wins over project for shared keys. See DOCS/local-config.md.",
   "type": "object",
   "required": ["mode"],
   "additionalProperties": false,
@@ -10,11 +10,11 @@
     "mode": {
       "type": "string",
       "enum": ["shared", "dedicated"],
-      "description": "How Lumpcode handles the current checkout. `shared`: this is your day-to-day clone; Lumpcode never touches it and runs in a separate copy under ~/.lumpcode/project-copies/<projectName>/. `dedicated`: this clone is owned by Lumpcode (typical daemon machine); Lumpcode pulls and runs in place, including a destructive `git reset --hard` on the target branch before each tick."
+      "description": "How Lumpcode handles the current checkout. `shared`: day-to-day clone; runs in ~/.lumpcode/project-copies/<projectName>/. `dedicated`: Lumpcode-owned clone (typical daemon machine); destructive reset on the target branch before each tick."
     },
     "primaryBranch": {
       "type": "string",
-      "description": "Singular primary integration branch. Required when primaryBranches is omitted. Used as the first entry in the effective list when primaryBranches is also set but empty."
+      "description": "Singular primary integration branch for this machine. Optional on this file when project.json supplies a primary source; after merge, at least one of primaryBranch / primaryBranches / projectBaseBranch is required. Local wins over project when both set."
     },
     "primaryBranches": {
       "type": "array",
@@ -24,20 +24,44 @@
         "minLength": 1
       },
       "uniqueItems": true,
-      "description": "Ordered list of integration branches the dedicated daemon scans each tick. When non-empty, wins over singular primaryBranch."
+      "description": "Ordered list of integration lines the dedicated daemon scans each tick. Entries may be exact branch names or git ls-remote refname globs (e.g. feature/*). When non-empty, wins over singular primaryBranch. Local wins over project when both set.",
+      "examples": [["main"], ["dev", "feature/*"]]
+    },
+    "projectBaseBranch": {
+      "type": "string",
+      "description": "Deprecated alias for primaryBranch. Prefer primaryBranch or primaryBranches."
     },
     "workspaceStrategy": {
       "type": "string",
       "enum": ["checkout", "worktree"],
-      "description": "How each lump run prepares git inside the preflight workspace. `checkout` (default): switch the main worktree to a fresh lump branch. `worktree`: run in a linked worktree under `.lumpcode/worktrees/<branch>/` so the main worktree stays on the lump resolved base branch."
+      "description": "How each lump run prepares git inside the preflight workspace. `checkout` (default): switch the main worktree to a fresh lump branch. `worktree`: run in a linked worktree under `.lumpcode/worktrees/<branch>/`."
     },
     "disabled": {
       "type": "boolean",
-      "description": "When true, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected."
+      "description": "When true, the background daemon (`lumpcode start`) skips every lump on this machine without stopping the scheduler. Manual `lumpcode run` is unaffected. Unrelated to per-lump `disabled`."
+    },
+    "maxParallelRun": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum concurrent lump runs in a single global-daemon tick when workspaceStrategy is \"worktree\". Omit or set to 1 for sequential ticks (default).",
+      "examples": [1, 2, 3]
+    },
+    "command": {
+      "type": "string",
+      "description": "Default lump `command` tag when a lump omits top-level command. Registered-tag shape only (not a .ts/.js file path). Local wins over project; lump config wins over both."
+    },
+    "maximumNumberOfConcurrentBranches": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Default cap on simultaneously open `lump/<lumpName>/*` branches when the lump omits the field. Local wins over project; lump wins over both."
+    },
+    "keepHistory": {
+      "type": "boolean",
+      "description": "Default for lump `keepHistory` when the lump omits it. Local wins over project; lump wins over both."
+    },
+    "verbose": {
+      "type": "boolean",
+      "description": "Default for lump `verbose` when the lump omits it. Local-only (not allowed on project.json)."
     }
-  },
-  "anyOf": [
-    { "required": ["primaryBranch"] },
-    { "required": ["primaryBranches"] }
-  ]
+  }
 }

@@ -5,8 +5,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { command } from './main';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
-import { execGit } from '../../utils/execGit';
-
+import { execGit, initLocalGitRepo } from '../../utils';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('context-status command', () => {
     let projectRoot: string;
@@ -18,10 +18,7 @@ describe('context-status command', () => {
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-context-status-bare-'));
 
         execGit('init --bare', bareDir);
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         execGit(`remote add origin ${bareDir}`, projectRoot);
         execGit('push -u origin main', projectRoot);
 
@@ -37,15 +34,14 @@ describe('context-status command', () => {
     async function writeLump(lumpName: string, contextKey: string) {
         const lumpDir = path.join(localConfigFolderPath, 'lumps', lumpName);
         await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(
-            path.join(lumpDir, 'config.json'),
-            JSON.stringify({
+        await writeJsonFile({
+            filePath: path.join(lumpDir, 'config.json'),
+            data: {
                 baseBranch: 'main',
                 contextListJson: { CTX: contextKey },
                 prompt: { promptTemplate: 'task', command: 'claude' },
-            }),
-            'utf-8',
-        );
+            },
+        });
     }
 
     function makeHandler() {

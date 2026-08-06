@@ -12,8 +12,7 @@ import {
 } from '../../testing';
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
-import { execGit } from '../../utils/execGit';
-
+import { initLocalGitRepo, writeJsonFile } from '../../utils';
 
 const minimalLumpConfigJson = `{
   "baseBranch": "main",
@@ -32,35 +31,24 @@ describe('restart command', () => {
     let globalConfigFolderPath: string;
     let localConfigFolderPath: string;
     const projectName = 'restart-test-project';
-    const pidPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
-    const metaPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.meta.json`);
+    const pidPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+    const metaPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-global-'));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
             minimalLumpConfigJson,
             'utf-8',
         );
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
     });
 
     afterEach(async () => {
@@ -198,50 +186,31 @@ describe('restart command', () => {
         expect(result.data.data?.cronSetup).toBe('*/5 * * * *');
     });
 
-    it('cooperatively stops a busy daemon then starts a new one', async () => {
+    it('K5: restart while mid-run fails via stop refuse (parallel-global-daemon-worktree)', async () => {
         await runStart(aliveDaemonSpawnFn);
         await waitForDaemonPidFile(pidPath());
-        const initialPid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
-        expect(Number.isNaN(initialPid)).toBe(false);
+        const pid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
+        expect(Number.isNaN(pid)).toBe(false);
 
-        await fs.writeFile(
-            metaPath(),
-            `${JSON.stringify({
+        await writeJsonFile({
+            filePath: metaPath(),
+            data: {
                 cronSetup: '*/5 * * * *',
                 workspaceStrategy: 'checkout',
-                busy: true,
-            })}\n`,
-            'utf8',
-        );
-
-        const restartSpawnFn = vi.fn(
-            (command: string, args?: readonly string[] | Record<string, unknown>, options?: Parameters<typeof nodeSpawn>[2]) => {
-                const argList = args as readonly string[];
-                return aliveDaemonSpawnFn(command, argList, options ?? {});
+                inFlightLumpCount: 2,
             },
-        ) as unknown as typeof nodeSpawn;
-
-        const result = await makeRestartHandler({ spawnFn: restartSpawnFn })({
-            options: {},
-            arguments: {},
+            trailingNewline: true,
         });
 
-        expect(result.success).toBe(true);
-        if (!result.success) throw new Error('unreachable');
-        expect(JSON.stringify(result.data)).not.toMatch(/daemonBusy/);
-        expect(result.data.messages.some((m) => m.includes('Stopped Lumpcode daemon'))).toBe(true);
-        expect(restartSpawnFn).toHaveBeenCalledOnce();
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
 
-        try {
-            process.kill(initialPid, 0);
-            throw new Error('expected original daemon to be dead');
-        } catch (e) {
-            expect(e).toMatchObject({ code: 'ESRCH' });
-        }
-
-        await waitForDaemonPidFile(pidPath());
-        const finalPid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
-        expect(Number.isNaN(finalPid)).toBe(false);
-        expect(finalPid).not.toBe(initialPid);
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages.join(' ')).toMatch(/busy|--force|daemonBusy/i);
+        expect(JSON.stringify(result.data)).toMatch(/daemonBusy/);
+        expect(spawnFn).not.toHaveBeenCalled();
+        expect(() => process.kill(pid, 0)).not.toThrow();
+        await expect(fs.access(pidPath())).resolves.toBeUndefined();
     });
 });

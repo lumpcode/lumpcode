@@ -6,6 +6,7 @@ import * as fs from 'node:fs/promises';
 import { success, failure } from '@lumpcode/core';
 
 import { command, type Output, type Injections } from './main';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 const mocks = vi.hoisted(() => {
     let password = 'testpass123';
@@ -160,10 +161,7 @@ describe('login command', () => {
 
     it('should return early when already authenticated', async () => {
         await fs.mkdir(TEST_AUTH_DIR, { recursive: true });
-        await fs.writeFile(
-            TEST_AUTH_FILE_PATH,
-            JSON.stringify({ token: 'existing-token', user: mockUser }),
-        );
+        await writeJsonFile({ filePath: TEST_AUTH_FILE_PATH, data: { token: 'existing-token', user: mockUser } });
 
         const loginApiFn = mockLoginApiFn('success');
         const isAuthenticatedFn = vi.fn().mockResolvedValue(true);
@@ -182,10 +180,7 @@ describe('login command', () => {
 
     it('should proceed to login when existing token is invalid', async () => {
         await fs.mkdir(TEST_AUTH_DIR, { recursive: true });
-        await fs.writeFile(
-            TEST_AUTH_FILE_PATH,
-            JSON.stringify({ token: 'expired-token', user: mockUser }),
-        );
+        await writeJsonFile({ filePath: TEST_AUTH_FILE_PATH, data: { token: 'expired-token', user: mockUser } });
 
         const loginApiFn = mockLoginApiFn('success');
         const isAuthenticatedFn = vi.fn().mockResolvedValue(false);
@@ -240,10 +235,7 @@ describe('login command', () => {
 
     it('should handle isAuthenticatedFn throwing', async () => {
         await fs.mkdir(TEST_AUTH_DIR, { recursive: true });
-        await fs.writeFile(
-            TEST_AUTH_FILE_PATH,
-            JSON.stringify({ token: 'bad-token', user: mockUser }),
-        );
+        await writeJsonFile({ filePath: TEST_AUTH_FILE_PATH, data: { token: 'bad-token', user: mockUser } });
 
         const loginApiFn = mockLoginApiFn('success');
         const isAuthenticatedFn = vi.fn().mockRejectedValue(new Error('network'));

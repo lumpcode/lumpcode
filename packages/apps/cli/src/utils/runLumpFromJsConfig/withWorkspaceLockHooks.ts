@@ -5,7 +5,6 @@ import type { Failure, Logger, SetupWorkspaceFn, Success } from '@lumpcode/core'
 import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { branchWorkspacePath } from '../branchWorkspacePath';
-import { withSetupWorkspaceAfterExec } from '../makeLumpWorkspaceFns';
 import {
     acquireWorkspacePathLock,
     type ReleaseWorkspacePathLockFn,
@@ -136,15 +135,18 @@ export function withWorkspaceLockHooks(input: {
                     return blockedSetupResult(branchWorkspacePathValue);
                 }
 
-                const innerSetupFn = withSetupWorkspaceAfterExec(setupWorkspaceFn, async () => {
+                // Setup may return command: '' after running git under the common-dir
+                // lock; core skips afterExec when command is empty, so release the
+                // execution-path lock here once setup returns (success or throw).
+                try {
+                    return await setupWorkspaceFn(setupInput);
+                } finally {
                     if (session.releaseExecutionPathLock) {
                         const releaseExecutionPathLockFn = session.releaseExecutionPathLock;
                         session.releaseExecutionPathLock = undefined;
                         await releaseExecutionPathLockFn();
                     }
-                });
-
-                return innerSetupFn(setupInput);
+                }
             }
 
             return setupWorkspaceFn(setupInput);

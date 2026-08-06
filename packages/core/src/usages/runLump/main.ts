@@ -4,6 +4,7 @@ import {
     getToDoContextList,
     executeStepsForContextList,
     ExecuteStepsForContextListResult,
+    type RefreshRemoteTrackingRefsFn,
 } from "../../helpers";
 import { defaultGitAddCommandFn, defaultGitCommitCommandFn, defaultGitCommitMessageFn, defaultGitPushCommandFn, defaultSetupWorkspaceFn, defaultTeardownWorkspaceFn } from "./defaultInjectedFns";
 
@@ -33,6 +34,7 @@ Failure<ExecuteStepsFailureData>
         getKeepHistoryFilePathFn = () => undefined,
         logger: loggerInput,
         signal,
+        refreshRemoteTrackingRefsFn,
     } = input;
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -45,6 +47,7 @@ Failure<ExecuteStepsFailureData>
         baseBranch,
         gitCommitMessageFn,
         logger,
+        refreshRemoteTrackingRefsFn,
     });
 
     if (!contextListToDoResult.success) {
@@ -132,6 +135,11 @@ export interface RunLumpInput<
     getKeepHistoryFilePathFn?: (context: Context) => string | undefined;
     /** When aborted, in-flight commands are killed and the step walk stops (ignores continueOnError). */
     signal?: AbortSignal;
+    /**
+     * Optional one-shot remote refresh before context status (CLI locks this).
+     * Defaults to unlocked core `refreshRemoteTrackingRefs` inside getToDoContextList.
+     */
+    refreshRemoteTrackingRefsFn?: RefreshRemoteTrackingRefsFn;
 }
 
 export interface RunLumpOutput {

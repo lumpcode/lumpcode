@@ -6,8 +6,7 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { buildTailArgs, command as daemonLogCommand } from './main';
-import { execGit } from '../../utils/execGit';
-
+import { initLocalGitRepo, writeJsonFile } from '../../utils';
 
 const minimalLumpConfigJson = `{
   "baseBranch": "main",
@@ -49,27 +48,16 @@ describe('daemon-log command', () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-daemon-log-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-daemon-log-global-'));
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
             minimalLumpConfigJson,
             'utf-8',
         );
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
     });
 
     afterEach(async () => {
@@ -122,7 +110,7 @@ describe('daemon-log command', () => {
     });
 
     it('prints last N lines with --noFollow --lines', async () => {
-        await writeLog(projectName, 'line one\nline two\nline three\n');
+        await writeLog(`${projectName}.global`, 'line one\nline two\nline three\n');
 
         const result = await makeHandler()({
             options: { noFollow: true, lines: 2 },
@@ -132,20 +120,20 @@ describe('daemon-log command', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.messages).toEqual(['line two', 'line three']);
         expect(result.data.data!.lines).toEqual(['line two', 'line three']);
-        expect(result.data.data!.logFilePath).toMatch(/daemon-log-test-project\.daemon\.log$/);
+        expect(result.data.data!.logFilePath).toMatch(/daemon-log-test-project\.global\.daemon\.log$/);
     });
 
-    it('reads per-lump log with --lumpName', async () => {
+    it('reads filtered daemon log with --daemonId', async () => {
         await writeLog(`${projectName}.alpha`, 'alpha one\nalpha two\n');
 
         const result = await makeHandler()({
-            options: { lumpName: 'alpha', noFollow: true, lines: 2 },
+            options: { daemonId: 'alpha', noFollow: true, lines: 2 },
             arguments: {},
         });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
         expect(result.data.messages).toEqual(['alpha one', 'alpha two']);
-        expect(result.data.data!.lumpName).toBe('alpha');
+        expect(result.data.data!.daemonId).toBe('alpha');
         expect(result.data.data!.logFilePath).toMatch(/\.alpha\.daemon\.log$/);
     });
 
@@ -161,7 +149,7 @@ describe('daemon-log command', () => {
     }
 
     it('spawns tail -f by default in follow mode', async () => {
-        const logPath = await writeLog(projectName, 'live\n');
+        const logPath = await writeLog(`${projectName}.global`, 'live\n');
         const spawnFn = makeFollowSpawnMock(['-f', logPath]);
 
         const result = await makeHandler(spawnFn)({ options: {}, arguments: {} });
@@ -172,7 +160,7 @@ describe('daemon-log command', () => {
     });
 
     it('spawns tail -n N -f when --lines without --noFollow', async () => {
-        const logPath = await writeLog(projectName, 'a\nb\nc\n');
+        const logPath = await writeLog(`${projectName}.global`, 'a\nb\nc\n');
         const spawnFn = makeFollowSpawnMock(['-n', '3', '-f', logPath]);
 
         const result = await makeHandler(spawnFn)({ options: { lines: 3 }, arguments: {} });

@@ -203,7 +203,7 @@ describe('featureBacklog parseItem reserved suffixes', () => {
         });
 
         await expect(
-            asGetContextListFn(config.getContextListFn)({ codeBasePaths: [], lumpVariables: {} }),
+            asGetContextListFn(config.getContextListFn)({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
         ).rejects.toThrow(/reserved suffix _req/);
 
         await rm(projectRoot, { recursive: true, force: true });

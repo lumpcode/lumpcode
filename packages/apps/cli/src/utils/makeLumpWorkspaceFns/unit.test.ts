@@ -9,7 +9,7 @@ import { shellBestEffort } from '../shellBestEffort';
 import { makeLumpWorkspaceFns } from './main';
 import { lumpWorktreePath } from '../getLumpWorktreePath';
 import { execGit } from '../execGit';
-
+import { initLocalGitRepo } from '../initLocalGitRepo';
 
 describe('makeLumpWorkspaceFns', () => {
     const executionWorkspacePath = '/wk';
@@ -29,10 +29,10 @@ describe('makeLumpWorkspaceFns', () => {
             expect(out.workspacePath).toBe(path.resolve(executionWorkspacePath));
             expect(out.command).toMatch(/^cd '/);
             expect(out.command).toContain(`cd '${executionWorkspacePath}'`);
-            expect(out.command).toContain('git fetch origin feature/x');
-            expect(out.command).toContain('git switch feature/x');
+            expect(out.command).toContain(`git fetch --no-write-fetch-head origin ${shellSingleQuote('feature/x')}`);
+            expect(out.command).toContain(`git switch ${shellSingleQuote('feature/x')}`);
             expect(out.command).toContain('git reset --hard origin/feature/x');
-            expect(out.command).toContain('git pull origin feature/x');
+            expect(out.command).not.toContain('git pull origin');
             expect(out.command).toContain(shellBestEffort(`git branch -D ${shellSingleQuote('lump/foo/ctx')}`));
             expect(out.command).toContain(`git switch -c ${shellSingleQuote('lump/foo/ctx')}`);
         });
@@ -50,7 +50,7 @@ describe('makeLumpWorkspaceFns', () => {
                 workspacePath: executionWorkspacePath,
             });
             expect(cmd).toContain(`cd '${executionWorkspacePath}'`);
-            expect(cmd).toContain('git switch main');
+            expect(cmd).toContain(`git switch ${shellSingleQuote('main')}`);
         });
 
         it('teardown uses lump resolved baseBranch when lumpBaseBranch differs from projectBaseBranch', async () => {
@@ -66,8 +66,8 @@ describe('makeLumpWorkspaceFns', () => {
                 contextList: [{ name: 'ctx', variables: {} }],
                 workspacePath: executionWorkspacePath,
             });
-            expect(cmd).toContain('git switch ver/0.0.9');
-            expect(cmd).not.toContain('git switch main');
+            expect(cmd).toContain(`git switch ${shellSingleQuote('ver/0.0.9')}`);
+            expect(cmd).not.toContain(`git switch ${shellSingleQuote('main')}`);
         });
     });
 
@@ -145,8 +145,8 @@ describe('makeLumpWorkspaceFns', () => {
                 contextList: [{ name: 'ctx', variables: {} }],
                 workspacePath: branchWorkspacePath,
             });
-            expect(cmd).toContain('git switch ver/0.0.9');
-            expect(cmd).not.toContain('git switch main');
+            expect(cmd).toContain(`git switch ${shellSingleQuote('ver/0.0.9')}`);
+            expect(cmd).not.toContain(`git switch ${shellSingleQuote('main')}`);
         });
     });
 
@@ -159,10 +159,7 @@ describe('makeLumpWorkspaceFns', () => {
             remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-wt-int-remote-'));
 
             execGit('init --bare', remoteDir);
-            execGit('init -b main', gitExecutionWorkspacePath);
-            execGit('config user.email "test@test.com"', gitExecutionWorkspacePath);
-            execGit('config user.name "Test"', gitExecutionWorkspacePath);
-            execGit('commit --allow-empty -m "init"', gitExecutionWorkspacePath);
+            initLocalGitRepo({ cwd: gitExecutionWorkspacePath });
             execGit(`remote add origin ${remoteDir}`, gitExecutionWorkspacePath);
             execGit('push -u origin main', gitExecutionWorkspacePath);
         });

@@ -1,14 +1,17 @@
 import * as path from 'node:path';
 
-import { shellSingleQuote } from '@lumpcode/core';
+import { execAsync, shellSingleQuote } from '@lumpcode/core';
 import type {
-    SetupWorkspaceAfterExecFn,
     SetupWorkspaceFn,
     TeardownWorkspaceFn,
 } from '@lumpcode/core';
 
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { atDirectory } from '../atDirectory';
+import {
+    type GitCommonDirLockContext,
+    withGitCommonDirLock,
+} from '../gitCommonDirLock';
 import { lumpWorktreePath } from '../getLumpWorktreePath';
 import { shellBestEffort } from '../shellBestEffort';
 
@@ -26,6 +29,11 @@ export interface MakeLumpWorkspaceFnsInput {
      */
     lumpBaseBranch?: string;
     workspaceStrategy: WorkspaceStrategy;
+    /**
+     * When set, setup/teardown run git under the common-dir lock and return an
+     * empty command string for the engine (work already done).
+     */
+    gitLock?: GitCommonDirLockContext;
 }
 
 export interface MakeLumpWorkspaceFnsOutput {
@@ -35,74 +43,84 @@ export interface MakeLumpWorkspaceFnsOutput {
 
 /**
  * Builds the per-lump setup/teardown that the engine runs around a single lump
- * execution. Pre-flight has already pulled `projectBaseBranch` and resolved
+ * execution. Pre-flight has already reset `projectBaseBranch` and resolved
  * `executionWorkspacePath`; here we prepare the lump branch (checkout or worktree)
  * and teardown back to a known state.
  *
- * Checkout and worktree setup/teardown prefix with `cd` into `executionWorkspacePath`
- * (via `atDirectory`) so cmd.exe gets an explicit `cd /d` on Windows. The engine
- * runs the shell string at source `projectRoot`.
+ * When `gitLock` is provided, git runs inside the fn under that lock and the
+ * engine receives an empty command. Otherwise a compound shell string is returned
+ * (tests / callers without a lock context).
  */
-/**
- * Chains an `afterExec` hook onto a workspace setup fn (runs after successful setup shell exec).
- * Used by dedicated worktree runs to release the execution-workspace lock once setup completes.
- */
-export function withSetupWorkspaceAfterExec(
-    setupWorkspaceFn: SetupWorkspaceFn,
-    afterExec: SetupWorkspaceAfterExecFn,
-): SetupWorkspaceFn {
-    return async (input) => {
-        const result = await setupWorkspaceFn(input);
-        const existingAfterExec = result.afterExec;
-        return {
-            ...result,
-            afterExec: async (ctx) => {
-                await afterExec(ctx);
-                if (existingAfterExec) {
-                    await existingAfterExec(ctx);
-                }
-            },
-        };
-    };
-}
-
 export function makeLumpWorkspaceFns(input: MakeLumpWorkspaceFnsInput): MakeLumpWorkspaceFnsOutput {
-    const { executionWorkspacePath, projectBaseBranch, lumpBaseBranch, workspaceStrategy } = input;
-    const resolvedExecutionWorkspace = path.resolve(executionWorkspacePath); // TODO : why need path.resolve ?
+    const { executionWorkspacePath, projectBaseBranch, lumpBaseBranch, workspaceStrategy, gitLock } =
+        input;
+    const resolvedExecutionWorkspace = path.resolve(executionWorkspacePath);
     const switchBackBranch = lumpBaseBranch ?? projectBaseBranch;
 
     if (workspaceStrategy === 'worktree') {
         return makeWorktreeWorkspaceFns({
             executionWorkspacePath: resolvedExecutionWorkspace,
             switchBackBranch,
+            gitLock,
         });
     }
 
     return makeCheckoutWorkspaceFns({
         executionWorkspacePath: resolvedExecutionWorkspace,
         switchBackBranch,
+        gitLock,
     });
+}
+
+async function runGitBodyUnderLock(input: {
+    executionWorkspacePath: string;
+    gitBody: string;
+    gitLock: GitCommonDirLockContext;
+}): Promise<void> {
+    const { executionWorkspacePath, gitBody, gitLock } = input;
+    const command = atDirectory(executionWorkspacePath, gitBody);
+    const locked = await withGitCommonDirLock({
+        lock: { ...gitLock, gitCwd: executionWorkspacePath },
+        fn: async () => execAsync(command, { cwd: executionWorkspacePath }),
+    });
+    if (!locked.success) {
+        throw new Error(typeof locked.data === 'string' ? locked.data : locked.data.message);
+    }
+    const execResult = locked.data;
+    if (!execResult.success) {
+        throw new Error(execResult.data.message);
+    }
 }
 
 function makeCheckoutWorkspaceFns({
     executionWorkspacePath,
     switchBackBranch,
+    gitLock,
 }: {
     executionWorkspacePath: string;
     switchBackBranch: string;
+    gitLock?: GitCommonDirLockContext;
 }): MakeLumpWorkspaceFnsOutput {
-    const setupWorkspaceFn: SetupWorkspaceFn = async ({ baseBranch, branchName }) => {
+    const buildGitBody = ({ baseBranch, branchName }: { baseBranch: string; branchName: string }) => {
         const quotedBranch = shellSingleQuote(branchName);
-        const gitBody = [
-            `git fetch origin ${baseBranch}`,
-            `git switch ${baseBranch}`,
+        const quotedBase = shellSingleQuote(baseBranch);
+        return [
+            `git fetch --no-write-fetch-head origin ${quotedBase}`,
+            `git switch ${quotedBase}`,
             `git reset --hard origin/${baseBranch}`,
-            `git pull origin ${baseBranch}`,
             shellBestEffort(`git branch -D ${quotedBranch}`),
             `git switch -c ${quotedBranch}`,
         ].join(' && ');
+    };
 
+    const setupWorkspaceFn: SetupWorkspaceFn = async ({ baseBranch, branchName }) => {
+        const gitBody = buildGitBody({ baseBranch, branchName });
         const branchWorkspacePath = executionWorkspacePath;
+
+        if (gitLock) {
+            await runGitBodyUnderLock({ executionWorkspacePath, gitBody, gitLock });
+            return { command: '', workspacePath: branchWorkspacePath };
+        }
 
         return {
             command: atDirectory(executionWorkspacePath, gitBody),
@@ -111,7 +129,12 @@ function makeCheckoutWorkspaceFns({
     };
 
     const teardownWorkspaceFn: TeardownWorkspaceFn = async () => {
-        return atDirectory(executionWorkspacePath, `git switch ${switchBackBranch}`);
+        const gitBody = `git switch ${shellSingleQuote(switchBackBranch)}`;
+        if (gitLock) {
+            await runGitBodyUnderLock({ executionWorkspacePath, gitBody, gitLock });
+            return '';
+        }
+        return atDirectory(executionWorkspacePath, gitBody);
     };
 
     return { setupWorkspaceFn, teardownWorkspaceFn };
@@ -120,25 +143,46 @@ function makeCheckoutWorkspaceFns({
 function makeWorktreeWorkspaceFns({
     executionWorkspacePath,
     switchBackBranch,
+    gitLock,
 }: {
     executionWorkspacePath: string;
     switchBackBranch: string;
+    gitLock?: GitCommonDirLockContext;
 }): MakeLumpWorkspaceFnsOutput {
-    const setupWorkspaceFn: SetupWorkspaceFn = async ({ baseBranch, branchName }) => {
-        const branchWorkspacePath = lumpWorktreePath({ executionWorkspacePath, branchName });
+    const buildSetupGitBody = ({
+        baseBranch,
+        branchName,
+        branchWorkspacePath,
+    }: {
+        baseBranch: string;
+        branchName: string;
+        branchWorkspacePath: string;
+    }) => {
         const quotedWorktree = shellSingleQuote(branchWorkspacePath);
         const quotedBranch = shellSingleQuote(branchName);
         const quotedOriginBase = shellSingleQuote(`origin/${baseBranch}`);
+        const quotedBase = shellSingleQuote(baseBranch);
+        const quotedSwitchBack = shellSingleQuote(switchBackBranch);
 
-        const gitBody = [
-            `git fetch origin ${baseBranch}`,
-            `git switch ${switchBackBranch}`,
+        return [
+            `git fetch --no-write-fetch-head origin ${quotedBase}`,
+            `git switch ${quotedSwitchBack}`,
             shellBestEffort(`git worktree remove --force ${quotedWorktree}`),
             shellRemoveDirectory(quotedWorktree),
             shellBestEffort(`git branch -D ${quotedBranch}`),
             shellBestEffort(shellEnsureDirectory(path.dirname(branchWorkspacePath))),
             `git worktree add -B ${quotedBranch} ${quotedWorktree} ${quotedOriginBase}`,
         ].join(' && ');
+    };
+
+    const setupWorkspaceFn: SetupWorkspaceFn = async ({ baseBranch, branchName }) => {
+        const branchWorkspacePath = lumpWorktreePath({ executionWorkspacePath, branchName });
+        const gitBody = buildSetupGitBody({ baseBranch, branchName, branchWorkspacePath });
+
+        if (gitLock) {
+            await runGitBodyUnderLock({ executionWorkspacePath, gitBody, gitLock });
+            return { command: '', workspacePath: branchWorkspacePath };
+        }
 
         return {
             command: atDirectory(executionWorkspacePath, gitBody),
@@ -150,13 +194,17 @@ function makeWorktreeWorkspaceFns({
         const quotedWorktree = shellSingleQuote(
             lumpWorktreePath({ executionWorkspacePath, branchName }),
         );
-        return atDirectory(
-            executionWorkspacePath,
-            [
-                shellBestEffort(`git worktree remove --force ${quotedWorktree}`),
-                `git switch ${switchBackBranch}`,
-            ].join(' && '),
-        );
+        const gitBody = [
+            shellBestEffort(`git worktree remove --force ${quotedWorktree}`),
+            `git switch ${shellSingleQuote(switchBackBranch)}`,
+        ].join(' && ');
+
+        if (gitLock) {
+            await runGitBodyUnderLock({ executionWorkspacePath, gitBody, gitLock });
+            return '';
+        }
+
+        return atDirectory(executionWorkspacePath, gitBody);
     };
 
     return { setupWorkspaceFn, teardownWorkspaceFn };

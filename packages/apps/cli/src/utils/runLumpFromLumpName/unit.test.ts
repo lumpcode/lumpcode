@@ -12,6 +12,8 @@ import { writeMinimalLump } from '../../testing';
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import { runLumpFromLumpName } from './main';
 import { execGit } from '../execGit';
+import { initLocalGitRepo } from '../initLocalGitRepo';
+import { writeJsonFile } from '../writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -20,7 +22,6 @@ vi.mock('@lumpcode/core', async () => {
         runLump: vi.fn(),
     };
 });
-
 
 describe('runLumpFromLumpName', () => {
     let projectRoot: string;
@@ -34,22 +35,11 @@ describe('runLumpFromLumpName', () => {
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-from-name-global-'));
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(localConfigFolderPath, { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName: 'run-from-name-test' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-from-name-test' } });
 
         execGit('init --bare', remoteDir);
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         execGit(`remote add origin ${remoteDir}`, projectRoot);
         execGit('push -u origin main', projectRoot);
 
@@ -165,6 +155,91 @@ describe('runLumpFromLumpName', () => {
             };
             expect(runInput.signal).toBeInstanceOf(AbortSignal);
             expect(runInput.signal?.aborted).toBe(false);
+        });
+    });
+
+    /**
+     * clean-local-project-json-config W1 / C* via phase 1 — skipped until defaults apply before phase 2.
+     */
+    describe('lump defaults + cap wiring (clean-local-project-json-config W*/C*)', () => {
+        it('W1: applies project command when lump omits command', async () => {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
+                    projectName: 'run-from-name-test',
+                    command: 'cursor',
+                },
+            });
+            await writeMinimalLump(projectRoot, 'my-lump', { command: undefined });
+            // Rewrite lump without top-level command (JSON omit).
+            const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'my-lump');
+            await writeJsonFile({
+                filePath: path.join(lumpDir, 'config.json'),
+                data: {
+                    contextListJson: { NAME: 'README' },
+                    prompt: { promptTemplate: 'E2E @{NAME}' },
+                },
+            });
+
+            const applySpy = vi.spyOn(
+                await import('../applyLumpConfigDefaults'),
+                'applyLumpConfigDefaults',
+            );
+            const phase2Spy = vi.spyOn(
+                await import('../runLumpFromJsConfig'),
+                'runLumpFromJsConfig',
+            );
+            try {
+                vi.mocked(core.runLump).mockResolvedValue(
+                    core.success({
+                        result: {
+                            branchName: 'lump/my-lump/ctx',
+                            contextNames: ['ctx'],
+                            contextRunStateList: [],
+                        },
+                    } as unknown as core.RunLumpOutput),
+                );
+
+                await callRunLumpFromLumpName();
+
+                expect(applySpy).toHaveBeenCalled();
+                expect(phase2Spy).toHaveBeenCalled();
+                const phase2Arg = phase2Spy.mock.calls[0]?.[0];
+                expect(phase2Arg?.jsConfig.command).toBe('cursor');
+            } finally {
+                applySpy.mockRestore();
+                phase2Spy.mockRestore();
+            }
+        });
+
+        it('C: inherited project cap skips tooManyOpenBranches', async () => {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
+                    projectName: 'run-from-name-test',
+                    maximumNumberOfConcurrentBranches: 2,
+                },
+            });
+            await writeMinimalLump(projectRoot, 'my-lump');
+            // Ensure lump omits cap
+            const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', 'my-lump');
+            const raw = JSON.parse(await fs.readFile(path.join(lumpDir, 'config.json'), 'utf-8')) as Record<
+                string,
+                unknown
+            >;
+            delete raw.maximumNumberOfConcurrentBranches;
+            await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: raw });
+
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+
+            const result = await callRunLumpFromLumpName();
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(true);
+            if (!result.data.skipped) throw new Error('unreachable');
+            expect(result.data.reason).toBe('tooManyOpenBranches');
+            expect(core.runLump).not.toHaveBeenCalled();
         });
     });
 });

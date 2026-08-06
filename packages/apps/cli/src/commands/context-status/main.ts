@@ -51,9 +51,13 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!jsConfResult.success) return commandFailure(jsConfResult.data);
     const jsConfig = jsConfResult.data;
     const baseBranch = jsConfig.baseBranch;
-    if (!baseBranch) {
+    if (typeof baseBranch !== 'string' || !baseBranch.trim()) {
         return failure({
-            messages: [`Lump "${lumpName}" is missing baseBranch in its config.`],
+            messages: [
+                typeof baseBranch === 'undefined'
+                    ? `Lump "${lumpName}" is missing baseBranch in its config.`
+                    : `Lump "${lumpName}" baseBranch must be a concrete branch string for context-status.`,
+            ],
         });
     }
 

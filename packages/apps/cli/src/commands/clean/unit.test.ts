@@ -8,9 +8,8 @@ import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { gitCurrentBranch, writeLocalJson } from '../../testing';
 import { runProjectPreflight } from '../../utils/runProjectPreflight';
-import { execGit } from '../../utils/execGit';
-
-
+import { execGit, initLocalGitRepo } from '../../utils';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('clean command', () => {
     let projectRoot: string;
@@ -23,26 +22,21 @@ describe('clean command', () => {
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-global-'));
 
         execGit('init --bare', bareDir);
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         execGit(`remote add origin ${bareDir}`, projectRoot);
         execGit('push -u origin main', projectRoot);
 
         const lumpcodeDir = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(lumpcodeDir);
         await Promise.all([
-            fs.writeFile(
-                path.join(lumpcodeDir, 'project.json'),
-                JSON.stringify({ projectName: 'clean-test' }),
-                'utf-8',
-            ),
-            fs.writeFile(
-                path.join(lumpcodeDir, 'local.json'),
-                JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-                'utf-8',
-            ),
+            writeJsonFile({
+                filePath: path.join(lumpcodeDir, 'project.json'),
+                data: { projectName: 'clean-test' },
+            }),
+            writeJsonFile({
+                filePath: path.join(lumpcodeDir, 'local.json'),
+                data: { mode: 'dedicated', primaryBranch: 'main' },
+            }),
         ]);
     });
 

@@ -5,15 +5,25 @@ import { failure, isProcessAlive, killProcessTree, nodeErrnoCode, success } from
 
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { pollUntil, readDaemonMeta, readDaemonPidIfAlive, resolveDaemonCommandScope } from '../../utils';
+import {
+    createCliLogger,
+    isDaemonMidRun,
+    pollUntil,
+    readDaemonMeta,
+    readDaemonPidIfAlive,
+    resolveDaemonCommandScope,
+} from '../../utils';
 
 const IDLE_STOP_WAIT_MS = 5000;
-const BUSY_STOP_WAIT_MS = 30_000;
 const FORCE_STOP_WAIT_MS = 5000;
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
-        lumpName: z.string().optional().describe('Stop the daemon scoped to a single lump'),
+        daemonId: z.string().optional().describe('Stop the daemon with this id'),
+        lumpName: z
+            .string()
+            .optional()
+            .describe('Deprecated: treated as --daemonId'),
         force: z
             .boolean()
             .optional()
@@ -38,15 +48,22 @@ export interface Injections {
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
     const force = input.options.force === true;
+    const logger = createCliLogger({
+        verbose: !!input.options.verbose,
+        json: !!input.options.json,
+        prefix: '[lumpcode stop]',
+    });
 
     const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
         localConfigFolderPath,
         globalConfigFolderPath,
+        daemonId: input.options.daemonId,
         lumpName: input.options.lumpName,
+        logger,
     });
     if (!scopeResult.success) return scopeResult;
-    const { lumpName: lumpNameOpt, scopeLabel, paths } = scopeResult.data;
+    const { daemonId, scopeLabel, paths } = scopeResult.data;
     const { pidFilePath, metaFilePath, projectName } = paths;
 
     const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
@@ -75,12 +92,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         await fs.unlink(metaFilePath).catch(() => {});
     };
 
-    const metaResult = await readDaemonMeta(metaFilePath);
-    if (!metaResult.success) {
-        return failure({ messages: [metaResult.data] });
-    }
-    const busy = metaResult.data.busy === true;
-    const waitMs = force ? FORCE_STOP_WAIT_MS : busy ? BUSY_STOP_WAIT_MS : IDLE_STOP_WAIT_MS;
+    const waitMs = force ? FORCE_STOP_WAIT_MS : IDLE_STOP_WAIT_MS;
     const waitSeconds = Math.round(waitMs / 1000);
     const pollDead = () =>
         pollUntil({
@@ -99,7 +111,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             await unlinkArtifacts();
             return success({
                 messages: [
-                    `Force-stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
+                    `Force-stopped Lumpcode daemon "${daemonId}" for "${projectName}"${scopeLabel} (was pid ${pid}).`,
                 ],
             });
         }
@@ -108,6 +120,29 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             messages: [
                 `Force-killed pid ${pid} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`,
             ],
+        });
+    }
+
+    const metaResult = await readDaemonMeta(metaFilePath);
+    if (!metaResult.success) {
+        return failure({
+            messages: [
+                `Daemon meta is invalid (reason: ${metaResult.data.reason}) at ${metaFilePath} (pid ${pid}); ` +
+                    'refusing graceful stop. Run `lumpcode stop --force`.',
+            ],
+            data: {
+                code: 'daemonMetaCorrupt' as const,
+                reason: metaResult.data.reason,
+            },
+        });
+    }
+
+    if (isDaemonMidRun(metaResult.data)) {
+        return failure({
+            messages: [
+                'Daemon is busy running a lump (mid-run / in-flight); wait for it to finish or run `lumpcode stop --force`.',
+            ],
+            data: { code: 'daemonBusy' as const },
         });
     }
 
@@ -133,7 +168,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         await unlinkArtifacts();
         return success({
             messages: [
-                `Stopped Lumpcode daemon for "${projectName}"${scopeLabel} (was pid ${pid}).`,
+                `Stopped Lumpcode daemon "${daemonId}" for "${projectName}"${scopeLabel} (was pid ${pid}).`,
             ],
         });
     }
@@ -149,6 +184,6 @@ export const command = {
     handlerMaker,
     name: 'stop',
     description:
-        'Stop the background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--lumpName` to stop a per-lump daemon. Pass `--force` for immediate process-tree kill.',
+        'Stop a background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--daemonId` to select a daemon (default: global). Pass `--force` for immediate process-tree kill.',
     inputSchema,
 } satisfies Command;

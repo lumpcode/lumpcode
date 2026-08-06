@@ -74,3 +74,90 @@ describe('resolvePrimaryBranch', () => {
         expect(resolvePrimaryBranch(localConfig)).toBe('main');
     });
 });
+
+/**
+ * dynamic-discovery-branch P1–P6.
+ * Primary = first **exact** entry; all-glob configs fail.
+ * Skipped until resolvePrimaryBranch / validation lands.
+ */
+describe('resolvePrimaryBranches first-exact primary (dynamic-discovery-branch P*)', () => {
+    it('P1: first exact amid leading globs', () => {
+        const localConfig: LocalConfig = {
+            mode: 'dedicated',
+            primaryBranches: ['feature/*', 'dev', 'main'],
+        };
+        expect(resolvePrimaryBranch(localConfig)).toBe('dev');
+    });
+
+    it('P2: leading exact wins', () => {
+        const localConfig: LocalConfig = {
+            mode: 'dedicated',
+            primaryBranches: ['dev', 'feature/*'],
+        };
+        expect(resolvePrimaryBranch(localConfig)).toBe('dev');
+    });
+
+    it('P3: all-glob array fails', () => {
+        const localConfig: LocalConfig = {
+            mode: 'dedicated',
+            primaryBranches: ['feature/*'],
+        };
+        expect(() => resolvePrimaryBranch(localConfig)).toThrow(/exact|glob|primary/i);
+    });
+
+    it('P4: singular glob primaryBranch fails', () => {
+        const localConfig: LocalConfig = {
+            mode: 'dedicated',
+            primaryBranch: 'feature/*',
+        };
+        expect(() => resolvePrimaryBranch(localConfig)).toThrow(/exact|glob|primary/i);
+    });
+
+    it('P5: non-empty primaryBranches still wins over singular; first-exact applies', () => {
+        const localConfig: LocalConfig = {
+            mode: 'dedicated',
+            primaryBranch: 'develop',
+            primaryBranches: ['feature/*', 'main'],
+        };
+        expect(resolvePrimaryBranches(localConfig)).toEqual(['feature/*', 'main']);
+        expect(resolvePrimaryBranch(localConfig)).toBe('main');
+    });
+
+    it('P6: legacy projectBaseBranch still works as exact primary', () => {
+        const localConfig: LocalConfig = { mode: 'dedicated', projectBaseBranch: 'dev' };
+        const warn = vi.fn();
+        expect(resolvePrimaryBranch(localConfig, { warn })).toBe('dev');
+        resolvePrimaryBranch(localConfig, { warn });
+        expect(warn).toHaveBeenCalledOnce();
+    });
+});
+
+/**
+ * clean-local-project-json-config R* — feed merged primary fields (ResolvedProjectLocalConfig Pick).
+ * Skipped until helper input type is documented as merged T; behavior already matches.
+ */
+describe('resolvePrimaryBranches from merged T (clean-local-project-json-config R*)', () => {
+    it('R1: merged singular primaryBranch', () => {
+        const merged = { mode: 'dedicated' as const, primaryBranch: 'dev' };
+        expect(resolvePrimaryBranches(merged)).toEqual(['dev']);
+        expect(resolvePrimaryBranch(merged)).toBe('dev');
+    });
+
+    it('R2: merged non-empty primaryBranches wins over singular', () => {
+        const merged = {
+            mode: 'dedicated' as const,
+            primaryBranch: 'develop',
+            primaryBranches: ['main', 'ver/0.0.9'],
+        };
+        expect(resolvePrimaryBranches(merged)).toEqual(['main', 'ver/0.0.9']);
+    });
+
+    it('R3: merged projectBaseBranch only warns once', () => {
+        const merged = { mode: 'dedicated' as const, projectBaseBranch: 'legacy' };
+        const warn = vi.fn();
+        expect(resolvePrimaryBranch(merged, { warn })).toBe('legacy');
+        resolvePrimaryBranch(merged, { warn });
+        expect(warn).toHaveBeenCalledOnce();
+        expect(warn.mock.calls[0]![0]).toMatch(/projectBaseBranch.*deprecated/i);
+    });
+});

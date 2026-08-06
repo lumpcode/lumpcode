@@ -15,16 +15,16 @@ import {
     type Success,
 } from '@lumpcode/core';
 
+import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
 import { countOpenLumpBranches } from '../countOpenLumpBranches';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
+import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
 import { lumpImportBasePath } from '../lumpDirPath';
-import { readLocalConfig } from '../readLocalConfig';
+import { readProjectLocalConfig } from '../readProjectLocalConfig';
+import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
-import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
-import { resolveLumpBranches } from '../resolveLumpBranches';
 import { resolveProjectExecutionContext } from '../resolveProjectExecutionContext';
-import { validateLumpDiscoveryBranchAllowlist } from '../validateLumpDiscoveryBranchAllowlist';
 
 export type LumpPlanDepth = 'validate' | 'contexts' | 'prompts' | 'plan';
 
@@ -70,6 +70,7 @@ export async function planLumpFromJsConfig(input: {
     depth: LumpPlanDepth;
     todoOnly?: boolean;
     contextName?: string;
+    discoveryBranchOpt?: string;
 }): Promise<Success<PlanLumpOutput> | Failure<string>> {
     const {
         lumpName,
@@ -79,32 +80,33 @@ export async function planLumpFromJsConfig(input: {
         depth,
         todoOnly,
         contextName,
+        discoveryBranchOpt,
     } = input;
+
+    const resolvedResult = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!resolvedResult.success) return resolvedResult;
+    const localConfig = resolvedResult.data;
 
     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
     if (!jsConfResult.success) return jsConfResult;
-    const jsConfig = jsConfResult.data;
+    const jsConfig = applyLumpConfigDefaults({
+        jsConfig: jsConfResult.data,
+        resolved: resolvedResult.data,
+    });
 
     const disabledResult = await resolveLumpDisabled(jsConfig.disabled, {
         importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }),
     });
     if (!disabledResult.success) return disabledResult;
 
-    const localConfigResult = await readLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) return localConfigResult;
-    const localConfig = localConfigResult.data;
-
-    const { resolvedDiscoveryBranch } = resolveLumpBranches({
-        lumpConfig: jsConfig,
-        localConfig,
-    });
-    const allowlistResult = validateLumpDiscoveryBranchAllowlist({
-        mode: localConfig.mode,
+    const discoveryResult = await resolveEffectiveDiscoveryBranch({
+        discoveryBranchOpt,
         lumpName,
-        resolvedDiscoveryBranch,
-        effectivePrimaryBranches: resolvePrimaryBranches(localConfig),
+        localConfigFolderPath,
+        localConfig,
+        warnSharedDiscoveryBranchIgnored: true,
     });
-    if (!allowlistResult.success) return allowlistResult;
+    if (!discoveryResult.success) return discoveryResult;
 
     const execContextResult = await resolveProjectExecutionContext({
         sourceProjectRoot: projectRoot,
@@ -128,6 +130,7 @@ export async function planLumpFromJsConfig(input: {
         executionWorkspacePath,
         workspaceStrategy,
         localConfig,
+        effectiveDiscoveryBranch: discoveryResult.data,
     });
     if (!runLumpInputResult.success) return runLumpInputResult;
 
@@ -160,12 +163,21 @@ export async function planLumpFromJsConfig(input: {
     });
 
     if (todoOnly) {
+        const refreshRemoteTrackingRefsFn = makeLockedRefreshRemoteTrackingRefsFn({
+            gitLock: {
+                globalConfigFolderPath,
+                gitCwd: projectRoot,
+                lumpName,
+                lockMode: 'wait',
+            },
+        });
         const todoResult = await getToDoContextList({
             getContextListFn: runLumpInput.getContextListFn,
             lumpVariables,
             projectRoot,
             baseBranch,
             gitCommitMessageFn: runLumpInput.gitCommitMessageFn!,
+            refreshRemoteTrackingRefsFn,
         });
         if (!todoResult.success) {
             return failure(todoResult.data.message);
@@ -282,8 +294,8 @@ export async function planLumpFromJsConfig(input: {
             baseBranch,
         });
         gitCommandsByContext[context.name] = {
-            gitAdd: gitAddCommandFn(perContextInput),
-            gitCommit: gitCommitCommandFn({ ...perContextInput, commitMessage }),
+            gitAdd: (await gitAddCommandFn(perContextInput)) ?? '',
+            gitCommit: (await gitCommitCommandFn({ ...perContextInput, commitMessage })) ?? '',
         };
     }
 
@@ -301,12 +313,13 @@ export async function planLumpFromJsConfig(input: {
         contextNames: batchContexts.map((c) => c.name),
         teardownWorkspaceCommand,
         gitCommandsByContext,
-        gitPushCommand: gitPushCommandFn({
-            baseBranch,
-            branchName,
-            contextList: batchContexts,
-            workspacePath: workspaceSetup.workspacePath,
-        }),
+        gitPushCommand:
+            (await gitPushCommandFn({
+                baseBranch,
+                branchName,
+                contextList: batchContexts,
+                workspacePath: workspaceSetup.workspacePath,
+            })) ?? '',
     };
 
     return success(baseOutput);

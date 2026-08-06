@@ -13,7 +13,7 @@ import { metaFilePathFromPidFilePath } from '../../utils/readDaemonMeta';
 import { pollUntil } from '../../utils/pollUntil';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
-import { execGit } from '../../utils/execGit';
+import { initLocalGitRepo, writeJsonFile } from '../../utils';
 const minimalLumpConfigJson = `{
   "baseBranch": "main",
   "contextListJson": {
@@ -31,33 +31,22 @@ describe('stop command', () => {
     let localConfigFolderPath: string;
     const projectName = 'stop-test-project';
     const pidPath = () =>
-        path.join(globalConfigFolderPath, 'daemons', `${projectName}.daemon.pid`);
+        path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-global-'));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        execGit('init -b main', projectRoot);
-        execGit('config user.email "test@test.com"', projectRoot);
-        execGit('config user.name "Test"', projectRoot);
-        execGit('commit --allow-empty -m "init"', projectRoot);
+        initLocalGitRepo({ cwd: projectRoot });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'project.json'),
-            JSON.stringify({ projectName }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
             minimalLumpConfigJson,
             'utf-8',
         );
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'local.json'),
-            JSON.stringify({ mode: 'dedicated', primaryBranch: 'main' }),
-            'utf-8',
-        );
+        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
     });
     afterEach(async () => {
         await fs.rm(projectRoot, { recursive: true, force: true });
@@ -134,16 +123,32 @@ describe('stop command', () => {
         const metaPath = () => metaFilePathFromPidFilePath(pidPath());
 
         async function writeBusyMeta(overrides: Record<string, unknown> = {}) {
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     busy: true,
                     ...overrides,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
+        }
+
+        async function writeInFlightMeta(
+            inFlightLumpCount: number,
+            overrides: Record<string, unknown> = {},
+        ) {
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    inFlightLumpCount,
+                    ...overrides,
+                },
+                trailingNewline: true,
+            });
         }
 
         async function readDaemonPid(): Promise<number> {
@@ -187,20 +192,112 @@ describe('stop command', () => {
 
             await fs.mkdir(path.dirname(pidPath()), { recursive: true });
             await fs.writeFile(pidPath(), `${pid}\n`, 'utf8');
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
-                })}\n`,
-                'utf8',
-            );
+                    inFlightLumpCount: 0,
+                },
+                trailingNewline: true,
+            });
 
             for (const fixturePid of childPids) {
                 activeFixturePids.add(fixturePid);
             }
             return { pid, childPids };
         }
+
+        it('K1: refuses when inFlightLumpCount >= 1 (parallel-global-daemon-worktree)', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await writeInFlightMeta(2);
+
+            const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages.join(' ')).toMatch(/busy|in[- ]?flight|mid-run/i);
+            expect(result.data.messages.join(' ')).toMatch(/--force/);
+            expect(result.data.data?.code).toBe('daemonBusy');
+            assertProcessAlive(pid);
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+            await expect(fs.access(metaPath())).resolves.toBeUndefined();
+        });
+
+        it('K2: refuses when legacy busy: true (parallel-global-daemon-worktree)', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await writeBusyMeta();
+
+            const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages.join(' ')).toMatch(/busy|--force/i);
+            expect(result.data.data?.code).toBe('daemonBusy');
+            assertProcessAlive(pid);
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+        });
+
+        it('K6: busy true with inFlightLumpCount 0 still refuses (parallel-global-daemon-worktree)', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            await writeInFlightMeta(0, { busy: true });
+
+            const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('daemonBusy');
+        });
+
+        it('K7: inFlightLumpCount 1 with busy false refuses (parallel-global-daemon-worktree)', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            await writeInFlightMeta(1, { busy: false });
+
+            const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('daemonBusy');
+        });
+
+        it('refuses graceful stop when meta is missing (daemonMetaCorrupt)', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await fs.unlink(metaPath());
+
+            const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('daemonMetaCorrupt');
+            expect(result.data.data?.reason).toBe('missing');
+            expect(result.data.messages.join(' ')).toMatch(/meta|--force/i);
+            assertProcessAlive(pid);
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+        });
+
+        it('stop --force succeeds when meta is missing', async () => {
+            await runStart(aliveDaemonSpawnFn);
+            await waitForDaemonPidFile(pidPath());
+            const pid = await readDaemonPid();
+            await fs.unlink(metaPath());
+
+            const result = await makeStopHandler()({
+                options: { force: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+            try {
+                process.kill(pid, 0);
+                throw new Error('expected daemon to be dead');
+            } catch (e) {
+                expect(e).toMatchObject({ code: 'ESRCH' });
+            }
+        });
 
         it('stop --force skips the busy check and removes artifacts', async () => {
             await runStart(aliveDaemonSpawnFn);
@@ -325,17 +422,33 @@ describe('stop command', () => {
 
         const metaPath = () => metaFilePathFromPidFilePath(pidPath());
 
+        async function writeInFlightMeta(
+            inFlightLumpCount: number,
+            overrides: Record<string, unknown> = {},
+        ) {
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    inFlightLumpCount,
+                    ...overrides,
+                },
+                trailingNewline: true,
+            });
+        }
+
         async function writeBusyMeta(overrides: Record<string, unknown> = {}) {
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     busy: true,
                     ...overrides,
-                })}\n`,
-                'utf8',
-            );
+                },
+                trailingNewline: true,
+            });
         }
 
         async function readDaemonPid(): Promise<number> {
@@ -389,14 +502,15 @@ describe('stop command', () => {
 
             await fs.mkdir(path.dirname(pidPath()), { recursive: true });
             await fs.writeFile(pidPath(), `${pid}\n`, 'utf8');
-            await fs.writeFile(
-                metaPath(),
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: metaPath(),
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
-                })}\n`,
-                'utf8',
-            );
+                    inFlightLumpCount: 0,
+                },
+                trailingNewline: true,
+            });
 
             for (const fixturePid of childPids) {
                 activeFixturePids.add(fixturePid);
@@ -404,46 +518,42 @@ describe('stop command', () => {
             return { pid, childPids };
         }
 
-        it('ST1: busy default stop cooperatively SIGTERMs and cleans up', async () => {
+        // ST1–ST4 / ST9: rewritten for mid-run refuse (parallel-global-daemon-worktree K*).
+        it('ST1/K1: mid-run default stop refuses with daemonBusy', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
-            await writeBusyMeta();
+            await writeInFlightMeta(2);
 
             const result = await makeStopHandler()({ options: {}, arguments: {} });
-            expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(JSON.stringify(result.data)).not.toMatch(/daemonBusy/);
-            await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
-            await expect(fs.access(metaPath())).rejects.toMatchObject({ code: 'ENOENT' });
-            try {
-                process.kill(pid, 0);
-                throw new Error('expected daemon to be dead');
-            } catch (e) {
-                expect(e).toMatchObject({ code: 'ESRCH' });
-            }
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages.join(' ')).toMatch(/busy|in[- ]?flight|mid-run/i);
+            expect(result.data.messages.join(' ')).toMatch(/--force/);
+            assertProcessAlive(pid);
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+            await expect(fs.access(metaPath())).resolves.toBeUndefined();
         });
 
-        it('ST2: busy + --json success has no daemonBusy code', async () => {
+        it('ST2/K1: mid-run --json includes daemonBusy code', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
-            await writeBusyMeta();
+            await writeInFlightMeta(2);
 
             const result = await makeStopHandler()({
                 options: { json: true },
                 arguments: {},
             });
-            expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(result.data.data?.code).not.toBe('daemonBusy');
-            expect(result.data.messages.join(' ')).toMatch(/stopped/i);
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('daemonBusy');
         });
 
-        it('ST3: busy stop sends SIGTERM to the daemon pid', async () => {
+        it('ST3/K1: mid-run stop does not SIGTERM the daemon', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
-            await writeBusyMeta();
+            await writeInFlightMeta(1);
 
             const killSpy = vi.spyOn(process, 'kill');
             try {
@@ -451,19 +561,18 @@ describe('stop command', () => {
                 const termCalls = killSpy.mock.calls.filter(
                     (call) => call[0] === pid && call[1] === 'SIGTERM',
                 );
-                expect(termCalls.length).toBeGreaterThanOrEqual(1);
+                expect(termCalls).toHaveLength(0);
             } finally {
                 killSpy.mockRestore();
             }
         });
 
-        it('ST4: per-lump busy stop cooperatively succeeds', async () => {
+        it('ST4/K1: per-lump mid-run stop refuses with daemonBusy', async () => {
             const lumpProjectName = 'stop-mid-run-lump-project';
-            await fs.writeFile(
-                path.join(localConfigFolderPath, 'project.json'),
-                JSON.stringify({ projectName: lumpProjectName }),
-                'utf-8',
-            );
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: { projectName: lumpProjectName },
+            });
 
             const lumpPidPath = path.join(
                 globalConfigFolderPath,
@@ -486,37 +595,33 @@ describe('stop command', () => {
             await waitForDaemonPidFile(lumpPidPath);
 
             const lumpPid = Number.parseInt((await fs.readFile(lumpPidPath, 'utf8')).trim(), 10);
-            await fs.writeFile(
-                lumpMetaPath,
-                `${JSON.stringify({
+            await writeJsonFile({
+                filePath: lumpMetaPath,
+                data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     lumpName: 'alpha',
-                    busy: true,
-                })}\n`,
-                'utf8',
-            );
+                    inFlightLumpCount: 1,
+                },
+                trailingNewline: true,
+            });
 
             const result = await makeStopHandler()({
                 options: { lumpName: 'alpha', json: true },
                 arguments: {},
             });
-            expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(result.data.data?.code).not.toBe('daemonBusy');
-            await expect(fs.access(lumpPidPath)).rejects.toMatchObject({ code: 'ENOENT' });
-            try {
-                process.kill(lumpPid, 0);
-                throw new Error('expected lump daemon to be dead');
-            } catch (e) {
-                expect(e).toMatchObject({ code: 'ESRCH' });
-            }
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('daemonBusy');
+            assertProcessAlive(lumpPid);
+            await expect(fs.access(lumpPidPath)).resolves.toBeUndefined();
         });
 
-        it('ST5: idle stop within 5s still succeeds', async () => {
+        it('ST5/K3: idle stop within 5s still succeeds', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
+            await writeInFlightMeta(0);
 
             const result = await makeStopHandler()({ options: {}, arguments: {} });
             expect(result.success).toBe(true);
@@ -530,11 +635,11 @@ describe('stop command', () => {
             }
         });
 
-        it('ST6: --force while busy removes artifacts and kills process', async () => {
+        it('ST6/K4: --force while in flight removes artifacts and kills process', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
-            await writeBusyMeta();
+            await writeInFlightMeta(2);
 
             const result = await makeStopHandler()({
                 options: { force: true },
@@ -596,18 +701,18 @@ describe('stop command', () => {
             assertProcessAlive(pid);
         }, 15_000);
 
-        it('ST9: busy SIGTERM-ignore times out after busy wait (no daemonBusy)', async () => {
+        it('ST9/K2: legacy busy mid-run refuses (no cooperative wait)', async () => {
             const { pid } = await spawnSigtermIgnorantDaemon();
             await writeBusyMeta();
 
-            const result = await makeStopHandler()({ options: {}, arguments: {} });
+            const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
-            expect(result.data.messages.join(' ')).toMatch(/did not exit/i);
-            expect(result.data.data?.code).not.toBe('daemonBusy');
-            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+            expect(result.data.data?.code).toBe('daemonBusy');
+            expect(result.data.messages.join(' ')).toMatch(/--force/);
             assertProcessAlive(pid);
-        }, 35_000);
+            await expect(fs.access(pidPath())).resolves.toBeUndefined();
+        });
 
         it('ST10: --force uses immediate kill (graceMs 0)', async () => {
             const { pid, childPids } = await spawnSigtermIgnorantDaemon();

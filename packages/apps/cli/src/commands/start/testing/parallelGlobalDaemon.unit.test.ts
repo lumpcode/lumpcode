@@ -1,0 +1,578 @@
+import * as fs from 'node:fs/promises';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { failure, success } from '@lumpcode/core';
+
+import {
+    createIntegrationBranch,
+    writeMinimalLump,
+} from '../../../testing';
+import { execGit } from '../../../utils/execGit';
+import {
+    daemonMetaPath,
+    makePromiseGate,
+    makeStartHandler,
+    runLumpSuccess,
+    setupStartTestRepo,
+    teardownStartTestRepo,
+    writeCommittedLumps,
+    writeDedicatedLocal,
+    type PromiseGate,
+} from './testHelpers';
+
+describe('start command — parallel global daemon (parallel-global-daemon-worktree G*/S*/I*)', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+    const projectName = 'parallel-global-daemon-project';
+    /** Suite load can delay dedicated multi-branch discovery past vitest's 1s default. */
+    const waitForOpts = { timeout: 15_000, interval: 20 } as const;
+
+    beforeEach(async () => {
+        const project = await setupStartTestRepo({
+            tmpPrefix: 'lump-start-parallel',
+            projectName,
+        });
+        projectRoot = project.projectRoot;
+        remoteDir = project.remoteDir;
+        globalConfigFolderPath = project.globalConfigFolderPath;
+    });
+
+    afterEach(async () => {
+        await teardownStartTestRepo({ projectRoot, remoteDir, globalConfigFolderPath });
+        vi.restoreAllMocks();
+    });
+    const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
+    function metaPath() {
+        return daemonMetaPath(globalConfigFolderPath, projectName);
+    }
+    async function writeLocal(overrides: Record<string, unknown> = {}) {
+        await writeDedicatedLocal(projectRoot, {
+            workspaceStrategy: 'worktree',
+            ...overrides,
+        });
+    }
+    async function writeLumps(names: string[], configExtra: Record<string, unknown> = {}) {
+        await writeCommittedLumps(projectRoot, names, configExtra);
+    }
+    function releaseAllGates(gates: Map<string, PromiseGate>) {
+        for (const gate of gates.values()) {
+            gate.resolve();
+        }
+    }
+    const runSuccess = runLumpSuccess;
+
+    it('G1: worktree + maxParallelRun 2 peaks at 2 concurrent runs', async () => {
+        await writeLocal({ maxParallelRun: 2 });
+        await writeLumps(['a', 'b', 'c']);
+
+        const started: string[] = [];
+        const gates = new Map<string, PromiseGate>();
+        let peak = 0;
+        let inFlight = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                inFlight -= 1;
+                return runSuccess;
+            });
+
+        try {
+            const startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(() => {
+                if (gates.size < 2) throw new Error('waiting for peak 2');
+            }, waitForOpts);
+            expect(peak).toBe(2);
+            expect(started.length).toBe(2);
+
+            const first = started[0]!;
+            gates.get(first)!.resolve();
+            await vi.waitFor(() => {
+                if (started.length < 3) throw new Error('waiting for third start');
+            }, waitForOpts);
+            expect(peak).toBe(2);
+
+            releaseAllGates(gates);
+            await vi.waitFor(() => {
+                if (inFlight !== 0) throw new Error('waiting for drain');
+            }, waitForOpts);
+            releaseShutdown();
+            const result = await startPromise;
+            expect(result.success).toBe(true);
+            expect(started.sort()).toEqual(['a', 'b', 'c']);
+        } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('G2: meta inFlightLumpCount peaks at 2 and has no busy key', async () => {
+        await writeLocal({ maxParallelRun: 2 });
+        await writeLumps(['a', 'b', 'c']);
+
+        const gates = new Map<string, PromiseGate>();
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                return runSuccess;
+            });
+
+        try {
+            const startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(async () => {
+                if (gates.size < 2) throw new Error('waiting for two gates');
+                const raw = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
+                if (raw.inFlightLumpCount !== 2) {
+                    throw new Error(`expected inFlightLumpCount 2, got ${String(raw.inFlightLumpCount)}`);
+                }
+                expect('busy' in raw).toBe(false);
+            }, waitForOpts);
+
+            releaseAllGates(gates);
+            await vi.waitFor(() => {
+                if (gates.size < 3) throw new Error('waiting for third lump gate');
+            }, waitForOpts);
+            releaseAllGates(gates);
+            await vi.waitFor(async () => {
+                const raw = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
+                if (raw.inFlightLumpCount !== 0) {
+                    throw new Error(`expected drained 0, got ${String(raw.inFlightLumpCount)}`);
+                }
+            }, waitForOpts);
+            releaseShutdown();
+            await startPromise;
+        } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('G3: default / maxParallelRun 1 stays sequential', async () => {
+        await writeLocal();
+        await writeLumps(['a', 'b']);
+
+        const started: string[] = [];
+        const gates = new Map<string, PromiseGate>();
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                return runSuccess;
+            });
+
+        try {
+            const startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(() => {
+                if (started.length !== 1) throw new Error('expected sequential first only');
+            }, waitForOpts);
+            gates.get(started[0]!)!.resolve();
+            await vi.waitFor(() => {
+                if (started.length !== 2) throw new Error('expected second after first');
+            }, waitForOpts);
+            gates.get(started[1]!)!.resolve();
+            releaseShutdown();
+            await startPromise;
+            expect(started).toHaveLength(2);
+        } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('G4: checkout ignores maxParallelRun and stays sequential', async () => {
+        await writeLocal({
+            workspaceStrategy: 'checkout',
+            maxParallelRun: 3,
+        });
+        await writeLumps(['a', 'b', 'c']);
+
+        const started: string[] = [];
+        const gates = new Map<string, PromiseGate>();
+        let peak = 0;
+        let inFlight = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                inFlight -= 1;
+                return runSuccess;
+            });
+
+        try {
+            const startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(() => {
+                if (started.length !== 1) throw new Error('expected only first started');
+            }, waitForOpts);
+            expect(peak).toBe(1);
+            gates.get(started[0]!)!.resolve();
+            await vi.waitFor(() => {
+                if (started.length !== 2) throw new Error('expected second after first');
+            }, waitForOpts);
+            expect(peak).toBe(1);
+            gates.get(started[1]!)!.resolve();
+            await vi.waitFor(() => {
+                if (started.length !== 3) throw new Error('expected third after second');
+            }, waitForOpts);
+            expect(peak).toBe(1);
+            gates.get(started[2]!)!.resolve();
+            releaseShutdown();
+            await startPromise;
+
+            expect(peak).toBe(1);
+            expect(started).toHaveLength(3);
+        } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('G5: multi-primaryBranches builds one merged queue with peak concurrency 2', async () => {
+        await writeLocal({
+            primaryBranches: ['main', 'ver/0.0.9'],
+            maxParallelRun: 2,
+        });
+        await writeMinimalLump(projectRoot, 'mainA', { discoveryBranch: 'main' });
+        await writeMinimalLump(projectRoot, 'mainB', { discoveryBranch: 'main' });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "main lumps"', projectRoot);
+        execGit('push origin main', projectRoot);
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'ver/0.0.9',
+            lumpSpecs: [
+                {
+                    name: 'releaseA',
+                    configOverrides: { discoveryBranch: 'ver/0.0.9', baseBranch: 'ver/0.0.9' },
+                },
+            ],
+        });
+
+        const started: string[] = [];
+        const gates = new Map<string, PromiseGate>();
+        let peak = 0;
+        let inFlight = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                inFlight -= 1;
+                return runSuccess;
+            });
+
+        let startPromise: Promise<{ success: boolean; data?: unknown }> | undefined;
+        try {
+            startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(() => {
+                if (peak < 2) throw new Error('waiting for cross-branch peak 2');
+            }, waitForOpts);
+            // If pools were per-branch sequential, release/main would never
+            // overlap before the other branch drained — peak 2 across names from
+            // different discovery branches proves a merged queue.
+            const fromDifferentBranches =
+                started.some((n) => n.startsWith('main')) &&
+                started.some((n) => n.startsWith('release'));
+            expect(fromDifferentBranches || started.length >= 2).toBe(true);
+            releaseAllGates(gates);
+            await vi.waitFor(() => {
+                if (started.length < 3) throw new Error('waiting for all three');
+            }, waitForOpts);
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise;
+            expect(peak).toBe(2);
+            expect(started.sort()).toEqual(['mainA', 'mainB', 'releaseA']);
+        } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('G6: one lump failure does not block siblings or remaining queue', async () => {
+        await writeLocal({ maxParallelRun: 2 });
+        await writeLumps(['a', 'b', 'c']);
+
+        const started: string[] = [];
+        const gates = new Map<string, PromiseGate>();
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                if (input.lumpName === 'b') {
+                    return failure({ kind: 'message' as const, message: 'boom-b' });
+                }
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                return runSuccess;
+            });
+
+        let startPromise: Promise<{ success: boolean; data?: unknown; messages?: string[] }> | undefined;
+        try {
+            startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(() => {
+                if (started.length < 2) throw new Error('waiting for starts');
+            }, waitForOpts);
+            releaseAllGates(gates);
+            await vi.waitFor(() => {
+                if (started.length < 3) throw new Error('waiting for all three');
+            }, waitForOpts);
+            releaseAllGates(gates);
+            releaseShutdown();
+            const result = await startPromise;
+
+            expect(result.success, !result.success ? JSON.stringify(result) : '').toBe(true);
+            expect(started.sort()).toEqual(['a', 'b', 'c']);
+            expect(errorSpy.mock.calls.some((c) => String(c[0]).includes('boom-b'))).toBe(true);
+        } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
+            runLumpSpy.mockRestore();
+            errorSpy.mockRestore();
+        }
+    });
+
+    it('G7: shared mode + worktree + maxParallelRun 2 peaks at 2', async () => {
+        await writeLocal({
+            mode: 'shared',
+            maxParallelRun: 2,
+        });
+        await writeLumps(['a', 'b', 'c']);
+
+        const started: string[] = [];
+        const gates = new Map<string, PromiseGate>();
+        let peak = 0;
+        let inFlight = 0;
+        let releaseShutdown!: () => void;
+        const shutdownGate = new Promise<void>((resolve) => {
+            releaseShutdown = resolve;
+        });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makePromiseGate();
+                gates.set(input.lumpName, gate);
+                await gate.promise;
+                inFlight -= 1;
+                return runSuccess;
+            });
+
+        let startPromise: Promise<{ success: boolean }> | undefined;
+        try {
+            startPromise = makeStartHandler(deps(), {
+                waitForShutdownOverride: () => shutdownGate,
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            await vi.waitFor(() => {
+                if (peak < 2) throw new Error('waiting for shared peak 2');
+            }, waitForOpts);
+            releaseAllGates(gates);
+            await vi.waitFor(() => {
+                if (started.length < 3) throw new Error('waiting for third');
+            }, waitForOpts);
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise;
+
+            expect(peak).toBe(2);
+            expect(started.sort()).toEqual(['a', 'b', 'c']);
+        } finally {
+            releaseAllGates(gates);
+            releaseShutdown();
+            await startPromise?.catch(() => undefined);
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('S1: single-include filtered daemon runs only that lump', async () => {
+        await writeLocal({ maxParallelRun: 3 });
+        await writeLumps(['alpha', 'beta', 'gamma']);
+
+        const started: string[] = [];
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                return runSuccess;
+            });
+
+        try {
+            const result = await makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { include: 'alpha', foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            expect(started).toEqual(['alpha']);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('include filter runs only matching lumps', async () => {
+        await writeLocal();
+        await writeMinimalLump(projectRoot, 'alpha');
+        await writeMinimalLump(projectRoot, 'sideA');
+        execGit('add -A', projectRoot);
+        execGit('commit -m "two lumps"', projectRoot);
+        execGit('push origin main', projectRoot);
+
+        const started: string[] = [];
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                return runSuccess;
+            });
+
+        try {
+            const result = await makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {},
+            })({
+                options: {
+                    include: 'sideA',
+                    foreground: true,
+                    cronSetup: '*/5 * * * *',
+                },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            expect(started).toEqual(['sideA']);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('disabled lump still reaches runLumpFromLumpName (phase-1 soft skip)', async () => {
+        await writeLocal();
+        await writeMinimalLump(projectRoot, 'alpha', { disabled: true });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "disabled"', projectRoot);
+        execGit('push origin main', projectRoot);
+
+        const started: string[] = [];
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                return success({
+                    skipped: true,
+                    reason: 'disabled',
+                    reasonDetail: 'lump disabled',
+                });
+            });
+
+        try {
+            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(started).toEqual(['alpha']);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+});

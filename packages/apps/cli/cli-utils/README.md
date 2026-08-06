@@ -49,7 +49,8 @@ npm run build -w=@lumpcode/cli-utils
 
 ## Runtime exports
 
-- `getContextStatus` — remote marker-commit status for a context
+- `getContextStatus` — remote marker-commit status for a context (locked one-shot fetch)
+- `getContextStatuses` — batch status map (one locked fetch, then local reads)
 - `makeGitCommitMessageFnFromLumpName` — default `LUMP:<lump> - <context>` messages
 - `getGitCommitMessage`, `getLumpCommitPrefixForLump` — commit message helpers
 - `readYamlList` — read a YAML file as a flat list (`[]` when missing or not an array)

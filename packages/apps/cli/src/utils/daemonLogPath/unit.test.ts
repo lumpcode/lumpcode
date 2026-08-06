@@ -6,14 +6,11 @@ import { daemonLogPath } from './main';
 describe('daemonLogPath', () => {
     const daemonsDir = '/home/.lumpcode/daemons';
 
-    it('builds the global daemon log path', () => {
-        expect(daemonLogPath({ daemonsDir, projectName: 'demo_proj' })).toBe(
-            path.join(daemonsDir, 'demo_proj.daemon.log'),
+    it('builds daemon id log path', () => {
+        expect(daemonLogPath({ daemonsDir, projectName: 'demo_proj', daemonId: 'global' })).toBe(
+            path.join(daemonsDir, 'demo_proj.global.daemon.log'),
         );
-    });
-
-    it('builds the per-lump daemon log path', () => {
-        expect(daemonLogPath({ daemonsDir, projectName: 'demo_proj', lumpName: 'alpha' })).toBe(
+        expect(daemonLogPath({ daemonsDir, projectName: 'demo_proj', daemonId: 'alpha' })).toBe(
             path.join(daemonsDir, 'demo_proj.alpha.daemon.log'),
         );
     });

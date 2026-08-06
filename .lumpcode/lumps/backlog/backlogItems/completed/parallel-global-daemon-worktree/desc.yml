@@ -1,0 +1,11 @@
+name: parallel-global-daemon-worktree
+manualReq: true
+task: >-
+  Enable parallel lump runs in the global daemon when workspaceStrategy is
+  worktree (maxParallelRun in local.json), add ignoredByGlobalDaemon per-lump
+  opt-out for side-managed lumps, and replace daemon meta busy with
+  inFlightLumpCount. See requirements.md in this item folder.
+priority: 3
+dependsOn:
+  - execute-steps-teardown-on-failure
+completedAt: '2026-08-03T19:38:05.185Z'

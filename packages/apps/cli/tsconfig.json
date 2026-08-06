@@ -22,7 +22,9 @@
     "dist",
     "src/e2e/**",
     "**/*.test.ts",
-    "**/*.spec.ts"
+    "**/*.spec.ts",
+    "**/commands/**/testing/**",
+    "**/utils/**/testing/**"
   ]
 }
 
