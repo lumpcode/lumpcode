@@ -5,17 +5,8 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
 
+import { writeLumpConfigJson } from '../writeLumpConfigJson';
 import { discoverLoadableLumpNames, discoverLoadableLumps } from './main';
-
-const minimalLumpConfigJson = `{
-  "contextListJson": {
-    "FILE": "src/{NAME}.ts"
-  },
-  "prompt": {
-    "promptTemplate": "Improve the code at @{FILE}.",
-    "command": "claude"
-  }
-}`;
 
 function createLogger(): Logger & { warnings: string[] } {
     const warnings: string[] = [];
@@ -45,9 +36,7 @@ describe('discoverLoadableLumps', () => {
     });
 
     it('warns on invalid lump directories when logger is provided', async () => {
-        const validDir = path.join(localConfigFolderPath, 'lumps', 'alpha');
-        await fs.mkdir(validDir, { recursive: true });
-        await fs.writeFile(path.join(validDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
+        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'v0.0.9'), { recursive: true });
 
         const logger = createLogger();
