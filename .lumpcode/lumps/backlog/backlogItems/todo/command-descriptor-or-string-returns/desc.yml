@@ -1,0 +1,14 @@
+name: command-descriptor-or-string-returns
+manualReq: true
+workflow: directImpl
+dependsOn:
+  - cleaner-core-git-fns
+task: >-
+  Broaden the cleaner-core-git-fns follow-up: unify all hooks and injectors that
+  return a shell command for core/CLI to run so their return type is
+  CommandDescriptor | string (structured { executable, args, env? } or a plain
+  string executed via sh -c / platform shell). Reconsider nullish / "already
+  done" semantics in that design. Likely surfaces include git command-return
+  payloads, setupWorkspace/teardownWorkspace command fields, and similar
+  command-string injectors — without prescribing every call site in this item.
+priority: 7
