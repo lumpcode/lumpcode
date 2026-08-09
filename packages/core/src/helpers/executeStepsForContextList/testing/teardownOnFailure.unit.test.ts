@@ -3,6 +3,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+import { success } from '../../../utils';
 import { executeStepsForContextList } from '../main';
 import {
     capturingLogger,
@@ -53,7 +54,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         });
 
         expect(result.success).toBe(true);
-        expect(events).toEqual(['teardownFn', 'gitAdd', 'gitCommit', 'gitPush', 'teardownWorkspaceFn']);
+        expect(events).toEqual(['teardownFn', 'gitAddCommit', 'gitPush', 'teardownWorkspaceFn']);
         expect(errorCalls.some((message) => /teardown/i.test(message) && /boom/i.test(message))).toBe(true);
     });
 
@@ -126,7 +127,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
             expect(result.data.message).toMatch(/teardown/i);
             expect((result.data as { reason?: string }).reason).toBe('workspaceTeardownFailed');
         }
-        expect(events).toEqual(['teardownFn', 'gitAdd', 'gitCommit', 'gitPush', 'teardownWorkspaceFn']);
+        expect(events).toEqual(['teardownFn', 'gitAddCommit', 'gitPush', 'teardownWorkspaceFn']);
     });
 
     it('W2: step-walk failed then workspace teardown also fails — reason stays stepWalkFailed', async () => {
@@ -197,11 +198,11 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         if (!result.success) {
             expect((result.data as { reason?: string }).reason).toBe('workspaceTeardownFailed');
         }
-        expect(events).toEqual(['teardownFn', 'gitAdd', 'gitCommit', 'gitPush', 'teardownWorkspaceFn']);
+        expect(events).toEqual(['teardownFn', 'gitAddCommit', 'gitPush', 'teardownWorkspaceFn']);
         expect(errorCalls.some((message) => /teardown/i.test(message) && /boom/i.test(message))).toBe(true);
     });
 
-    it('G1: git add failure after successful walk still runs teardownWorkspaceFn', async () => {
+    it('G1: git add+commit failure after successful walk still runs teardownWorkspaceFn', async () => {
         const events: string[] = [];
 
         const result = await executeStepsForContextList({
@@ -209,17 +210,13 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: () => {
-                events.push('gitAdd');
-                return 'exit 1';
+            gitAddCommitFn: () => {
+                events.push('gitAddCommit');
+                return success('exit 1');
             },
-            gitCommitCommandFn: () => {
-                events.push('gitCommit');
-                return 'echo git-commit';
-            },
-            gitPushCommandFn: () => {
+            gitPushFn: () => {
                 events.push('gitPush');
-                return 'echo git-push';
+                return success('echo git-push');
             },
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
@@ -238,11 +235,11 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
-            expect(result.data.message).toMatch(/Failed to add the changes for context ctx/i);
-            expect((result.data as { reason?: string }).reason).toBeUndefined();
+            expect(result.data.message).toMatch(/Failed to add and commit for context ctx/i);
+            expect((result.data as { reason?: string }).reason).toBe('gitAddCommitFailed');
         }
         expect(events).toContain('teardownFn');
-        expect(events).toContain('gitAdd');
+        expect(events).toContain('gitAddCommit');
         expect(events).toContain('teardownWorkspaceFn');
         expect(events).not.toContain('gitPush');
     });
@@ -280,8 +277,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(events).toEqual([
             'walk',
             'teardownFn:0',
-            'gitAdd',
-            'gitCommit',
+            'gitAddCommit',
             'gitPush',
             'teardownWorkspaceFn',
         ]);
@@ -298,17 +294,13 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
                 { name: 'ctx-a', variables: {} },
                 { name: 'ctx-b', variables: {} },
             ],
-            gitAddCommandFn: () => {
-                events.push('gitAdd');
-                return 'echo git-add';
+            gitAddCommitFn: () => {
+                events.push('gitAddCommit');
+                return success('echo git-add-commit');
             },
-            gitCommitCommandFn: () => {
-                events.push('gitCommit');
-                return 'echo git-commit';
-            },
-            gitPushCommandFn: () => {
+            gitPushFn: () => {
                 events.push('gitPush');
-                return 'echo git-push';
+                return success('echo git-push');
             },
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
@@ -334,12 +326,10 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(events).toEqual([
             'walk:ctx-a',
             'teardownFn:0',
-            'gitAdd',
-            'gitCommit',
+            'gitAddCommit',
             'walk:ctx-b',
             'teardownFn:1',
-            'gitAdd',
-            'gitCommit',
+            'gitAddCommit',
             'gitPush',
             'teardownWorkspaceFn',
         ]);
@@ -356,17 +346,13 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
                 { name: 'ctx-a', variables: {} },
                 { name: 'ctx-b', variables: {} },
             ],
-            gitAddCommandFn: () => {
-                events.push('gitAdd');
-                return 'echo git-add';
+            gitAddCommitFn: () => {
+                events.push('gitAddCommit');
+                return success('echo git-add-commit');
             },
-            gitCommitCommandFn: () => {
-                events.push('gitCommit');
-                return 'echo git-commit';
-            },
-            gitPushCommandFn: () => {
+            gitPushFn: () => {
                 events.push('gitPush');
-                return 'echo git-push';
+                return success('echo git-push');
             },
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
@@ -398,8 +384,7 @@ describe('executeStepsForContextList teardown on failure (F/W/G/O/M)', () => {
         expect(events).toEqual([
             'walk:ctx-a',
             'teardownFn:0',
-            'gitAdd',
-            'gitCommit',
+            'gitAddCommit',
             'walk:ctx-b',
             'teardownFn:1',
             'teardownWorkspaceFn',

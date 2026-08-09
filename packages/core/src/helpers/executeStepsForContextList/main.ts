@@ -13,6 +13,7 @@ import {
     Step,
     Steps,
     StepVariables,
+    Success,
 } from "../../types";
 import {
     appendHistoryEntry,
@@ -86,29 +87,42 @@ async function awaitUnlessAborted<T>(
     });
 }
 
-async function runOptionalGitCommand(input: {
-    label: string;
-    getCommand: () => MaybePromise<Maybe<string>>;
+type GitHookExecOutcome =
+    | { status: 'ok' }
+    | { status: 'failed'; detail: string };
+
+/**
+ * Result-aware runner for `gitAddCommitFn` / `gitPushFn`.
+ * nullish Success → no-op; empty string / Failure / throw / exec fail → failed.
+ */
+async function runGitResultHook(input: {
+    getResult: () => MaybePromise<Success<Maybe<string>> | Failure<string>>;
     cwd: string;
     logger: Logger;
-}): Promise<'ok' | 'failed'> {
-    const { label, getCommand, cwd, logger } = input;
+    execLabel: string;
+}): Promise<GitHookExecOutcome> {
+    const { getResult, cwd, logger, execLabel } = input;
     try {
-        const command = await getCommand();
-        if (command == null || command === '') {
-            return 'ok';
-        }
-        const result = await execAsync(command, { cwd });
-        logger.verbose(`${label} ${JSON.stringify(result)}`);
+        const result = await getResult();
         if (!result.success) {
-            logger.error(formatExecFailureMessage({ label, failure: result }));
-            return 'failed';
+            return { status: 'failed', detail: result.data };
         }
-        return 'ok';
+        const command = result.data;
+        if (command == null) {
+            return { status: 'ok' };
+        }
+        if (command === '') {
+            return { status: 'failed', detail: 'empty command string' };
+        }
+        const execResult = await execAsync(command, { cwd });
+        logger.verbose(`${execLabel} ${JSON.stringify(execResult)}`);
+        if (!execResult.success) {
+            return { status: 'failed', detail: execResult.data.message };
+        }
+        return { status: 'ok' };
     } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        logger.error(`Failed to run ${label}: ${message}`);
-        return 'failed';
+        return { status: 'failed', detail: message };
     }
 }
 
@@ -123,9 +137,8 @@ export type ExecuteStepsForContextListParams<
     | 'steps'
     | 'setupFn'
     | 'teardownFn'
-    | 'gitAddCommandFn'
-    | 'gitCommitCommandFn'
-    | 'gitPushCommandFn'
+    | 'gitAddCommitFn'
+    | 'gitPushFn'
     | 'gitCommitMessageFn'
     | 'projectRoot'
     | 'setupWorkspaceFn'
@@ -146,9 +159,8 @@ export async function executeStepsForContextList<
     branchFn,
     lumpVariables,
     contextList,
-    gitAddCommandFn,
-    gitCommitCommandFn,
-    gitPushCommandFn,
+    gitAddCommitFn,
+    gitPushFn,
     gitCommitMessageFn,
     projectRoot,
     steps,
@@ -434,48 +446,45 @@ export async function executeStepsForContextList<
                 break;
             }
 
-            const perContextInput = {
-                ...injectedGitAndWorkspaceFnsInput,
-                context,
-            };
-
-            const addOutcome = await runOptionalGitCommand({
-                label: `git add for context ${context.name}`,
-                getCommand: () => gitAddCommandFn(perContextInput),
-                cwd: workspacePath,
-                logger,
-            });
-            if (addOutcome === 'failed') {
-                runFailure = {
-                    success: false,
-                    data: {
-                        message: `Failed to add the changes for context ${context.name}`,
-                    },
-                };
-                break;
-            }
-
             const commitMessage = gitCommitMessageFn({ context, lumpVariables, baseBranch });
-
-            await runOptionalGitCommand({
-                label: `git commit for context ${context.name}`,
-                getCommand: () =>
-                    gitCommitCommandFn({
-                        ...perContextInput,
+            const addCommitExecLabel = `git add+commit for context ${context.name}`;
+            const addCommitOutcome = await runGitResultHook({
+                getResult: () =>
+                    gitAddCommitFn({
+                        ...injectedGitAndWorkspaceFnsInput,
+                        context,
                         commitMessage,
                     }),
                 cwd: workspacePath,
                 logger,
+                execLabel: addCommitExecLabel,
             });
+            if (addCommitOutcome.status === 'failed') {
+                const message =
+                    `Failed to add and commit for context ${context.name}: ${addCommitOutcome.detail}`;
+                logger.error(message);
+                runFailure = {
+                    success: false,
+                    data: {
+                        message,
+                        reason: 'gitAddCommitFailed',
+                    },
+                };
+                break;
+            }
         }
 
         if (!runFailure) {
-            await runOptionalGitCommand({
-                label: `git push on branch ${branchName}`,
-                getCommand: () => gitPushCommandFn(injectedGitAndWorkspaceFnsInput),
+            const pushExecLabel = `git push on branch ${branchName}`;
+            const pushOutcome = await runGitResultHook({
+                getResult: () => gitPushFn(injectedGitAndWorkspaceFnsInput),
                 cwd: workspacePath,
                 logger,
+                execLabel: pushExecLabel,
             });
+            if (pushOutcome.status === 'failed') {
+                logger.error(`Failed to ${pushExecLabel}: ${pushOutcome.detail}`);
+            }
         }
     } finally {
         const teardownWorkspaceCommand = await teardownWorkspaceFn(injectedGitAndWorkspaceFnsInput);

@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { load as loadYaml } from 'js-yaml';
 
 import type { Context, Logger, SetupFn, Steps } from '../../../types';
+import { failure, success } from '../../../utils';
 import { executeStepsForContextList } from '../main';
 import {
     echoCommandFn,
@@ -13,8 +14,7 @@ import {
     makeSteps,
     recordingTeardownAndGit,
     stubBranchFn,
-    stubGitAdd,
-    stubGitCommit,
+    stubGitAddCommit,
     stubGitCommitMessage,
     stubGitPush,
 } from './testHelpers';
@@ -39,9 +39,8 @@ async function runWithHistory({
         branchFn: stubBranchFn,
         lumpVariables,
         contextList,
-        gitAddCommandFn: stubGitAdd,
-        gitCommitCommandFn: stubGitCommit,
-        gitPushCommandFn: stubGitPush,
+        gitAddCommitFn: stubGitAddCommit,
+        gitPushFn: stubGitPush,
         gitCommitMessageFn: stubGitCommitMessage,
         projectRoot,
         steps,
@@ -293,9 +292,8 @@ describe('executeStepsForContextList keepHistory', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: makeSteps(['only step']),
@@ -375,9 +373,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: stepsInput,
@@ -405,9 +402,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [{
@@ -437,9 +433,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [{
@@ -463,9 +458,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [{
@@ -497,9 +491,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [{
@@ -536,9 +529,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [{
@@ -608,9 +600,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [
@@ -688,9 +679,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'loopCtx', variables: { NAME: 'loopCtx' } }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: getRecursiveSteps(),
@@ -724,9 +714,8 @@ describe('executeStepsForContextList dynamic steps', () => {
                 { name: 'first', variables: {} },
                 { name: 'second', variables: {} },
             ],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: makeSteps(['only step']),
@@ -745,7 +734,7 @@ describe('executeStepsForContextList dynamic steps', () => {
         ]);
     });
 
-    it('logs commit failures via logger.error even when verbose is false', async () => {
+    it('hard-fails add+commit shell exec with gitAddCommitFailed', async () => {
         const errorCalls: string[] = [];
         const logger = {
             error: (message: string) => {
@@ -762,9 +751,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: () => 'git commit --allow-empty -m "fail-test" && exit 1',
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: () => success('git commit --allow-empty -m "fail-test" && exit 1'),
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: makeSteps(['only step']),
@@ -776,8 +764,14 @@ describe('executeStepsForContextList dynamic steps', () => {
             logger,
         });
 
-        expect(result.success).toBe(true);
-        expect(errorCalls.some((message) => message.includes('git commit for context ctx'))).toBe(true);
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.reason).toBe('gitAddCommitFailed');
+            expect(result.data.message).toMatch(/^Failed to add and commit for context ctx:/);
+        }
+        expect(errorCalls.some((message) =>
+            message.startsWith('Failed to add and commit for context ctx:'),
+        )).toBe(true);
     });
 
     it('logs push failures via logger.error even when verbose is false', async () => {
@@ -797,9 +791,8 @@ describe('executeStepsForContextList dynamic steps', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: () => 'git push && exit 1',
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: () => success('git push && exit 1'),
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: makeSteps(['only step']),
@@ -813,6 +806,179 @@ describe('executeStepsForContextList dynamic steps', () => {
 
         expect(result.success).toBe(true);
         expect(errorCalls.some((message) => message.includes('git push on branch'))).toBe(true);
+    });
+
+    it('hard-fails when gitAddCommitFn returns failure', async () => {
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [
+                { name: 'ctx-a', variables: {} },
+                { name: 'ctx-b', variables: {} },
+            ],
+            gitAddCommitFn: () => failure('lock busy'),
+            gitPushFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: makeSteps(['only step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.reason).toBe('gitAddCommitFailed');
+            expect(result.data.message).toBe(
+                'Failed to add and commit for context ctx-a: lock busy',
+            );
+        }
+    });
+
+    it('hard-fails when gitAddCommitFn returns success("")', async () => {
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommitFn: () => success(''),
+            gitPushFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: makeSteps(['only step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.reason).toBe('gitAddCommitFailed');
+            expect(result.data.message).toMatch(/empty command string/);
+        }
+    });
+
+    it('hard-fails when gitAddCommitFn throws', async () => {
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommitFn: () => {
+                throw new Error('injector boom');
+            },
+            gitPushFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: makeSteps(['only step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.reason).toBe('gitAddCommitFailed');
+            expect(result.data.message).toBe(
+                'Failed to add and commit for context ctx: injector boom',
+            );
+        }
+    });
+
+    it('treats gitAddCommitFn success(undefined) as no-op (overall success)', async () => {
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommitFn: () => success(undefined),
+            gitPushFn: () => success(undefined),
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: makeSteps(['only step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+    });
+
+    it('passes gitCommitMessageFn output as commitMessage to gitAddCommitFn', async () => {
+        let seenCommitMessage: string | undefined;
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommitFn: ({ commitMessage }) => {
+                seenCommitMessage = commitMessage;
+                return success('echo git-add-commit');
+            },
+            gitPushFn: stubGitPush,
+            gitCommitMessageFn: () => 'CUSTOM:ctx',
+            projectRoot,
+            steps: makeSteps(['only step']),
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        expect(seenCommitMessage).toBe('CUSTOM:ctx');
+    });
+
+    it('push Failure / empty / throw stay overall success', async () => {
+        for (const gitPushFn of [
+            () => failure('push lock busy'),
+            () => success(''),
+            () => {
+                throw new Error('push boom');
+            },
+        ] as const) {
+            const errorCalls: string[] = [];
+            const logger = {
+                error: (message: string) => {
+                    errorCalls.push(message);
+                },
+                warn: () => {},
+                info: () => {},
+                verbose: () => {},
+                child: () => logger,
+            };
+
+            const result = await executeStepsForContextList({
+                baseBranch: 'main',
+                branchFn: stubBranchFn,
+                lumpVariables: {},
+                contextList: [{ name: 'ctx', variables: {} }],
+                gitAddCommitFn: stubGitAddCommit,
+                gitPushFn,
+                gitCommitMessageFn: stubGitCommitMessage,
+                projectRoot,
+                steps: makeSteps(['only step']),
+                setupFn: async () => ({ contextRunState: {} }),
+                teardownFn: async () => undefined,
+                setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+                teardownWorkspaceFn: async () => '',
+                getKeepHistoryFilePathFn: () => undefined,
+                logger,
+            });
+
+            expect(result.success).toBe(true);
+            expect(errorCalls.length).toBeGreaterThan(0);
+        }
     });
 });
 
@@ -837,9 +1003,8 @@ describe('executeStepsForContextList setupWorkspaceFn.afterExec', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: makeSteps(['step']),
@@ -868,9 +1033,8 @@ describe('executeStepsForContextList setupWorkspaceFn.afterExec', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: makeSteps(['step']),
@@ -899,9 +1063,8 @@ describe('executeStepsForContextList setupWorkspaceFn.afterExec', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: makeSteps(['step']),

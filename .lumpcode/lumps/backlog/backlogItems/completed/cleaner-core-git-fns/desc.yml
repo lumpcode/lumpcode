@@ -13,3 +13,4 @@ task: >-
   gitCommandsByContext / gitPushCommand. Update defaults, types, tests, core
   README, AGENTS.md. See requirements.md.
 priority: 6
+completedAt: '2026-08-09T16:41:12.647Z'

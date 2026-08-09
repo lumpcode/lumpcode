@@ -5,10 +5,9 @@ import { describe, it, expectTypeOf } from 'vitest';
 import type {
   BranchFn,
   CommandFn,
-  GitAddCommandFn,
-  GitCommitCommandFn,
+  GitAddCommitFn,
   GitCommitMessageFn,
-  GitPushCommandFn,
+  GitPushFn,
   PromptFn,
   SetupFn,
   TeardownFn,
@@ -23,10 +22,9 @@ import {
   defineContextMatchFn,
   defineContextOptionsFn,
   defineGetContextListFn,
-  defineGitAddCommandFn,
-  defineGitCommitCommandFn,
+  defineGitAddCommitFn,
   defineGitCommitMessageFn,
-  defineGitPushCommandFn,
+  defineGitPushFn,
   definePostCommandExecFn,
   definePromptFn,
   defineSetupFn,
@@ -159,16 +157,16 @@ describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
   });
 
   it('D8: git / contextOptions helpers stay unparameterized', () => {
-    const add = defineGitAddCommandFn((input) => `git add ${input.context.name}`);
-    const commit = defineGitCommitCommandFn((input) => `git commit -m ${input.commitMessage}`);
-    const push = defineGitPushCommandFn(() => 'git push');
+    const addCommit = defineGitAddCommitFn((input) =>
+      ({ success: true as const, data: `git add . && git commit -m ${input.commitMessage}` }),
+    );
+    const push = defineGitPushFn(() => ({ success: true as const, data: 'git push' }));
     const opts = defineContextOptionsFn(() => undefined);
-    expectTypeOf(add).toEqualTypeOf<GitAddCommandFn>();
-    expectTypeOf(commit).toEqualTypeOf<GitCommitCommandFn>();
-    expectTypeOf(push).toEqualTypeOf<GitPushCommandFn>();
+    expectTypeOf(addCommit).toEqualTypeOf<GitAddCommitFn>();
+    expectTypeOf(push).toEqualTypeOf<GitPushFn>();
     void opts;
-    // @ts-expect-error — no new type params on defineGitAddCommandFn
-    defineGitAddCommandFn<V>(() => 'git add');
+    // @ts-expect-error — no new type params on defineGitAddCommitFn
+    defineGitAddCommitFn<V>(() => ({ success: true as const, data: 'git add' }));
   });
 
   it('D9: defineConfig without type args stays assignable', () => {

@@ -50,7 +50,7 @@ export * from './lumpBranchGlob';
 export * from './lumpBranchName';
 export * from './lumpDirPath';
 export * from './lumpHistoryFilePath';
-export * from './makeGatedGitCommandFns';
+export * from './makeGatedGitFns';
 export * from './makeGetContextListFnFromTemplate';
 export * from './makeGitCommitMessageFnFromLumpName';
 export * from './makeLockedRefreshRemoteTrackingRefsFn';
