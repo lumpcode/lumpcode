@@ -1,4 +1,6 @@
 name: cleaner-core-git-fns
+manualReq: true
+workflow: directImpl
 task: >-
   Update core with three cleaner git injectors on RunLump /
   executeStepsForContextList: gitAddCommitFn (add + commit), gitCommitMessageFn,

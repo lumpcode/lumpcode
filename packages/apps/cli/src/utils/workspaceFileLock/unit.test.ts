@@ -217,4 +217,36 @@ describe('workspaceFileLock', () => {
         await acquired.data();
         await expect(fs.access(lockFilePath)).resolves.toBeUndefined();
     });
+
+    it('sync release removes the lock file for the current pid', async () => {
+        const lockFilePath = workspaceLockFilePath({
+            globalConfigFolderPath,
+            workspacePath,
+            spec: TEST_LOCK_SPEC,
+        });
+
+        const acquired = await acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'sync-mine',
+            mode: 'fail',
+        });
+        expect(acquired.success).toBe(true);
+        if (!acquired.success) throw new Error('unreachable');
+
+        await expect(fs.access(lockFilePath)).resolves.toBeUndefined();
+        acquired.data.sync();
+        await expect(fs.access(lockFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+
+        const reacquired = await acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'after-sync',
+            mode: 'fail',
+        });
+        expect(reacquired.success).toBe(true);
+        if (reacquired.success) await reacquired.data();
+    });
 });

@@ -1,4 +1,5 @@
 import * as crypto from 'node:crypto';
+import * as fsSync from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -43,7 +44,10 @@ export type WorkspaceLockHolder = {
     [key: string]: string | number | undefined;
 };
 
-export type ReleaseWorkspaceFileLockFn = () => Promise<void>;
+export type ReleaseWorkspaceFileLockFn = (() => Promise<void>) & {
+    /** Best-effort sync unlock for `process.exit` / forced interrupt paths. */
+    sync: () => void;
+};
 
 const WAIT_POLL_MS = 500;
 
@@ -212,7 +216,7 @@ export async function acquireWorkspaceFileLock<S extends WorkspaceFileLockSpec>(
         const attempt = await tryAcquireWorkspaceFileLockOnce({ lockFilePath, payload, spec, logger });
 
         if (attempt.status === 'acquired') {
-            const release: ReleaseWorkspaceFileLockFn = async () => {
+            const releaseAsync = async () => {
                 try {
                     const holder = await readLockHolder(lockFilePath);
                     if (holder?.pid === process.pid) {
@@ -222,6 +226,19 @@ export async function acquireWorkspaceFileLock<S extends WorkspaceFileLockSpec>(
                     // lock already gone
                 }
             };
+            const release = Object.assign(releaseAsync, {
+                sync: () => {
+                    try {
+                        const raw = fsSync.readFileSync(lockFilePath, 'utf8');
+                        const holder = JSON.parse(raw) as WorkspaceLockHolder;
+                        if (holder?.pid === process.pid) {
+                            fsSync.unlinkSync(lockFilePath);
+                        }
+                    } catch {
+                        // lock already gone or unreadable
+                    }
+                },
+            }) satisfies ReleaseWorkspaceFileLockFn;
             return success(release);
         }
 

@@ -16,12 +16,20 @@ import {
     type BacklogPaths,
 } from '@lumpcode/recipes';
 
+type FeatureBacklogWorkflow = 'tdd' | 'directImpl';
+
 type FeatureBacklogItem = BaseBacklogItem & {
     manualReq?: boolean;
+    workflow?: FeatureBacklogWorkflow;
     completedAt?: string;
 };
 
-type FeatureBacklogStage = 'makeReq' | 'makeTestPlan' | 'testImpl' | 'implementation';
+type FeatureBacklogStage =
+    | 'makeReq'
+    | 'makeTestPlan'
+    | 'testImpl'
+    | 'implementation'
+    | 'directImpl';
 
 type FeatureBacklogContextVariables = {
     TASK_NAME: string;
@@ -32,6 +40,8 @@ type FeatureBacklogContextVariables = {
     REQ_FILE?: string;
     TEST_PLAN_FILE?: string;
 };
+
+const FEATURE_BACKLOG_WORKFLOWS = ['tdd', 'directImpl'] as const satisfies readonly FeatureBacklogWorkflow[];
 
 const RESERVED_NAME_SUFFIXES = ['_req', '_testPlan', '_tests_impl'] as const;
 
@@ -52,6 +62,7 @@ function featureContextName(itemName: string, stage: FeatureBacklogStage): strin
         case 'testImpl':
             return `${itemName}_tests_impl`;
         case 'implementation':
+        case 'directImpl':
             return itemName;
         default: {
             const _exhaustive: never = stage;
@@ -94,7 +105,7 @@ async function resolveFeatureBacklogItem(input: {
     const testPlanFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'testPlan.md');
 
     const hasReq = await pathExists(path.join(projectRoot, reqFilePath));
-    
+
     if (!hasReq) {
         if (item.manualReq === true) {
             return { ignored: true };
@@ -103,6 +114,14 @@ async function resolveFeatureBacklogItem(input: {
         return {
             stage: 'makeReq',
             contextName: featureContextName(item.name, 'makeReq'),
+            variables: { REQ_FILE: reqFilePath },
+        };
+    }
+
+    if (item.workflow === 'directImpl') {
+        return {
+            stage: 'directImpl',
+            contextName: featureContextName(item.name, 'directImpl'),
             variables: { REQ_FILE: reqFilePath },
         };
     }
@@ -178,9 +197,23 @@ export default backlog<
         if (record.manualReq !== undefined && typeof record.manualReq !== 'boolean') {
             throw new Error(`Backlog item "${baseItem.name}" field "manualReq" must be a boolean`);
         }
+        if (record.workflow !== undefined) {
+            if (
+                typeof record.workflow !== 'string' ||
+                !(FEATURE_BACKLOG_WORKFLOWS as readonly string[]).includes(record.workflow)
+            ) {
+                throw new Error(
+                    `Backlog item "${baseItem.name}" field "workflow" must be one of: ${FEATURE_BACKLOG_WORKFLOWS.join(', ')}`,
+                );
+            }
+        }
         return {
             ...baseItem,
             manualReq: record.manualReq === true ? true : undefined,
+            workflow:
+                record.workflow === undefined
+                    ? undefined
+                    : (record.workflow as FeatureBacklogWorkflow),
         };
     },
     async resolveItem({ item, paths, discoveryBranch }) {
@@ -344,6 +377,26 @@ Implement the feature described in @${REQ_FILE}.
 The tests have already been implemented according to the test plan in @${TEST_PLAN_FILE}.
 Unskip all the tests that were skipped in the tests implementation.
 The implementation should make the tests pass. Do not edit any test file except to unskip them or if absolutely necessary.
+                            `.trim();
+                        },
+                    },
+                ],
+                validationCommandFn: runImplValidation,
+            }),
+        },
+        directImpl: {
+            completion: 'moveToDone',
+            steps: retryUntilGreen<CursorPresetLumpVariables, CursorPresetStepVariables>({
+                steps: [
+                    {
+                        promptFn({ context: ctx }) {
+                            const vars = ctx.variables as FeatureBacklogContextVariables;
+                            const { REQ_FILE } = vars;
+
+                            return `
+Implement the feature described in @${REQ_FILE}.
+Add or update tests as needed so the suite covers the change, and make validation pass.
+Do not edit @${REQ_FILE} unless absolutely necessary.
                             `.trim();
                         },
                     },

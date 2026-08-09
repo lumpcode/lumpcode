@@ -11,6 +11,7 @@ import { acquireWorkspacePathLock } from '../workspacePathLock';
 import {
     createWorkspaceLockSession,
     releaseWorkspaceLockSession,
+    releaseWorkspaceLockSessionSync,
     withWorkspaceLockHooks,
 } from './withWorkspaceLockHooks';
 import { isRunLumpWorkspacePathBusyFailure } from './failures';
@@ -237,5 +238,28 @@ describe('withWorkspaceLockHooks', () => {
         expect(preflightSpy).not.toHaveBeenCalled();
 
         await held.data();
+    });
+
+    it('releaseWorkspaceLockSessionSync clears held path locks', async () => {
+        const session = createWorkspaceLockSession();
+        const wrapped = withWorkspaceLockHooks({
+            setupWorkspaceFn: makeInnerSetup(),
+            session,
+            ctx: makeCtx(),
+        });
+        await wrapped(setupInput);
+        expect(session.releaseExecutionPathLock).toBeTypeOf('function');
+
+        releaseWorkspaceLockSessionSync(session);
+        expect(session.releaseExecutionPathLock).toBeUndefined();
+
+        const reacquired = await acquireWorkspacePathLock({
+            globalConfigFolderPath,
+            workspacePath: executionWorkspacePath,
+            lumpName: 'after-sync',
+            mode: 'fail',
+        });
+        expect(reacquired.success).toBe(true);
+        if (reacquired.success) await reacquired.data();
     });
 });

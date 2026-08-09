@@ -52,6 +52,7 @@ describe('core dual-bag <V, SV> (C1–C8)', () => {
     const fn: PostCommandExecFn<V, SV> = (params) => {
       expectTypeOf(params.lumpVariables).toEqualTypeOf<V>();
       expectTypeOf(params.stepVariables).toEqualTypeOf<SV | undefined>();
+      expectTypeOf(params.signal).toEqualTypeOf<AbortSignal | undefined>();
     };
     void fn;
   });
