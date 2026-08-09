@@ -2,13 +2,14 @@ name: cleaner-core-git-fns
 manualReq: true
 workflow: directImpl
 task: >-
-  Update core with three cleaner git injectors on RunLump /
-  executeStepsForContextList: gitAddCommitFn (add + commit), gitCommitMessageFn,
-  and gitPushFn. Each returns Promise<Success<Maybe<string>> | Failure<string>>
-  (string means core should execAsync it; null/undefined means the injector
-  already did the work or no-op). Keep gitAddCommandFn, gitCommitCommandFn, and
-  gitPushCommandFn deprecated; during implementation, incorporate the legacy
-  fields into a concise gitAddCommitFn (and the other new hooks) so callers can
-  migrate. Update defaults, types, and tests; CLI should prefer the new hooks
-  for locked add+commit and push.
+  Replace core git injectors on RunLump / executeStepsForContextList with
+  gitAddCommitFn (add + commit), gitPushFn, and existing gitCommitMessageFn
+  (sync string marker). gitAddCommitFn / gitPushFn return
+  MaybePromise<Success<Maybe<string>> | Failure<string>> (string → core
+  execAsync; nullish → already done / no-op; empty string → failure). Clean
+  break: remove gitAddCommandFn, gitCommitCommandFn, gitPushCommandFn (no
+  deprecation shim). Hard-fail add+commit with reason gitAddCommitFailed; push
+  stays log-only. CLI: makeGatedGitFns (Result, no throw); drop lump-plan
+  gitCommandsByContext / gitPushCommand. Update defaults, types, tests, core
+  README, AGENTS.md. See requirements.md.
 priority: 6
