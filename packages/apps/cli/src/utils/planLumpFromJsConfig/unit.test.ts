@@ -88,6 +88,23 @@ describe('planLumpFromJsConfig', () => {
         expect(result.data.promptsByContext?.ctx1?.[0].prompt).toBe('preview prompt');
     });
 
+    it('plan depth omits gitCommandsByContext and gitPushCommand', async () => {
+        const result = await planLumpFromJsConfig({
+            lumpName: 'preview-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth: 'plan',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.plan).toBeDefined();
+        expect(result.data.plan).not.toHaveProperty('gitCommandsByContext');
+        expect(result.data.plan).not.toHaveProperty('gitPushCommand');
+        expect(result.data.plan?.branchName).toBeTruthy();
+        expect(result.data.plan?.contextNames).toEqual(['ctx1']);
+    });
+
     it('P1 validate depth succeeds with config.ts', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.ts'),

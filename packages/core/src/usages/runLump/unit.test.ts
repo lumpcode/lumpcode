@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { execSync } from 'node:child_process';
 
 import type { BranchFn } from '../../types';
+import { failure, success } from '../../utils';
 import { runLump } from './main';
 
 const stubBranchFn: BranchFn = async () => 'lump/test/ctx';
@@ -42,9 +43,8 @@ describe('runLump failure reason preservation (R1/R2)', () => {
             }],
             setupFn: async () => ({ contextRunState: {} }),
             teardownFn: async () => undefined,
-            gitAddCommandFn: () => 'echo git-add',
-            gitCommitCommandFn: () => 'echo git-commit',
-            gitPushCommandFn: () => 'echo git-push',
+            gitAddCommitFn: () => success('echo git-add-commit'),
+            gitPushFn: () => success('echo git-push'),
             gitCommitMessageFn: () => 'LUMP:ctx',
             setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
             teardownWorkspaceFn: async () => '',
@@ -71,9 +71,8 @@ describe('runLump failure reason preservation (R1/R2)', () => {
             }],
             setupFn: async () => ({ contextRunState: {} }),
             teardownFn: async () => undefined,
-            gitAddCommandFn: () => 'echo git-add',
-            gitCommitCommandFn: () => 'echo git-commit',
-            gitPushCommandFn: () => 'echo git-push',
+            gitAddCommitFn: () => success('echo git-add-commit'),
+            gitPushFn: () => success('echo git-push'),
             gitCommitMessageFn: () => 'LUMP:ctx',
             setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
             teardownWorkspaceFn: async () => 'exit 1',
@@ -86,6 +85,34 @@ describe('runLump failure reason preservation (R1/R2)', () => {
                 /Error in runLump: Failed to execute steps for context list\. Original Error:.*teardown/i,
             );
             expect((result.data as { reason?: string }).reason).toBe('workspaceTeardownFailed');
+        }
+    });
+
+    it('R3: propagates gitAddCommitFailed when rewriting execute-steps message', async () => {
+        const result = await runLump({
+            projectRoot,
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            getContextListFn: async () => [{ name: 'ctx', variables: {} }],
+            steps: [{
+                commandFn: () => ({ executable: 'echo', args: ['ok'] }),
+            }],
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            gitAddCommitFn: () => failure('lock busy'),
+            gitPushFn: () => success('echo git-push'),
+            gitCommitMessageFn: () => 'LUMP:ctx',
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.message).toMatch(
+                /Error in runLump: Failed to execute steps for context list\. Original Error:.*Failed to add and commit for context ctx: lock busy/i,
+            );
+            expect((result.data as { reason?: string }).reason).toBe('gitAddCommitFailed');
         }
     });
 });

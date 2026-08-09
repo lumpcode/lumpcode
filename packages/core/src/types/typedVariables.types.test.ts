@@ -8,11 +8,10 @@ import type {
   CommandFn,
   GetContextListFn,
   GetContextListFnInput,
-  GitAddCommandFn,
-  GitCommitCommandFn,
+  GitAddCommitFn,
   GitCommitMessageFn,
   GitCommitMessageFnInput,
-  GitPushCommandFn,
+  GitPushFn,
   HistoryEntry,
   PostCommandExecFn,
   PromptFn,
@@ -172,16 +171,13 @@ describe('core lump-only <V> (C9–C12)', () => {
     void fn;
   });
 
-  it('C12: git add/commit/push command fns stay unparameterized', () => {
-    expectTypeOf<GitAddCommandFn>().toBeFunction();
-    expectTypeOf<GitCommitCommandFn>().toBeFunction();
-    expectTypeOf<GitPushCommandFn>().toBeFunction();
-    // @ts-expect-error GitAddCommandFn must not accept type parameters
-    type _NoAddParam = GitAddCommandFn<V>;
-    // @ts-expect-error GitCommitCommandFn must not accept type parameters
-    type _NoCommitParam = GitCommitCommandFn<V>;
-    // @ts-expect-error GitPushCommandFn must not accept type parameters
-    type _NoPushParam = GitPushCommandFn<V>;
+  it('C12: git add+commit / push fns stay unparameterized', () => {
+    expectTypeOf<GitAddCommitFn>().toBeFunction();
+    expectTypeOf<GitPushFn>().toBeFunction();
+    // @ts-expect-error GitAddCommitFn must not accept type parameters
+    type _NoAddCommitParam = GitAddCommitFn<V>;
+    // @ts-expect-error GitPushFn must not accept type parameters
+    type _NoPushParam = GitPushFn<V>;
   });
 });
 

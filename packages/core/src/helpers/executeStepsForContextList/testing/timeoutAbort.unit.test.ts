@@ -14,8 +14,7 @@ import {
     initTestGitRepo,
     recordingTeardownAndGit,
     stubBranchFn,
-    stubGitAdd,
-    stubGitCommit,
+    stubGitAddCommit,
     stubGitCommitMessage,
     stubGitPush,
 } from './testHelpers';
@@ -62,9 +61,8 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [
@@ -244,7 +242,7 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
         // Already aborted before the context starts: skip setup/teardownFn; still tear down workspace.
         expect(executionOrder).toEqual([]);
         expect(events).toEqual(['teardownWorkspaceFn']);
-        expect(events).not.toContain('gitAdd');
+        expect(events).not.toContain('gitAddCommit');
         expect(events).not.toContain('gitPush');
     });
 
@@ -256,9 +254,8 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
             branchFn: stubBranchFn,
             lumpVariables: {},
             contextList: [{ name: 'ctx', variables: {} }],
-            gitAddCommandFn: stubGitAdd,
-            gitCommitCommandFn: stubGitCommit,
-            gitPushCommandFn: stubGitPush,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
             steps: [{
