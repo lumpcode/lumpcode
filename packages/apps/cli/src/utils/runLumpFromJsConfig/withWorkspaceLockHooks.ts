@@ -187,3 +187,15 @@ export async function releaseWorkspaceLockSession(session: WorkspaceLockSession)
         session.releaseExecutionPathLock = undefined;
     }
 }
+
+/** Sync unlock for forced process exit (SIGINT×2 / grace timeout). Safe in `process.on('exit')`. */
+export function releaseWorkspaceLockSessionSync(session: WorkspaceLockSession): void {
+    if (session.releaseBranchPathLock) {
+        session.releaseBranchPathLock.sync();
+        session.releaseBranchPathLock = undefined;
+    }
+    if (session.releaseExecutionPathLock) {
+        session.releaseExecutionPathLock.sync();
+        session.releaseExecutionPathLock = undefined;
+    }
+}

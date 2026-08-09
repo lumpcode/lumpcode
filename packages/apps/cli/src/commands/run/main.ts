@@ -7,6 +7,7 @@ import {
     commandFailure,
     createCliLogger,
     getJsConfigFromLumpName,
+    installRunAbortHandlers,
     isRunLumpWorkspacePathBusyFailure,
     readProjectLocalConfig,
     resolveEffectiveDiscoveryBranch,
@@ -70,11 +71,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     }
 
     const abortController = new AbortController();
-    const onSignal = () => {
-        abortController.abort();
-    };
-    process.on('SIGINT', onSignal);
-    process.on('SIGTERM', onSignal);
+    let disposeAbortHandlers: (() => void) | undefined;
 
     try {
         const jsConfForVerbose = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
@@ -87,6 +84,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const logger = createCliLogger({
             verbose: !!cliVerbose || !!effectiveForVerbose?.verbose,
             json: !!json,
+        });
+
+        disposeAbortHandlers = installRunAbortHandlers({
+            abortController,
+            logger,
         });
 
         const runLumpRes = await runLumpFromLumpName({
@@ -125,8 +127,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             data: runLumpRes.data,
         });
     } finally {
-        process.off('SIGINT', onSignal);
-        process.off('SIGTERM', onSignal);
+        disposeAbortHandlers?.();
         if (dedicatedRestoreBranch) {
             await execAsync(`git switch ${shellSingleQuote(dedicatedRestoreBranch)}`, { cwd: projectRoot });
         }

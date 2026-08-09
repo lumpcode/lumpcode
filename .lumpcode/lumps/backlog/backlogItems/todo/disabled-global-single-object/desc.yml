@@ -1,8 +1,0 @@
-name: disabled-global-single-object
-manualReq: true
-task: >-
-  Extend disabled so it can also be an object
-  { global: MaybePromiseFn<boolean>; single: MaybePromiseFn<boolean> }, where
-  global applies to the global daemon and single applies to a single-lump
-  daemon or manual run.
-priority: 6

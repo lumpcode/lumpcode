@@ -238,9 +238,12 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
 
         expect(result.success).toBe(false);
         if (!result.success) {
+            expect(result.data.message).toMatch(/aborted/i);
             expect((result.data as { reason?: string }).reason).toBe('stepWalkFailed');
         }
-        expect(events).toEqual(['teardownFn', 'teardownWorkspaceFn']);
+        // Already aborted before the context starts: skip setup/teardownFn; still tear down workspace.
+        expect(executionOrder).toEqual([]);
+        expect(events).toEqual(['teardownWorkspaceFn']);
         expect(events).not.toContain('gitAdd');
         expect(events).not.toContain('gitPush');
     });
@@ -282,5 +285,59 @@ describe('executeStepsForContextList timeout/abort (S1–S5)', () => {
 
         expect(result.success).toBe(true);
         expect(executionOrder).toEqual(['post:true', 'succeeded:false', 'dynamic:true']);
+    });
+
+    it('S6: abort during hung postCommandExecFn stops the walk and runs teardown', async () => {
+        const controller = new AbortController();
+        const events: string[] = [];
+        const executionOrder: string[] = [];
+        let resolvePostStarted!: () => void;
+        const postStarted = new Promise<void>((resolve) => {
+            resolvePostStarted = resolve;
+        });
+
+        const resultPromise = executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            ...recordingTeardownAndGit(events),
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            signal: controller.signal,
+            steps: [
+                {
+                    commandFn: () => ({ executable: 'echo', args: ['ok'] }),
+                    postCommandExecFn: async ({ signal: hookSignal }) => {
+                        expect(hookSignal).toBe(controller.signal);
+                        resolvePostStarted();
+                        await new Promise<void>(() => {
+                            // never resolves; walk must unwind via AbortSignal race
+                        });
+                    },
+                },
+                {
+                    commandFn: () => {
+                        executionOrder.push('step-2');
+                        return { executable: 'echo', args: ['never'] };
+                    },
+                },
+            ],
+            setupFn: async () => ({ contextRunState: {} }),
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        await postStarted;
+        controller.abort();
+
+        const result = await resultPromise;
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.data.message).toMatch(/aborted/i);
+            expect((result.data as { reason?: string }).reason).toBe('stepWalkFailed');
+        }
+        expect(executionOrder).toEqual([]);
+        expect(events).toEqual(['teardownFn', 'teardownWorkspaceFn']);
     });
 });

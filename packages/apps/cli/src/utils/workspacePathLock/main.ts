@@ -6,6 +6,7 @@ import {
     isWorkspaceFileBusyError,
     workspaceLockFilePath,
     workspaceLocksDirPath,
+    type ReleaseWorkspaceFileLockFn,
     type WorkspaceFileBusyError,
     type WorkspaceLockMode,
     type WorkspaceFileLockSpec,
@@ -30,7 +31,7 @@ export type WorkspacePathLockHolder = {
     projectName?: string;
 };
 
-export type ReleaseWorkspacePathLockFn = () => Promise<void>;
+export type ReleaseWorkspacePathLockFn = ReleaseWorkspaceFileLockFn;
 
 export type WorkspacePathLockMode = WorkspaceLockMode;
 

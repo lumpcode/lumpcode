@@ -24,6 +24,68 @@ import {
 import { GitAndWorkspaceFnsInput } from '../../types/GitAndWorkspaceFnsInput';
 import type { RunLumpInput } from '../../usages';
 
+const ABORT_STEP_WALK_MESSAGE = 'Process aborted';
+
+function stepWalkAbortedFailure(): Failure<ExecuteStepsFailureData> {
+    return {
+        success: false,
+        data: {
+            message: ABORT_STEP_WALK_MESSAGE,
+            reason: 'stepWalkFailed',
+        },
+    };
+}
+
+function createStepWalkAbortError(): Error {
+    const error = new Error(ABORT_STEP_WALK_MESSAGE);
+    error.name = 'AbortError';
+    return error;
+}
+
+function isStepWalkAbortError(error: unknown): boolean {
+    return (
+        typeof error === 'object'
+        && error !== null
+        && 'name' in error
+        && (error as { name: string }).name === 'AbortError'
+    );
+}
+
+/**
+ * Await user-hook work, but stop waiting once `signal` aborts so the walk can
+ * unwind (locks/teardown). Does not cancel sync busy-loops on the event loop.
+ */
+async function awaitUnlessAborted<T>(
+    work: MaybePromise<T>,
+    signal: AbortSignal | undefined,
+): Promise<T> {
+    if (!signal) {
+        return await work;
+    }
+    signal.throwIfAborted();
+
+    return new Promise<T>((resolve, reject) => {
+        const onAbort = () => {
+            cleanup();
+            reject(createStepWalkAbortError());
+        };
+        const cleanup = () => {
+            signal.removeEventListener('abort', onAbort);
+        };
+        signal.addEventListener('abort', onAbort, { once: true });
+        Promise.resolve(work).then(
+            (value) => {
+                cleanup();
+                resolve(value);
+            },
+            (error) => {
+                cleanup();
+                reject(error);
+            },
+        );
+    });
+}
+
 async function runOptionalGitCommand(input: {
     label: string;
     getCommand: () => MaybePromise<Maybe<string>>;
@@ -153,6 +215,11 @@ export async function executeStepsForContextList<
 
     try {
         for (let i = 0; i < contextList.length; i++) {
+            if (signal?.aborted) {
+                runFailure = stepWalkAbortedFailure();
+                break;
+            }
+
             const context = contextList[i];
 
             logger.info(
@@ -175,152 +242,174 @@ export async function executeStepsForContextList<
                 stepsToExec: Steps<V, SV>,
                 currStepIndex: number[],
             ): Promise<void> {
-                for (let stepIndex = 0; stepIndex < stepsToExec.length; stepIndex++) {
-                    if (stepWalkFailure) {
-                        return;
-                    }
+                try {
+                    for (let stepIndex = 0; stepIndex < stepsToExec.length; stepIndex++) {
+                        if (stepWalkFailure) {
+                            return;
+                        }
+                        signal?.throwIfAborted();
 
-                    const step = stepsToExec[stepIndex];
-                    const nextCallHeadIndex = [...currStepIndex, stepIndex];
-                    const compositeStepIndex: number | number[] =
-                        nextCallHeadIndex.length === 1 ? nextCallHeadIndex[0]! : nextCallHeadIndex;
+                        const step = stepsToExec[stepIndex];
+                        const nextCallHeadIndex = [...currStepIndex, stepIndex];
+                        const compositeStepIndex: number | number[] =
+                            nextCallHeadIndex.length === 1 ? nextCallHeadIndex[0]! : nextCallHeadIndex;
 
-                    if (typeof step === 'function' || Array.isArray(step)) {
-                        let subSteps: Steps<V, SV> = [];
-                        if (typeof step === 'function') {
-                            subSteps = await step({
+                        if (typeof step === 'function' || Array.isArray(step)) {
+                            const subSteps = typeof step === 'function'
+                                ? await awaitUnlessAborted(
+                                    step({
+                                        context,
+                                        stepIndex: compositeStepIndex,
+                                        contextRunState,
+                                        lumpVariables,
+                                    }),
+                                    signal,
+                                )
+                                : step;
+                            await walkAndExecuteSteps(subSteps, nextCallHeadIndex);
+                            continue;
+                        }
+
+                        logger.verbose(`step ${JSON.stringify(step)}`);
+
+                        const {
+                            commandFn = () => null,
+                            stepVariables,
+                            promptFn,
+                            postCommandExecFn,
+                            continueOnError,
+                            timeoutMillis = 1000 * 60 * 30,
+                        } = step as Step<V, SV>;
+
+                        const prompt = promptFn
+                            ? await awaitUnlessAborted(
+                                promptFn({
+                                    context,
+                                    stepIndex: compositeStepIndex,
+                                    contextRunState,
+                                    lumpVariables,
+                                    stepVariables,
+                                } satisfies PromptFnInput<V, SV>),
+                                signal,
+                            )
+                            : '';
+
+                        const command = await awaitUnlessAborted(
+                            commandFn({
                                 context,
+                                prompt,
                                 stepIndex: compositeStepIndex,
                                 contextRunState,
                                 lumpVariables,
+                                stepVariables,
+                                projectRoot,
+                                workspacePath,
+                            }),
+                            signal,
+                        );
+
+                        let commandResult = '';
+                        let commandSucceeded = true;
+
+                        if (command != null) {
+                            const { executable, args, env } = command;
+
+                            logger.verbose(`command for prompt ${executable} ${args.join(' ')}`);
+                            if (env != null) {
+                                logger.verbose(`command env overrides ${JSON.stringify(env)}`);
+                            }
+                            logger.verbose(`workspacePath ${workspacePath}`);
+
+                            const commandExec = await execBinary({
+                                binaryPath: executable,
+                                args,
+                                timeoutMillis,
+                                stdio: ['inherit', 'pipe', 'pipe'],
+                                cwd: workspacePath,
+                                signal,
+                                ...(env != null ? { env: { ...process.env, ...env } } : {}),
                             });
-                        } else {
-                            subSteps = step;
+                            logger.verbose(`commandExec ${JSON.stringify(commandExec)}`);
+
+                            if (!commandExec.success) {
+                                const aborted = commandExec.data.reason === 'aborted';
+                                if (aborted || !continueOnError) {
+                                    stepWalkFailure = {
+                                        success: false,
+                                        data: {
+                                            message: `Failed to run the command: ${commandExec.data.message}. Command: ${executable} ${args.join(' ')}`,
+                                            reason: 'stepWalkFailed',
+                                        },
+                                    };
+                                    return;
+                                }
+
+                                commandSucceeded = false;
+                                commandResult = (
+                                    commandExec.data.stdout
+                                    || commandExec.data.stderr
+                                    || commandExec.data.message
+                                    || ''
+                                ).toString();
+                                logger.verbose(`commandResult ${commandResult}`);
+                            } else {
+                                commandResult = (commandExec.data.stdout || commandExec.data.stderr || '').toString();
+                                logger.verbose(`commandResult ${commandResult}`);
+                            }
+
+                            if (commandSucceeded) {
+                                const gitStatusAfterCommand = await execAsync(`git status`, { cwd: workspacePath });
+                                logger.verbose(`gitStatusCommand ${JSON.stringify(gitStatusAfterCommand.data)}`);
+                            }
                         }
-                        await walkAndExecuteSteps(subSteps, nextCallHeadIndex);
-                        continue;
-                    }
 
-                    logger.verbose(`step ${JSON.stringify(step)}`);
-
-                    const {
-                        commandFn = () => null,
-                        stepVariables,
-                        promptFn,
-                        postCommandExecFn,
-                        continueOnError,
-                        timeoutMillis = 1000 * 60 * 30,
-                    } = step as Step<V, SV>;
-
-                    const prompt = promptFn
-                        ? await promptFn({
+                        const historyEntry = {
+                            commandResult,
+                            commandSucceeded,
                             context,
+                            prompt,
                             stepIndex: compositeStepIndex,
                             contextRunState,
                             lumpVariables,
                             stepVariables,
-                        } satisfies PromptFnInput<V, SV>)
-                        : '';
-
-                    const command = await commandFn({
-                        context,
-                        prompt,
-                        stepIndex: compositeStepIndex,
-                        contextRunState,
-                        lumpVariables,
-                        stepVariables,
-                        projectRoot,
-                        workspacePath,
-                    });
-
-                    let commandResult = '';
-                    let commandSucceeded = true;
-
-                    if (command != null) {
-                        const { executable, args, env } = command;
-
-                        logger.verbose(`command for prompt ${executable} ${args.join(' ')}`);
-                        if (env != null) {
-                            logger.verbose(`command env overrides ${JSON.stringify(env)}`);
-                        }
-                        logger.verbose(`workspacePath ${workspacePath}`);
-
-                        const commandExec = await execBinary({
-                            binaryPath: executable,
-                            args,
-                            timeoutMillis,
-                            stdio: ['inherit', 'pipe', 'pipe'],
-                            cwd: workspacePath,
+                            projectRoot,
+                        };
+                        const postCommandExecFnInput = {
+                            ...historyEntry,
                             signal,
-                            ...(env != null ? { env: { ...process.env, ...env } } : {}),
-                        });
-                        logger.verbose(`commandExec ${JSON.stringify(commandExec)}`);
-
-                        if (!commandExec.success) {
-                            const aborted = commandExec.data.reason === 'aborted';
-                            if (aborted || !continueOnError) {
-                                stepWalkFailure = {
-                                    success: false,
-                                    data: {
-                                        message: `Failed to run the command: ${commandExec.data.message}. Command: ${executable} ${args.join(' ')}`,
-                                        reason: 'stepWalkFailed',
-                                    },
-                                };
-                                return;
+                        };
+                        logger.verbose(`context is ${JSON.stringify(context)}`);
+                        const keepHistoryFilePath = getKeepHistoryFilePathFn(context) || '';
+                        logger.verbose(`keepHistoryFilePath ${keepHistoryFilePath}`);
+                        if (!!command && keepHistoryFilePath.length > 0) {
+                            const appendResult = await appendHistoryEntry({
+                                filePath: keepHistoryFilePath,
+                                entry: historyEntry,
+                            });
+                            if (!appendResult.success) {
+                                // TODO: sanitize history appending to avoid this warning for certain commands outputs
+                                logger.warn(
+                                    `Failed to append history entry to ${keepHistoryFilePath}: ${appendResult.data}`,
+                                );
                             }
-
-                            commandSucceeded = false;
-                            commandResult = (
-                                commandExec.data.stdout
-                                || commandExec.data.stderr
-                                || commandExec.data.message
-                                || ''
-                            ).toString();
-                            logger.verbose(`commandResult ${commandResult}`);
-                        } else {
-                            commandResult = (commandExec.data.stdout || commandExec.data.stderr || '').toString();
-                            logger.verbose(`commandResult ${commandResult}`);
                         }
 
-                        if (commandSucceeded) {
-                            const gitStatusAfterCommand = await execAsync(`git status`, { cwd: workspacePath });
-                            logger.verbose(`gitStatusCommand ${JSON.stringify(gitStatusAfterCommand.data)}`);
-                        }
-                    }
-
-                    const postCommandExecFnInput = {
-                        commandResult,
-                        commandSucceeded,
-                        context,
-                        prompt,
-                        stepIndex: compositeStepIndex,
-                        contextRunState,
-                        lumpVariables,
-                        stepVariables,
-                        projectRoot,
-                    };
-                    logger.verbose(`context is ${JSON.stringify(context)}`);
-                    const keepHistoryFilePath = getKeepHistoryFilePathFn(context) || '';
-                    logger.verbose(`keepHistoryFilePath ${keepHistoryFilePath}`);
-                    if (!!command && keepHistoryFilePath.length > 0) {
-                        const appendResult = await appendHistoryEntry({
-                            filePath: keepHistoryFilePath,
-                            entry: postCommandExecFnInput,
-                        });
-                        if (!appendResult.success) {
-                            // TODO: sanitize history appending to avoid this warning for certain commands outputs
-                            logger.warn(
-                                `Failed to append history entry to ${keepHistoryFilePath}: ${appendResult.data}`,
+                        if (postCommandExecFn) {
+                            const returnedSteps = await awaitUnlessAborted(
+                                postCommandExecFn(postCommandExecFnInput),
+                                signal,
                             );
+                            if (returnedSteps != null && returnedSteps.length > 0) {
+                                await walkAndExecuteSteps(returnedSteps, nextCallHeadIndex);
+                            }
                         }
                     }
-
-                    if (postCommandExecFn) {
-                        const returnedSteps = await postCommandExecFn(postCommandExecFnInput);
-                        if (returnedSteps != null && returnedSteps.length > 0) {
-                            await walkAndExecuteSteps(returnedSteps, nextCallHeadIndex);
-                        }
+                } catch (error) {
+                    if (isStepWalkAbortError(error)) {
+                        stepWalkFailure = stepWalkAbortedFailure();
+                        return;
                     }
+                    throw error;
                 }
             }
 
