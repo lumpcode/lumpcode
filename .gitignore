@@ -1,6 +1,7 @@
 node_modules
 .env
 dist
+bin
 
 # IDE-local (skills are tracked under .agent/skills/)
 .cursor/
