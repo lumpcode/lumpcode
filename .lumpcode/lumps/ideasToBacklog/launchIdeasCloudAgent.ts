@@ -171,6 +171,7 @@ export async function launchIdeasToBacklogCloudAgent(input: {
             workOnCurrentBranch: true,
             autoCreatePR: true,
         },
+        name: `ideasToBacklog Cloud Agent (${new Date().toISOString()})`,
     });
 
     try {
