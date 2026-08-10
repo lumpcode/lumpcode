@@ -94,3 +94,4 @@ export * from './validateDaemonLaunch';
 export * from './validateLumpDiscoveryBranchAllowlist';
 export * from './validateLumpJsonConfig';
 export * from './writeJsonFile';
+export * from './writeLumpConfigJson';

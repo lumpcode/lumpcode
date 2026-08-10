@@ -4,7 +4,14 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathExists } from '@lumpcode/core';
 
-import { appendMissingGitignoreLines, execGit, initLocalGitRepo, writeJsonFile } from '../utils';
+import {
+    appendMissingGitignoreLines,
+    execGit,
+    initLocalGitRepo,
+    MINIMAL_RUNNABLE_LUMP_CONFIG,
+    writeJsonFile,
+    writeLumpConfigJson,
+} from '../utils';
 import { expect } from 'vitest';
 
 import type { LocalConfig } from '../types/LocalConfig';
@@ -12,10 +19,7 @@ import type { ProjectJsonConfig } from '../types/ProjectJsonConfig';
 import { LOCAL_CONFIG_FILE_NAME } from '../utils/readLocalConfig';
 import { PROJECT_JSON_FILE_NAME } from '../utils/readProjectJson';
 
-export const MINIMAL_RUNNABLE_LUMP_JSON = {
-    contextListJson: { NAME: 'README' },
-    prompt: { promptTemplate: 'E2E @{NAME}', command: 'copilot' },
-} as const;
+export const MINIMAL_RUNNABLE_LUMP_JSON = MINIMAL_RUNNABLE_LUMP_CONFIG;
 
 export type MultiBranchLumpSpec = {
     name: string;
@@ -70,9 +74,11 @@ export async function writeMinimalLump(
     lumpName: string,
     configOverrides: Record<string, unknown> = {},
 ): Promise<void> {
-    const lumpDir = path.join(projectRoot, '.lumpcode', 'lumps', lumpName);
-    await fs.mkdir(lumpDir, { recursive: true });
-    await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: { ...MINIMAL_RUNNABLE_LUMP_JSON, ...configOverrides } });
+    await writeLumpConfigJson({
+        localConfigFolderPath: path.join(projectRoot, '.lumpcode'),
+        lumpName,
+        configOverrides,
+    });
 }
 
 export function gitCurrentBranch(cwd: string): string {

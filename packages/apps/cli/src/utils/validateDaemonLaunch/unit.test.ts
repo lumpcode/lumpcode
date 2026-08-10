@@ -14,16 +14,7 @@ import {
 } from '../../testing';
 import { validateDaemonLaunch } from './main';
 import { writeJsonFile } from '../writeJsonFile';
-
-const minimalLumpConfigJson = `{
-  "contextListJson": {
-    "FILE": "src/{NAME}.ts"
-  },
-  "prompt": {
-    "promptTemplate": "Improve the code at @{FILE}.",
-    "command": "claude"
-  }
-}`;
+import { writeLumpConfigJson } from '../writeLumpConfigJson';
 
 function createLogger(): Logger & { warnings: string[] } {
     const warnings: string[] = [];
@@ -78,9 +69,7 @@ describe('validateDaemonLaunch', () => {
     });
 
     it('warns and succeeds when a lump directory has no loadable config (dedicated)', async () => {
-        const validDir = path.join(localConfigFolderPath, 'lumps', 'alpha');
-        await fs.mkdir(validDir, { recursive: true });
-        await fs.writeFile(path.join(validDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
+        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'v0.0.9'), { recursive: true });
         gitCommitAll(projectRoot, 'alpha and empty v0.0.9 dir');
 

@@ -3,17 +3,8 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 
+import { writeLumpConfigJson } from '../writeLumpConfigJson';
 import { resolveTargetLumpNames } from './main';
-
-const minimalLumpConfigJson = `{
-  "contextListJson": {
-    "FILE": "src/{NAME}.ts"
-  },
-  "prompt": {
-    "promptTemplate": "Improve the code at @{FILE}.",
-    "command": "claude"
-  }
-}`;
 
 describe('resolveTargetLumpNames', () => {
     let localConfigFolderPath: string;
@@ -36,9 +27,7 @@ describe('resolveTargetLumpNames', () => {
 
     it('returns all loadable lump names when lumpName is omitted', async () => {
         for (const name of ['beta', 'alpha']) {
-            const lumpDir = path.join(localConfigFolderPath, 'lumps', name);
-            await fs.mkdir(lumpDir, { recursive: true });
-            await fs.writeFile(path.join(lumpDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
+            await writeLumpConfigJson({ localConfigFolderPath, lumpName: name });
         }
 
         const result = await resolveTargetLumpNames({ localConfigFolderPath });
@@ -58,9 +47,7 @@ describe('resolveTargetLumpNames', () => {
     });
 
     it('returns the requested lump when its config is loadable', async () => {
-        const lumpDir = path.join(localConfigFolderPath, 'lumps', 'alpha');
-        await fs.mkdir(lumpDir, { recursive: true });
-        await fs.writeFile(path.join(lumpDir, 'config.json'), minimalLumpConfigJson, 'utf-8');
+        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
 
         const result = await resolveTargetLumpNames({
             localConfigFolderPath,
