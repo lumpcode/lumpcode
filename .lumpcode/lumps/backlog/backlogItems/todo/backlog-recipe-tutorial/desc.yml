@@ -1,0 +1,7 @@
+name: backlog-recipe-tutorial
+workflow: directImpl
+task: >-
+  Add one DOCS page that is a concise tutorial for the backlog recipe (scaffold →
+  minimal files → run). Write it so the same page can seed an X thread and a
+  dev.to article. Do not expand into a full multi-recipe tutorial suite yet.
+priority: 16
