@@ -55,7 +55,6 @@ export default defineConfig({
                     cwd: workspacePath,
                     projectRoot,
                     contextName: context.name,
-                    modelId: 'cursor-grok-4.5-high-fast',
                 });
                 if (!result.launched) {
                     console.log(`[ideasToBacklog] ${result.reason}`);
