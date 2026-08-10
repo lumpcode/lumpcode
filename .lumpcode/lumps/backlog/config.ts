@@ -72,13 +72,22 @@ function featureContextName(itemName: string, stage: FeatureBacklogStage): strin
 }
 
 /**
- * Map concrete discovery branch → todo folder name(s).
- * `feature/a` keeps `feature-a` and `feature-a-*`.
- * `dev` keeps items not scoped to a `feature-*` folder.
+ * `dev` → only `directImpl` (omit workflow ⇒ tdd ⇒ skipped on dev).
+ * `feature/<key>` → exact item name match only.
  */
-function itemMatchesDiscoveryBranch(itemName: string, discoveryBranch: string): boolean {
-    const key = discoveryBranch.split('feature/')[1];
-    console.log('on branch', discoveryBranch, 'item', itemName, 'key', key);
+function itemMatchesDiscoveryBranch(input: {
+    itemName: string;
+    discoveryBranch: string;
+    workflow: FeatureBacklogWorkflow;
+}): boolean {
+    const { itemName, discoveryBranch, workflow } = input;
+    if (discoveryBranch === 'dev') {
+        return workflow === 'directImpl';
+    }
+    if (!discoveryBranch.startsWith('feature/')) {
+        return false;
+    }
+    const key = discoveryBranch.slice('feature/'.length);
     return itemName === key;
 }
 
@@ -96,8 +105,16 @@ async function resolveFeatureBacklogItem(input: {
       }
 > {
     const { item, paths, projectRoot, discoveryBranch } = input;
-    
-    if (!!item.completedAt || !itemMatchesDiscoveryBranch(item.name, discoveryBranch)) {
+    const workflow: FeatureBacklogWorkflow = item.workflow ?? 'tdd';
+
+    if (
+        !!item.completedAt ||
+        !itemMatchesDiscoveryBranch({
+            itemName: item.name,
+            discoveryBranch,
+            workflow,
+        })
+    ) {
         return { ignored: true };
     }
 
@@ -118,7 +135,7 @@ async function resolveFeatureBacklogItem(input: {
         };
     }
 
-    if (item.workflow === 'directImpl') {
+    if (workflow === 'directImpl') {
         return {
             stage: 'directImpl',
             contextName: featureContextName(item.name, 'directImpl'),
@@ -190,7 +207,7 @@ export default backlog<
     verbose: true,
     keepHistory: true,
     lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
-    discoveryBranch: 'feature/*',
+    discoveryBranches: ['dev', 'feature/*'],
     parseItem(baseItem, _folderName, raw) {
         assertValidFeatureItemName(baseItem.name);
         const record = raw as Record<string, unknown>;
