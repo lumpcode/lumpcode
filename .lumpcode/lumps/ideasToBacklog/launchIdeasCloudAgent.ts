@@ -118,9 +118,21 @@ export async function launchIdeasToBacklogCloudAgent(input: {
     /** Git project root (parent of `.lumpcode/`); used to load `.env`. */
     projectRoot: string;
     contextName: string;
+    /** SDK model id (e.g. `grok-4.5`, `composer-2.5`) — not Cursor CLI preset slugs. Defaults to grok-4.5. */
     modelId?: string;
+    /** Optional SDK model params. Defaults to effort=high, fast=true (grok-4.5 high-fast). */
+    modelParams?: Array<{ id: string; value: string }>;
 }): Promise<{ launched: boolean; branchName: string; reason?: string }> {
-    const { cwd, projectRoot, contextName, modelId = 'composer-2.5' } = input;
+    const {
+        cwd,
+        projectRoot,
+        contextName,
+        modelId = 'grok-4.5',
+        modelParams = [
+            { id: 'effort', value: 'high' },
+            { id: 'fast', value: 'true' },
+        ],
+    } = input;
     const branchName = ideasToBacklogBranchName(contextName);
 
     loadDotEnvIfPresent(projectRoot);
@@ -150,7 +162,10 @@ export async function launchIdeasToBacklogCloudAgent(input: {
 
     const agent = await Agent.create({
         apiKey,
-        model: { id: modelId },
+        model: {
+            id: modelId,
+            ...(modelParams && modelParams.length > 0 ? { params: modelParams } : {}),
+        },
         cloud: {
             repos: [{ url: repoUrl, startingRef: branchName }],
             workOnCurrentBranch: true,
