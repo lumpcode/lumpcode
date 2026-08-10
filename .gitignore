@@ -21,7 +21,6 @@ generated-env.ts
 ._gitmodules
 packages/core/._git
 *.tgz
-IDEAS.yaml
 __TODOS__/**
 .lumpcode/.cache/
 SCRIBBLE.txt
