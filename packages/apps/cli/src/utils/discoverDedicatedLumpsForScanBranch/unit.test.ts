@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
@@ -14,6 +13,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { discoverDedicatedLumpsForScanBranch } from './main';
+import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
 import { writeJsonFile } from '../writeJsonFile';
 
 function createLogger(): Logger {
@@ -56,7 +56,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
 
     async function seedBranchOnlyFixtures(): Promise<void> {
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
-        gitCommitAll(projectRoot, 'mainLine on main');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'mainLine on main' });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
@@ -159,7 +159,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
             discoveryBranches: ['main', 'feature/*'],
         });
         await writeMinimalLump(projectRoot, 'mainOnly', { discoveryBranch: 'main' });
-        gitCommitAll(projectRoot, 'multi + mainOnly');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi + mainOnly' });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
@@ -175,7 +175,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
     it('D1: scan main returns multi-line and exact-main lumps; excludes feature-only', async () => {
         await seedMultiAndExactLumps();
         await writeMinimalLump(projectRoot, 'featureOnly', { discoveryBranch: 'feature/*' });
-        gitCommitAll(projectRoot, 'add featureOnly');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'add featureOnly' });
 
         const result = await discoverDedicatedLumpsForScanBranch({
             scanBranch: 'main',
@@ -245,13 +245,3 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
         expect(result.data.map((l) => l.lumpName)).not.toContain('multiLine');
     });
 });
-
-function gitCommitAll(cwd: string, message: string): void {
-    execSync('git add -A', { cwd, stdio: 'pipe' });
-    try {
-        execSync(`git commit -m ${JSON.stringify(message)}`, { cwd, stdio: 'pipe' });
-    } catch {
-        execSync(`git commit --allow-empty -m ${JSON.stringify(message)}`, { cwd, stdio: 'pipe' });
-    }
-    execSync('git push origin main', { cwd, stdio: 'pipe' });
-}
