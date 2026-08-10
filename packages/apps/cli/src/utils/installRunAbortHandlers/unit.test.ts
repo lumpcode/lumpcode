@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
+import { once } from 'node:events';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { installRunAbortHandlers } from './main';
@@ -7,7 +8,9 @@ import {
     RUN_ABORT_WATCHDOG_SOURCE,
 } from './watchdogSource';
 
-function latestSigintListener(before: Set<NodeJS.SignalsListener>): NodeJS.SignalsListener {
+type SigintListener = (signal: 'SIGINT') => void;
+
+function latestSigintListener(before: Set<SigintListener>): SigintListener {
     const after = process.listeners('SIGINT');
     const added = after.find((listener) => !before.has(listener));
     if (!added) {
@@ -18,6 +21,40 @@ function latestSigintListener(before: Set<NodeJS.SignalsListener>): NodeJS.Signa
 
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/** IDE/`@types/node` can fail to see ChildProcess as an EventEmitter; cast at the boundary. */
+function childEmitter(child: ChildProcess): NodeJS.EventEmitter {
+    return child as unknown as NodeJS.EventEmitter;
+}
+
+async function waitForExit(
+    child: ChildProcess,
+    {
+        timeoutMs,
+        timeoutMessage,
+    }: {
+        timeoutMs: number;
+        timeoutMessage: string;
+    },
+): Promise<NodeJS.Signals | null> {
+    if (child.exitCode !== null || child.signalCode !== null) {
+        return child.signalCode;
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+        const [, signal] = (await Promise.race([
+            once(childEmitter(child), 'exit'),
+            new Promise<never>((_, reject) => {
+                timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+            }),
+        ])) as [number | null, NodeJS.Signals | null];
+        return signal;
+    } finally {
+        if (timer !== undefined) {
+            clearTimeout(timer);
+        }
+    }
 }
 
 describe('installRunAbortHandlers', () => {
@@ -123,11 +160,12 @@ describe('run-abort watchdog', () => {
 
         const victimPid = await new Promise<number>((resolve, reject) => {
             const timer = setTimeout(() => reject(new Error('victim did not become ready')), 5000);
-            victim.on('message', (msg) => {
+            const emitter = childEmitter(victim);
+            emitter.on('message', (msg: unknown) => {
                 clearTimeout(timer);
                 resolve((msg as { pid: number }).pid);
             });
-            victim.on('error', reject);
+            emitter.on('error', reject);
         });
 
         const watchdog = spawn(
@@ -143,25 +181,25 @@ describe('run-abort watchdog', () => {
         await sleep(100);
         process.kill(watchdog.pid!, 'SIGINT');
 
-        const signal = await new Promise<NodeJS.Signals | null>((resolve, reject) => {
-            const timer = setTimeout(() => {
-                try {
-                    process.kill(victimPid, 'SIGKILL');
-                } catch {
-                    // already gone
-                }
-                try {
-                    watchdog.kill('SIGKILL');
-                } catch {
-                    // already gone
-                }
-                reject(new Error('wedged parent was not killed by watchdog in time'));
-            }, graceMs + 3000);
-            victim.on('exit', (_code, gotSignal) => {
-                clearTimeout(timer);
-                resolve(gotSignal);
+        let signal: NodeJS.Signals | null;
+        try {
+            signal = await waitForExit(victim, {
+                timeoutMs: graceMs + 3000,
+                timeoutMessage: 'wedged parent was not killed by watchdog in time',
             });
-        });
+        } catch (error) {
+            try {
+                process.kill(victimPid, 'SIGKILL');
+            } catch {
+                // already gone
+            }
+            try {
+                watchdog.kill('SIGKILL');
+            } catch {
+                // already gone
+            }
+            throw error;
+        }
 
         expect(signal).toBe('SIGKILL');
         await sleep(50);
@@ -191,21 +229,22 @@ describe('run-abort watchdog', () => {
             },
         );
 
+        const watchdogExit = waitForExit(watchdog, {
+            timeoutMs: 2000,
+            timeoutMessage: 'watchdog did not exit after stdin end',
+        });
+
         await sleep(100);
         process.kill(watchdog.pid!, 'SIGINT');
         await sleep(50);
         watchdog.stdin!.end();
-
-        await new Promise<void>((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('watchdog did not exit after stdin end')), 2000);
-            watchdog.on('exit', () => {
-                clearTimeout(timer);
-                resolve();
-            });
-        });
+        await watchdogExit;
 
         expect(() => process.kill(targetPid!, 0)).not.toThrow();
         target.kill('SIGKILL');
-        await new Promise<void>((resolve) => target.on('exit', () => resolve()));
+        await waitForExit(target, {
+            timeoutMs: 5000,
+            timeoutMessage: 'target did not exit after SIGKILL',
+        });
     }, 10_000);
 });
