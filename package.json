@@ -32,6 +32,7 @@
     "vue-tsc": "^3.1.4"
   },
   "dependencies": {
+    "@cursor/sdk": "^1.0.27",
     "@lumpcode/cli-types": "*",
     "@lumpcode/cli-utils": "*",
     "@lumpcode/recipes": "*"
