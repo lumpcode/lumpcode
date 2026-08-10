@@ -8,6 +8,7 @@ dist
 packages/apps/cli/bin/*
 !packages/apps/cli/bin/lumpcode.js
 packages/apps/cli/vendor/
+*.dupes.json
 
 # Auto-generated at build time
 generated-env.ts
