@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { defineConfig, readYamlList } from '@lumpcode/cli-utils';
@@ -8,6 +9,15 @@ import {
     launchIdeasToBacklogCloudAgent,
     utcDateContextName,
 } from './launchIdeasCloudAgent';
+
+const MAX_BACKLOG_TODO_ITEMS = 3;
+const BACKLOG_TODO_DIR = path.join(
+    '.lumpcode',
+    'lumps',
+    'backlog',
+    'backlogItems',
+    'todo',
+);
 
 type IdeaEntry = {
     name?: unknown;
@@ -28,11 +38,23 @@ const configUrl = import.meta.url;
 const projectRoot = projectRootFromConfigUrl(configUrl);
 const ideasPath = path.join(projectRoot, IDEAS_FILE);
 
+async function backlogTodoCountExceedsLimit(): Promise<boolean> {
+    const todoDir = path.join(projectRoot, BACKLOG_TODO_DIR);
+    try {
+        const entries = await fs.readdir(todoDir, { withFileTypes: true });
+        const count = entries.filter((entry) => entry.isDirectory()).length;
+        return count > MAX_BACKLOG_TODO_ITEMS;
+    } catch {
+        return false;
+    }
+}
+
 export default defineConfig({
     discoveryBranch: 'dev',
     maximumNumberOfConcurrentBranches: 1,
     verbose: true,
     keepHistory: true,
+    disabled: backlogTodoCountExceedsLimit,
     async getContextListFn() {
         const entries = await readYamlList<IdeaEntry>(ideasPath);
         if (!entries.some(isUnblockedIdea)) {
