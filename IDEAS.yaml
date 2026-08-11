@@ -1,5 +1,6 @@
-# Committed idea intake for ideasToBacklog lump (name + task; optional blocked).
-# Parked ideas set blocked to a short reason. Ephemeral names (1, A) are OK.
+# Committed idea intake for ideasToBacklog lump (name + task; optional blocked, priority).
+# priority: lower number = more important. Parked ideas set blocked to a short reason.
+# Ephemeral names (1, A) are OK.
 - name: add-easy-to-use-wording-on-readmes
   task: >-
     Add easy-to-use wording on readmes to say that Lumpcode is very easy and straightforward to use
@@ -200,3 +201,12 @@
     interrupt/abort.
 - name: git-access-heartbeat
   task: Lumpcode heartbeat validation that git access (remote) is ok.
+- name: git-driven-daemon-configs
+  task: >-
+    Declarative daemon configs (JSON/YAML only — no TS/JS) discovered on the primary discovery
+    branch, with fields such as daemonId, cronSetup, include, exclude, disabled. Add a supervisor
+    loop above existing daemon loops that starts configs that are not running and not disabled, and
+    stops daemons that are running but disabled. Goal: full control of a dedicated machine via git
+    pushes only (commit/push daemon configs to drive start/stop). Complements
+    daemon-orchestration-priority (lump scheduling) but owns the daemon lifecycle from repo files.
+  priority: 1

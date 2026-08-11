@@ -19,6 +19,7 @@ type IdeaEntry = {
   name: string;   // unique; may be ephemeral ("1", "A")
   task: string;
   blocked?: string; // non-empty ⇒ parked; do not promote until cleared
+  priority?: number; // lower = more important; omit = normal / unordered
 };
 ```
 
@@ -26,8 +27,8 @@ Ignore unknown keys if present. Non-empty `blocked` means parked — skip for pr
 
 ## How to run it
 
-1. Read `@IDEAS.yaml` and summarize unblocked vs blocked counts in one or two sentences.
-2. Propose a batch to work on (related ideas, urgent ones, or the first N if nothing stands out). Ask me to confirm or adjust.
+1. Read `@IDEAS.yaml` and summarize unblocked vs blocked counts in one or two sentences. When listing candidates, surface any set `priority` values (lower = more important).
+2. Propose a batch to work on: prefer lower `priority` numbers first, then related ideas or the first N if nothing stands out. Ask me to confirm or adjust.
 3. Clarify with **“Is this what you meant?”** → Yes / No / Explain more precisely. Prefer verification over A/B/C menus.
 4. Only on a real blocker: present the blocker, offer a very global A/B/C, and give a recommendation.
 5. Do **not** grill for full interfaces. At most pin one or two load-bearing contracts if needed for a useful `desc.yml` / optional `requirements.md`.
@@ -37,10 +38,10 @@ Ignore unknown keys if present. Non-empty `blocked` means parked — skip for pr
 
 | Action | `IDEAS.yaml` | Backlog |
 | --- | --- | --- |
-| **Promote** | Remove the idea entry | Create `.lumpcode/lumps/backlog/backlogItems/todo/<finalName>/desc.yml` with at least `name` and `task`. Optional: `workflow`, `priority`, `dependsOn`, `manualReq`, `requirements.md`. Final `name` may differ from the IDEAS id (prefer kebab-case). Omit `workflow` to keep default `tdd`. |
+| **Promote** | Remove the idea entry | Create `.lumpcode/lumps/backlog/backlogItems/todo/<finalName>/desc.yml` with at least `name` and `task`. Carry over IDEA `priority` when set (same meaning: lower = sooner). Optional: `workflow`, `dependsOn`, `manualReq`, `requirements.md`. Final `name` may differ from the IDEAS id (prefer kebab-case). Omit `workflow` to keep default `tdd`. |
 | **Reject** | Remove the idea entry | No backlog changes |
-| **Park** | Keep entry; set `blocked` to a short explanation | No backlog changes |
-| **Spawn** | Append new `{ name, task }` (kebab-case when clear, else ephemeral id; unique in file) | — |
+| **Park** | Keep entry; set `blocked` to a short explanation (preserve `priority` if set) | No backlog changes |
+| **Spawn** | Append new `{ name, task }` (optional `priority`; kebab-case when clear, else ephemeral id; unique in file) | — |
 
 Do not leave half-applied file edits. Commit the settled `IDEAS.yaml` and backlog changes on this branch.
 

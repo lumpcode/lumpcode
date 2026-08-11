@@ -13,6 +13,8 @@ type IdeaEntry = {
     name?: unknown;
     task?: unknown;
     blocked?: unknown;
+    /** Lower = more important; optional on IDEAS.yaml entries. */
+    priority?: unknown;
 };
 
 function isUnblockedIdea(entry: IdeaEntry): boolean {
