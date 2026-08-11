@@ -1,0 +1,10 @@
+name: docs-shared-installation-guide
+workflow: directImpl
+task: >-
+  Quick-start DOCS guide for shared mode, parallel to the dedicated guide. Stress
+  that shared discovers lumps from the operator checkout you launch from (not the
+  execution copy): if a lump needs an artifact from a previous context on a lump
+  branch (e.g. backlog requirements.md), that file will not be on the current
+  checkout unless merged/present there. Position shared as best for testing a lump
+  before pushing; dedicated remains the intended production usage.
+priority: 18

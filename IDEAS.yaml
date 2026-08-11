@@ -1,18 +1,14 @@
 # Committed idea intake for ideasToBacklog lump (name + task; optional blocked, priority).
 # priority: lower number = more important. Parked ideas set blocked to a short reason.
 # Ephemeral names (1, A) are OK.
-- name: add-easy-to-use-wording-on-readmes
-  task: >-
-    Add easy-to-use wording on readmes to say that Lumpcode is very easy and straightforward to use
-    yet very configurable and powerful.
 - name: see-lump-context-run-time
   task: See the lump context run time (in seconds)
 - name: ignore-lump-branches-if-their-commits-are-merged-to-base-branch
   task: Ignore lump branches if their commits are merged to the base branch (i.e finished)
 - name: verification-commands
   task: >-
-    Add verification commands to the config (A final to check a file has been created per example,
-    restart optionally the context or step if not)
+    Add verification commands to the config (A final to check a file has been created per example, restart
+    optionally the context or step if not)
 - name: auth-api
   task: Backend auth API for premium CLI (login token issuance, validation).
 - name: daemon-cli-auth
@@ -20,163 +16,145 @@
 - name: cli-binary-sha-validation
   task: Send CLI binary SHA with API requests; server validates allowed builds.
 - name: open-source-light-cli
-  task: Open-source minimal CLI — run a .js/.ts file with runLump input and scaffold example config.
+  task: >-
+    Open-source minimal CLI — run a .js/.ts file with runLump input and scaffold example config.
 - name: lumps-generator
   task: >-
-    Prompt-driven lump generator — outputs JSON array of lump configs; reruns when enabled lumps are
-    finished.
+    Prompt-driven lump generator — outputs JSON array of lump configs; reruns when enabled lumps are finished.
 - name: lump-create-from-recipe
   task: >-
-    `lumpcode lump-create --from-recipe <name>` scaffolds a working lump from a published recipe
-    (config.ts, starter files such as BACKLOG.yml, and optional hook stubs). Recipes become CLI
-    generators, not only npm imports in docs — lowers blank-page friction for new users. Pairs with
-    `@lumpcode/recipes` package; defer until a few dogfooded recipes stabilize.
+    `lumpcode lump-create --from-recipe <name>` scaffolds a working lump from a published recipe (config.ts,
+    starter files such as BACKLOG.yml, and optional hook stubs). Recipes become CLI generators, not only
+    npm imports in docs — lowers blank-page friction for new users. Pairs with `@lumpcode/recipes` package;
+    defer until a few dogfooded recipes stabilize.
 - name: unify-monorepo-tsconfig
   task: >-
-    Unify duplicated `tsconfig.json` files across npm workspaces (`packages/core`,
-    `packages/recipes`, `packages/apps/cli/cli-types`, `packages/apps/cli/cli-utils`, etc.).
-    Introduce a shared root or `packages/tsconfig.base.json` with `extends`, and per-package
-    overrides only for `rootDir`, `include`, and declaration/sourceMap settings (rollup-built libs
-    vs self-contained `src/` packages). New packages such as `@lumpcode/recipes` currently copy the
-    same compilerOptions block verbatim.
+    Unify duplicated `tsconfig.json` files across npm workspaces (`packages/core`, `packages/recipes`,
+    `packages/apps/cli/cli-types`, `packages/apps/cli/cli-utils`, etc.). Introduce a shared root or `packages/tsconfig.base.json`
+    with `extends`, and per-package overrides only for `rootDir`, `include`, and declaration/sourceMap
+    settings (rollup-built libs vs self-contained `src/` packages). New packages such as `@lumpcode/recipes`
+    currently copy the same compilerOptions block verbatim.
 - name: per-lump-git-remote
   task: Per-lump/prject.json/local.json git remote override (default remains origin).
 - name: cloud-analytics-zero-shot-rate
   task: >-
-    Add cloud analytics for zero-shot rate, i.e if a lump PR waas accepted direclty, mark it as
-    zero-shot, you can filter by lump name / context name. One use case is : If a step is always
-    zero-shot as review, I just can remove the review and incorporate the step as prompt in the
-    lump.
+    Add cloud analytics for zero-shot rate, i.e if a lump PR waas accepted direclty, mark it as zero-shot,
+    you can filter by lump name / context name. One use case is : If a step is always zero-shot as review,
+    I just can remove the review and incorporate the step as prompt in the lump.
 - name: add-git-client-abstraction
   task: >-
-    Add a git client abstraction to the core package. E.g, github, gitlab... The goal is to auto
-    open PR, auto relaunch the lump loop if a comment arrives etc.  Maybe only in premium with
-    connection directly to providers.
+    Add a git client abstraction to the core package. E.g, github, gitlab... The goal is to auto open
+    PR, auto relaunch the lump loop if a comment arrives etc.  Maybe only in premium with connection directly
+    to providers.
 - name: refine-lump-automatically-example
   task: >-
-    A lump that goes and check the lump branches that were merged. sees what are the non lump
-    commits (added by the user) before merge, and adapt the main lump with the knowing of these user
-    changes.
+    A lump that goes and check the lump branches that were merged. sees what are the non lump commits
+    (added by the user) before merge, and adapt the main lump with the knowing of these user changes.
 - name: add-after-push-commit-hook
   task: >-
-    Add an after-push-commit hook to the config. This hook will be called after the commit is pushed
-    to the remote branch. It will be called with the commit message and the branch name.
+    Add an after-push-commit hook to the config. This hook will be called after the commit is pushed to
+    the remote branch. It will be called with the commit message and the branch name.
 - name: option-full-local
-  task: Add an option to the config to run the lump code locally, without any pull, commit or push.
+  task: >-
+    Add an option to the config to run the lump code locally, without any pull, commit or push.
 - name: option-for-light-history
   task: >-
-    Add an option to the config to run the lump code with a light history optimized for reusing
-    later with a new agent (only texts).
+    Add an option to the config to run the lump code with a light history optimized for reusing later
+    with a new agent (only texts).
 - name: unified-status-command
   task: >-
-    Unified `lumpcode status` command showing daemon state plus per-lump context summaries in one
-    view, replacing the daemon-status / lump-status / context-status confusion (docs currently need
-    a comparison table).
+    Unified `lumpcode status` command showing daemon state plus per-lump context summaries in one view,
+    replacing the daemon-status / lump-status / context-status confusion (docs currently need a comparison
+    table).
 - name: rethink-lump-history-storage
   task: >-
-    Rethink lump history persistence (`keepHistory: true` →
-    `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`). Today
-    `packages/core/src/utils/historyFile/main.ts` read-modify-writes a full YAML array of
-    `HistoryEntry` objects (prompt, commandResult, context, stepIndex, contextRunState,
-    lumpVariables, etc.) on every step append. All-YAML has proven fragile: js-yaml literal blocks
-    break on ANSI escapes in verification output (SEA build colors, vitest); verify loops duplicate
-    full `npm run build && npm run test` output in both commandResult and retry prompts (45KB+ for a
-    handful of entries); corrupt files block further appends until manual repair. Recent mitigations
-    (write sanitization, read-side ANSI recovery, non-blocking history errors in
-    executeStepsForContextList) are band-aids. Tier 1 near-term (may ship before format change):
-    truncate large prompt/commandResult fields; post-write YAML round-trip validation. Tier 2/3
-    direction to evaluate: append-only JSONL per context, or a split layout — small YAML/JSON index
-    per context plus separate `.log` (or hashed blob) files for full command output. Preserve
-    resumable session semantics (contextRunState, command module setup keys) regardless of format.
-    Update project-setup gitignore and CLI docs if paths change. Complements
-    `option-for-light-history` (content shape) but targets storage robustness.
+    Rethink lump history persistence (`keepHistory: true` → `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`).
+    Today `packages/core/src/utils/historyFile/main.ts` read-modify-writes a full YAML array of `HistoryEntry`
+    objects (prompt, commandResult, context, stepIndex, contextRunState, lumpVariables, etc.) on every
+    step append. All-YAML has proven fragile: js-yaml literal blocks break on ANSI escapes in verification
+    output (SEA build colors, vitest); verify loops duplicate full `npm run build && npm run test` output
+    in both commandResult and retry prompts (45KB+ for a handful of entries); corrupt files block further
+    appends until manual repair. Recent mitigations (write sanitization, read-side ANSI recovery, non-blocking
+    history errors in executeStepsForContextList) are band-aids. Tier 1 near-term (may ship before format
+    change): truncate large prompt/commandResult fields; post-write YAML round-trip validation. Tier 2/3
+    direction to evaluate: append-only JSONL per context, or a split layout — small YAML/JSON index per
+    context plus separate `.log` (or hashed blob) files for full command output. Preserve resumable session
+    semantics (contextRunState, command module setup keys) regardless of format. Update project-setup
+    gitignore and CLI docs if paths change. Complements `option-for-light-history` (content shape) but
+    targets storage robustness.
 - name: compose-post-setup-workspace-hooks
   task: >-
-    Allow custom per-lump workspace prep by composing on top of CLI-generated `workspaceStrategy`
-    (`checkout` | `worktree` from `.lumpcode/local.json` via `makeLumpWorkspaceFns`), not by
-    re-exposing raw core `setupWorkspaceFn` / `teardownWorkspaceFn` on `LumpJsConfig`. Operators
-    need install deps, copy env files, codegen, etc. inside the branch workspace after git setup
-    while keeping correct strategy-owned `workspacePath` (locks + agent cwd) and dedicated worktree
-    `afterExec` lock release via `withSetupWorkspaceAfterExec`. Preferred: optional lump-config
-    `postSetupWorkspaceFn` (FilePath or fn) receiving `{ baseBranch, branchName, contextList,
-    workspacePath, executionWorkspacePath, workspaceStrategy }`, returning optional `{ command?,
-    afterExec? }` chained after built-in setup — user must not override `workspacePath`; chain
-    `afterExec` so lock-layer release still works. Optional twin `postTeardownWorkspaceFn`. Smaller
-    JSON-only alternative: `postSetupWorkspaceCommand` string append (`builtIn && userCommand`).
-    Non-goals: raw setup/teardown knobs on lump config; full replace of generated fns unless a later
-    `"custom"` strategy defines a path contract for locks. Touch: primarily `packages/apps/cli`
-    (`jsConfigToRunLumpInput`, `makeLumpWorkspaceFns`, `LumpJsConfig`, schema, DOCS); core likely
-    unchanged; `withWorkspaceLockHooks` stays outermost if path remains strategy-owned. Note:
-    existing `setupFn` is the wrong layer (per-context, after workspace setup, no `workspacePath`).
+    Allow custom per-lump workspace prep by composing on top of CLI-generated `workspaceStrategy` (`checkout`
+    | `worktree` from `.lumpcode/local.json` via `makeLumpWorkspaceFns`), not by re-exposing raw core
+    `setupWorkspaceFn` / `teardownWorkspaceFn` on `LumpJsConfig`. Operators need install deps, copy env
+    files, codegen, etc. inside the branch workspace after git setup while keeping correct strategy-owned
+    `workspacePath` (locks + agent cwd) and dedicated worktree `afterExec` lock release via `withSetupWorkspaceAfterExec`.
+    Preferred: optional lump-config `postSetupWorkspaceFn` (FilePath or fn) receiving `{ baseBranch, branchName,
+    contextList, workspacePath, executionWorkspacePath, workspaceStrategy }`, returning optional `{ command?,
+    afterExec? }` chained after built-in setup — user must not override `workspacePath`; chain `afterExec`
+    so lock-layer release still works. Optional twin `postTeardownWorkspaceFn`. Smaller JSON-only alternative:
+    `postSetupWorkspaceCommand` string append (`builtIn && userCommand`). Non-goals: raw setup/teardown
+    knobs on lump config; full replace of generated fns unless a later `"custom"` strategy defines a path
+    contract for locks. Touch: primarily `packages/apps/cli` (`jsConfigToRunLumpInput`, `makeLumpWorkspaceFns`,
+    `LumpJsConfig`, schema, DOCS); core likely unchanged; `withWorkspaceLockHooks` stays outermost if
+    path remains strategy-owned. Note: existing `setupFn` is the wrong layer (per-context, after workspace
+    setup, no `workspacePath`).
 - name: external-agent-harness-library-presets
   task: >-
-    Replace or thin further hand-rolled per-agent preset argv wiring (`presets/commands/cursor.js`,
-    `copilot.js`, etc.) by adopting an external OSS TypeScript library that unifies spawning/calling
-    local agent harnesses (Copilot CLI, Cursor CLI, Claude Code, OpenCode, Codex, …). Candidates:
-    `@pivanov/agents-wire`, `coding-agent-runner`, or vendor SDKs (e.g. `@cursor/sdk` for
-    Cursor-only). Goal: reliable invoke surface (prompt, resume/session, model, permissions) without
-    maintaining per-CLI flag maps — still fits Lumpcode's thin `CommandDescriptor` model; not full
-    ACP streaming. Deferred; DIY presets remain default for now.
+    Replace or thin further hand-rolled per-agent preset argv wiring (`presets/commands/cursor.js`, `copilot.js`,
+    etc.) by adopting an external OSS TypeScript library that unifies spawning/calling local agent harnesses
+    (Copilot CLI, Cursor CLI, Claude Code, OpenCode, Codex, …). Candidates: `@pivanov/agents-wire`, `coding-agent-runner`,
+    or vendor SDKs (e.g. `@cursor/sdk` for Cursor-only). Goal: reliable invoke surface (prompt, resume/session,
+    model, permissions) without maintaining per-CLI flag maps — still fits Lumpcode's thin `CommandDescriptor`
+    model; not full ACP streaming. Deferred; DIY presets remain default for now.
 - name: acp-streaming-agent-sessions
   task: >-
-    Optionally integrate Agent Client Protocol (ACP) streaming into Lumpcode command modules and/or
-    the core step walk: persistent JSON-RPC sessions with `session/prompt` + live `session/update`
-    (text chunks, tool calls, plans), mid-run permissions, and cancel — instead of or in addition to
-    fire-and-forget CLI `-p` spawn + wait for exit. Candidates: `@agentclientprotocol/sdk` and/or
-    ACP-speaking libraries. Architectural (richer progress than stdout/stderr); distinct from merely
-    using a library to build argv. Deferred; keep thin presets for now.
+    Optionally integrate Agent Client Protocol (ACP) streaming into Lumpcode command modules and/or the
+    core step walk: persistent JSON-RPC sessions with `session/prompt` + live `session/update` (text chunks,
+    tool calls, plans), mid-run permissions, and cancel — instead of or in addition to fire-and-forget
+    CLI `-p` spawn + wait for exit. Candidates: `@agentclientprotocol/sdk` and/or ACP-speaking libraries.
+    Architectural (richer progress than stdout/stderr); distinct from merely using a library to build
+    argv. Deferred; keep thin presets for now.
 - name: internal-test-utils-package
   task: >-
-    Add a private workspace-only package (e.g. `@lumpcode/test-utils`, not published to npm) for
-    shared Vitest/e2e fixtures, platform shims, and other test helpers currently duplicated or
-    living next to production code / exported from publishable packages. Motivating case:
-    `windowsNpmCmdShimBody` under `@lumpcode/core` is exported so CLI e2e can reuse it — odd on the
-    core public surface. Target consumers: core unit tests, CLI e2e/harness, and recipes as needed,
-    so production barrels stay clean. Leave current placements as-is until this lands.
+    Add a private workspace-only package (e.g. `@lumpcode/test-utils`, not published to npm) for shared
+    Vitest/e2e fixtures, platform shims, and other test helpers currently duplicated or living next to
+    production code / exported from publishable packages. Motivating case: `windowsNpmCmdShimBody` under
+    `@lumpcode/core` is exported so CLI e2e can reuse it — odd on the core public surface. Target consumers:
+    core unit tests, CLI e2e/harness, and recipes as needed, so production barrels stay clean. Leave current
+    placements as-is until this lands.
 - name: disabled-global-vs-single
   task: >-
-    Allow lump `disabled` to be an object `{ global, single }` (each MaybePromiseFn<boolean>);
-    global for filtered/global daemon, single for manual run / single-lump daemon.
-- name: cleaner-cli-lifecycle-docs
-  task: >-
-    Cleaner CLI DOCS: add a clear schema of the whole lump run lifecycle and make the docs clearer
-    in general.
-- name: cleaner-recipes-docs-tutorials
-  task: 'Cleaner recipes examples in DOCS: concise mini tutorials.'
-- name: docs-distant-installation-guide
-  task: >-
-    Quick DOCS guide for distant/remote installation, including git flow for Lumpcode (merge lump
-    updates to discovery branch, etc.).
-- name: docs-shared-installation-guide
-  task: Quick DOCS guide for shared-mode installation.
+    Allow lump `disabled` to be an object `{ global, single }` (each MaybePromiseFn<boolean>); global
+    for filtered/global daemon, single for manual run / single-lump daemon.
 - name: lump-plan-remote-todo-status
-  task: Verify/ensure `lump-plan` reports which contexts are todo from the remote (source of truth).
+  task: >-
+    Verify/ensure `lump-plan` reports which contexts are todo from the remote (source of truth).
 - name: project-local-tick-hooks
   task: >-
-    Add hooks in local.json/project.json: onBeforeDiscovery, onTickBegin, onTickEnd, etc. (e.g.
-    onBeforeDiscovery/onTickBegin to run npm i for the whole tick).
+    Add hooks in local.json/project.json: onBeforeDiscovery, onTickBegin, onTickEnd, etc. (e.g. onBeforeDiscovery/onTickBegin
+    to run npm i for the whole tick).
 - name: daemon-orchestration-priority
   task: >-
-    Clean global daemon orchestration: which lump runs when and with what priority. Possibly many
-    multi-lump daemons in parallel per config. Big topic; not for v0.1.0.
+    Clean global daemon orchestration: which lump runs when and with what priority. Possibly many multi-lump
+    daemons in parallel per config. Big topic; not for v0.1.0.
 - name: json-yaml-lump-configs
-  task: Support recipes in JSON configs, make JSON configs more powerful, and allow YAML lump configs.
+  task: >-
+    Support recipes in JSON configs, make JSON configs more powerful, and allow YAML lump configs.
 - name: run-start-lump-variable-overrides
   task: Allow run/start of a lump with other lumpVariables or small config tweaks.
 - name: presets-typescript-package
   task: >-
-    Dedicated package for presets that builds to plain independent JS, so presets can be authored in
-    clean TypeScript.
+    Dedicated package for presets that builds to plain independent JS, so presets can be authored in clean
+    TypeScript.
 - name: dynamic-base-branch-from-context-list
   task: Dynamic baseBranch based on context names (function of contextList).
 - name: sharedicated-mode
   task: >-
-    'Sharedicated' mode: preflight discovery on the project copy (hybrid shared/dedicated
-    discovery).
+    'Sharedicated' mode: preflight discovery on the project copy (hybrid shared/dedicated discovery).
 - name: deterministic-ast-git-lib
   task: >-
-    Easy library for deterministic AST, git changes, and other complicated but deterministic
-    analysis.
+    Easy library for deterministic AST, git changes, and other complicated but deterministic analysis.
 - name: sandbox-utils-examples
   task: Easy possibility for sandboxes, or example/utils for sandboxes.
 - name: read-json-file-failure-codes
@@ -185,20 +163,14 @@
   task: Add a problem-solver skill for debugging/fixing issues in a structured way.
 - name: multi-remote-setup
   task: >-
-    Multi-remote git setup support beyond a single origin (complementary to per-lump remote
-    override).
+    Multi-remote git setup support beyond a single origin (complementary to per-lump remote override).
 - name: webhooks-imperative-started-lumps
   task: Webhooks / imperative started lumps (trigger or drive lump runs from external events).
 - name: commandFn-return-step-or-result
   task: >-
-    commandFn can return another step, or Success|Failure directly, instead of always a command to
-    execute.
+    commandFn can return another step, or Success|Failure directly, instead of always a command to execute.
 - name: post-command-exec-fn-return-null
   task: postCommandExecFn should be able to return null.
-- name: fix-workspace-lock-release-on-interrupt
-  task: >-
-    Mid lumpcode run interruptions do not release workspace locks — fix so locks are released on
-    interrupt/abort.
 - name: git-access-heartbeat
   task: Lumpcode heartbeat validation that git access (remote) is ok.
 - name: git-driven-daemon-configs
