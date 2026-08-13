@@ -16,7 +16,8 @@ import {
     type BacklogPaths,
 } from '@lumpcode/recipes';
 
-type FeatureBacklogWorkflow = 'tdd' | 'directImpl';
+type FeatureBacklogWorkflow = 'tdd' | 'directImpl' | 'manual';
+type FeatureBacklogRunnableWorkflow = Exclude<FeatureBacklogWorkflow, 'manual'>;
 
 type FeatureBacklogItem = BaseBacklogItem & {
     manualReq?: boolean;
@@ -41,7 +42,11 @@ type FeatureBacklogContextVariables = {
     TEST_PLAN_FILE?: string;
 };
 
-const FEATURE_BACKLOG_WORKFLOWS = ['tdd', 'directImpl'] as const satisfies readonly FeatureBacklogWorkflow[];
+const FEATURE_BACKLOG_WORKFLOWS = [
+    'tdd',
+    'directImpl',
+    'manual',
+] as const satisfies readonly FeatureBacklogWorkflow[];
 
 const RESERVED_NAME_SUFFIXES = ['_req', '_testPlan', '_tests_impl'] as const;
 
@@ -74,11 +79,12 @@ function featureContextName(itemName: string, stage: FeatureBacklogStage): strin
 /**
  * `dev` → only `directImpl` (omit workflow ⇒ tdd ⇒ skipped on dev).
  * `feature/<key>` → exact item name match only.
+ * `manual` never reaches here (`resolveFeatureBacklogItem` ignores it first).
  */
 function itemMatchesDiscoveryBranch(input: {
     itemName: string;
     discoveryBranch: string;
-    workflow: FeatureBacklogWorkflow;
+    workflow: FeatureBacklogRunnableWorkflow;
 }): boolean {
     const { itemName, discoveryBranch, workflow } = input;
     if (discoveryBranch === 'dev') {
@@ -106,6 +112,10 @@ async function resolveFeatureBacklogItem(input: {
 > {
     const { item, paths, projectRoot, discoveryBranch } = input;
     const workflow: FeatureBacklogWorkflow = item.workflow ?? 'tdd';
+
+    if (workflow === 'manual') {
+        return { ignored: true };
+    }
 
     if (
         !!item.completedAt ||
