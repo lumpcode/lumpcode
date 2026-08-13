@@ -112,7 +112,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `discoveryBranches` | string[] | Discovery rules (exact and/or globs). Mutually exclusive with `discoveryBranch`. Flagless CLI uses the first exact rule; pattern-only requires `--discoveryBranch`. |
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Default agent command for all prompt items that don’t set their own `command` |
 | `branchFn` | [Function reference](#field-forms-conventions) | Custom branch naming; default is `lump/<lumpName>/<contextNames…>` |
-| `disabled` | boolean | When `true`, the background daemon skips this lump (`lumpcode start`); `run` still executes if invoked manually |
+| `disabled` | boolean \| DisabledFn \| FilePath | When truthy / returns `true`, soft-skips the lump on both `lumpcode start` ticks and manual `lumpcode run` (`skipped: true`, reason `disabled`, exit 0). |
 | `maximumNumberOfConcurrentBranches` | number | If set (≥ 0), `run` / daemon tick **skips** when open `lump/<lumpName>/*` branches on `origin` ≥ limit (local-only branches are not counted) |
 | `numberOfContextsPerBranch` | number | How many contexts share one branch (default `1`) |
 | `lumpVariables` | object | Arbitrary JSON passed into hooks and prompt functions as `lumpVariables` |
@@ -122,7 +122,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `contextOptionsFn` | [Function reference](#field-forms-conventions) | **Only with `contextListJson`:** set per-context `options` (`priority`, `dependsOnContexts`) after template expansion. See [contextOptionsFn](#contextoptionsfn-only-with-contextlistjson) and [Context ordering](#context-ordering-and-cross-lump-dependencies) |
 | `keepHistory` | boolean | When `true`, append one YAML mapping per prompt step (after the agent command) to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` |
 
-Workspace preparation (fetch/pull/branch) is generated for you from `local.json` and the resolved `baseBranch`—there are no `workspaceSetup`, `setupWorkspaceFn`, or `teardownWorkspaceFn` knobs.
+Workspace preparation (fetch / switch / hard-reset / branch) is generated for you from `local.json` and the resolved `baseBranch`—there are no `workspaceSetup`, `setupWorkspaceFn`, or `teardownWorkspaceFn` knobs. When each hook runs: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
 
 ### Commit messages
 
@@ -329,6 +329,6 @@ export default defineConfig({
 
 - [concepts.md](./concepts.md) — Status lifecycle, pre-flight, daemon overview
 - [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `primaryBranch`)
-- [advanced-config.md](./advanced-config.md) — Hooks, dynamic prompts, custom commands
+- [advanced-config.md](./advanced-config.md) — Hook lifecycle schemas (shared / dedicated), dynamic prompts, custom commands
 - [types.md](./types.md) — Callback signatures
 - [commands.md](./commands.md) — `run`, `daemon-status`, `lump-status`, `context-status`

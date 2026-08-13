@@ -93,24 +93,47 @@ Per-lump **`discoveryBranch`** or **`discoveryBranches`** (mutually exclusive) a
 
 ## One run, end to end
 
+Operator sketch for `lumpcode run <lumpName>` (same per-lump path a daemon tick uses after discovery/filters). Full hook call sites: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (separate **shared** and **dedicated** schemas).
+
+**Shared** — load from the source checkout; preflight only the copy at workspace setup:
+
 ```mermaid
-flowchart LR
+flowchart TD
   start["lumpcode run myLump"]
-  preflight["Pre-flight: pull primaryBranch<br/>(in copy or in place per mode)"]
-  discover["Discover contexts<br/>contextListJson / fn / matchFn"]
-  checkout["Pull lump baseBranch<br/>work branch lump/myLump/..."]
-  agent["Run agent with prompt"]
-  history["Optional: append to history/<context>.yaml<br/>when keepHistory is true"]
-  commit["git commit<br/>LUMP: myLump - ctx"]
+  load["Load config from source + disabled"]
+  contexts["Context source + status → todo list"]
+  branch["branchFn"]
+  setup["auto: locks + preflight copy @ baseBranch<br/>+ branch workspace"]
+  loop["Per context: setup → steps → teardown → commit"]
   push["git push origin"]
+  teardown["auto: workspace teardown + unlock"]
   refresh["Refresh contextStatusRecord.json"]
-  back["Switch back to lump baseBranch"]
-  start --> preflight --> discover --> checkout --> agent --> history --> commit --> push --> back --> refresh
+  start --> load --> contexts --> branch --> setup --> loop --> push --> teardown --> refresh
 ```
 
+**Dedicated** — discovery preflight on the checkout, then a later base-branch preflight at workspace setup:
 
+```mermaid
+flowchart TD
+  start["lumpcode run myLump"]
+  resolve["Resolve discoveryBranch"]
+  dPre["auto: locked discovery preflight"]
+  load["Load config + disabled + allowlist"]
+  contexts["Context source + status → todo list"]
+  branch["branchFn"]
+  setup["auto: locks + preflight checkout @ baseBranch<br/>+ branch workspace"]
+  loop["Per context: setup → steps → teardown → commit"]
+  push["git push origin"]
+  teardown["auto: workspace teardown + unlock"]
+  refresh["Refresh contextStatusRecord.json"]
+  start --> resolve --> dPre --> load --> contexts --> branch --> setup --> loop --> push --> teardown --> refresh
+```
 
-Pre-flight resolves the **execution workspace** from `local.json.mode`: the checkout itself in `dedicated` mode, or a copy under `~/.lumpcode/project-copies/<projectName>/` in `shared` mode—see [Pre-flight and modes](#pre-flight-and-modes) and [Three workspaces](#three-workspaces).
+Order notes:
+
+1. **Dedicated** resolves a concrete discovery branch and preflights the checkout there **before** config load; **shared** loads config from the source project workspace and preflights only the **copy** at workspace-setup time (`resolvedBaseBranch`). Neither path uses `git pull`; both use fetch / switch / hard-reset. See [Pre-flight and modes](#pre-flight-and-modes).
+2. Context discovery and the status-driven todo list run **before** branch workspace setup. Author hooks (`setupFn`, `promptFn`, …) sit inside the per-context loop after setup; details only in [advanced-config.md](./advanced-config.md#hook-lifecycle).
+3. Execution workspace comes from `local.json.mode`: checkout in `dedicated`, or `~/.lumpcode/project-copies/<projectName>/` in `shared`. See [Three workspaces](#three-workspaces).
 
 When a lump sets **`keepHistory: true`**, each prompt step appends prompt text and agent output to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` on disk (gitignored by `project-setup`). See [lump-config.md § Prompt run history](./lump-config.md#prompt-run-history-keephistory).
 
@@ -135,7 +158,7 @@ Useful pairings on a server:
 
 - **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`) — caps how many open `lump/<lumpName>/*` branches on `origin` exist before a run is skipped (local-only branches are not counted). See [lump-config.md](./lump-config.md#optional-top-level-fields).
 - **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to the primary branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
-- **`"disabled": true`** on a lump — on the next tick, the daemon soft-skips that lump without stopping the scheduler.
+- **`"disabled": true`** on a lump soft-skips that lump on daemon ticks and on manual `lumpcode run` (exit 0) without stopping the scheduler.
 - **`--include` / `--exclude`** on `start` — run a subset of lumps in one daemon (or several overlapping daemons with different `--daemonId` values).
 - **`maxParallelRun`** in `local.json` or `--maxParallelRun` on `start` (with **`workspaceStrategy: "worktree"`**) — caps how many lumps a daemon tick runs at once. Default `1`. See [Concurrency and locks](#concurrency-and-locks).
 
@@ -151,7 +174,17 @@ Useful pairings on a server:
 
 **Common flags:** `lumpcode start --foreground`, `lumpcode start --include=backlog,refacto-* --daemonId=agents`. Inspect: `lumpcode daemon-status` (lists all). Stop: `lumpcode stop --daemonId <id>`. Restart: `lumpcode restart --daemonId <id>`.
 
-**Tick behavior:** discover loadable configs, apply include/exclude, soft-skip disabled lumps at run time, then run the same engine path as `lumpcode run <lumpName>` for each match (optionally in parallel under worktree + `maxParallelRun`).
+**Tick behavior:** discover loadable configs (dedicated: one locked discover per primary-branch scan), apply include/exclude, soft-skip disabled lumps at run time, then run the same per-lump path as `lumpcode run <lumpName>` for each match (optionally in parallel under worktree + `maxParallelRun`). Shared vs dedicated tick wrappers and hook order: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
+
+```mermaid
+flowchart TD
+  subgraph sharedTick ["shared tick"]
+    s1["Discover loadable lumps"] --> s2["include / exclude"] --> s3["each match = shared run"]
+  end
+  subgraph dedicatedTick ["dedicated tick"]
+    d1["for each scanBranch"] --> d2["locked discover"] --> d3["include / exclude"] --> d4["each match = dedicated run"]
+  end
+```
 
 Full flag reference: [commands.md](./commands.md).
 
@@ -199,5 +232,6 @@ What you need to know as an operator:
 - [get-started.md](./get-started.md) — First lump from zero
 - [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `primaryBranch`, `workspaceStrategy`)
 - [lump-config.md](./lump-config.md) — All config keys
+- [advanced-config.md](./advanced-config.md#hook-lifecycle) — Shared / dedicated hook lifecycle schemas
 - [commands.md](./commands.md) — Every subcommand
 
