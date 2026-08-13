@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Codemods grew a brain. Our tooling didn't.</title>
+  <style>
+    body {
+      max-width: 42rem;
+      margin: 2rem auto;
+      padding: 0 1.25rem 4rem;
+      font: 18px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #0f1419;
+    }
+    .meta {
+      margin: 0 0 1.5rem;
+      padding: 0.75rem 1rem;
+      background: #f7f9f9;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #536471;
+    }
+    .meta strong { color: #0f1419; }
+    .subtitle {
+      margin: 0 0 1.75rem;
+      font-size: 1.15rem;
+      color: #536471;
+    }
+    h2 {
+      margin: 1.75rem 0 0.75rem;
+      font-size: 1.35rem;
+      line-height: 1.3;
+    }
+    p { margin: 0 0 0.9rem; }
+    ul {
+      margin: 0 0 0.9rem;
+      padding-left: 1.25rem;
+    }
+    li { margin: 0 0 0.45rem; }
+    a { color: #1d9bf0; }
+  </style>
+</head>
+<body>
+  <p class="meta">
+    <strong>How to paste into X Articles</strong><br />
+    1. Title field: <em>Codemods grew a brain. Our tooling didn't.</em><br />
+    2. Subtitle field (if present): <em>Why I’m building a git-first loop manager.</em><br />
+    3. Select from the subtitle (or from “1. Something…”) through the repo link — do not select this gray box.<br />
+    4. Copy, then paste into the X article body (Cmd/Ctrl+V). Paste as rich text, not plain text.<br />
+    Alternate: upload the sibling <code>.x.md</code> via an X Markdown paste extension, or copy body from <a href="https://markdown2x.com/">markdown2x.com</a>.
+  </p>
+
+  <p class="subtitle">Why I’m building a git-first loop manager.</p>
+
+  <h2>1. Something changed in how we do the boring work</h2>
+
+  <p>For years, large-scale code changes had two shapes.</p>
+
+  <p>Either the change was mechanical, and you wrote a codemod: an AST transform, a regex, a script. Deterministic, fast, reviewable. Also brittle, and only able to express what you could fully specify up front.</p>
+
+  <p>Or the change needed judgment, and you did it by hand. A ticket per file, a PR per module, weeks of hand edits.</p>
+
+  <p>Coding agents collapsed that gap. A loop step can now be "rewrite this util the way the codebase does it" instead of "match this pattern and replace it". Fuzzy work became automatable: a rename that needs context, normalize a util and add tests, a migration that isn't a pure AST rewrite.</p>
+
+  <p>One thing did not change: <strong>git is still how a project ships and remembers.</strong></p>
+
+  <p><strong>Git is the gate:</strong> Code enters the mainline through reviewable PRs. The unit of trust is a change a human can hold in their head.</p>
+
+  <p><strong>Git is the source of truth:</strong> What landed, when, and on which branch lives in remote history. The git remote is the record; you do not need a side system to know the state of the project.</p>
+
+  <p>So if agents are going to do the fuzzy work, the loops around them should plug into that same gate and that same record.</p>
+
+  <p><strong>Git-first gate for loops:</strong> Slice a large body of work into isolated contexts, one branch and one PR each. An agent that rewrites 200 files in one commit has produced something nobody will read. Keep the campaign itself in the repo, so a change to the loop ships as a normal diff and gets reviewed like any other change.</p>
+
+  <p><strong>Git-first source of truth for loops:</strong> Four hundred utils to clean is not a session, it is a campaign. It runs for weeks at the speed your team can review, and it has to survive you closing your laptop. Merge three PRs today, leave four for tomorrow: what is left should come from the git remote, not from a distant database or service.</p>
+
+  <p>That is the shape I started calling a <strong>git-first loop manager</strong>. I kept looking for one, and kept not finding it.</p>
+
+  <h2>2. The space is crowded. The crowd is standing elsewhere.</h2>
+
+  <p>I went looking. Four categories, none on this axis.</p>
+
+  <p><strong>Agent frameworks</strong> (LangGraph, CrewAI, AutoGen) call models; they do not drive the coding agents I already trust, and they do not know what a branch or a PR is.</p>
+
+  <p><strong>Worktree orchestrators</strong> (Conductor, ParallelCode, git-parsec, Stoneforge) nail isolation, but they parallelize tasks you dispatch now from a GUI. The task list is not a committed artifact, so there is nothing to version or re-run next month.</p>
+
+  <p><strong>Enterprise large-scale-change platforms</strong> (Sourcegraph Agentic Batch Changes, Moderne, Codemod.com) are closest by intent, and genuinely good. They are also heavy to put in place, not open source where it counts, and the campaign lives in their system, not in your repository.</p>
+
+  <p><strong>Vendor cloud agents</strong> (Copilot, Codex cloud, Cursor cloud agents) already give you one task, one branch, one PR. What is missing is the loop above them: know what is left, pick the next slice, run your gates, keep going for a month while you merge.</p>
+
+  <h2>3. So I am building Lumpcode, a git-first loop manager</h2>
+
+  <p>Lumpcode is a small CLI for one job: running long agent campaigns over your own repo, in reviewable slices.</p>
+
+  <p>The unit is a <strong>lump</strong>: a body of work too big for one chat, described once and then worked through over days or weeks. You can run a tick by hand, or leave a daemon to pick up the next eligible slice on a schedule while you review yesterday's PRs.</p>
+
+  <ul>
+    <li><strong>Git-first.</strong> A repo with git access and a coding agent on PATH is the whole dependency list. Loops and progress live in the repo.</li>
+    <li><strong>No external state.</strong> Progress is derived from commit messages on remote branches. The repo is the database.</li>
+    <li><strong>Context isolation by construction.</strong> One context, one branch, one PR. Merge what is good; the next tick continues with the rest.</li>
+    <li><strong>Resumable by default.</strong> Stop for a week, come back, run it again. It re-derives what is left from the remote.</li>
+    <li><strong>Mixed steps.</strong> Prompts and plain shell commands sit side by side, with retry loops and custom validation.</li>
+    <li><strong>Agent-agnostic.</strong> Cursor, Copilot CLI, Claude Code, Codex, whatever the team already uses.</li>
+    <li><strong>Easy to start, configurable when you need it.</strong> One npm install, no server, no indexing step. JSON for the simple case, TypeScript when you want real logic. Apache 2.0.</li>
+  </ul>
+
+  <p>Git-first is also practical day to day. Tweak a prompt or a validation step, push: the next tick runs the new version. Add a new lump, push: the daemon finds it. The worker resets to the base branch every tick, so whatever is on that branch <em>is</em> the configuration. A change to a loop arrives as a diff, and gets reviewed like any other diff.</p>
+
+  <h2>4. Three campaigns I have run</h2>
+
+  <p>The first two live in this repo under <strong>.lumpcode/lumps/</strong> — including the finished CLI campaign and the two abstraction lumps that still tick. Open the configs if you want to see how they are wired. The third ran on a client monorepo.</p>
+
+  <p><strong>Building Lumpcode with Lumpcode.</strong> Early on, each CLI command was a backlog item with priority and dependencies. The lump opened one PR per command. Most of the CLI surface was implemented that way. I reviewed each, added some pushback for some PRs, and now the campaign is over.</p>
+
+  <p><strong>Hunting my own duplication.</strong> Two lumps in a pipeline. The first finds one duplicated pattern and writes a small requirements folder into the second lump's backlog. The second implements the util, refactors call sites, and validates with build and test. It never finishes by design: twelve utils have landed through it so far, one PR at a time.</p>
+
+  <p><strong>Cleaning a client monorepo.</strong> Hundreds of utils, inconsistently structured and thinly tested. One util is one context. The agent normalizes structure and writes tests; a deterministic step runs typecheck, lint, and that util's tests, then retries on failure up to four times. PRs stay small. The campaign has run for weeks, capped at three open branches so it never floods review, and nobody had to change how they review code.</p>
+
+  <h2>5. Where it is</h2>
+
+  <p>Early development, Apache 2.0, on npm as <strong>@lumpcode/cli</strong>. Agents don't replace review — they feed it. Describe the campaign once; spend a little time each day merging.</p>
+
+  <p>The name: I was looking for something for the CLI and remembered a trip by a lake where small fish came to clean the feet of people who put them in the water. Looking up cleaner fish, I found the <strong>lumpfish</strong> — used to clean salmon farms and aquariums. Hence Lumpcode. Also, the lumpfish is cute.</p>
+
+  <p>Repo: <a href="https://github.com/lumpcode/lumpcode">github.com/lumpcode/lumpcode</a></p>
+</body>
+</html>

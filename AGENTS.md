@@ -46,6 +46,15 @@
 - Cross-cutting topics (e.g. branch resolution, concurrency/locks) get **one canonical section in `concepts.md`**; other pages link there instead of re-explaining — avoid duplicated prose that drifts
 - `AGENTS.md` continual-learning: capture durable principles and workspace facts, not session change logs or verbatim grilling Q&A outcomes
 
+### Public articles (X)
+
+- `articles/x/` holds short X-facing pieces named `NN-slug.md` (`01-`, `02-`, …); how-to pieces go step by step, command by command; positioning pieces stay quick to read — cut a section back when it grows instead of letting it sprawl (competitive categories: ~one sentence each once researched). Markdown is the edit source; X's article preview formats markdown poorly, so ship a sibling `NN-slug.x.html` for paste. Cover images are 5:2
+- Positioning diction: plain/sharp body; avoid colorful fillers (`drudgery`, `enormous beasts`, `ground down`, `chewing through`); one punchy title is fine; prefer **campaign** in prose, define **lump** once in the product section, use **context** only for isolation — skip “loop engineering” in X positioning (keep for docs/README)
+- Never claim coinage of a term the user did not invent (e.g. **loop engineering**) — use the term, drop "what I call …" framing
+- Competitive positioning must name real alternatives found by web research with specific reasons they do not fit (e.g. enterprise large-scale-change platforms are heavy to put in place and not open source) — no hand-waving
+- Stress **git-first** as product identity (not a phase to outgrow): git is **gate** (reviewable PRs for agent output *and* loop config) and **source of truth** (done/left from remote history, not a dashboard); short category label **git-first loop manager**; state general git role before how loops plug in; long-running **campaign** pacing by PR merge; push a lump change or a new lump and the next daemon tick picks it up, nothing to deploy or register
+- Anonymize client/mission material in public articles — no company, industry, or codebase identifying details
+
 ### CLI conventions
 
 - Unregistered `login`/`logout` command modules are **implementation-only** — do not document in user-facing README/DOCS (`npm login` in `DOCS/publishing.md` is npm registry auth only)
