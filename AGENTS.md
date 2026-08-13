@@ -113,13 +113,13 @@
 ### Branch resolution (v0.0.9)
 
 - Split **execution** (`baseBranch`) from **discovery** (`discoveryBranch` / `discoveryBranches`, mutually exclusive; exact and/or git refname globs); design ref: `.lumpcode/lumps/v0.0.9/multi-project-base-branches.reference.md`
-- `effectivePrimaryBranches` = non-empty `primaryBranches` else `[primaryBranch]`; resolved `primaryBranch` = first
+- `effectivePrimaryBranches` = non-empty `primaryBranches` else `[primaryBranch]` (exact + glob strings; unexpanded); resolved `primaryBranch` = first **exact** entry (`resolvePrimaryBranch` — all-glob list throws)
 - `resolvedDiscoveryBranch` = concrete discovery (CLI `--discoveryBranch`, else first exact discovery rule, else `primaryBranch`); pattern-only `discoveryBranch(es)` require `--discoveryBranch` for manual `run`/`lump-plan`/`lump-status`
 - `resolvedBaseBranch` = lump `baseBranch ??` concrete discovery `?? primaryBranch`
 - `resolvedBaseBranch` on `RunLumpInput` drives context status and worktree fetch; pre-flight/teardown use `resolvedBaseBranch`
 - **Dedicated allowlist**: each discovery rule must be allowlisted against configured (unexpanded) `effectivePrimaryBranches` — enforce in **`runLumpFromJsConfig`** and explicit `--lumpName` daemon launch (`validateLumpDiscoveryBranchAllowlist`); redundant in dedicated global **`validateDaemonLaunch`** loop after `discoverDedicatedLumpsForScanBranch` (helper filters by scan branch); not `baseBranch`; command handlers must not duplicate
 - **Shared mode**: no allowlist; lump `discoveryBranch`/`discoveryBranches` and `--discoveryBranch` ignored for scheduling; multi-`primaryBranches` logs once (dedicated-only feature); executes on copy at `resolvedBaseBranch`, discovers from source `projectRoot`
-- Dedicated daemon: loops `effectivePrimaryBranches` per tick; same `lumpName` on different primary branches OK; duplicate `lumpName` on same primary-branch scan fails launch
+- Dedicated daemon tick: `expandPrimaryBranches` → concrete `scanBranches` (configured-entry order: exact as listed, then each glob’s `ls-remote` hits; shared mode does not expand globs); first scan is **not** always `resolvedPrimaryBranch` when a glob precedes the exact (e.g. `[feature/*, dev]`); same `lumpName` on different primary branches OK; duplicate `lumpName` on same primary-branch scan fails launch
 - `lump-plan`/`lump-status`: non-destructive (no pre-flight); manual `run` requires lump config on current checkout
 
 ### Workspaces and pre-flight

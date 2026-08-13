@@ -1,0 +1,15 @@
+name: daemon-primary-branch-refresh-command
+manualReq: true
+workflow: tdd
+task: >-
+  Dedicated daemon only: before lump discovery on each effective primary /
+  scan branch, run an optional refreshCommand from merged project.json /
+  local.json (e.g. npm i) so the checked-out tree is ready. Today runTick
+  already expands effectivePrimaryBranches then discovers per scanBranch
+  via discoverDedicatedLumpsForScanBranch (preflight checkout → load
+  configs); add the refresh step after that checkout and before discovery.
+  Also reorder expandPrimaryBranches / scanBranches so the resolved
+  effectivePrimaryBranch (first exact primary) is always first — today
+  config order can put a glob ahead of it (e.g. [feature/*, dev] scans
+  feature hits before dev). Shared mode unchanged. Not used by manual run.
+priority: 1
