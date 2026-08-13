@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
@@ -12,6 +11,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
+import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
 import { validateDaemonLaunch } from './main';
 import { writeJsonFile } from '../writeJsonFile';
 import { writeLumpConfigJson } from '../writeLumpConfigJson';
@@ -29,16 +29,6 @@ function createLogger(): Logger & { warnings: string[] } {
         child: () => logger,
     };
     return logger;
-}
-
-function gitCommitAll(cwd: string, message: string): void {
-    execSync('git add -A', { cwd, stdio: 'pipe' });
-    try {
-        execSync(`git commit -m ${JSON.stringify(message)}`, { cwd, stdio: 'pipe' });
-    } catch {
-        execSync(`git commit --allow-empty -m ${JSON.stringify(message)}`, { cwd, stdio: 'pipe' });
-    }
-    execSync('git push origin main', { cwd, stdio: 'pipe' });
 }
 
 describe('validateDaemonLaunch', () => {
@@ -71,7 +61,7 @@ describe('validateDaemonLaunch', () => {
     it('warns and succeeds when a lump directory has no loadable config (dedicated)', async () => {
         await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'v0.0.9'), { recursive: true });
-        gitCommitAll(projectRoot, 'alpha and empty v0.0.9 dir');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'alpha and empty v0.0.9 dir' });
 
         const logger = createLogger();
         const result = await validateDaemonLaunch({
@@ -90,7 +80,7 @@ describe('validateDaemonLaunch', () => {
 
     it('succeeds when releaseLine exists only on ver/0.0.9', async () => {
         await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
-        gitCommitAll(projectRoot, 'mainLine on main');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'mainLine on main' });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
@@ -127,7 +117,7 @@ describe('validateDaemonLaunch', () => {
     describe('dynamic-discovery-branch launch validation (V*)', () => {
         it('V1: all-glob primaryBranches fails launch', async () => {
             await writeMinimalLump(projectRoot, 'alpha');
-            gitCommitAll(projectRoot, 'alpha');
+            gitCommitAllAndPush({ cwd: projectRoot, message: 'alpha' });
 
             const logger = createLogger();
             const result = await validateDaemonLaunch({
@@ -150,7 +140,7 @@ describe('validateDaemonLaunch', () => {
             // Existing behavior retained — two dirs same name is a filesystem concern;
             // same lumpName eligible twice on one scanBranch fails.
             await writeMinimalLump(projectRoot, 'dup', { discoveryBranch: 'main' });
-            gitCommitAll(projectRoot, 'dup');
+            gitCommitAllAndPush({ cwd: projectRoot, message: 'dup' });
             // Second copy with same name cannot exist as sibling dirs; assert via
             // discoveryBranches multi-match on one scan is still one LoadableLump.
             const logger = createLogger();
@@ -172,7 +162,7 @@ describe('validateDaemonLaunch', () => {
             await writeMinimalLump(projectRoot, 'hotfixLump', {
                 discoveryBranches: ['hotfix/*'],
             });
-            gitCommitAll(projectRoot, 'hotfix lump');
+            gitCommitAllAndPush({ cwd: projectRoot, message: 'hotfix lump' });
 
             const logger = createLogger();
             const result = await validateDaemonLaunch({

@@ -7,6 +7,7 @@ import { pathExists } from '@lumpcode/core';
 import {
     appendMissingGitignoreLines,
     execGit,
+    gitCommitAllAndPush,
     initLocalGitRepo,
     MINIMAL_RUNNABLE_LUMP_CONFIG,
     writeJsonFile,
@@ -139,12 +140,10 @@ export async function createIntegrationBranch(input: {
     if (pathsToStage.length > 0) {
         execGit(`add -- ${pathsToStage.join(' ')}`, projectRoot);
     }
-    try {
-        execGit(`commit -m "integration branch ${branchName}"`, projectRoot);
-    } catch {
-        execGit(`commit --allow-empty -m "integration branch ${branchName}"`, projectRoot);
-    }
-    execGit(`push -u origin ${branchName}`, projectRoot);
+    gitCommitAllAndPush({
+        cwd: projectRoot, message: `integration branch ${branchName}`,
+        branch: branchName, stageAll: false, setUpstream: true,
+    });
     execGit('checkout main', projectRoot);
 
     await fs.mkdir(lumpcodeDir, { recursive: true });
