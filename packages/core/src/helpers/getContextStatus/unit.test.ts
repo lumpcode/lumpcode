@@ -93,16 +93,29 @@ describe('getContextStatus', () => {
         expect(await getContextStatus({ contextName, gitCommitMessageFn, projectRoot, baseBranch })).toBe('toDo');
     });
 
-    it('does not match commits whose subject only contains the message as a substring', async () => {
+    it('does not match a longer marker that only shares a prefix', async () => {
         const remoteDir = await mkdtemp(join(tmpdir(), 'ctx-remote-'));
         await git(remoteDir, 'init --bare');
         await git(projectRoot, `remote add origin ${remoteDir}`);
         await git(projectRoot, 'push -u origin main');
         await git(projectRoot, 'checkout -b feat-branch');
-        await git(projectRoot, `commit --allow-empty -m "${commitMessage} and more"`);
+        await git(projectRoot, `commit --allow-empty -m "${commitMessage}-bar"`);
         await git(projectRoot, 'push origin feat-branch');
 
         expect(await getContextStatus({ contextName, gitCommitMessageFn, projectRoot, baseBranch })).toBe('toDo');
+        await rm(remoteDir, { recursive: true });
+    });
+
+    it('matches a marker in the commit body after a human title', async () => {
+        const remoteDir = await mkdtemp(join(tmpdir(), 'ctx-remote-'));
+        await git(remoteDir, 'init --bare');
+        await git(projectRoot, `remote add origin ${remoteDir}`);
+        await git(projectRoot, 'push -u origin main');
+        await git(projectRoot, 'checkout -b feat-branch');
+        await git(projectRoot, `commit --allow-empty -m "PR title" -m "* ${commitMessage}"`);
+        await git(projectRoot, 'push origin feat-branch');
+
+        expect(await getContextStatus({ contextName, gitCommitMessageFn, projectRoot, baseBranch })).toBe('branchPushed');
         await rm(remoteDir, { recursive: true });
     });
 

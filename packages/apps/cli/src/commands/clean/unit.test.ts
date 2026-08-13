@@ -144,6 +144,23 @@ describe('clean command', () => {
         expect(remoteBranches).toContain(`${LUMP_BRANCH_PREFIX}myLump/form`);
     });
 
+    it('contextName finds a marker in the commit body', async () => {
+        const branch = `${LUMP_BRANCH_PREFIX}myLump/button`;
+        const message = getGitCommitMessage({ contextName: 'button', lumpName: 'myLump' });
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branch}`, projectRoot);
+        execGit(`commit --allow-empty -m "PR title" -m "* ${message}"`, projectRoot);
+        execGit(`push origin ${branch}`, projectRoot);
+        execGit('checkout main', projectRoot);
+
+        const handle = makeHandler();
+        const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.deletedBranches).toContain(branch);
+    });
+
     it('contextName without lumpName fails', async () => {
         const handle = makeHandler();
         const result = await handle({ options: { contextName: 'button' }, arguments: {} });

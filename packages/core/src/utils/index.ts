@@ -8,6 +8,8 @@ export * from './formatExecFailureMessage';
 export * from './historyFile';
 export * from './pathExists';
 export * from './parseGitLogHashSubjectLines';
+export * from './parseGitLogHashBodyRecords';
+export * from './commitMessageIncludesMarker';
 export * from './nodeErrnoCode';
 export * from './isProcessAlive';
 export * from './killProcessTree';

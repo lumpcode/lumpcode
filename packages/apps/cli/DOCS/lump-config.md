@@ -126,13 +126,13 @@ Workspace preparation (fetch/pull/branch) is generated for you from `local.json`
 
 ### Commit messages
 
-The CLI **always** uses this git commit subject for each context:
+The CLI **always** writes this git commit subject for each context:
 
 ```text
 LUMP: <lumpName> - <contextName>
 ```
 
-This format is fixed (not configurable) so that `clean`, `context-status`, and remote status detection stay in sync.
+Status, `clean`, and `context-status` treat a commit as that context's marker when this string appears in the **full commit message** (not only as the subject), so a squash that keeps the line still counts. `foo` does not match `foo-bar`. This format is fixed (not configurable) so those commands stay aligned with the engine. If a squash drops the string, use `lumpcode context-status --setToFinished` (or put the string back).
 
 ## `contextListJson`
 
