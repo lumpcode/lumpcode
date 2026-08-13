@@ -422,7 +422,7 @@ const steps: Steps = [
 
 ## Context Tracking with Git Commits
 
-Lumpcode uses normalized git commit messages to record which contexts have already been processed. Each completed context contributes **exactly one commit** whose subject equals `gitCommitMessageFn({ context, ... })`. On every subsequent call to `runLump`, contexts whose normalized commit message is already present on a remote branch are skipped so the run only works on what remains. This lets you call `runLump` repeatedly (e.g. in a cron job) and each invocation picks up where the previous one left off, progressively working through the full context list without ever re-processing a context.
+Lumpcode uses normalized git commit messages to record which contexts have already been processed. Each completed context contributes **exactly one commit** whose message contains the string returned by `gitCommitMessageFn({ context, ... })` (written as the subject; still matched if squash moves it into the body). On every subsequent call to `runLump`, contexts whose marker is already present on a remote branch are skipped so the run only works on what remains. This lets you call `runLump` repeatedly (e.g. in a cron job) and each invocation picks up where the previous one left off, progressively working through the full context list without ever re-processing a context.
 
 > If you'd rather not wire up your own scheduler, [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli) ships a built-in daemon (`lumpcode start`) that calls `runLump` on a tick, with concurrent-branch limits and per-lump enable/disable already wired in.
 
@@ -434,7 +434,7 @@ By default, a context named `my_component_ts` produces a commit with the subject
 LUMP:my_component_ts
 ```
 
-You can customize this via the `[gitCommitMessageFn](#gitcommitmessagefn)` parameter. The returned subject **must be unique per context** -- it is the only thing tying the commit back to its context.
+You can customize this via the `[gitCommitMessageFn](#gitcommitmessagefn)` parameter. The returned string **must be unique per context** -- it is the only thing tying the commit back to its context. Status matches that string anywhere in the full commit message, as long as it is not a prefix of a longer `[A-Za-z0-9_-]*` token (`foo` does not match `foo-bar`).
 
 ### Context statuses
 
@@ -458,7 +458,7 @@ A context with `dependsOnContexts` is only eligible when **all** of its listed d
 
 ```bash
 git fetch --all
-git log --remotes=origin --grep="^LUMP:" --format='%H %s'
+git log --remotes=origin -F --grep="LUMP:" --format='%H %s'
 ```
 
 **Check if a specific context has been processed (any remote ref):**

@@ -17,7 +17,7 @@ Lumpcode is still in **early development**; expect rough edges and **many improv
 
 AI coding agents (Claude CLI, Codex, Aider, Cursor) work great on a single file or task. Lumpcode does the **loop engineering** for you: instead of prompting the agent yourself, you design the loop once and Lumpcode drives it, with batched **contexts**, git-isolated branches, marker commits for resumable progress, and optional background scheduling.
 
-A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every component to Vue"): context discovery, prompt(s), and an agent command under `.lumpcode/lumps/<lumpName>/`. It spans many **contexts**, not a single chat session. Each finished context gets a **marker commit** subject `LUMP: <lumpName> - <contextName>`, so repeated runs are **resumable** from remote git history after you merge PRs.
+A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every component to Vue"): context discovery, prompt(s), and an agent command under `.lumpcode/lumps/<lumpName>/`. It spans many **contexts**, not a single chat session. Each finished context gets a **marker commit** containing `LUMP: <lumpName> - <contextName>`, so repeated runs are **resumable** from remote git history after you merge PRs.
 
 **Use Lumpcode when** you have many similar edits (migrations, tests, docs), an ordered ticket queue, or long-running refactors you want to tick forward on a schedule.
 

@@ -2,13 +2,15 @@ import {
     execAsync,
     Failure,
     failure,
-    parseGitLogHashSubjectLines,
+    GIT_LOG_HASH_BODY_FORMAT,
+    parseGitLogHashBodyRecords,
     shellSingleQuote,
     Success,
     success,
 } from "@lumpcode/core";
 import { ContextStatusRecord } from "../../types";
 import { globalConfigFolderPath as defaultGlobalConfigFolderPath } from "../../constants/globalConfigFolderPath";
+import { contextNamesAfterLumpPrefix } from "../contextNamesAfterLumpPrefix";
 import { getGitCommitMessage, getLumpCommitPrefixForLump } from "../getGitCommitMessage";
 import { getContextStatuses } from "../getContextStatus";
 import { makeLockedRefreshRemoteTrackingRefsFn } from "../makeLockedRefreshRemoteTrackingRefsFn";
@@ -38,7 +40,7 @@ export async function buildContextStatusRecord(input: {
     const lumpPrefix = getLumpCommitPrefixForLump({ lumpName });
 
     const logResult = await execAsync(
-        `git log --remotes=origin -F --grep=${shellSingleQuote(lumpPrefix)} --format=${shellSingleQuote('%H %s')}`,
+        `git log --remotes=origin -F --grep=${shellSingleQuote(lumpPrefix)} --format=${shellSingleQuote(GIT_LOG_HASH_BODY_FORMAT)}`,
         { cwd: projectRoot },
     );
     if (!logResult.success) {
@@ -48,13 +50,12 @@ export async function buildContextStatusRecord(input: {
     const seen = new Set<string>();
     const matches: { hash: string; contextName: string }[] = [];
 
-    for (const { hash, subject } of parseGitLogHashSubjectLines(logResult.data.stdout)) {
-        if (!subject.startsWith(lumpPrefix)) continue;
-
-        const contextName = subject.slice(lumpPrefix.length);
-        if (seen.has(contextName)) continue;
-        seen.add(contextName);
-        matches.push({ hash, contextName });
+    for (const { hash, message } of parseGitLogHashBodyRecords(logResult.data.stdout)) {
+        for (const contextName of contextNamesAfterLumpPrefix(message, lumpPrefix)) {
+            if (seen.has(contextName)) continue;
+            seen.add(contextName);
+            matches.push({ hash, contextName });
+        }
     }
 
     const statuses = await getContextStatuses({

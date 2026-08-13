@@ -28,7 +28,7 @@ Uses a single fixed path every repo already has (`README.md`). Adjust `FILE` if 
 
 (`baseBranch` defaults to the primary branch from `.lumpcode/local.json`; add it on a lump only to override.)
 
-Run once: `lumpcode run smokeTest`, then `git log --remotes --grep '^LUMP:' --oneline` and `lumpcode lump-status --lumpName smokeTest`.
+Run once: `lumpcode run smokeTest`, then `git log --remotes -F --grep 'LUMP:' --oneline` and `lumpcode lump-status --lumpName smokeTest`.
 
 ## 1. Framework migration campaign — React → Vue, one component per branch
 

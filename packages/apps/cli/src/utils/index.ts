@@ -11,6 +11,7 @@ export * from './cliLog';
 export * from './coerceResolvedProjectLocalConfig';
 export * from './createCliLogger';
 export * from './commandFailure';
+export * from './contextNamesAfterLumpPrefix';
 export * from './contextStatusRecordPath';
 export * from './countOpenLumpBranches';
 export * from './daemonFileBaseName';

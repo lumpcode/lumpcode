@@ -21,7 +21,7 @@ Install and prepare the following:
 | **Project** | A folder with git that contains both `.git/` and `.lumpcode/` (the CLI adds `.lumpcode/` once you initialize). |
 | **Lump** | One **agent loop campaign** in your repo: context discovery, prompt(s), agent command and other config details under `.lumpcode/lumps/<lumpName>/`. |
 | **Context** | One unit of work inside a lump (e.g. one file or one component). Each context has a **name** and **variables** filled into your prompt. |
-| **Marker commit** | The commit subject for one context is always **`LUMP: <lumpName> - <contextName>`** on the remote. Lumpcode uses that to know what is already done. |
+| **Marker commit** | Lumpcode writes **`LUMP: <lumpName> - <contextName>`** as the commit subject. Status matches that string anywhere in the remote commit message. Keep it when squashing (see [concepts.md](./concepts.md)). |
 | **Resumable** | Re-running `lumpcode run` or a daemon tick skips contexts that already have a matching marker on the remote. |
 
 More details, diagrams and context status values (`toDo`, `branchPushed`, `finished`): [concepts.md](./concepts.md).
@@ -141,7 +141,7 @@ In one tick, Lumpcode first runs **pre-flight** (pulls the merged primary branch
 
 ```bash
 git fetch origin
-git log --remotes --grep '^LUMP:' --oneline
+git log --remotes -F --grep='LUMP:' --oneline
 lumpcode lump-status --lumpName myFirstLump
 ```
 

@@ -2,7 +2,15 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as z from 'zod';
 
-import { execAsync, failure, parseGitLogHashSubjectLines, shellSingleQuote, success } from '@lumpcode/core';
+import {
+    commitMessageIncludesMarker,
+    execAsync,
+    failure,
+    GIT_LOG_HASH_BODY_FORMAT,
+    parseGitLogHashBodyRecords,
+    shellSingleQuote,
+    success,
+} from '@lumpcode/core';
 
 import { shellBestEffort } from '../../utils/shellBestEffort';
 
@@ -74,15 +82,15 @@ async function discoverByContext(projectRoot: string, lumpName: string, contextN
     const commitMessage = getGitCommitMessage({ contextName, lumpName });
 
     const logResult = await execAsync(
-        `git log --remotes=origin --branches -F --grep=${shellSingleQuote(commitMessage)} --format=${shellSingleQuote('%H %s')}`,
+        `git log --remotes=origin --branches -F --grep=${shellSingleQuote(commitMessage)} --format=${shellSingleQuote(GIT_LOG_HASH_BODY_FORMAT)}`,
         { cwd: projectRoot },
     );
     if (!logResult.success) {
         return { remoteBranches: [], localBranches: [] };
     }
 
-    const matchingHashes = parseGitLogHashSubjectLines(logResult.data.stdout)
-        .filter((entry) => entry.subject === commitMessage)
+    const matchingHashes = parseGitLogHashBodyRecords(logResult.data.stdout)
+        .filter((entry) => commitMessageIncludesMarker(entry.message, commitMessage))
         .map((entry) => entry.hash);
 
     const remoteBranchSet = new Set<string>();

@@ -1,87 +1,52 @@
-# Committed idea intake for ideasToBacklog lump (name + task; optional blocked, priority).
+# Committed idea intake for ideasToBacklog lump (name + task; optional blocked, priority, tags).
 # priority: lower number = more important. Parked ideas set blocked to a short reason.
+# tags: optional list for scanning; ideasToBacklog ignores unknown keys.
+#   daemon | git | status | hooks | history | config | engine | cli | recipes |
+#   workspace | presets | hygiene | skills | cloud | auth | agents | sandbox | meta
 # Ephemeral names (1, A) are OK.
-- name: see-lump-context-run-time
-  task: See the lump context run time (in seconds)
-- name: ignore-lump-branches-if-their-commits-are-merged-to-base-branch
-  task: Ignore lump branches if their commits are merged to the base branch (i.e finished)
-- name: verification-commands
+- name: git-driven-daemon-configs
   task: >-
-    Add verification commands to the config (A final to check a file has been created per example, restart
-    optionally the context or step if not)
-- name: auth-api
-  task: Backend auth API for premium CLI (login token issuance, validation).
-- name: daemon-cli-auth
-  task: Wire CLI and daemon to auth API; gate premium features on valid token.
-- name: cli-binary-sha-validation
-  task: Send CLI binary SHA with API requests; server validates allowed builds.
-- name: open-source-light-cli
+    Declarative daemon configs (JSON/YAML only — no TS/JS) discovered on the primary discovery
+    branch, with fields such as daemonId, cronSetup, include, exclude, disabled. Add a supervisor
+    loop above existing daemon loops that starts configs that are not running and not disabled, and
+    stops daemons that are running but disabled. Goal: full control of a dedicated machine via git
+    pushes only (commit/push daemon configs to drive start/stop). Complements
+    daemon-orchestration-priority (lump scheduling) but owns the daemon lifecycle from repo files.
+  priority: 1
+  tags: [daemon, git, config]
+- name: cli-command-names-by-group
   task: >-
-    Open-source minimal CLI — run a .js/.ts file with runLump input and scaffold example config.
-- name: lumps-generator
-  task: >-
-    Prompt-driven lump generator — outputs JSON array of lump configs; reruns when enabled lumps are finished.
-- name: lump-create-from-recipe
-  task: >-
-    `lumpcode lump-create --from-recipe <name>` scaffolds a working lump from a published recipe (config.ts,
-    starter files such as BACKLOG.yml, and optional hook stubs). Recipes become CLI generators, not only
-    npm imports in docs — lowers blank-page friction for new users. Pairs with `@lumpcode/recipes` package;
-    defer until a few dogfooded recipes stabilize.
-- name: unify-monorepo-tsconfig
-  task: >-
-    Unify duplicated `tsconfig.json` files across npm workspaces (`packages/core`, `packages/recipes`,
-    `packages/apps/cli/cli-types`, `packages/apps/cli/cli-utils`, etc.). Introduce a shared root or `packages/tsconfig.base.json`
-    with `extends`, and per-package overrides only for `rootDir`, `include`, and declaration/sourceMap
-    settings (rollup-built libs vs self-contained `src/` packages). New packages such as `@lumpcode/recipes`
-    currently copy the same compilerOptions block verbatim.
-- name: per-lump-git-remote
-  task: Per-lump/prject.json/local.json git remote override (default remains origin).
-- name: cloud-analytics-zero-shot-rate
-  task: >-
-    Add cloud analytics for zero-shot rate, i.e if a lump PR waas accepted direclty, mark it as zero-shot,
-    you can filter by lump name / context name. One use case is : If a step is always zero-shot as review,
-    I just can remove the review and incorporate the step as prompt in the lump.
-- name: add-git-client-abstraction
-  task: >-
-    Add a git client abstraction to the core package. E.g, github, gitlab... The goal is to auto open
-    PR, auto relaunch the lump loop if a comment arrives etc.  Maybe only in premium with connection directly
-    to providers.
-- name: refine-lump-automatically-example
-  task: >-
-    A lump that goes and check the lump branches that were merged. sees what are the non lump commits
-    (added by the user) before merge, and adapt the main lump with the knowing of these user changes.
-- name: add-after-push-commit-hook
-  task: >-
-    Add an after-push-commit hook to the config. This hook will be called after the commit is pushed to
-    the remote branch. It will be called with the commit message and the branch name.
-- name: option-full-local
-  task: >-
-    Add an option to the config to run the lump code locally, without any pull, commit or push.
-- name: option-for-light-history
-  task: >-
-    Add an option to the config to run the lump code with a light history optimized for reusing later
-    with a new agent (only texts).
+    Clean CLI command names by group. Canonical name is `<group>-<verb>` (e.g. `daemon-start`,
+    `daemon-stop`, `daemon-restart`); today's short names stay as shorthands (`start` → `daemon-start`).
+    Apply the same pattern across groups (`lump-plan` / `lump-status` / `lump-create`, `project-setup`)
+    so mixed prefixes like `start` vs `daemon-status` go away. Document only the current spelling.
+    Complements `unified-status-command` (one status view) — this idea is naming, not merging commands.
+  priority: 2
+  tags: [cli]
 - name: unified-status-command
   task: >-
     Unified `lumpcode status` command showing daemon state plus per-lump context summaries in one view,
     replacing the daemon-status / lump-status / context-status confusion (docs currently need a comparison
     table).
-- name: rethink-lump-history-storage
+  priority: 10
+  tags: [cli, status, daemon]
+- name: ignore-lump-branches-if-their-commits-are-merged-to-base-branch
+  task: Ignore lump branches if their commits are merged to the base branch (i.e finished)
+  priority: 11
+  tags: [git, status]
+- name: lump-plan-remote-todo-status
   task: >-
-    Rethink lump history persistence (`keepHistory: true` → `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`).
-    Today `packages/core/src/utils/historyFile/main.ts` read-modify-writes a full YAML array of `HistoryEntry`
-    objects (prompt, commandResult, context, stepIndex, contextRunState, lumpVariables, etc.) on every
-    step append. All-YAML has proven fragile: js-yaml literal blocks break on ANSI escapes in verification
-    output (SEA build colors, vitest); verify loops duplicate full `npm run build && npm run test` output
-    in both commandResult and retry prompts (45KB+ for a handful of entries); corrupt files block further
-    appends until manual repair. Recent mitigations (write sanitization, read-side ANSI recovery, non-blocking
-    history errors in executeStepsForContextList) are band-aids. Tier 1 near-term (may ship before format
-    change): truncate large prompt/commandResult fields; post-write YAML round-trip validation. Tier 2/3
-    direction to evaluate: append-only JSONL per context, or a split layout — small YAML/JSON index per
-    context plus separate `.log` (or hashed blob) files for full command output. Preserve resumable session
-    semantics (contextRunState, command module setup keys) regardless of format. Update project-setup
-    gitignore and CLI docs if paths change. Complements `option-for-light-history` (content shape) but
-    targets storage robustness.
+    Verify/ensure `lump-plan` reports which contexts are todo from the remote (source of truth).
+  priority: 12
+  tags: [cli, git, status]
+- name: see-lump-context-run-time
+  task: See the lump context run time (in seconds)
+  priority: 13
+  tags: [status]
+- name: git-access-heartbeat
+  task: Lumpcode heartbeat validation that git access (remote) is ok.
+  priority: 14
+  tags: [git, daemon]
 - name: compose-post-setup-workspace-hooks
   task: >-
     Allow custom per-lump workspace prep by composing on top of CLI-generated `workspaceStrategy` (`checkout`
@@ -99,22 +64,113 @@
     `LumpJsConfig`, schema, DOCS); core likely unchanged; `withWorkspaceLockHooks` stays outermost if
     path remains strategy-owned. Note: existing `setupFn` is the wrong layer (per-context, after workspace
     setup, no `workspacePath`).
-- name: external-agent-harness-library-presets
+  priority: 20
+  tags: [workspace, hooks, config]
+- name: verification-commands
   task: >-
-    Replace or thin further hand-rolled per-agent preset argv wiring (`presets/commands/cursor.js`, `copilot.js`,
-    etc.) by adopting an external OSS TypeScript library that unifies spawning/calling local agent harnesses
-    (Copilot CLI, Cursor CLI, Claude Code, OpenCode, Codex, …). Candidates: `@pivanov/agents-wire`, `coding-agent-runner`,
-    or vendor SDKs (e.g. `@cursor/sdk` for Cursor-only). Goal: reliable invoke surface (prompt, resume/session,
-    model, permissions) without maintaining per-CLI flag maps — still fits Lumpcode's thin `CommandDescriptor`
-    model; not full ACP streaming. Deferred; DIY presets remain default for now.
-- name: acp-streaming-agent-sessions
+    Add verification commands to the config (A final to check a file has been created per example, restart
+    optionally the context or step if not)
+  priority: 21
+  tags: [config, engine]
+- name: rethink-lump-history-storage
   task: >-
-    Optionally integrate Agent Client Protocol (ACP) streaming into Lumpcode command modules and/or the
-    core step walk: persistent JSON-RPC sessions with `session/prompt` + live `session/update` (text chunks,
-    tool calls, plans), mid-run permissions, and cancel — instead of or in addition to fire-and-forget
-    CLI `-p` spawn + wait for exit. Candidates: `@agentclientprotocol/sdk` and/or ACP-speaking libraries.
-    Architectural (richer progress than stdout/stderr); distinct from merely using a library to build
-    argv. Deferred; keep thin presets for now.
+    Rethink lump history persistence (`keepHistory: true` → `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`).
+    Today `packages/core/src/utils/historyFile/main.ts` read-modify-writes a full YAML array of `HistoryEntry`
+    objects (prompt, commandResult, context, stepIndex, contextRunState, lumpVariables, etc.) on every
+    step append. All-YAML has proven fragile: js-yaml literal blocks break on ANSI escapes in verification
+    output (SEA build colors, vitest); verify loops duplicate full `npm run build && npm run test` output
+    in both commandResult and retry prompts (45KB+ for a handful of entries); corrupt files block further
+    appends until manual repair. Recent mitigations (write sanitization, read-side ANSI recovery, non-blocking
+    history errors in executeStepsForContextList) are band-aids. Tier 1 near-term (may ship before format
+    change): truncate large prompt/commandResult fields; post-write YAML round-trip validation. Tier 2/3
+    direction to evaluate: append-only JSONL per context, or a split layout — small YAML/JSON index per
+    context plus separate `.log` (or hashed blob) files for full command output. Preserve resumable session
+    semantics (contextRunState, command module setup keys) regardless of format. Update project-setup
+    gitignore and CLI docs if paths change. Complements `option-for-light-history` (content shape) but
+    targets storage robustness.
+  priority: 22
+  tags: [history]
+- name: option-for-light-history
+  task: >-
+    Add an option to the config to run the lump code with a light history optimized for reusing later
+    with a new agent (only texts).
+  priority: 23
+  tags: [history, config]
+- name: add-after-push-commit-hook
+  task: >-
+    Add an after-push-commit hook to the config. This hook will be called after the commit is pushed to
+    the remote branch. It will be called with the commit message and the branch name.
+  priority: 24
+  tags: [hooks, git, config]
+- name: lump-create-from-recipe
+  task: >-
+    `lumpcode lump-create --from-recipe <name>` scaffolds a working lump from a published recipe (config.ts,
+    starter files such as BACKLOG.yml, and optional hook stubs). Recipes become CLI generators, not only
+    npm imports in docs — lowers blank-page friction for new users. Pairs with `@lumpcode/recipes` package;
+    defer until a few dogfooded recipes stabilize.
+  priority: 30
+  tags: [cli, recipes]
+- name: run-start-lump-variable-overrides
+  task: Allow run/start of a lump with other lumpVariables or small config tweaks.
+  priority: 31
+  tags: [cli, config]
+- name: option-full-local
+  task: >-
+    Add an option to the config to run the lump code locally, without any pull, commit or push.
+  priority: 32
+  tags: [config, git]
+- name: disabled-global-vs-single
+  task: >-
+    Allow lump `disabled` to be an object `{ global, single }` (each MaybePromiseFn<boolean>); global
+    for filtered/global daemon, single for manual run / single-lump daemon.
+  priority: 33
+  tags: [daemon, config]
+- name: project-local-tick-hooks
+  task: >-
+    Add hooks in local.json/project.json: onBeforeDiscovery, onTickBegin, onTickEnd, etc. (e.g. onBeforeDiscovery/onTickBegin
+    to run npm i for the whole tick).
+  priority: 34
+  tags: [daemon, hooks]
+- name: json-yaml-lump-configs
+  task: >-
+    Support recipes in JSON configs, make JSON configs more powerful, and allow YAML lump configs.
+  priority: 35
+  tags: [config, recipes]
+- name: commandFn-return-step-or-result
+  task: >-
+    commandFn can return another step, or Success|Failure directly, instead of always a command to execute.
+  priority: 40
+  tags: [engine]
+- name: post-command-exec-fn-return-null
+  task: postCommandExecFn should be able to return null.
+  priority: 41
+  tags: [engine]
+- name: per-lump-git-remote
+  task: Per-lump/project.json/local.json git remote override (default remains origin).
+  priority: 42
+  tags: [git, config]
+- name: multi-remote-setup
+  task: >-
+    Multi-remote git setup support beyond a single origin (complementary to per-lump remote override).
+  priority: 43
+  tags: [git, config]
+- name: dynamic-base-branch-from-context-list
+  task: Dynamic baseBranch based on context names (function of contextList).
+  priority: 44
+  tags: [git, config]
+- name: read-json-file-failure-codes
+  task: readJsonFile should answer failure codes too (structured Failure), not only opaque errors.
+  priority: 45
+  tags: [engine, hygiene]
+- name: unify-monorepo-tsconfig
+  task: >-
+    Unify duplicated `tsconfig.json` files across npm workspaces (`packages/core`, `packages/recipes`,
+    `packages/apps/cli/cli-types`, `packages/apps/cli/cli-utils`, etc.). Introduce a shared root or `packages/tsconfig.base.json`
+    with `extends`, and per-package overrides only for `rootDir`, `include`, and declaration/sourceMap
+    settings (rollup-built libs vs self-contained `src/` packages). New packages such as `@lumpcode/recipes`
+    currently copy the same compilerOptions block verbatim.
+  priority: 50
+  tags: [hygiene]
 - name: internal-test-utils-package
   task: >-
     Add a private workspace-only package (e.g. `@lumpcode/test-utils`, not published to npm) for shared
@@ -123,62 +179,119 @@
     `@lumpcode/core` is exported so CLI e2e can reuse it — odd on the core public surface. Target consumers:
     core unit tests, CLI e2e/harness, and recipes as needed, so production barrels stay clean. Leave current
     placements as-is until this lands.
-- name: disabled-global-vs-single
-  task: >-
-    Allow lump `disabled` to be an object `{ global, single }` (each MaybePromiseFn<boolean>); global
-    for filtered/global daemon, single for manual run / single-lump daemon.
-- name: lump-plan-remote-todo-status
-  task: >-
-    Verify/ensure `lump-plan` reports which contexts are todo from the remote (source of truth).
-- name: project-local-tick-hooks
-  task: >-
-    Add hooks in local.json/project.json: onBeforeDiscovery, onTickBegin, onTickEnd, etc. (e.g. onBeforeDiscovery/onTickBegin
-    to run npm i for the whole tick).
-- name: daemon-orchestration-priority
-  task: >-
-    Clean global daemon orchestration: which lump runs when and with what priority. Possibly many multi-lump
-    daemons in parallel per config. Big topic; not for v0.1.0.
-- name: json-yaml-lump-configs
-  task: >-
-    Support recipes in JSON configs, make JSON configs more powerful, and allow YAML lump configs.
-- name: run-start-lump-variable-overrides
-  task: Allow run/start of a lump with other lumpVariables or small config tweaks.
+  priority: 51
+  tags: [hygiene]
 - name: presets-typescript-package
   task: >-
     Dedicated package for presets that builds to plain independent JS, so presets can be authored in clean
     TypeScript.
-- name: dynamic-base-branch-from-context-list
-  task: Dynamic baseBranch based on context names (function of contextList).
+  priority: 52
+  tags: [presets, hygiene]
+- name: problem-solver-skill
+  task: Add a problem-solver skill to the repo for debugging/fixing issues in a structured way.
+  priority: 53
+  tags: [skills]
+- name: lumps-generator
+  task: >-
+    Prompt-driven lump generator — outputs JSON array of lump configs; reruns when enabled lumps are finished.
+  priority: 70
+  tags: [recipes, meta]
+- name: refine-lump-automatically-example
+  task: >-
+    A lump that goes and check the lump branches that were merged. sees what are the non lump commits
+    (added by the user) before merge, and adapt the main lump with the knowing of these user changes.
+  priority: 71
+  tags: [meta, git]
 - name: sharedicated-mode
   task: >-
     'Sharedicated' mode: preflight discovery on the project copy (hybrid shared/dedicated discovery).
+  priority: 72
+  tags: [workspace, daemon]
+- name: webhooks-imperative-started-lumps
+  task: Webhooks to imperatively start a lump (trigger or drive lump runs from external events).
+  priority: 74
+  tags: [daemon]
+- name: add-git-client-abstraction
+  task: >-
+    Add a git client abstraction to the core package. E.g, github, gitlab... The goal is to auto open
+    PR, auto relaunch the lump loop if a comment arrives etc.
+  priority: 75
+  tags: [git]
+- name: external-agent-harness-library-presets
+  task: >-
+    Replace or thin further hand-rolled per-agent preset argv wiring (`presets/commands/cursor.js`, `copilot.js`,
+    etc.) by adopting an external OSS TypeScript library that unifies spawning/calling local agent harnesses
+    (Copilot CLI, Cursor CLI, Claude Code, OpenCode, Codex, …). Candidates: `@pivanov/agents-wire`, `coding-agent-runner`,
+    or vendor SDKs (e.g. `@cursor/sdk` for Cursor-only). Goal: reliable invoke surface (prompt, resume/session,
+    model, permissions) without maintaining per-CLI flag maps — still fits Lumpcode's thin `CommandDescriptor`
+    model; not full ACP streaming. Deferred; DIY presets remain default for now.
+  priority: 80
+  tags: [presets, agents]
+- name: acp-streaming-agent-sessions
+  task: >-
+    Optionally integrate Agent Client Protocol (ACP) streaming into Lumpcode command modules and/or the
+    core step walk: persistent JSON-RPC sessions with `session/prompt` + live `session/update` (text chunks,
+    tool calls, plans), mid-run permissions, and cancel — instead of or in addition to fire-and-forget
+    CLI `-p` spawn + wait for exit. Candidates: `@agentclientprotocol/sdk` and/or ACP-speaking libraries.
+    Architectural (richer progress than stdout/stderr); distinct from merely using a library to build
+    argv. Deferred; keep thin presets for now.
+  priority: 81
+  tags: [agents, engine]
 - name: deterministic-ast-git-lib
   task: >-
     Easy library for deterministic AST, git changes, and other complicated but deterministic analysis.
+  priority: 82
+  tags: [git]
 - name: sandbox-utils-examples
-  task: Easy possibility for sandboxes, or example/utils for sandboxes.
-- name: read-json-file-failure-codes
-  task: readJsonFile should answer failure codes too (structured Failure), not only opaque errors.
-- name: problem-solver-skill
-  task: Add a problem-solver skill for debugging/fixing issues in a structured way.
-- name: multi-remote-setup
+  task: Easy possibility for sandboxes for security of agents execution (with docker), or example/utils for sandboxes.
+  priority: 83
+  tags: [sandbox, agents]
+- name: auth-api
+  task: Backend auth API for premium CLI (login token issuance, validation).
+  priority: 100
+  tags: [auth, cloud]
+- name: daemon-cli-auth
+  task: Wire CLI and daemon to auth API; gate premium features on valid token.
+  priority: 100
+  tags: [auth, cloud, daemon]
+- name: cli-binary-sha-validation
+  task: Send CLI binary SHA with API requests; server validates allowed builds.
+  priority: 100
+  tags: [auth, cloud]
+- name: cloud-analytics-zero-shot-rate
   task: >-
-    Multi-remote git setup support beyond a single origin (complementary to per-lump remote override).
-- name: webhooks-imperative-started-lumps
-  task: Webhooks / imperative started lumps (trigger or drive lump runs from external events).
-- name: commandFn-return-step-or-result
+    Add cloud analytics for zero-shot rate, i.e if a lump PR waas accepted direclty, mark it as zero-shot,
+    you can filter by lump name / context name. One use case is : If a step is always zero-shot as review,
+    I just can remove the review and incorporate the step as prompt in the lump.
+  priority: 100
+  tags: [cloud]
+- name: article-git-first-marker-commits
   task: >-
-    commandFn can return another step, or Success|Failure directly, instead of always a command to execute.
-- name: post-command-exec-fn-return-null
-  task: postCommandExecFn should be able to return null.
-- name: git-access-heartbeat
-  task: Lumpcode heartbeat validation that git access (remote) is ok.
-- name: git-driven-daemon-configs
-  task: >-
-    Declarative daemon configs (JSON/YAML only — no TS/JS) discovered on the primary discovery
-    branch, with fields such as daemonId, cronSetup, include, exclude, disabled. Add a supervisor
-    loop above existing daemon loops that starts configs that are not running and not disabled, and
-    stops daemons that are running but disabled. Goal: full control of a dedicated machine via git
-    pushes only (commit/push daemon configs to drive start/stop). Complements
-    daemon-orchestration-priority (lump scheduling) but owns the daemon lifecycle from repo files.
-  priority: 1
+    X article (content only — not engine/docs work) explaining how git-first loop management
+    actually works: marker commits, rebase hygiene, and when markers can be dropped. Follow-up
+    to `articles/04-why-lumpcode/article.md` (already names Lumpcode a git-first loop manager and
+    says progress comes from commit messages on remote branches). Ship as `articles/05-*/article.md`
+    plus sibling `article.html` for paste and a 5:2 cover. Positioning piece: keep it quick;
+    plain/sharp body; prefer campaign in prose; define lump once; use context only for isolation;
+    skip “loop engineering”; git is gate (reviewable PRs) and source of truth (done/left from
+    remote history, not a dashboard); anonymize client/mission material. Mechanism: context
+    status is derived from marker commits on remote refs. CLI default subject
+    `LUMP: <lumpName> - <contextName>` via `getGitCommitMessage({ contextName, lumpName })`;
+    core default `LUMP:${context.name}` via `gitCommitMessageFn`. Lifecycle: toDo (no marker
+    on any remote ref) → branchPushed (marker on the work-branch remote) → finished (marker
+    reaches `origin/<baseBranch>`). Remote git history is the source of truth, which is why
+    rebase/squash policy matters. Default advice: keep the marker commits when rebasing a
+    lump branch or rebasing/merging toward the integration/`baseBranch`, so status stays
+    correct and the campaign stays resumable. Decided exceptions only (do not invent more):
+    (1) ephemeral contexts — squash anywhere; one-shot contexts (e.g. abstraction finder /
+    `ephemeralContextListFn`) have no later run that needs the marker to skip them;
+    (2) file-state discovery — squash only at merge to the lump `baseBranch`; when discovery
+    filters on a file that keeps state (e.g. `featureBacklog` / `backlogItems/todo|completed/`
+    + `folderSetTaskDoneStep`), the marker must stay while the lump branch is under review
+    (`branchPushed`, campaign must not re-pick the context) and may be squashed when that
+    branch merges toward the lump `baseBranch` (discovery no longer lists the item, so the
+    marker is no longer the finished signal).
+  priority: 60
+  blocked: >-
+    parked: draft when ready (05 follow-up to 04-why-lumpcode)
+  tags: [meta, git, status]

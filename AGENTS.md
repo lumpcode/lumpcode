@@ -46,6 +46,15 @@
 - Cross-cutting topics (e.g. branch resolution, concurrency/locks) get **one canonical section in `concepts.md`**; other pages link there instead of re-explaining — avoid duplicated prose that drifts
 - `AGENTS.md` continual-learning: capture durable principles and workspace facts, not session change logs or verbatim grilling Q&A outcomes
 
+### Public articles
+
+- `articles/` holds short public pieces, one folder per article named `NN-slug/` (`01-`, `02-`, …) with `article.md` as the edit source. How-to pieces go step by step, command by command; positioning pieces stay quick to read — cut a section back when it grows instead of letting it sprawl (competitive categories: ~one sentence each once researched). X's article preview formats markdown poorly, so ship a sibling `article.html` for paste. Cover images are 5:2
+- Positioning diction: plain/sharp body; avoid colorful fillers (`drudgery`, `enormous beasts`, `ground down`, `chewing through`); one punchy title is fine; prefer **campaign** in prose, define **lump** once in the product section, use **context** only for isolation — skip “loop engineering” in X positioning (keep for docs/README)
+- Never claim coinage of a term the user did not invent (e.g. **loop engineering**) — use the term, drop "what I call …" framing
+- Competitive positioning must name real alternatives found by web research with specific reasons they do not fit (e.g. enterprise large-scale-change platforms are heavy to put in place and not open source) — no hand-waving
+- Stress **git-first** as product identity (not a phase to outgrow): git is **gate** (reviewable PRs for agent output *and* loop config) and **source of truth** (done/left from remote history, not a dashboard); short category label **git-first loop manager**; state general git role before how loops plug in; long-running **campaign** pacing by PR merge; push a lump change or a new lump and the next daemon tick picks it up, nothing to deploy or register
+- Anonymize client/mission material in public articles — no company, industry, or codebase identifying details
+
 ### CLI conventions
 
 - Unregistered `login`/`logout` command modules are **implementation-only** — do not document in user-facing README/DOCS (`npm login` in `DOCS/publishing.md` is npm registry auth only)
@@ -76,7 +85,7 @@
 ### Core domain model
 
 - **Project**, **Lump**, **Context**, **Steps** (recursive), **Recipe**
-- Context status from commit messages on remote refs (`gitCommitMessageFn`; default core: `LUMP:${context.name}`; CLI: `getGitCommitMessage({ contextName, lumpName })`): `toDo` → `branchPushed` → `finished` (remote is source of truth)
+- Context status from commit messages on remote refs (`gitCommitMessageFn`; default core: `LUMP:${context.name}`; CLI: `getGitCommitMessage({ contextName, lumpName })`): `toDo` → `branchPushed` → `finished` (remote is source of truth). Match with core `commitMessageIncludesMarker` (string anywhere in full `%B`, end bound so `foo` ≠ `foo-bar`); log format `GIT_LOG_HASH_BODY_FORMAT` (`%x1e%H%x00%B`) via `parseGitLogHashBodyRecords`. Same matcher for `clean --contextName`; CLI `buildContextStatusRecord` discovers names via `contextNamesAfterLumpPrefix`. Lumpcode still writes a one-line marker subject. Marker strings in git history are the only SoT — do not add a committed JSON (or other) status overlay; operators keep LUMP marker strings when squashing
 - `getToDoContextList` validates names via `validateContextListNames` (unique, `^[a-zA-Z0-9_-]+$`); resolves status via `contextStatusMap.get(context.name)` (not parallel-list index) because `dependsOnContexts` can insert names absent from `contextList`
 - Cross-lump `dependsOnContexts`: composite `lumpName/contextName`; CLI `makeGitCommitMessageFnFromLumpName` maps `/` in dependency refs to `LUMP:<referencedLump> - <contextName>` — slash only for dependency refs, not same-lump context names
 - Lump config precedence: **`config.ts` > `config.js` > `config.json`**; hook `*Fn` paths and custom commands support **`.ts`**; shipped presets stay **`.js`** only; `lump-create` scaffolds JSON/JS only
@@ -211,7 +220,7 @@
 ### Repo backlog
 
 - `backlog` lump (`.lumpcode/lumps/backlog/`): `featureBacklog`-style staged flow in lump `config.ts` — default TDD `makeReq` → `makeTestPlan` → `testImpl` → `implementation`; opt-in `desc.yml` `workflow: directImpl` (omit ≡ `tdd`) skips testPlan/testImpl for stage `directImpl` (`retryUntilGreen` + same impl validation; ignore leftover testPlan/`_tests_impl`); invalid `workflow` throws at parse; `backlogItems/todo|completed/<name>/` with `desc.yml`, `requirements.md`, `testPlan.md`; `discoveryBranches: ['dev', 'feature/*']` — on `dev` only `directImpl` items; on `feature/<key>` exact `itemName === key` (any workflow)
-- `ideasToBacklog` lump (`.lumpcode/lumps/ideasToBacklog/`): daily batch triage of root `IDEAS.yaml` (`{ name, task, blocked?, priority? }`; non-empty `blocked` skipped; `priority` lower = more important, triage prefers lower numbers and carries them into backlog `desc.yml` on promote) into backlog todos via Cursor cloud agent (`@cursor/sdk`, `workOnCurrentBranch` + `autoCreatePR`); one UTC `YYYY-MM-DD` context when unblocked ideas exist; `maximumNumberOfConcurrentBranches: 1`; `discoveryBranch: 'dev'`; skill `.agents/skills/ideas-to-backlog/SKILL.md`; ops: dedicated daemon `--include=ideasToBacklog --cronSetup '<daily>'` and global `--exclude=ideasToBacklog`; `CURSOR_API_KEY` required on the worker
+- `ideasToBacklog` lump (`.lumpcode/lumps/ideasToBacklog/`): daily batch triage of root `IDEAS.yaml` (`{ name, task, blocked?, priority?, tags? }`; non-empty `blocked` skipped; `priority` lower = more important, triage prefers lower numbers and carries them into backlog `desc.yml` on promote; optional `tags` from the file-header allowlist) into backlog todos via Cursor cloud agent (`@cursor/sdk`, `workOnCurrentBranch` + `autoCreatePR`); one UTC `YYYY-MM-DD` context when unblocked ideas exist; `maximumNumberOfConcurrentBranches: 1`; `discoveryBranch: 'dev'`; skill `.agents/skills/ideas-to-backlog/SKILL.md`; ops: dedicated daemon `--include=ideasToBacklog --cronSetup '<daily>'` and global `--exclude=ideasToBacklog`; `CURSOR_API_KEY` required on the worker
 - `todoStackPrds` lump: `TODO.yml` / `DONE.yml` under `.lumpcode/lumps/todoStackPrds/`
 - Version planning: `.lumpcode/lumps/v0.0.7/`, `v0.0.8/`, `v0.0.9/`
 - Tasks: `name`, `task`, `priority` (lower = sooner), optional `dependsOn`, optional `manualReq`, optional `workflow` (`tdd` | `directImpl`); `backlogItems/todo/<name>/requirements.md` and `testPlan.md` gate TDD stages; item names must not end in `_req`, `_testPlan`, or `_tests_impl`
