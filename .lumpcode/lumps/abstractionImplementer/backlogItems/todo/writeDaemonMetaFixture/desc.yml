@@ -1,0 +1,9 @@
+name: writeDaemonMetaFixture
+task: >-
+  Extract repeated daemon `.daemon.meta.json` fixture writes (default cronSetup
+  + workspaceStrategy via writeJsonFile, plus busy / inFlightLumpCount /
+  lumpName overrides) into shared test helper `writeDaemonMetaFixture`; refactor
+  call sites in `readDaemonMeta`, `listRunningProjectDaemons`, `daemon-status`,
+  `restart`, and `stop` unit tests (including duplicated local
+  writeBusyMeta / writeInFlightMeta helpers).
+priority: 10
