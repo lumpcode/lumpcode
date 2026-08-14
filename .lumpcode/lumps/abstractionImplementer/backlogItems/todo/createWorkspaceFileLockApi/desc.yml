@@ -1,0 +1,8 @@
+name: createWorkspaceFileLockApi
+task: >-
+  Extract the near-identical workspace-file-lock facade pattern (locksDirPath,
+  lockFilePath, isBusyError, formatWaitMessage, acquire) shared by
+  `workspacePathLock` and `gitCommonDirLock` into util `createWorkspaceFileLockApi`
+  parameterized by `WorkspaceFileLockSpec`; keep public façade APIs stable and
+  leave git-common-dir resolve/`withGitCommonDirLock` as thin wrappers on top.
+priority: 10
