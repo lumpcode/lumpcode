@@ -8,7 +8,7 @@ import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { gitCurrentBranch, writeLocalJson } from '../../testing';
 import { runProjectPreflight } from '../../utils/runProjectPreflight';
-import { execGit, initLocalGitRepo } from '../../utils';
+import { execGit, initBareRemoteAndCheckout } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('clean command', () => {
@@ -21,10 +21,7 @@ describe('clean command', () => {
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-bare-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-global-'));
 
-        execGit('init --bare', bareDir);
-        initLocalGitRepo({ cwd: projectRoot });
-        execGit(`remote add origin ${bareDir}`, projectRoot);
-        execGit('push -u origin main', projectRoot);
+        initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
 
         const lumpcodeDir = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(lumpcodeDir);

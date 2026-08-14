@@ -6,7 +6,7 @@ import { buildContextStatusRecord } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { getGitCommitMessage } from '../getGitCommitMessage';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 
 const lumpName = 'myLump';
 
@@ -22,10 +22,7 @@ describe('buildContextStatusRecord', () => {
     beforeEach(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-build-bcsr-${dateId}-`));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-build-bcsr-remote-${dateId}-`));
-        execGit('init --bare', remoteDir);
-        initLocalGitRepo({ cwd: tmpDir });
-        execGit(`remote add origin ${remoteDir}`, tmpDir);
-        execGit('push -u origin main', tmpDir);
+        initBareRemoteAndCheckout({ projectRoot: tmpDir, remoteDir });
     });
 
     afterEach(async () => {

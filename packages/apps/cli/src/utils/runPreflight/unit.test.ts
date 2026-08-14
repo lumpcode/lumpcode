@@ -6,14 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { runPreflight } from './main';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
-
-function initRepoWithRemote(projectRoot: string, remoteDir: string) {
-    execGit('init --bare', remoteDir);
-    initLocalGitRepo({ cwd: projectRoot });
-    execGit(`remote add origin ${remoteDir}`, projectRoot);
-    execGit('push -u origin main', projectRoot);
-}
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 
 describe('runPreflight', () => {
     let projectRoot: string;
@@ -24,7 +17,7 @@ describe('runPreflight', () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-preflight-'));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-preflight-remote-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-preflight-global-'));
-        initRepoWithRemote(projectRoot, remoteDir);
+        initBareRemoteAndCheckout({ projectRoot, remoteDir });
     });
 
     afterEach(async () => {

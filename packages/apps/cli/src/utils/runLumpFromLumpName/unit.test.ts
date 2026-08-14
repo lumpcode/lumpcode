@@ -12,7 +12,7 @@ import { writeMinimalLump } from '../../testing';
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import { runLumpFromLumpName } from './main';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { writeJsonFile } from '../writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
@@ -38,10 +38,7 @@ describe('runLumpFromLumpName', () => {
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-from-name-test' } });
 
-        execGit('init --bare', remoteDir);
-        initLocalGitRepo({ cwd: projectRoot });
-        execGit(`remote add origin ${remoteDir}`, projectRoot);
-        execGit('push -u origin main', projectRoot);
+        initBareRemoteAndCheckout({ projectRoot, remoteDir });
 
         vi.mocked(core.runLump).mockReset();
     });

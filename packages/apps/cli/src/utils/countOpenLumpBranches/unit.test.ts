@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { countOpenLumpBranches } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 
 describe('countOpenLumpBranches', () => {
     let projectRoot: string;
@@ -15,10 +15,7 @@ describe('countOpenLumpBranches', () => {
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-count-branches-'));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-count-branches-remote-'));
-        execGit('init --bare', remoteDir);
-        initLocalGitRepo({ cwd: projectRoot });
-        execGit(`remote add origin ${remoteDir}`, projectRoot);
-        execGit('push -u origin main', projectRoot);
+        initBareRemoteAndCheckout({ projectRoot, remoteDir });
     });
 
     afterEach(async () => {

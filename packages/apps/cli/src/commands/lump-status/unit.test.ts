@@ -9,11 +9,10 @@ import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import {
     createIntegrationBranch,
     gitCurrentBranch,
-    initBareRemoteAndCheckout,
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
-import { execGit, initLocalGitRepo } from '../../utils';
+import { execGit, initBareRemoteAndCheckout } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('lump-status command', () => {
@@ -25,10 +24,7 @@ describe('lump-status command', () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-'));
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-bare-'));
 
-        execGit('init --bare', bareDir);
-        initLocalGitRepo({ cwd: projectRoot });
-        execGit(`remote add origin ${bareDir}`, projectRoot);
-        execGit('push -u origin main', projectRoot);
+        initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
 
         await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
@@ -216,7 +212,7 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ddb-'));
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ddb-bare-'));
-        initBareRemoteAndCheckout(projectRoot, bareDir);
+        initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await writeJsonFile({

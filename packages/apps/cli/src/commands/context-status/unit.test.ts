@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { command } from './main';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
-import { execGit, initLocalGitRepo } from '../../utils';
+import { initBareRemoteAndCheckout } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('context-status command', () => {
@@ -17,10 +17,7 @@ describe('context-status command', () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-context-status-'));
         bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-context-status-bare-'));
 
-        execGit('init --bare', bareDir);
-        initLocalGitRepo({ cwd: projectRoot });
-        execGit(`remote add origin ${bareDir}`, projectRoot);
-        execGit('push -u origin main', projectRoot);
+        initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
 
         await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
