@@ -8,9 +8,10 @@ Follow this guide in order to get started with your first `lumpcode run`. Links 
 
 Install and prepare the following:
 
-1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
-2. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare (typically in `.lumpcode/project.json`, optionally overridden in gitignored `local.json`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode fetch/resets to it during pre-flight and reads it via `origin/<branch>` for status.
-3. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** work out of the box when `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` is on `PATH`; other agents (e.g. **`aider`**) need a custom module.
+1. **Lumpcode agent skill** — so your coding agent has current Lumpcode docs context (without it, the agent has no current product context): `npx skills add lumpcode/skills`.
+2. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
+3. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare (typically in `.lumpcode/project.json`, optionally overridden in gitignored `local.json`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode fetch/resets to it during pre-flight and reads it via `origin/<branch>` for status.
+4. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** work out of the box when `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` is on `PATH`; other agents (e.g. **`aider`**) need a custom module.
 
 ---
 

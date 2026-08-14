@@ -10,6 +10,7 @@ on:
       - 'packages/apps/cli/**'
       - 'packages/core/**'
       - 'packages/recipes/**'
+      - 'scripts/**'
       - '.github/**'
   workflow_dispatch:
 
@@ -56,6 +57,9 @@ jobs:
 
       - name: Unit tests (@lumpcode/recipes)
         run: npm run test -w=@lumpcode/recipes
+
+      - name: Unit tests (repo scripts)
+        run: npm run test:scripts
 
   build:
     needs: unit-test

@@ -10,7 +10,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build:all": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils && npm run build -w=@lumpcode/recipes",
-    "azure-daemon-vm": "node scripts/azure-daemon-vm/deploy.mjs"
+    "azure-daemon-vm": "node scripts/azure-daemon-vm/deploy.mjs",
+    "publish-skills": "node scripts/publish-skills.mjs",
+    "test:scripts": "vitest run --config scripts/vitest.config.ts"
   },
   "workspaces": [
     "packages/core",
