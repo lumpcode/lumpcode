@@ -1,0 +1,8 @@
+name: writeDaemonArtifacts
+task: >-
+  Extract the private mkdir + PID file + meta JSON write sequence from
+  commands/start (`writeDaemonArtifacts`) into util `writeDaemonArtifacts`;
+  refactor start and every test site that seeds a daemon by writing pid + meta
+  together (listRunningProjectDaemons, daemon-status stale fixture, stop
+  sigterm-ignorant mid-run spawn helpers) onto the shared util.
+priority: 10
