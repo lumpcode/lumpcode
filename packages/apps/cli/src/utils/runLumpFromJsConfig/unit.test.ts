@@ -1,12 +1,10 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import * as core from '@lumpcode/core';
 
 import { noopLogger } from '../noopLogger';
-
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import * as runProjectPreflightModule from '../runProjectPreflight';
 import {
@@ -18,6 +16,7 @@ import { LUMP_BRANCH_PREFIX } from '../../consts';
 import type { LumpJsConfig } from '../../types';
 import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeJsonFile } from '../writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
@@ -35,11 +34,7 @@ describe('runLumpFromJsConfig', () => {
     let globalConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-from-js-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-from-js-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-from-js-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        await fs.mkdir(localConfigFolderPath, { recursive: true });
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-run-from-js-' }));
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-from-js-test' } });
 
@@ -49,9 +44,7 @@ describe('runLumpFromJsConfig', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
     });
 
     function makeJsConfig(overrides: Partial<LumpJsConfig> = {}): LumpJsConfig {

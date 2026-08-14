@@ -1,11 +1,11 @@
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathExists } from '@lumpcode/core';
 
 import {
     appendMissingGitignoreLines,
+    createTempTestDirs,
     execGit,
     gitCommitAllAndPush,
     initBareRemoteAndCheckout as initBareRemoteAndCheckoutUtil,
@@ -215,10 +215,7 @@ export async function scaffoldMultiBranchProject(input: {
     globalConfigFolderPath: string;
     localConfigFolderPath: string;
 }> {
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-mbb-'));
-    const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-mbb-remote-'));
-    const globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-mbb-global-'));
-    const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+    const { projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-mbb-' });
 
     initBareRemoteAndCheckout(projectRoot, remoteDir);
     await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });

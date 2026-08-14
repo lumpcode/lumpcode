@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
@@ -12,7 +11,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
-import { execGit, initBareRemoteAndCheckout } from '../../utils';
+import { execGit, initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('lump-status command', () => {
@@ -21,13 +20,10 @@ describe('lump-status command', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-'));
-        bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-bare-'));
+        ({ projectRoot, remoteDir: bareDir, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-status-', global: false }));
 
         initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
 
-        await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await writeJsonFile({
             filePath: path.join(localConfigFolderPath, 'project.json'),
             data: { projectName: 'status-project' },
@@ -39,8 +35,7 @@ describe('lump-status command', () => {
     }, 60_000);
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(bareDir, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir: bareDir });
     }, 60_000);
 
     async function writeLump(lumpName: string) {
@@ -210,10 +205,8 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ddb-'));
-        bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-status-ddb-bare-'));
+        ({ projectRoot, remoteDir: bareDir, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-status-ddb-', global: false }));
         initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await writeJsonFile({
             filePath: path.join(localConfigFolderPath, 'project.json'),
@@ -222,8 +215,7 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
     }, 60_000);
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(bareDir, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir: bareDir });
     }, 60_000);
 
     function makeHandler() {

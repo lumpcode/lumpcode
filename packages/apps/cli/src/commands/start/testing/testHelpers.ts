@@ -1,5 +1,4 @@
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { expect } from 'vitest';
 import { success } from '@lumpcode/core';
@@ -14,7 +13,16 @@ import {
 } from '../../../testing';
 import { command as stopCommand } from '../../stop/main';
 import { command } from '../main';
-import { execGit, initBareRemoteAndCheckout, resolveDaemonPaths, writeJsonFile, daemonSchedulerFiles, daemonsDirPath } from '../../../utils';
+import {
+    createTempTestDirs,
+    daemonSchedulerFiles,
+    daemonsDirPath,
+    execGit,
+    initBareRemoteAndCheckout,
+    removeTempTestDirs,
+    resolveDaemonPaths,
+    writeJsonFile,
+} from '../../../utils';
 
 export type StartTestProject = {
     projectRoot: string;
@@ -74,9 +82,7 @@ export async function setupStartTestRepo(options: {
     projectName?: string;
 }): Promise<StartTestProject> {
     const { tmpPrefix, projectName } = options;
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), `${tmpPrefix}-`));
-    const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), `${tmpPrefix}-remote-`));
-    const globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), `${tmpPrefix}-global-`));
+    const { projectRoot, remoteDir, globalConfigFolderPath } = await createTempTestDirs({ prefix: `${tmpPrefix}-` });
     setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
     initBareRemoteAndCheckout({ projectRoot, remoteDir });
     await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
@@ -86,9 +92,7 @@ export async function setupStartTestRepo(options: {
 }
 
 export async function teardownStartTestRepo(project: StartTestProject): Promise<void> {
-    await fs.rm(project.projectRoot, { recursive: true, force: true });
-    await fs.rm(project.remoteDir, { recursive: true, force: true });
-    await fs.rm(project.globalConfigFolderPath, { recursive: true, force: true });
+    await removeTempTestDirs(project);
 }
 
 export function makeStartHandler(

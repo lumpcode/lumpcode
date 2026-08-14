@@ -1,9 +1,0 @@
-name: createTempTestDirs
-task: >-
-  Extract repeated temp fixture directory setup (mkdtemp for projectRoot / remoteDir /
-  globalConfigFolderPath, derive localConfigFolderPath, mkdir .lumpcode) and matching
-  recursive teardown into util `createTempTestDirs` (+ `removeTempTestDirs`); refactor
-  unit-test beforeEach/afterEach blocks and fixture helpers in commands/*, utils/* tests,
-  testing/multiBranchFixtures.ts, and commands/start/testing/testHelpers.ts that inline
-  the same mkdtemp + fs.rm triples.
-priority: 8

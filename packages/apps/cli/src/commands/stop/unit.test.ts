@@ -15,7 +15,7 @@ import { daemonSchedulerFiles } from '../../utils/daemonSchedulerFiles';
 import { pollUntil } from '../../utils/pollUntil';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
-import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson } from '../../utils';
+import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson, createTempTestDirs, removeTempTestDirs } from '../../utils';
 describe('stop command', () => {
     let projectRoot: string;
     let globalConfigFolderPath: string;
@@ -29,10 +29,8 @@ describe('stop command', () => {
         });
     const pidPath = () => schedulerFiles().pidFilePath;
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-global-'));
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-stop-', remote: false }));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         initLocalGitRepo({ cwd: projectRoot });
         await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
@@ -40,8 +38,7 @@ describe('stop command', () => {
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
     });
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, globalConfigFolderPath });
     });
     function makeStopHandler() {
         return stopCommand.handlerMaker({

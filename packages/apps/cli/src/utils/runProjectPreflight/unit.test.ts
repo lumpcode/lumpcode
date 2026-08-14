@@ -1,5 +1,4 @@
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
@@ -7,6 +6,7 @@ import { LOCAL_CONFIG_FILE_NAME } from '../readLocalConfig';
 import { runProjectPreflight } from './main';
 import { createIntegrationBranch, gitCurrentBranch, initBareRemoteAndCheckout, writeLocalJson } from '../../testing';
 import { execGit } from '../execGit';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeJsonFile } from '../writeJsonFile';
 
 describe('runProjectPreflight', () => {
@@ -16,19 +16,13 @@ describe('runProjectPreflight', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-project-preflight-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-project-preflight-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-project-preflight-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-run-project-preflight-' }));
         initBareRemoteAndCheckout(projectRoot, remoteDir);
-        await fs.mkdir(localConfigFolderPath, { recursive: true });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'run-project-preflight' } });
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
     });
 
     async function writeLocalJsonDedicated(primaryBranch = 'main') {

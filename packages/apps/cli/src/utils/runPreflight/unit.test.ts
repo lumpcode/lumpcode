@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runPreflight } from './main';
 import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 
 describe('runPreflight', () => {
     let projectRoot: string;
@@ -14,16 +15,12 @@ describe('runPreflight', () => {
     let globalConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-preflight-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-preflight-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-preflight-global-'));
+        ({ projectRoot, remoteDir, globalConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-preflight-' }));
         initBareRemoteAndCheckout({ projectRoot, remoteDir });
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
     });
 
     describe('dedicated mode', () => {

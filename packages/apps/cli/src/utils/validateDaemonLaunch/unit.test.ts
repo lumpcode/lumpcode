@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
@@ -14,6 +13,7 @@ import {
 import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
 import { validateDaemonLaunch } from './main';
 import { writeJsonFile } from '../writeJsonFile';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeLumpConfigJson } from '../writeLumpConfigJson';
 
 function createLogger(): Logger & { warnings: string[] } {
@@ -38,10 +38,7 @@ describe('validateDaemonLaunch', () => {
     let globalConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-validate-daemon-launch-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-validate-daemon-launch-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-validate-daemon-launch-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-validate-daemon-launch-' }));
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         initBareRemoteAndCheckout(projectRoot, remoteDir);
@@ -53,9 +50,7 @@ describe('validateDaemonLaunch', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
     });
 
     it('warns and succeeds when a lump directory has no loadable config (dedicated)', async () => {

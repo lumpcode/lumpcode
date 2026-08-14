@@ -8,7 +8,7 @@ import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { gitCurrentBranch, writeLocalJson } from '../../testing';
 import { runProjectPreflight } from '../../utils/runProjectPreflight';
-import { execGit, initBareRemoteAndCheckout } from '../../utils';
+import { execGit, initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('clean command', () => {
@@ -17,14 +17,14 @@ describe('clean command', () => {
     let globalConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-'));
-        bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-bare-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-clean-global-'));
+        const dirs = await createTempTestDirs({ prefix: 'lump-clean-' });
+        projectRoot = dirs.projectRoot;
+        bareDir = dirs.remoteDir;
+        globalConfigFolderPath = dirs.globalConfigFolderPath;
+        const lumpcodeDir = dirs.localConfigFolderPath;
 
         initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
 
-        const lumpcodeDir = path.join(projectRoot, '.lumpcode');
-        await fs.mkdir(lumpcodeDir);
         await Promise.all([
             writeJsonFile({
                 filePath: path.join(lumpcodeDir, 'project.json'),
@@ -38,9 +38,7 @@ describe('clean command', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(bareDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir: bareDir, globalConfigFolderPath });
         vi.restoreAllMocks();
     });
 
