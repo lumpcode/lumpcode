@@ -9,7 +9,7 @@ Follow this guide in order to get started with your first `lumpcode run`. Links 
 Install and prepare the following:
 
 1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
-2. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare (typically in `.lumpcode/project.json`, optionally overridden in gitignored `local.json`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode pulls it during pre-flight and reads it via `origin/<branch>` for status.
+2. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare (typically in `.lumpcode/project.json`, optionally overridden in gitignored `local.json`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode fetch/resets to it during pre-flight and reads it via `origin/<branch>` for status.
 3. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** work out of the box when `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` is on `PATH`; other agents (e.g. **`aider`**) need a custom module.
 
 ---
@@ -133,7 +133,7 @@ A richer pattern (several files per context, naming-convention transforms) is sh
 lumpcode run myFirstLump
 ```
 
-In one tick, Lumpcode first runs **pre-flight** (pulls the merged primary branch in the resolved workspace), then picks the next context(s); prepares the work branch `lump/myFirstLump/…`; runs your agent; commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above); pushes to **`origin`**; refreshes **`contextStatusRecord.json`**; and finally switches the workspace back to the lump's resolved `baseBranch`.
+In one tick, Lumpcode loads the lump, resolves contexts from remote status, preflights the execution workspace (fetch / switch / hard-reset, not `git pull`), prepares the work branch `lump/myFirstLump/…`, runs your agent, commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above), pushes to **`origin`**, tears down the branch workspace, and refreshes **`contextStatusRecord.json`**. Shared vs dedicated order and every hook call site: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle). Short overview: [concepts.md § One run, end to end](./concepts.md#one-run-end-to-end).
 
 **Workspace:** `local.json.mode` decides where the run happens — `shared` uses **`~/.lumpcode/project-copies/<projectName>/`** (a copy of your repo); `dedicated` uses **this checkout** in place (destructive reset). [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes) · [local-config.md](./local-config.md)
 
@@ -192,6 +192,6 @@ You now have your first working lump ! Browse when you need more depth:
 - [commands.md](./commands.md) — Every subcommand and flag
 - [local-config.md](./local-config.md) — `.lumpcode/local.json` (`mode`, `primaryBranch`)
 - [lump-config.md](./lump-config.md) — All lump config keys
-- [advanced-config.md](./advanced-config.md) — Hooks, dynamic `steps`, custom commands
+- [advanced-config.md](./advanced-config.md#hook-lifecycle) — Lifecycle schemas (shared / dedicated), dynamic `steps`, custom commands
 - [types.md](./types.md) — Hook parameter shapes
 - [examples.md](./examples.md) — Short smoke-test style recipes

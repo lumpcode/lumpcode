@@ -1,9 +1,0 @@
-name: cleaner-cli-lifecycle-docs
-workflow: directImpl
-task: >-
-  Cleaner CLI DOCS with multiple lifecycle schemas — at least one for shared mode
-  and one for dedicated mode. Each schema must show when every lump-config
-  hook/function is called across the run (discover → preflight/locks → workspace
-  setup → per-context steps → commit/push → teardown / daemon tick). Tighten
-  surrounding DOCS so these schemas are easy to find; not a full rewrite of every page.
-priority: 15

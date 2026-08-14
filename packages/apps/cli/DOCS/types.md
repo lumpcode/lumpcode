@@ -131,6 +131,8 @@ The on-disk JSON uses the same keys as `contextName`.
 
 ## Hook signatures
 
+When these hooks run during `lumpcode run` / a daemon tick (shared vs dedicated): [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
+
 ### `GetContextListFn`
 
 ```ts
@@ -300,5 +302,5 @@ export const teardown?: TeardownFn<V>;
 ## Related documentation
 
 - [lump-config.md](./lump-config.md) — Where these types appear in JSON
-- [advanced-config.md](./advanced-config.md) — Hooks, dynamic prompts, custom commands
+- [advanced-config.md](./advanced-config.md#hook-lifecycle) — Lifecycle schemas (shared / dedicated), dynamic prompts, custom commands
 - [concepts.md](./concepts.md) — Daemon, workspace, status lifecycle

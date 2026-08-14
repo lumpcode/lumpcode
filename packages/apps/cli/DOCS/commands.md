@@ -193,7 +193,7 @@ Plus global [`--json`](#ref-json-output).
 
 With **`--json`**, busy responses include a stable `code` field (`workspacePathBusy`) plus path and optional holder pid/lump name.
 
-**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-4-run-once).
+**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (shared / dedicated schemas), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-4-run-once).
 
 <a id="ref-cmd-lump-plan"></a>
 
@@ -296,7 +296,7 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 
 **Fails if:** Invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
 
-**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-5-run-continuously-optional).
+**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (daemon tick wrappers), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-5-run-continuously-optional).
 
 <a id="ref-cmd-stop"></a>
 
@@ -490,7 +490,7 @@ If meta is missing or invalid, restart uses **`stop --force`** then starts again
 - [project-config.md](./project-config.md) — `project.json`
 - [local-config.md](./local-config.md) — Per-machine `.lumpcode/local.json` (`mode`, `primaryBranch`)
 - [lump-config.md](./lump-config.md) — Lump configuration
-- [advanced-config.md](./advanced-config.md) — Hooks, dynamic prompts, custom commands
+- [advanced-config.md](./advanced-config.md#hook-lifecycle) — Lifecycle schemas (shared / dedicated), dynamic prompts, custom commands
 
 <a id="three-commands-that-mention-status"></a>
 
