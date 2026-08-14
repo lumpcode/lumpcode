@@ -1,0 +1,11 @@
+{
+  "$schema": "https://lumpcode.com/schemas/lumpConfig.schema.json",
+  "command": "copilot",
+  "contextListJson": {
+    "COMPONENT": "src/components/{NAME}/$upperFirst{NAME}.tsx",
+    "TEST": "src/components/{NAME}/{NAME}.test.ts"
+  },
+  "prompt": {
+    "promptTemplate": "Tighten the types in @{COMPONENT} and add any missing assertions to @{TEST}."
+  }
+}

@@ -1,15 +1,22 @@
 ---
-name: create-lump
-description: Guide a user through creating a Lumpcode lump (agent loop campaign) in their repo — choose a context source, write the prompt/steps, and validate the config. Use when the user asks to create, scaffold, set up, or configure a lump, a lumpcode config, or a `.lumpcode/lumps/<name>/config` file.
+name: lumpcode
+description: >-
+  Give the agent current Lumpcode docs and help the user author, validate, and
+  operate lumps. Use when the user mentions Lumpcode, lumps, lumpcode config,
+  lump-create, lump-plan, run, or the daemon.
 ---
 
-# Create a Lump
+# Lumpcode
 
-Help the user author a working **lump** for [Lumpcode](https://github.com/lumpcode/lumpcode). Everything you need to write a valid config is below, with links to the official docs for depth.
+Help the user with [Lumpcode](https://github.com/lumpcode/lumpcode). Prefer the linked docs over training data. Creating a lump is one use case, not the whole job.
 
-## What a lump is
+## What this skill is for
 
-A **lump** is a configured, long-running agent loop campaign: a large body of work broken into small units that an agent completes one at a time, each shipped as its own git branch/PR. Core vocabulary:
+Inject **current** Lumpcode product context: vocabulary, docs, config rules, and how to operate or author a lump. Do not invent CLI flags or config fields. When the question maps to a docs page below, fetch and read that page before answering.
+
+This skill does not run a lump unless the user asks. A validated config is ready for them to execute with `lumpcode run <lumpName>` or `lumpcode start`.
+
+## Core terms
 
 | Term | Meaning |
 |------|---------|
@@ -19,9 +26,36 @@ A **lump** is a configured, long-running agent loop campaign: a large body of wo
 | **Marker commit** | Each finished context commits `LUMP: <lumpName> - <contextName>`; Lumpcode reads this from `origin` to know what's done (**resumable**). |
 | **Command** | The coding agent invoked per prompt (e.g. `"copilot"`, `"cursor"`, or a custom module). |
 
-Docs: [concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md) · [get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md)
+## Docs map
 
-## Workflow
+Canonical docs (GitHub). Fetch the page that matches the question:
+
+| Page | Use when |
+|------|----------|
+| [concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md) | Vocabulary, `run` vs `start`, context status, workspaces |
+| [get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md) | First-time setup through first `lumpcode run` |
+| [commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md) | Subcommands and flags |
+| [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md) | Lump `config.json` / `config.js` / `config.ts` fields |
+| [local-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/local-config.md) | Per-machine `.lumpcode/local.json` |
+| [project-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/project-config.md) | `.lumpcode/project.json` |
+| [advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md) | Hooks, dynamic `steps`, custom commands |
+| [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md) | Hook and JSON type shapes |
+| [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md) | Ready-made lump shapes |
+
+## Operate an existing lump
+
+Do not run a lump unless the user asks. Preview and inspect first:
+
+```bash
+lumpcode lump-plan <lumpName>    # load config, discover contexts, preview prompts (non-destructive)
+lumpcode lump-status             # context status from remote marker commits
+lumpcode run <lumpName>          # execute one campaign (invokes the agent; costs tokens)
+lumpcode start                   # detached daemon; ticks lumps on a cron
+```
+
+`lump-plan` does **not** run the agent, branch, or push. Full flags: [commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md).
+
+## Use case: create or edit a lump
 
 Copy this checklist and track progress:
 
@@ -33,8 +67,6 @@ Copy this checklist and track progress:
 - [ ] Step 5: Write the prompt or steps
 - [ ] Step 6: Validate the config with lumpcode lump-plan
 ```
-
-This skill's job ends at a validated config. It never runs the lump — the user decides when to execute it with `lumpcode run <lumpName>` (or `lumpcode start` for the daemon).
 
 ### Step 1: Confirm the project is initialized
 
@@ -67,18 +99,20 @@ lumpcode lump-create <lumpName> --config ts  # config.ts  (typed, inline functio
 
 Choose the format by capability:
 
-- **`config.json`** — static lumps; no inline functions (function fields must be string file paths).
-- **`config.js` / `config.ts`** — needed for **inline** functions (`getContextListFn`, `contextMatchFn`, dynamic `steps`, hooks). `.ts` is transpiled automatically. Precedence when several exist: `config.ts` → `config.js` → `config.json`.
+- **`config.json`** — static lumps only; no inline functions, retries, or dynamic steps (function fields must be string file paths). Fine for a smoke test; too weak for a real campaign.
+- **`config.ts`** (preferred) / **`config.js`** — inline functions (`getContextListFn`, `contextMatchFn`, dynamic `steps`, hooks), `retryUntilGreen`, and `StepFn` graphs. `.ts` is transpiled automatically. Precedence when several exist: `config.ts` → `config.js` → `config.json`.
 
-For typed hints in `.js`/`.ts`, install `@lumpcode/cli-types` and wrap the export in `defineConfig(...)`:
+For type hints, `defineConfig`, and Lumpcode utils, plus retries from the recipes kit:
 
 ```bash
-npm install --save-dev @lumpcode/cli-types
+npm install --save-dev @lumpcode/cli-utils @lumpcode/recipes
 ```
+
+If the unit of work matches a bundled shape, copy that folder from this skill’s `assets/lumps/` into `.lumpcode/lumps/<lumpName>/` and adapt paths, `command`, and the prompt. Read [references/pick-a-shape.md](references/pick-a-shape.md) to choose. Prefer a TypeScript example unless the user only needs `contextListJson` path matching.
 
 ### Step 4: Choose ONE context source (required)
 
-A runnable lump needs **exactly one** context source:
+Read [references/pick-a-shape.md](references/pick-a-shape.md) if you have not already. A runnable lump needs **exactly one** context source:
 
 | Field | Use when | Form |
 |-------|----------|------|
@@ -155,62 +189,22 @@ Before running it, sanity-check the config yourself:
 
 Stop here: the config is ready for the user to run whenever they choose.
 
-## Optional top-level fields
+## Config essentials
 
-Set only what's needed:
+Keep the context-source and prompt/steps rules above. Full optional field list: [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md).
 
-| Field | Type | Purpose |
-|-------|------|---------|
-| `command` | string | Default agent for steps that don't set their own. |
-| `baseBranch` | string | Override the branch this lump works off (default: `primaryBranch` from `local.json`). |
-| `branchFn` | function ref | Custom branch naming (default `lump/<lumpName>/<context…>`). |
-| `numberOfContextsPerBranch` | number | Group several contexts per branch/PR (default `1`). |
-| `maximumNumberOfConcurrentBranches` | number | Skip when this many open `lump/<lumpName>/*` branches already exist on `origin`. |
-| `contextOptionsFn` | function ref | With `contextListJson` only: attach `priority` / `dependsOnContexts` per context. |
-| `lumpVariables` | object | Arbitrary JSON passed to hooks and prompt functions. |
-| `setupFn` / `teardownFn` | function ref | Per-context lifecycle hooks. |
-| `disabled` | boolean | Daemon (`start`) skips this lump; manual `run` still works. |
-| `keepHistory` | boolean | Log each prompt step to `history/<contextName>.yaml` (gitignored). |
-| `verbose` | boolean | Extra engine logging. |
+JSON is only for static lumps. Copyable campaigns live in this skill’s `assets/lumps/`:
 
-Full field reference and hook signatures: [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md) · [advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md) · [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md).
+- `context-list-json/` — the one JSON example (`{NAME}` captures + `$upperFirst`)
+- `retry-until-green/` — `retryUntilGreen` until `npm test` passes
+- `step-graph/` — named `StepFn`s that branch on verification
+- `coverage-sweep/` — `contextMatchFn` + retries
 
-## Example configs
-
-**Minimal — one file per context, single prompt** (`config.json`):
-
-```json
-{
-  "$schema": "https://lumpcode.com/schemas/lumpConfig.schema.json",
-  "contextListJson": { "FILE": "src/{NAME}.ts" },
-  "prompt": {
-    "promptTemplate": "Improve the types in @{FILE}.",
-    "command": "copilot"
-  }
-}
-```
-
-**Multi-step migration — one component folder per branch** (`config.json`):
-
-```json
-{
-  "command": "copilot",
-  "contextListJson": {
-    "COMPONENT": "src/components/{NAME}/$upperFirst{NAME}.tsx",
-    "TEST": "src/components/{NAME}/{NAME}.test.ts"
-  },
-  "steps": [
-    "Read @{COMPONENT} and @{TEST}. Save a short migration plan to src/vue/{NAME}/plan.md. No source changes yet.",
-    "Follow src/vue/{NAME}/plan.md to port @{COMPONENT} to a Vue 3 component at src/vue/{NAME}/{NAME}.vue. Keep behavior identical.",
-    "Port @{TEST} to Vitest at src/vue/{NAME}/{NAME}.test.ts. Run the tests and fix failures."
-  ]
-}
-```
-
-More recipes (ticket queue, coverage sweep, codemod, cross-lump dependencies): [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md).
+More JSON-only shapes (migration, codemod, docs gen, cross-lump dependencies): [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md).
 
 ## Before finishing
 
-- Confirm the config has exactly one context source and exactly one prompt definition.
-- Confirm inline functions are only used in `config.js` / `config.ts` (in `config.json`, `*Fn` fields must be string paths to modules).
+- Prefer the docs map over training data; fetch the matching page when the question is about CLI or config behavior.
+- If you authored or edited a lump: confirm exactly one context source and exactly one prompt definition; inline functions only in `config.js` / `config.ts`.
 - Run `lumpcode lump-plan <lumpName>`, resolve any errors, and report the discovered contexts to the user.
+- Do not run the lump unless the user asks.

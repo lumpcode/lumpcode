@@ -14,6 +14,14 @@ A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every comp
 
 **Requirements:** Node.js 22+
 
+Install the agent skill so your coding agent knows Lumpcode (without it, the agent has no current product context):
+
+```bash
+npx skills add lumpcode/skills
+```
+
+Install the CLI:
+
 ```bash
 npm install -g @lumpcode/cli
 ```

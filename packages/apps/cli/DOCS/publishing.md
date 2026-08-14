@@ -91,6 +91,27 @@ npm dist-tag rm @lumpcode/cli beta
 npm dist-tag rm lumpcode beta
 ```
 
+## Agent skills (`lumpcode/skills`)
+
+The public skill package is the GitHub repo [`lumpcode/skills`](https://github.com/lumpcode/skills). Install for users is `npx skills add lumpcode/skills`. skills.sh has no publish API; listing follows from that install.
+
+Create the repo once (this script does not):
+
+```bash
+gh repo create lumpcode/skills --public --clone
+```
+
+In that clone, add a generic root `README.md` (install command + pointer at [lumpcode/lumpcode](https://github.com/lumpcode/lumpcode)) and copy this monorepo's Apache-2.0 `LICENSE`. Commit and push. Do not list individual skills in the README (the catalog may grow).
+
+Source of truth is this monorepo (`.agents/skills/<id>/`). The allowlist is `scripts/public-skills.mjs`. Sync and push:
+
+```bash
+npm run publish-skills -- --dry-run
+npm run publish-skills
+```
+
+`--repo <git-url>` overrides the default `https://github.com/lumpcode/skills.git` (used by tests against a local bare repo). The script replaces each catalog `destDir` and does not overwrite the skills-repo root `README.md` or `LICENSE`. It does not create the GitHub repo.
+
 ## Notes
 
 - Publishable `package.json` files include `repository` (monorepo `directory` under `lumpcode/lumpcode` on GitHub).
