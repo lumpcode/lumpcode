@@ -1,6 +1,6 @@
 # Lumpcode
 
-Lumpcode is a **straightforward and easy to adopt**, yet **fully configurable** CLI and library to write *agent loops* as full-fledged coding campaigns on your codebase.
+Lumpcode is a CLI and library to write *agent loops* as full-fledged coding campaigns on your codebase. It runs on a machine with your repo, git access, and a configured CLI agent: **straightforward to start**, yet **fully configurable** and powerful when you need hooks, daemons, or custom steps.
 
 Lumpcode drives any CLI agent (Claude, Codex, Aider, Cursor) through large coding jobs (migrations, codemods, tests, or a whole roadmap of features) as long-running campaigns called **lumps**. Run a **lump** on demand, or run it as a daemon and it ticks through your backlog on a schedule. Every change arrives on its own git branch for normal PR review, and progress is resumable, so it always picks up where it left off.
 

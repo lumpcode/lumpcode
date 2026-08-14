@@ -6,7 +6,7 @@ Follow this guide in order to get started with your first `lumpcode run`. Links 
 
 ## Prerequisites
 
-Install and prepare the following:
+You only need a machine with your repo, git access, and a configured CLI agent. Install and prepare the following:
 
 1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
 2. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare (typically in `.lumpcode/project.json`, optionally overridden in gitignored `local.json`) must **already exist on `origin`** (e.g. `origin/main`): Lumpcode fetch/resets to it during pre-flight and reads it via `origin/<branch>` for status.
