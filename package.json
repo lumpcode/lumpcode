@@ -9,7 +9,10 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build:all": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils && npm run build -w=@lumpcode/recipes"
+    "build:all": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils && npm run build -w=@lumpcode/recipes",
+    "azure-daemon-vm": "node scripts/azure-daemon-vm/deploy.mjs",
+    "publish-skills": "node scripts/publish-skills.mjs",
+    "test:scripts": "vitest run --config scripts/vitest.config.ts"
   },
   "workspaces": [
     "packages/core",
@@ -23,6 +26,7 @@
     "@rollup/plugin-replace": "^6.0.3",
     "@types/node": "^24.13.3",
     "@vitest/ui": "^3.2.4",
+    "fallow": "^3.14.0",
     "js-yaml": "^5.0.0",
     "rollup": "^4.52.5",
     "type-fest": "^5.1.0",
@@ -30,7 +34,8 @@
     "vue-tsc": "^3.1.4"
   },
   "dependencies": {
-    "@lumpcode/cli-types": "^0.0.11",
+    "@cursor/sdk": "^1.0.27",
+    "@lumpcode/cli-types": "*",
     "@lumpcode/cli-utils": "*",
     "@lumpcode/recipes": "*"
   }

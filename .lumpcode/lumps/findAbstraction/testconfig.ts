@@ -1,54 +1,47 @@
-import { defineConfig, StepFn } from '@lumpcode/cli-utils';
+import { defineConfig, type StepFn } from '@lumpcode/cli-utils';
 
-const entry = (() => {
-    return [
-        {
-            promptTemplate: "Implement a function that adds two numbers",
-        },
-        verifyStep,
-    ];
-}) satisfies StepFn;
+const endStep: StepFn = () => ({
+    commandFn() {
+        return {
+            executable: 'echo',
+            args: ['Tests passed'],
+        };
+    },
+});
 
-const retryStep = (() => {
-    return {
-        promptTemplate: "Tests failed. Retry the implementation",
-    };
-}) satisfies StepFn;
+const retryStep: StepFn = () => [
+    {
+        promptTemplate: 'Tests failed. Retry the implementation',
+    },
+    verifyStep,
+];
 
-const endStep = (() => {
-    return {
+const verifyStep: StepFn = () => [
+    {
         commandFn() {
             return {
-                executable: 'echo',
-                args: ['Tests passed'],
+                executable: 'npm',
+                args: ['run', 'test'],
             };
-        }
-    };
-}) satisfies StepFn;
-
-const verifyStep = (() => {
-    return [
-        {
-            commandFn() {
-                return {
-                    executable: 'npm',
-                    args: ['run', 'test'],
-                };
-            },
-            continueOnError: true,
-            postCommandExecFn({
-                commandSucceeded,
-            }) {
-                if (commandSucceeded) {
-                    return endStep();
-                } else {
-                    return retryStep();
-                }
+        },
+        continueOnError: true,
+        postCommandExecFn(input) {
+            if (input.commandSucceeded) {
+                return endStep(input);
+            } else {
+                return retryStep(input);
             }
-        }
-    ];
-}) satisfies StepFn;
+        },
+    },
+];
+
+const entry: StepFn = () => [
+    {
+        promptTemplate: 'Implement a function that adds two numbers',
+    },
+    verifyStep,
+];
 
 export default defineConfig({
-    steps: entry()
+    steps: entry,
 });

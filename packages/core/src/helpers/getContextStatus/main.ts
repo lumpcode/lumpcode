@@ -1,6 +1,11 @@
 import { ContextStatus, Logger, LumpVariables } from "../../types";
 import { GitCommitMessageFn } from "../../types/GitCommitMessageFn";
-import { parseGitLogHashSubjectLines, shellSingleQuote } from "../../utils";
+import {
+    commitMessageIncludesMarker,
+    GIT_LOG_HASH_BODY_FORMAT,
+    parseGitLogHashBodyRecords,
+    shellSingleQuote,
+} from "../../utils";
 import { execAsync } from "../execAsync";
 import { refreshRemoteTrackingRefs } from "../refreshRemoteTrackingRefs";
 
@@ -44,7 +49,7 @@ export async function getContextStatus<V extends LumpVariables = LumpVariables>(
     }
 
     const logResult = await execAsync(
-        `git log --remotes=${remoteName} -F --grep=${shellSingleQuote(commitMessage)} --format=${shellSingleQuote('%H %s')}`,
+        `git log --remotes=${remoteName} -F --grep=${shellSingleQuote(commitMessage)} --format=${shellSingleQuote(GIT_LOG_HASH_BODY_FORMAT)}`,
         { cwd: projectRoot },
     );
     if (!logResult.success) return 'toDo';
@@ -53,8 +58,8 @@ export async function getContextStatus<V extends LumpVariables = LumpVariables>(
 
     const logResultOutput = logResult.data.stdout || logResult.data.stderr || '';
 
-    const matchingHashes = parseGitLogHashSubjectLines(logResultOutput)
-        .filter((entry) => entry.subject === commitMessage)
+    const matchingHashes = parseGitLogHashBodyRecords(logResultOutput)
+        .filter((entry) => commitMessageIncludesMarker(entry.message, commitMessage))
         .map((entry) => entry.hash);
 
     logger?.verbose(`contextName ${contextName}`);

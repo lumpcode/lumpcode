@@ -23,6 +23,7 @@ import {
 import {
     createWorkspaceLockSession,
     releaseWorkspaceLockSession,
+    releaseWorkspaceLockSessionSync,
     withWorkspaceLockHooks,
 } from './withWorkspaceLockHooks';
 
@@ -85,6 +86,11 @@ export async function runLumpFromJsConfig(input: {
     if (releaseLock) {
         session.releaseExecutionPathLock = releaseLock;
     }
+
+    const onProcessExit = () => {
+        releaseWorkspaceLockSessionSync(session);
+    };
+    process.on('exit', onProcessExit);
 
     try {
         const projectRoot = path.dirname(localConfigFolderPath);
@@ -211,6 +217,7 @@ export async function runLumpFromJsConfig(input: {
 
         return success({ skipped: false as const, ...runLumpResult.data });
     } finally {
+        process.off('exit', onProcessExit);
         await releaseWorkspaceLockSession(session);
     }
 }

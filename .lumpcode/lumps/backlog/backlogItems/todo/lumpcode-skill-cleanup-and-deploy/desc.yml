@@ -1,0 +1,15 @@
+name: lumpcode-skill-cleanup-and-deploy
+workflow: manual
+task: >-
+  Clean up and publish the user-facing Lumpcode skill currently at
+  `.agents/skills/create-lump/SKILL.md`. The current name is too narrow: the
+  skill is the way users inject Lumpcode docs context when asking an LLM
+  (creating a lump is one workflow, not the whole point). Pick a broader name,
+  rename the skill folder/frontmatter, and restructure SKILL.md so it reads as
+  a docs-context skill first (create-lump as a use case, not the title). Then
+  deploy it to skills.sh and add a repo script that performs that deploy
+  (prefer a single root `package.json` script that forwards flags). Update any
+  docs or install snippets that still say create-lump. Internal project skills
+  (grilling, ideas-to-backlog, write-requirements, …) stay repo-local and are
+  not part of this publish.
+priority: 2

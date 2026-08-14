@@ -1,7 +1,6 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { execSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
@@ -11,6 +10,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
+import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
 import { writeJsonFile } from '../writeJsonFile';
 import { resolveEffectiveDiscoveryBranch } from './main';
 
@@ -22,16 +22,6 @@ function createLogger(): Logger {
         verbose: vi.fn(),
         child: () => createLogger(),
     };
-}
-
-function gitCommitAll(cwd: string, message: string): void {
-    execSync('git add -A', { cwd, stdio: 'pipe' });
-    try {
-        execSync(`git commit -m ${JSON.stringify(message)}`, { cwd, stdio: 'pipe' });
-    } catch {
-        execSync(`git commit --allow-empty -m ${JSON.stringify(message)}`, { cwd, stdio: 'pipe' });
-    }
-    execSync('git push origin main', { cwd, stdio: 'pipe' });
 }
 
 /**
@@ -71,7 +61,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         await writeMinimalLump(projectRoot, 'multi', {
             discoveryBranches: ['main', 'feature/*'],
         });
-        gitCommitAll(projectRoot, 'multi lump');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi lump' });
 
         const result = await resolveEffectiveDiscoveryBranch({
             discoveryBranchOpt: 'feature/a',
@@ -100,7 +90,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         await writeMinimalLump(projectRoot, 'multi', {
             discoveryBranches: ['main', 'feature/*'],
         });
-        gitCommitAll(projectRoot, 'multi lump');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi lump' });
 
         const result = await resolveEffectiveDiscoveryBranch({
             discoveryBranchOpt: 'feature/*',
@@ -129,7 +119,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         await writeMinimalLump(projectRoot, 'multi', {
             discoveryBranches: ['main', 'feature/*'],
         });
-        gitCommitAll(projectRoot, 'multi lump');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi lump' });
 
         const result = await resolveEffectiveDiscoveryBranch({
             lumpName: 'multi',
@@ -157,7 +147,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         await writeMinimalLump(projectRoot, 'patternOnly', {
             discoveryBranch: 'feature/*',
         });
-        gitCommitAll(projectRoot, 'pattern-only lump');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'pattern-only lump' });
 
         const result = await resolveEffectiveDiscoveryBranch({
             lumpName: 'patternOnly',
@@ -185,7 +175,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         await writeMinimalLump(projectRoot, 'featureOnly', {
             discoveryBranch: 'feature/*',
         });
-        gitCommitAll(projectRoot, 'feature-only lump');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'feature-only lump' });
 
         const result = await resolveEffectiveDiscoveryBranch({
             discoveryBranchOpt: 'main',
@@ -209,7 +199,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
             primaryBranch: 'main',
         });
         await writeMinimalLump(projectRoot, 'sharedLump', {});
-        gitCommitAll(projectRoot, 'shared lump');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'shared lump' });
         const logger = createLogger();
 
         const result = await resolveEffectiveDiscoveryBranch({
@@ -236,7 +226,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         await writeMinimalLump(projectRoot, 'multi', {
             discoveryBranches: ['main', 'feature/*'],
         });
-        gitCommitAll(projectRoot, 'multi lump');
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi lump' });
 
         const result = await resolveEffectiveDiscoveryBranch({
             discoveryBranchOpt: 'ver/x',

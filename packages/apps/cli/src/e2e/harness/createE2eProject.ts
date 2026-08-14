@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import type { LocalConfig } from '../../types/LocalConfig';
-import { initLocalGitRepo, writeJsonFile } from '../../utils';
+import { gitCommitAllAndPush, initLocalGitRepo, writeJsonFile } from '../../utils';
 import {
     createE2eAgentCommandModule,
     createE2eMockAgentScript,
@@ -323,27 +323,10 @@ export async function writeE2eLumpFixture(input: {
 
 /** Commits and pushes pending changes on `main` so dedicated pre-flight reset keeps them. */
 export function commitAndPushMain(project: E2eProject, message: string): void {
-    git('add -A', project.projectRoot);
-    try {
-        git(`commit -m ${JSON.stringify(message)}`, project.projectRoot);
-    } catch {
-        git(`commit --allow-empty -m ${JSON.stringify(message)}`, project.projectRoot);
-    }
-    git('push origin main', project.projectRoot);
+    gitCommitAllAndPush({ cwd: project.projectRoot, message });
 }
 
-function gitCommitIntegrationBranch(projectRoot: string, branchName: string): void {
-    try {
-        git(`commit -m "integration ${branchName}"`, projectRoot);
-    } catch {
-        git(`commit --allow-empty -m "integration ${branchName}"`, projectRoot);
-    }
-}
-
-/**
- * Creates and pushes an integration branch from `main`, runs `mutateFn` to add
- * branch-only lumps or files, then returns the checkout to `main`.
- */
+/** Creates/pushes an integration branch from `main`, runs `mutateFn`, returns to `main`. */
 export async function pushIntegrationBranch(
     project: E2eProject,
     branchName: string,
@@ -352,8 +335,8 @@ export async function pushIntegrationBranch(
     git(`fetch origin main`, project.projectRoot);
     git(`checkout -b ${branchName} origin/main`, project.projectRoot);
     await mutateFn(project.projectRoot);
-    git('add -A', project.projectRoot);
-    gitCommitIntegrationBranch(project.projectRoot, branchName);
-    git(`push -u origin ${branchName}`, project.projectRoot);
+    gitCommitAllAndPush({
+        cwd: project.projectRoot, message: `integration ${branchName}`, branch: branchName, setUpstream: true,
+    });
     git('checkout main', project.projectRoot);
 }

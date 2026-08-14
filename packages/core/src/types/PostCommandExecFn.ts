@@ -18,4 +18,6 @@ export type PostCommandExecFn<
     lumpVariables: V;
     stepVariables?: SV;
     projectRoot: string;
+    /** When aborted, hooks should return promptly so the step walk can unwind and release locks. */
+    signal?: AbortSignal;
 }) => MaybePromise<void | Steps<V, SV>>

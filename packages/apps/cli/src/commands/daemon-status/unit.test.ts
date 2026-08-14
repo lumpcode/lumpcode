@@ -11,19 +11,7 @@ import {
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from '../stop/main';
 import { command as daemonStatusCommand } from './main';
-import { initLocalGitRepo, writeJsonFile } from '../../utils';
-
-const minimalLumpConfigJson = `{
-  "baseBranch": "main",
-  "contextListJson": {
-    "FILE": "src/{NAME}.ts"
-  },
-  "prompt": {
-    "promptTemplate": "Improve the code at @{FILE}.",
-    "command": "claude"
-  }
-}
-`;
+import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson } from '../../utils';
 
 describe('daemon-status command', () => {
     let projectRoot: string;
@@ -37,13 +25,8 @@ describe('daemon-status command', () => {
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         initLocalGitRepo({ cwd: projectRoot });
-        await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'alpha'), { recursive: true });
+        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
-        await fs.writeFile(
-            path.join(localConfigFolderPath, 'lumps', 'alpha', 'config.json'),
-            minimalLumpConfigJson,
-            'utf-8',
-        );
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
     });

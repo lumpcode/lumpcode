@@ -1,7 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { execSync } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import * as core from '@lumpcode/core';
@@ -14,6 +13,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
+import { gitCommitAllAndPush } from '../../utils/gitCommitAllAndPush';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import * as runLumpFromLumpNameModule from '../../utils/runLumpFromLumpName';
 import { command } from './main';
@@ -78,9 +78,7 @@ describe('run command — multi discovery branches', () => {
             discoveryBranch: 'ver/0.0.9',
             baseBranch: 'ver/0.0.9',
         });
-        execSync('git add -A', { cwd: projectRoot });
-        execSync('git commit -m "main lump"', { cwd: projectRoot });
-        execSync('git push origin main', { cwd: projectRoot });
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'main lump' });
         await createIntegrationBranch({
             projectRoot,
             remoteDir,
@@ -296,9 +294,7 @@ describe('run command — dynamic-discovery-branch (C*)', () => {
         await writeMinimalLump(projectRoot, 'multi', {
             discoveryBranches: ['main', 'feature/*'],
         });
-        execSync('git add -A', { cwd: projectRoot });
-        execSync('git commit -m "multi lump"', { cwd: projectRoot });
-        execSync('git push origin main', { cwd: projectRoot });
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi lump' });
     }
 
     it('C1: flagless multi-rule lump uses first exact discovery (main)', async () => {
@@ -397,10 +393,6 @@ describe('run command — dynamic-discovery-branch (C*)', () => {
     });
 });
 
-/**
- * Target abort wiring for kill-spawned-command-on-timeout-abort.
- * Skipped until run owns an AbortController and passes signal into runLumpFromLumpName.
- */
 describe('run command abort signal wiring (W2)', () => {
     let projectRoot: string;
     let remoteDir: string;

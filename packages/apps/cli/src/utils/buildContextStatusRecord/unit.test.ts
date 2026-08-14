@@ -125,17 +125,22 @@ describe('buildContextStatusRecord', () => {
         expect(Object.keys(result.data)).toEqual(['button']);
     });
 
-    it('should handle context names containing slashes', async () => {
-        const branchName = `${LUMP_BRANCH_PREFIX}myLump/components/button`;
+    it('discovers context names from marker strings in the commit body', async () => {
+        const branchName = `${LUMP_BRANCH_PREFIX}myLump/batch`;
         execGit(`checkout -b ${branchName}`, tmpDir);
-        execGit(`commit --allow-empty -m "${commitMsg('components/button')}"`, tmpDir);
+        execGit(
+            `commit --allow-empty -m "PR title" -m "* ${commitMsg('button')}, ${commitMsg('form')}"`,
+            tmpDir,
+        );
         execGit(`push origin ${branchName}`, tmpDir);
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
 
-        expect(result.data['components/button']).toBeDefined();
-        expect(result.data['components/button'].commitMessage).toBe(commitMsg('components/button'));
+        expect(result.data.button?.status).toBe('branchPushed');
+        expect(result.data.form?.status).toBe('branchPushed');
+        expect(result.data.button?.commitMessage).toBe(commitMsg('button'));
+        expect(result.data.form?.commitMessage).toBe(commitMsg('form'));
     });
 });

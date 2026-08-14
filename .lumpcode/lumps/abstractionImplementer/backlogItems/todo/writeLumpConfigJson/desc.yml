@@ -1,8 +1,0 @@
-name: writeLumpConfigJson
-task: >-
-  Extract duplicated minimal lump `config.json` scaffold (shared default JSON body,
-  `mkdir` lump dir, `fs.writeFile`) into util `writeLumpConfigJson` with exported
-  `MINIMAL_RUNNABLE_LUMP_CONFIG`; refactor eight test modules that redefine
-  `minimalLumpConfigJson`, `commands/start/unit.test.ts` (15+ write blocks),
-  and delegate `testing/multiBranchFixtures.ts` `writeMinimalLump` to the util.
-priority: 5
