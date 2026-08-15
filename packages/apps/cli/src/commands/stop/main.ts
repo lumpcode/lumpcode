@@ -1,21 +1,22 @@
-import * as fs from 'node:fs/promises';
 import * as z from 'zod';
 
-import { failure, isProcessAlive, killProcessTree, nodeErrnoCode, success } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
 
+import { DAEMON_FORCE_STOP_WAIT_MS, DAEMON_IDLE_STOP_WAIT_MS } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
     createCliLogger,
-    isDaemonMidRun,
-    pollUntil,
-    readDaemonMeta,
-    readDaemonPidIfAlive,
+    daemonsDirPath,
+    getProjectName,
     resolveDaemonCommandScope,
+    stopOneDaemon,
+    stopOneDaemonCliFailure,
+    stoppedDaemonCliMessage,
 } from '../../utils';
-
-const IDLE_STOP_WAIT_MS = 5000;
-const FORCE_STOP_WAIT_MS = 5000;
+import { commandFailure } from '../../utils/commandFailure';
+import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
+import { stopAllProjectDaemons } from './stopAllProjectDaemons';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -28,6 +29,10 @@ const inputSchema = z.object({
             .boolean()
             .optional()
             .describe('Force-stop the daemon and its child processes (SIGKILL / taskkill)'),
+        all: z
+            .boolean()
+            .optional()
+            .describe('Stop every start-daemon for this project, then the supervisor'),
     }),
     arguments: z.object({}),
 });
@@ -48,11 +53,43 @@ export interface Injections {
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
     const force = input.options.force === true;
+    const all = input.options.all === true;
     const logger = createCliLogger({
         verbose: !!input.options.verbose,
         json: !!input.options.json,
         prefix: '[lumpcode stop]',
     });
+
+    if (all && (input.options.daemonId?.trim() || input.options.lumpName?.trim())) {
+        return failure({
+            messages: ['Pass only one of --all and --daemonId.'],
+        });
+    }
+
+    if (all) {
+        const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
+        if (!validationResult.success) return commandFailure(validationResult.data);
+        const nameResult = await getProjectName({ localConfigFolderPath, projectRoot });
+        if (!nameResult.success) return commandFailure(nameResult.data);
+        const projectName = nameResult.data;
+        const stopAll = await stopAllProjectDaemons({
+            projectName,
+            daemonsDir: daemonsDirPath({ globalConfigFolderPath }),
+            globalConfigFolderPath,
+            force,
+            logger,
+        });
+        if (!stopAll.success) {
+            return failure({ messages: [stopAll.data] });
+        }
+        return success({
+            messages: [
+                stopAll.data.supervisorStopped
+                    ? `Stopped all Lumpcode daemons and the supervisor for "${projectName}".`
+                    : `Stopped all Lumpcode daemons for "${projectName}".`,
+            ],
+        });
+    }
 
     const scopeResult = await resolveDaemonCommandScope({
         projectRoot,
@@ -64,118 +101,39 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     });
     if (!scopeResult.success) return scopeResult;
     const { daemonId, scopeLabel, paths } = scopeResult.data;
-    const { pidFilePath, metaFilePath, projectName } = paths;
+    const { pidFilePath, metaFilePath, desiredFilePath, projectName } = paths;
 
-    const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
-    if (!pidAliveResult.success) {
-        return failure({ messages: [pidAliveResult.data] });
-    }
-    const pidAlive = pidAliveResult.data;
-    if (pidAlive === undefined) {
-        return failure({
-            messages: [
-                `No daemon PID file for project "${projectName}"${scopeLabel} at ${pidFilePath}. The daemon may not be running.`,
-            ],
-        });
-    }
-    if ('stale' in pidAlive) {
-        await fs.unlink(pidFilePath).catch(() => {});
-        await fs.unlink(metaFilePath).catch(() => {});
-        return failure({
-            messages: [`Invalid PID in ${pidFilePath}; removed stale file.`],
-        });
-    }
+    const waitMs = force ? DAEMON_FORCE_STOP_WAIT_MS : DAEMON_IDLE_STOP_WAIT_MS;
+    const stopped = await stopOneDaemon({
+        pidFilePath,
+        metaFilePath,
+        desiredFilePath,
+        force,
+        waitMs,
+        logger,
+    });
 
-    const pid = pidAlive.pid;
-    const unlinkArtifacts = async () => {
-        await fs.unlink(pidFilePath).catch(() => {});
-        await fs.unlink(metaFilePath).catch(() => {});
-    };
-
-    const waitMs = force ? FORCE_STOP_WAIT_MS : IDLE_STOP_WAIT_MS;
-    const waitSeconds = Math.round(waitMs / 1000);
-    const pollDead = () =>
-        pollUntil({
-            timeoutMs: waitMs,
-            intervalMs: 50,
-            poll: () => (!isProcessAlive(pid, { onProbeError: 'dead' }) ? true : undefined),
-        });
-
-    if (force) {
-        const killResult = await killProcessTree({ pid, graceMs: 0 });
-        if (!killResult.success) {
-            return failure({ messages: [killResult.data] });
-        }
-
-        if (await pollDead()) {
-            await unlinkArtifacts();
-            return success({
-                messages: [
-                    `Force-stopped Lumpcode daemon "${daemonId}" for "${projectName}"${scopeLabel} (was pid ${pid}).`,
-                ],
-            });
-        }
-
-        return failure({
-            messages: [
-                `Force-killed pid ${pid} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`,
-            ],
+    if (stopped.status !== 'stopped') {
+        return stopOneDaemonCliFailure(stopped, {
+            projectName,
+            daemonId,
+            scopeLabel,
+            pidFilePath,
+            metaFilePath,
+            force,
+            waitMs,
         });
     }
 
-    const metaResult = await readDaemonMeta(metaFilePath);
-    if (!metaResult.success) {
-        return failure({
-            messages: [
-                `Daemon meta is invalid (reason: ${metaResult.data.reason}) at ${metaFilePath} (pid ${pid}); ` +
-                    'refusing graceful stop. Run `lumpcode stop --force`.',
-            ],
-            data: {
-                code: 'daemonMetaCorrupt' as const,
-                reason: metaResult.data.reason,
-            },
-        });
-    }
-
-    if (isDaemonMidRun(metaResult.data)) {
-        return failure({
-            messages: [
-                'Daemon is busy running a lump (mid-run / in-flight); wait for it to finish or run `lumpcode stop --force`.',
-            ],
-            data: { code: 'daemonBusy' as const },
-        });
-    }
-
-    try {
-        process.kill(pid, 'SIGTERM');
-    } catch (e) {
-        const code = nodeErrnoCode(e);
-        if (code === 'ESRCH') {
-            await fs.unlink(pidFilePath).catch(() => {});
-            await fs.unlink(metaFilePath).catch(() => {});
-            return failure({
-                messages: [
-                    `Daemon process (pid ${pid}) was already gone; removed stale PID file at ${pidFilePath}.`,
-                ],
-            });
-        }
-        return failure({
-            messages: [`Could not signal daemon (pid ${pid}): ${String(e)}`],
-        });
-    }
-
-    if (await pollDead()) {
-        await unlinkArtifacts();
-        return success({
-            messages: [
-                `Stopped Lumpcode daemon "${daemonId}" for "${projectName}"${scopeLabel} (was pid ${pid}).`,
-            ],
-        });
-    }
-
-    return failure({
+    return success({
         messages: [
-            `Sent SIGTERM to pid ${pid} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`,
+            stoppedDaemonCliMessage({
+                force,
+                daemonId,
+                projectName,
+                scopeLabel,
+                pid: stopped.pid,
+            }),
         ],
     });
 };
@@ -184,6 +142,6 @@ export const command = {
     handlerMaker,
     name: 'stop',
     description:
-        'Stop a background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--daemonId` to select a daemon (default: global). Pass `--force` for immediate process-tree kill.',
+        'Stop a background Lumpcode daemon for this project (reads PID from ~/.lumpcode/daemons/). Pass `--daemonId` to select a daemon (default: global). Pass `--all` to stop every start-daemon then the supervisor. Pass `--force` for immediate process-tree kill.',
     inputSchema,
 } satisfies Command;

@@ -35,10 +35,9 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
     });
 
     it('X1: exact + glob union yields concrete scan set in stable order', async () => {
-        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue([
-            'feature/a',
-            'feature/b',
-        ]);
+        const listSpy = vi
+            .spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches')
+            .mockResolvedValue(success(['feature/a', 'feature/b']));
 
         const localConfig: LocalConfig = {
             mode: 'dedicated',
@@ -53,10 +52,15 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
         expect(result.data).toEqual(['main', 'feature/a', 'feature/b']);
+        expect(listSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ cwd: '/tmp/repo', branchGlob: 'feature/*', timeoutMillis: 300_000 }),
+        );
     });
 
     it('X2: exact entry kept even when missing on remote', async () => {
-        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue([]);
+        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
+            success([]),
+        );
 
         const localConfig: LocalConfig = {
             mode: 'dedicated',
@@ -74,7 +78,9 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
     });
 
     it('X3: empty glob logs and contributes nothing; other entries kept', async () => {
-        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue([]);
+        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
+            success([]),
+        );
         const logger = createLogger();
 
         const localConfig: LocalConfig = {
@@ -96,11 +102,9 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         ).toBeGreaterThan(0);
     });
 
-    it('X4: ls-remote / listRemoteHeadBranches failure returns Failure', async () => {
-        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockImplementation(
-            async () => {
-                throw new Error('ls-remote failed');
-            },
+    it('X4: ls-remote timeout returns Failure', async () => {
+        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
+            failure({ message: 'ls-remote timed out after 300000ms', reason: 'timeout' }),
         );
 
         const localConfig: LocalConfig = {
@@ -116,15 +120,37 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data).toMatch(/expand|ls-remote|feature\/\*|remote/i);
-        void failure;
-        void success;
+    });
+
+    it('X4b: non-timeout ls-remote failure skips the glob like an empty match', async () => {
+        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
+            failure({ message: 'git failed', reason: 'exit' }),
+        );
+        const logger = createLogger();
+
+        const localConfig: LocalConfig = {
+            mode: 'dedicated',
+            primaryBranches: ['main', 'feature/*'],
+        };
+        const result = await expandPrimaryBranches({
+            localConfig,
+            cwd: '/tmp/repo',
+            logger,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual(['main']);
+        expect(
+            (logger.info as ReturnType<typeof vi.fn>).mock.calls.length +
+                (logger.warn as ReturnType<typeof vi.fn>).mock.calls.length,
+        ).toBeGreaterThan(0);
     });
 
     it('X5: dedupes when glob also returns an exact entry', async () => {
-        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue([
-            'main',
-            'feature/a',
-        ]);
+        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
+            success(['main', 'feature/a']),
+        );
 
         const localConfig: LocalConfig = {
             mode: 'dedicated',
@@ -145,7 +171,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
     it('X6: shared mode does not expand globs for scan fan-out', async () => {
         const listSpy = vi
             .spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches')
-            .mockResolvedValue(['feature/a']);
+            .mockResolvedValue(success(['feature/a']));
 
         const localConfig: LocalConfig = {
             mode: 'shared',

@@ -67,7 +67,7 @@ interface DiscoveredRefs {
 }
 
 async function discoverByGlob(projectRoot: string, branchPattern: string): Promise<DiscoveredRefs> {
-    const [remoteBranches, localBranches] = await Promise.all([
+    const [remoteListed, localBranches] = await Promise.all([
         listRemoteHeadBranches({
             cwd: projectRoot,
             branchGlob: branchPattern,
@@ -75,7 +75,10 @@ async function discoverByGlob(projectRoot: string, branchPattern: string): Promi
         }),
         discoverLocalBranches(projectRoot, branchPattern),
     ]);
-    return { remoteBranches, localBranches };
+    return {
+        remoteBranches: remoteListed.success ? remoteListed.data : [],
+        localBranches,
+    };
 }
 
 async function discoverByContext(projectRoot: string, lumpName: string, contextName: string): Promise<DiscoveredRefs> {

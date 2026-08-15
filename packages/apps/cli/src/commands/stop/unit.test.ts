@@ -6,10 +6,12 @@ import { spawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     aliveDaemonSpawnFn,
+    removeDaemonMetaUntilGone,
     setDaemonTestGlobalConfigFolder,
     waitForDaemonPidFile,
+    writeDaemonMetaSticky,
 } from '../../testing';
-import { metaFilePathFromPidFilePath } from '../../utils/readDaemonMeta';
+import { daemonSchedulerFiles } from '../../utils/daemonSchedulerFiles';
 import { pollUntil } from '../../utils/pollUntil';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
@@ -19,8 +21,13 @@ describe('stop command', () => {
     let globalConfigFolderPath: string;
     let localConfigFolderPath: string;
     const projectName = 'stop-test-project';
-    const pidPath = () =>
-        path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+    const schedulerFiles = () =>
+        daemonSchedulerFiles({
+            daemonsDir: path.join(globalConfigFolderPath, 'daemons'),
+            projectName,
+            daemonId: 'global',
+        });
+    const pidPath = () => schedulerFiles().pidFilePath;
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-'));
         globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-global-'));
@@ -49,6 +56,7 @@ describe('stop command', () => {
             localConfigFolderPath,
             globalConfigFolderPath,
             spawnFn,
+            skipEnsureSupervisor: true,
         });
         const result = await handle({ options: {}, arguments: {} });
         expect(result.success).toBe(true);
@@ -87,6 +95,33 @@ describe('stop command', () => {
         }
     });
 
+    it('refuses --all together with --daemonId', async () => {
+        const result = await makeStopHandler()({
+            options: { all: true, daemonId: 'global' },
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/--all and --daemonId/);
+    });
+
+    it('stop --all stops a running daemon and removes desired.json', async () => {
+        await runStart(aliveDaemonSpawnFn);
+        await waitForDaemonPidFile(pidPath());
+        const desiredPath = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.global.daemon.desired.json`,
+        );
+        await expect(fs.access(desiredPath)).resolves.toBeUndefined();
+        const result = await makeStopHandler()({ options: { all: true }, arguments: {} });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/Stopped all Lumpcode daemons/);
+        await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+        await expect(fs.access(desiredPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
     describe('daemon stop mid-run', () => {
         const sigtermIgnorantScript = fileURLToPath(
             new URL('../../testing/sigtermIgnorantTreeChild.cjs', import.meta.url),
@@ -104,10 +139,10 @@ describe('stop command', () => {
             activeFixturePids.clear();
         });
 
-        const metaPath = () => metaFilePathFromPidFilePath(pidPath());
+        const metaPath = () => schedulerFiles().metaFilePath;
 
         async function writeBusyMeta(overrides: Record<string, unknown> = {}) {
-            await writeJsonFile({
+            await writeDaemonMetaSticky({
                 filePath: metaPath(),
                 data: {
                     cronSetup: '*/5 * * * *',
@@ -115,7 +150,6 @@ describe('stop command', () => {
                     busy: true,
                     ...overrides,
                 },
-                trailingNewline: true,
             });
         }
 
@@ -123,7 +157,7 @@ describe('stop command', () => {
             inFlightLumpCount: number,
             overrides: Record<string, unknown> = {},
         ) {
-            await writeJsonFile({
+            await writeDaemonMetaSticky({
                 filePath: metaPath(),
                 data: {
                     cronSetup: '*/5 * * * *',
@@ -131,7 +165,6 @@ describe('stop command', () => {
                     inFlightLumpCount,
                     ...overrides,
                 },
-                trailingNewline: true,
             });
         }
 
@@ -250,7 +283,7 @@ describe('stop command', () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
-            await fs.unlink(metaPath());
+            await removeDaemonMetaUntilGone(metaPath());
 
             const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
             expect(result.success).toBe(false);
@@ -266,7 +299,7 @@ describe('stop command', () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
-            await fs.unlink(metaPath());
+            await removeDaemonMetaUntilGone(metaPath());
 
             const result = await makeStopHandler()({
                 options: { force: true },
@@ -404,13 +437,13 @@ describe('stop command', () => {
             activeFixturePids.clear();
         });
 
-        const metaPath = () => metaFilePathFromPidFilePath(pidPath());
+        const metaPath = () => schedulerFiles().metaFilePath;
 
         async function writeInFlightMeta(
             inFlightLumpCount: number,
             overrides: Record<string, unknown> = {},
         ) {
-            await writeJsonFile({
+            await writeDaemonMetaSticky({
                 filePath: metaPath(),
                 data: {
                     cronSetup: '*/5 * * * *',
@@ -418,12 +451,11 @@ describe('stop command', () => {
                     inFlightLumpCount,
                     ...overrides,
                 },
-                trailingNewline: true,
             });
         }
 
         async function writeBusyMeta(overrides: Record<string, unknown> = {}) {
-            await writeJsonFile({
+            await writeDaemonMetaSticky({
                 filePath: metaPath(),
                 data: {
                     cronSetup: '*/5 * * * *',
@@ -431,7 +463,6 @@ describe('stop command', () => {
                     busy: true,
                     ...overrides,
                 },
-                trailingNewline: true,
             });
         }
 
@@ -558,18 +589,20 @@ describe('stop command', () => {
                 data: { projectName: lumpProjectName },
             });
 
-            const lumpPidPath = path.join(
-                globalConfigFolderPath,
-                'daemons',
-                `${lumpProjectName}.alpha.daemon.pid`,
-            );
-            const lumpMetaPath = metaFilePathFromPidFilePath(lumpPidPath);
+            const lumpFiles = daemonSchedulerFiles({
+                daemonsDir: path.join(globalConfigFolderPath, 'daemons'),
+                projectName: lumpProjectName,
+                daemonId: 'alpha',
+            });
+            const lumpPidPath = lumpFiles.pidFilePath;
+            const lumpMetaPath = lumpFiles.metaFilePath;
 
             const lumpStart = startCommand.handlerMaker({
                 projectRoot,
                 localConfigFolderPath,
                 globalConfigFolderPath,
                 spawnFn: aliveDaemonSpawnFn,
+                skipEnsureSupervisor: true,
             });
             const lumpStartResult = await lumpStart({
                 options: { lumpName: 'alpha' },
@@ -579,7 +612,7 @@ describe('stop command', () => {
             await waitForDaemonPidFile(lumpPidPath);
 
             const lumpPid = Number.parseInt((await fs.readFile(lumpPidPath, 'utf8')).trim(), 10);
-            await writeJsonFile({
+            await writeDaemonMetaSticky({
                 filePath: lumpMetaPath,
                 data: {
                     cronSetup: '*/5 * * * *',
@@ -587,7 +620,6 @@ describe('stop command', () => {
                     lumpName: 'alpha',
                     inFlightLumpCount: 1,
                 },
-                trailingNewline: true,
             });
 
             const result = await makeStopHandler()({

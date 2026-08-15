@@ -108,20 +108,7 @@ export async function readDaemonMeta(
 
     const data = validated.data;
     return success({
-        ...(data.daemonId !== undefined ? { daemonId: data.daemonId } : {}),
-        ...(data.cronSetup !== undefined ? { cronSetup: data.cronSetup } : {}),
-        ...(data.lumpName !== undefined ? { lumpName: data.lumpName } : {}),
-        ...(data.include !== undefined ? { include: data.include } : {}),
-        ...(data.exclude !== undefined ? { exclude: data.exclude } : {}),
-        ...(data.maxParallelRun !== undefined ? { maxParallelRun: data.maxParallelRun } : {}),
-        ...(data.busy !== undefined ? { busy: data.busy } : {}),
-        ...(data.inFlightLumpCount !== undefined
-            ? { inFlightLumpCount: data.inFlightLumpCount }
-            : {}),
+        ...data,
         workspaceStrategy: data.workspaceStrategy ?? 'checkout',
     });
-}
-
-export function metaFilePathFromPidFilePath(pidFilePath: string): string {
-    return pidFilePath.replace(/\.pid$/, '.meta.json');
 }

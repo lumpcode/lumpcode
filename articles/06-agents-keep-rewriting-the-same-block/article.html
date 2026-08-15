@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Agents keep rewriting the same block</title>
+  <style>
+    body {
+      max-width: 42rem;
+      margin: 2rem auto;
+      padding: 0 1.25rem 4rem;
+      font: 18px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #0f1419;
+    }
+    .meta {
+      margin: 0 0 1.5rem;
+      padding: 0.75rem 1rem;
+      background: #f7f9f9;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #536471;
+    }
+    .meta strong { color: #0f1419; }
+    .subtitle {
+      margin: 0 0 1.75rem;
+      font-size: 1.15rem;
+      color: #536471;
+    }
+    h2 {
+      margin: 1.75rem 0 0.75rem;
+      font-size: 1.35rem;
+      line-height: 1.3;
+    }
+    p { margin: 0 0 0.9rem; }
+    ol, ul {
+      margin: 0 0 0.9rem;
+      padding-left: 1.25rem;
+    }
+    li { margin: 0 0 0.45rem; }
+    a { color: #1d9bf0; }
+    code {
+      font: 0.9em/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+      background: #f7f9f9;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <p class="meta">
+    <strong>How to paste into X Articles</strong><br />
+    1. Title field: <em>Agents keep rewriting the same block</em><br />
+    2. Subtitle field (if present): <em>A scanner finds the copy-paste. A campaign ships the abstraction.</em><br />
+    3. Select from the subtitle (or from the first body paragraph) through the last paragraph — do not select this gray box.<br />
+    4. Copy, then paste into the X article body (Cmd/Ctrl+V). Paste as rich text, not plain text.<br />
+    5. After the DEV how-to is live, point the last setup sentence at that URL.<br />
+    Alternate: copy body from <a href="https://markdown2x.com/">markdown2x.com</a>.
+  </p>
+
+  <p class="subtitle">A scanner finds the copy-paste. A campaign ships the abstraction.</p>
+
+  <p>Coding agents are good at matching local style. Ask one to add a helper, and it will write it the way the file already does it. If that pattern already lives in three other modules, the agent often copies it instead of extracting it. The same twenty-line block shows up in a fourth place. Then a fifth.</p>
+
+  <p>A single chat can extract that, if someone has already spotted it, and the copies sit in a modest set of files. That is not the usual path.</p>
+
+  <p>The usual path is to ship the feature and never ask. Checking "did we just duplicate something?" after every session costs you time. The chat also has the wrong context: it is not reading a deterministic dupes report, it is guessing from the files it already had open. And if you extract on top of the change you came to ship, the PR does two jobs. The refactor rides along with the feature, and the review gets too big.</p>
+
+  <p>What you want is that extraction running in the background, all the time. That is a <strong>campaign</strong>, not a favor you remember to ask at the end of a session.</p>
+
+  <h2>1. Deterministic tools already see the repetition</h2>
+
+  <p>For JavaScript and TypeScript, <a href="https://github.com/fallow-rs/fallow">Fallow</a> (and tools like it) can emit a dupes report: same pattern, many sites. Other languages have their own scanners.</p>
+
+  <p>A report is the easy part. It does not name the util, does not write the plan, does not refactor the call sites, and does not open a reviewable PR.</p>
+
+  <h2>2. What was missing is the loop above the scanner</h2>
+
+  <p><strong>Git is the gate:</strong> one abstraction, one branch, one PR. The unit of trust is a change a human can hold in their head.</p>
+
+  <p><strong>Git is the source of truth:</strong> what landed lives in remote history. Merge three this week, leave the rest. What is left should come from the remote, not from a dashboard.</p>
+
+  <p>That is the job of a <strong>git-first loop manager</strong>. I am building one: Lumpcode. A <strong>lump</strong> is one campaign, described in the repo, worked through one isolated <strong>context</strong> at a time.</p>
+
+  <p>Vendor cloud agents already give you one task, one branch, one PR. Scanners already give you a list of smells. Lumpcode is the loop that turns the next smell into the next PR, for weeks, while you merge.</p>
+
+  <h2>3. Detect, propose, plan, implement</h2>
+
+  <p>The campaign I am running has four steps.</p>
+
+  <ol>
+    <li>A deterministic step writes a dupes report.</li>
+    <li>An agent reads the report and proposes <strong>exactly one</strong> abstraction: a name, the call sites, why net lines should go down.</li>
+    <li>That proposal lands in git as a plan (<code>requirements.md</code>), not as product code.</li>
+    <li>A second lump implements the plan, rewrites the call sites to use it, writes tests, and retries until the verification command is green. Then it pushes a small branch.</li>
+  </ol>
+
+  <p>The finder does not implement. The implementer does not hunt. You review the requirements PR first: the name, the scope, whether the util is real. Bad proposals die there, before anyone writes code. Merge the plan, then the implementation. Each tick is one slice. The next tick reads remote history and continues. The campaign is not supposed to finish.</p>
+
+  <p>The codebase gets smaller and better tested. One util replaces the copies, so net lines go down. Tests are written after the util exists and the call sites already use it, so the suite follows real usage and can infer edge cases from those sites instead of inventing a fake API. Coverage goes up: the shared path is tested on purpose, with tests those copies may not have had.</p>
+
+  <h2>4. Where I am running it</h2>
+
+  <p>At <strong>Keolis</strong>, a large French transportation company, this campaign is one of several lumps on the same codebase. Small PRs, retry until green, a cap on how many branches sit in review. It does not finish. A sibling lump normalizes utils that were never extracted. Same habit, different job.</p>
+
+  <p>The same pipeline is public in Lumpcode. Open <code>.lumpcode/lumps/abstractionFinder/</code> and <code>abstractionImplementer/</code> if you want to see how it is wired.</p>
+
+  <h2>5. Lumpcode</h2>
+
+  <p>Early development, Apache 2.0, on npm as <code>@lumpcode/cli</code>. Agents do not replace review. They feed it.</p>
+
+  <p>Repo: <a href="https://github.com/lumpcode/lumpcode">github.com/lumpcode/lumpcode</a></p>
+
+  <p>If you want to wire this in your own repo (scanner, two lumps, daemon), I wrote the setup as a how-to on DEV: <strong>Set up an abstraction campaign</strong>.</p>
+
+  <p>Follow along at <a href="https://x.com/ddyods">x.com/ddyods</a>.</p>
+</body>
+</html>

@@ -295,3 +295,94 @@
   blocked: >-
     parked: draft when ready (05 follow-up to 04-why-lumpcode)
   tags: [meta, git, status]
+- name: memory-pressure-run-gate
+  task: >-
+    Machine-level soft skip (same operator story as `tooManyOpenBranches`) that refuses to
+    start a lump/agent when host available memory is already near the edge. Goal: reduce
+    OOM / SIGKILL of dedicated-worker daemons on small VMs (motivating case: Azure
+    Standard_B2s 4 GB, several `--include` daemons plus Cursor agents). Soft skip only —
+    not a supervisor/respawn and not a wait (waiting for RAM would recreate the lock
+    convoy: cron `{ protect: true }` + a wait that never returns). Skip this attempt;
+    next cron tick retries. Same skip family as `tooManyOpenBranches` (`skipped: true` +
+    reason such as `memoryPressure`); tick continues so other lumps can still run if
+    memory recovers. Check immediately before a lump actually runs — same layer as
+    `evaluateTooManyOpenBranchesSkip` in `runLumpFromJsConfig`, or one step later right
+    before `execBinary` starts the agent. A check only at the start of `runTick` is
+    wrong (discovery/lock-wait are cheap; three daemons can all see enough RAM then each
+    start Cursor). Metric: available memory (`MemAvailable` on Linux; cgroup
+    `memory.current` vs `memory.max` if the daemon is in a unit), not `MemFree`
+    (cache-heavy git boxes look full on MemFree). Config in `.lumpcode/local.json` next
+    to `maxParallelRun` (machine limit, not lump config); threshold as a percent or a
+    floor (“leave N GB”). Does not cap a child already running — an agent can pass the
+    gate at 1.2 GB free and then grow to 3 GB; gate only refuses to start another heavy
+    process. A single `os.freemem()` read does not reserve RAM; cross-daemon reservation
+    (shared claim under `~/.lumpcode/`, or skip if another project daemon’s
+    `inFlightLumpCount` > 0 and available < threshold) is optional later design, not
+    required for a first gate. On `checkout`, multiple daemons on one clone already
+    serialize on the workspace path lock (usually one agent at a time); the gate still
+    matters for `worktree` + `maxParallelRun` and for something else on the box already
+    eating RAM. Leak-free daemon RSS is not enough: OOM is peak working set (agent child
+    + git + OS) vs 4 GB. This is a launch gate, not a leak hunt and not “make 4 GB safe
+    for one large agent.” After daemon-run hardening (lock wait 15 min, discovery git
+    5 min, SIGHUP ignore, fatal JS log+exit), remaining silent deaths are
+    SIGKILL/OOM/host. Non-goals: no systemd supervisor; no new start/stop CLI flags
+    unless `local.json` needs a field; no default change of checkout→worktree; no
+    waiting-for-RAM; no attempt to kill/limit an in-flight agent. Touch: primarily
+    `packages/apps/cli` (`local.json`, `runLumpFromJsConfig` /
+    `evaluateTooManyOpenBranchesSkip` layer).
+  blocked: >-
+    parked: later product work (not current daemon-harden PR)
+  tags: [daemon, workspace, config]
+- name: supervise-systemd-install
+  task: >-
+    Optional later CLI (e.g. `lumpcode supervise-install`) that writes a systemd unit for the
+    per-project Lumpcode supervise process only (`Restart=always`,
+    `ExecStart=lumpcode supervise --projectRoot <abs> --foreground`). Machine/distro-specific
+    (user vs system unit, `User=`, paths). Not PM2 and not lump daemons under systemd — only
+    the small supervise reconciler. After start-daemon supervisor v1 (docs-only example unit;
+    operators or cloud-init copy it; `lumpcode start` still starts supervise if it is down,
+    including macOS/Windows with no unit). Ship this CLI only if docs-only is painful.
+  blocked: >-
+    parked: after start-daemon supervisor v1 (docs-only systemd first)
+  tags: [daemon, cli]
+- name: daemon-meta-desired-dedup
+  task: >-
+    Shrink `.daemon.meta.json` so it no longer duplicates recipe/identity fields already on
+    `.daemon.desired.json`. Today `DaemonMeta` / `DaemonMetaWrite` and `StartDaemonDesired` share
+    `daemonId`, `cronSetup`, `include`, `exclude`, `maxParallelRun` (written from the same
+    `StartDaemonRecipe` via `toDesired` + `toMetaWrite` at start) but that is not an invariant:
+    operators can edit desired while the pid is up (supervise does not restart a live id on
+    desired content change) and can also edit the meta file, so copies drift. Desired is the
+    only recipe source of truth (`projectRoot`, `stopping`, include/exclude/cron/maxParallelRun).
+    Meta becomes a live process overlay (`inFlightLumpCount`, maybe observed `workspaceStrategy`
+    if that still cannot live on desired; drop identity fields and deprecated `lumpName` /
+    `busy` from the write path). Consequences: `daemon-status` / `listRunningProjectDaemons`
+    must join desired + meta instead of answering identity from meta alone; `fromMeta`
+    (`startDaemonDesired`) and supervise `adoptRunningDaemon` (live pid, no desired.json, copy
+    recipe from meta) go away or become a one-time migration — pre-desired pid+meta would have
+    no recipe once identity is stripped from meta; restart is desired-only (already fail-closed
+    when both missing); `createInFlightMetaUpdater` in `launchStartDaemon/runForeground.ts`
+    writes only the live overlay instead of rewriting `baseMeta + inFlightLumpCount`. Types:
+    `readDaemonMeta/main.ts`, `startDaemonDesired/main.ts`. Docs: `packages/apps/cli/DOCS/commands.md`
+    and `concepts.md` daemon files table. Out of scope for the current daemon-lifecycle PR
+    (`feat/better-concurrency-error-logs`).
+  blocked: >-
+    parked: after the current daemon-lifecycle PR (feat/better-concurrency-error-logs)
+  tags: [daemon, cli, hygiene]
+- name: lock-holder-daemon-id
+  task: >-
+    Put optional `daemonId` on the workspace/git-common-dir lock payload and print it in
+    `formatHolderClause` (busy / wait / timeout copy). Locks remain per lump run (`lumpName` +
+    pid); `daemonId` is extra operator context when the holder is a daemon tick or dedicated
+    discovery (`lumpName: '__discovery__'` / `DISCOVERY_SCAN_LOCK_HOLDER`). Thread optional
+    `daemonId` from `acquireWorkspaceFileLock` through `workspacePathLock` / `gitCommonDirLock`
+    and the daemon/discovery acquire sites (`withWorkspaceLockHooks`,
+    `preflightDiscoveryBranchWithLock` / `discoverDedicatedLumpsForScanBranch`, daemon tick
+    `runLumpFromLumpName`). Manual `lumpcode run` omits it (no daemon id). Also surface
+    `holderDaemonId` on the busy error type (`WorkspaceFileBusyError` already has `holderPid` /
+    `holderLumpName`). Today `formatHolderClause` in
+    `packages/apps/cli/src/utils/workspaceFileLock/main.ts` can only print pid + lumpName because
+    those are the only identity fields written into the lock JSON.
+  blocked: >-
+    parked: after the current daemon-lifecycle PR (feat/better-concurrency-error-logs)
+  tags: [daemon, cli, hygiene]

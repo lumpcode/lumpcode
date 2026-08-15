@@ -8,12 +8,20 @@ import {
     aliveDaemonSpawnFn,
     setDaemonTestGlobalConfigFolder,
     waitForDaemonPidFile,
+    waitForDaemonMetaFile,
     writeLocalJson,
     writeMinimalLump,
 } from '../../../testing';
 import { command as stopCommand } from '../../stop/main';
 import { command } from '../main';
-import { execGit, initLocalGitRepo, resolveDaemonPaths, writeJsonFile } from '../../../utils';
+import {
+    daemonSchedulerFiles,
+    daemonsDirPath,
+    execGit,
+    initLocalGitRepo,
+    resolveDaemonPaths,
+    writeJsonFile,
+} from '../../../utils';
 
 export type StartTestProject = {
     projectRoot: string;
@@ -102,6 +110,7 @@ export function makeStartHandler(
         localConfigFolderPath:
             deps.localConfigFolderPath ?? localConfigFolderPath(deps.projectRoot),
         globalConfigFolderPath: deps.globalConfigFolderPath,
+        skipEnsureSupervisor: true,
         ...overrides,
     });
 }
@@ -142,6 +151,7 @@ export async function runDetachedStart(
         throw new Error(pathsResult.data);
     }
     await waitForDaemonPidFile(pathsResult.data.pidFilePath);
+    await waitForDaemonMetaFile(pathsResult.data.metaFilePath);
 }
 
 export async function stopDaemon(
@@ -168,7 +178,11 @@ export function daemonMetaPath(
     projectName: string,
     daemonId = 'global',
 ): string {
-    return path.join(globalConfigFolderPath, 'daemons', `${projectName}.${daemonId}.daemon.meta.json`);
+    return daemonSchedulerFiles({
+        daemonsDir: daemonsDirPath({ globalConfigFolderPath }),
+        projectName,
+        daemonId,
+    }).metaFilePath;
 }
 
 export async function writeCommittedLumps(

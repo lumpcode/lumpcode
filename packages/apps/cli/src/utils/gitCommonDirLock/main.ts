@@ -47,6 +47,8 @@ export type GitCommonDirLockContext = {
     lockMode: GitCommonDirLockMode;
     projectName?: string;
     logger?: Logger;
+    waitTimeoutMs?: number;
+    waitLogIntervalMs?: number;
 };
 
 export function gitCommonDirLocksDirPath(input: { globalConfigFolderPath: string }): string {
@@ -98,6 +100,8 @@ export async function acquireGitCommonDirLock(
         mode: input.lockMode,
         projectName: input.projectName,
         logger: input.logger,
+        waitTimeoutMs: input.waitTimeoutMs,
+        waitLogIntervalMs: input.waitLogIntervalMs,
     });
 }
 

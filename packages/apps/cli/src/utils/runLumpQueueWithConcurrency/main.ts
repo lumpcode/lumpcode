@@ -4,10 +4,7 @@ export type RunLumpQueueItem = {
 };
 
 export type RunLumpQueueWithConcurrencyInput = {
-    /** Preferred queue entries (supports same lumpName on multiple discovery lines). */
-    items?: RunLumpQueueItem[];
-    /** Legacy: lump names only (no per-item discovery). Ignored when `items` is set. */
-    lumpNames?: string[];
+    items: RunLumpQueueItem[];
     concurrency: number;
     runOneLump: (input: {
         lumpName: string;
@@ -23,10 +20,7 @@ export type RunLumpQueueWithConcurrencyInput = {
 export async function runLumpQueueWithConcurrency(
     input: RunLumpQueueWithConcurrencyInput,
 ): Promise<void> {
-    const { runOneLump } = input;
-    const items: RunLumpQueueItem[] =
-        input.items ??
-        (input.lumpNames ?? []).map((lumpName) => ({ lumpName }));
+    const { runOneLump, items } = input;
 
     if (items.length === 0) {
         return;

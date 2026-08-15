@@ -79,6 +79,11 @@ export async function main() {
                 localConfigFolderPath,
                 globalConfigFolderPath,
             },
+            supervise: {
+                projectRoot: process.cwd(),
+                localConfigFolderPath,
+                globalConfigFolderPath,
+            },
             stop: {
                 projectRoot: process.cwd(),
                 localConfigFolderPath,

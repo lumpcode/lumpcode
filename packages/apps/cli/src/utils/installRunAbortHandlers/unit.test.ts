@@ -23,6 +23,44 @@ function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function waitForWatchdogReady(watchdog: ChildProcess): Promise<void> {
+    const stdout = watchdog.stdout;
+    if (!stdout) {
+        throw new Error('watchdog stdout is not piped');
+    }
+    await new Promise<void>((resolve, reject) => {
+        const timer = setTimeout(() => {
+            cleanup();
+            reject(new Error('watchdog did not become ready'));
+        }, 5000);
+        let buf = '';
+        const onData = (chunk: Buffer | string) => {
+            buf += String(chunk);
+            if (buf.includes('ready')) {
+                cleanup();
+                resolve();
+            }
+        };
+        const onError = (error: Error) => {
+            cleanup();
+            reject(error);
+        };
+        const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+            cleanup();
+            reject(new Error(`watchdog exited before ready: ${String(code)} ${String(signal)}`));
+        };
+        const cleanup = () => {
+            clearTimeout(timer);
+            stdout.off('data', onData);
+            watchdog.off('error', onError);
+            watchdog.off('exit', onExit);
+        };
+        stdout.on('data', onData);
+        watchdog.once('error', onError);
+        watchdog.once('exit', onExit);
+    });
+}
+
 /** IDE/`@types/node` can fail to see ChildProcess as an EventEmitter; cast at the boundary. */
 function childEmitter(child: ChildProcess): NodeJS.EventEmitter {
     return child as unknown as NodeJS.EventEmitter;
@@ -172,13 +210,12 @@ describe('run-abort watchdog', () => {
             nodeExecutable,
             ['-e', RUN_ABORT_WATCHDOG_SOURCE, String(victimPid), String(graceMs)],
             {
-                stdio: ['pipe', 'ignore', 'ignore'],
+                stdio: ['pipe', 'pipe', 'ignore'],
                 windowsHide: true,
             },
         );
 
-        // Let the watchdog register signal handlers before delivering SIGINT.
-        await sleep(100);
+        await waitForWatchdogReady(watchdog);
         process.kill(watchdog.pid!, 'SIGINT');
 
         let signal: NodeJS.Signals | null;
@@ -224,7 +261,7 @@ describe('run-abort watchdog', () => {
             nodeExecutable,
             ['-e', RUN_ABORT_WATCHDOG_SOURCE, String(targetPid), String(graceMs)],
             {
-                stdio: ['pipe', 'ignore', 'ignore'],
+                stdio: ['pipe', 'pipe', 'ignore'],
                 windowsHide: true,
             },
         );
@@ -234,7 +271,7 @@ describe('run-abort watchdog', () => {
             timeoutMessage: 'watchdog did not exit after stdin end',
         });
 
-        await sleep(100);
+        await waitForWatchdogReady(watchdog);
         process.kill(watchdog.pid!, 'SIGINT');
         await sleep(50);
         watchdog.stdin!.end();

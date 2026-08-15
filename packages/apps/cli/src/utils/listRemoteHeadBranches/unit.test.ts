@@ -34,16 +34,72 @@ describe('listRemoteHeadBranches', () => {
             }),
         );
 
-        const branches = await listRemoteHeadBranches({
+        const listed = await listRemoteHeadBranches({
             cwd: '/tmp/repo',
             branchGlob: 'lump/my-lump/*',
         });
 
-        expect(branches).toEqual(['lump/my-lump/ctx-a', 'lump/my-lump/ctx-b']);
+        expect(listed).toEqual(success(['lump/my-lump/ctx-a', 'lump/my-lump/ctx-b']));
         expect(execAsyncMock).toHaveBeenCalledWith(
             expect.stringContaining("git ls-remote --heads origin"),
             { cwd: '/tmp/repo' },
         );
+    });
+
+    it('forwards timeoutMillis to execAsync', async () => {
+        execAsyncMock.mockResolvedValue(success({ stdout: '', stderr: '' }));
+
+        await listRemoteHeadBranches({
+            cwd: '/tmp/repo',
+            branchGlob: 'feature/*',
+            timeoutMillis: 300_000,
+        });
+
+        expect(execAsyncMock).toHaveBeenCalledWith(expect.stringContaining('git ls-remote --heads origin'), {
+            cwd: '/tmp/repo',
+            timeoutMillis: 300_000,
+        });
+    });
+
+    it('returns a timeout Failure when execAsync reports reason timeout', async () => {
+        execAsyncMock.mockResolvedValue(
+            failure({
+                message: 'Command git ls-remote timed out after 300000ms',
+                reason: 'timeout',
+                info: { command: 'git ls-remote', stdout: '', stderr: '' },
+            }),
+        );
+
+        const listed = await listRemoteHeadBranches({
+            cwd: '/tmp/repo',
+            branchGlob: 'feature/*',
+            timeoutMillis: 300_000,
+        });
+
+        expect(listed).toEqual(
+            failure({
+                message: 'Command git ls-remote timed out after 300000ms',
+                reason: 'timeout',
+            }),
+        );
+    });
+
+    it('returns Failure with reason exit on non-timeout exec failure', async () => {
+        execAsyncMock.mockResolvedValue(
+            failure({
+                message: 'git failed',
+                reason: 'exit',
+                info: { command: 'git ls-remote', stdout: '', stderr: 'git failed' },
+            }),
+        );
+
+        const listed = await listRemoteHeadBranches({
+            cwd: '/tmp/repo',
+            branchGlob: 'feature/*',
+            timeoutMillis: 300_000,
+        });
+
+        expect(listed).toEqual(failure({ message: 'git failed', reason: 'exit' }));
     });
 
     it('applies postFilterBranchShortName and skips non-matching refs', async () => {
@@ -57,13 +113,13 @@ describe('listRemoteHeadBranches', () => {
             }),
         );
 
-        const branches = await listRemoteHeadBranches({
+        const listed = await listRemoteHeadBranches({
             cwd: '/tmp/repo',
             branchGlob: 'lump/*',
             postFilterBranchShortName: (shortName) => shortName.startsWith('lump/my-lump/'),
         });
 
-        expect(branches).toEqual(['lump/my-lump/ctx-a']);
+        expect(listed).toEqual(success(['lump/my-lump/ctx-a']));
     });
 
     it('dedupes repeated branch names while preserving order', async () => {
@@ -77,28 +133,29 @@ describe('listRemoteHeadBranches', () => {
             }),
         );
 
-        const branches = await listRemoteHeadBranches({
+        const listed = await listRemoteHeadBranches({
             cwd: '/tmp/repo',
             branchGlob: 'lump/my-lump/*',
         });
 
-        expect(branches).toEqual(['lump/my-lump/ctx-a', 'lump/my-lump/ctx-b']);
+        expect(listed).toEqual(success(['lump/my-lump/ctx-a', 'lump/my-lump/ctx-b']));
     });
 
-    it('returns [] when execAsync reports failure', async () => {
+    it('returns Failure when execAsync reports failure', async () => {
         execAsyncMock.mockResolvedValue(
             failure({
                 message: 'git failed',
+                reason: 'exit',
                 info: { command: 'git ls-remote', stdout: '', stderr: 'git failed' },
             }),
         );
 
-        const branches = await listRemoteHeadBranches({
+        const listed = await listRemoteHeadBranches({
             cwd: '/tmp/repo',
             branchGlob: 'lump/my-lump/*',
         });
 
-        expect(branches).toEqual([]);
+        expect(listed).toEqual(failure({ message: 'git failed', reason: 'exit' }));
     });
 
     it('ignores lines with fewer than two whitespace-separated fields', async () => {
@@ -113,11 +170,11 @@ describe('listRemoteHeadBranches', () => {
             }),
         );
 
-        const branches = await listRemoteHeadBranches({
+        const listed = await listRemoteHeadBranches({
             cwd: '/tmp/repo',
             branchGlob: 'lump/my-lump/*',
         });
 
-        expect(branches).toEqual(['lump/my-lump/ctx-a', 'lump/my-lump/ctx-b']);
+        expect(listed).toEqual(success(['lump/my-lump/ctx-a', 'lump/my-lump/ctx-b']));
     });
 });
