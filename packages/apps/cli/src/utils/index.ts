@@ -38,6 +38,7 @@ export * from './getJsConfigFromLumpName';
 export * from './getProjectName';
 export * from './gitCommitAllAndPush';
 export * from './gitCommonDirLock';
+export * from './initBareRemoteAndCheckout';
 export * from './initLocalGitRepo';
 export * from './installDaemonProcessGuards';
 export * from './installProcessShutdown';

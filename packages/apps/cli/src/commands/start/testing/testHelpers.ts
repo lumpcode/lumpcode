@@ -14,14 +14,7 @@ import {
 } from '../../../testing';
 import { command as stopCommand } from '../../stop/main';
 import { command } from '../main';
-import {
-    daemonSchedulerFiles,
-    daemonsDirPath,
-    execGit,
-    initLocalGitRepo,
-    resolveDaemonPaths,
-    writeJsonFile,
-} from '../../../utils';
+import { execGit, initBareRemoteAndCheckout, resolveDaemonPaths, writeJsonFile, daemonSchedulerFiles, daemonsDirPath } from '../../../utils';
 
 export type StartTestProject = {
     projectRoot: string;
@@ -85,10 +78,7 @@ export async function setupStartTestRepo(options: {
     const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), `${tmpPrefix}-remote-`));
     const globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), `${tmpPrefix}-global-`));
     setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-    execGit('init --bare', remoteDir);
-    initLocalGitRepo({ cwd: projectRoot });
-    execGit(`remote add origin ${remoteDir}`, projectRoot);
-    execGit('push -u origin main', projectRoot);
+    initBareRemoteAndCheckout({ projectRoot, remoteDir });
     await fs.mkdir(path.join(projectRoot, '.lumpcode', 'lumps'), { recursive: true });
     await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
     await writeDefaultProjectJson(projectRoot, projectName ?? 'start-test-project');

@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing/tsLumpFixtures';
 import { planLumpFromJsConfig } from './main';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { writeJsonFile } from '../writeJsonFile';
 
 const FIXTURES_GLOBAL = path.resolve(__dirname, '../jsConfigToRunLumpInput/__fixtures__/global-config');
@@ -23,18 +23,20 @@ const LUMP_CONFIG_JS = `export default {
 
 describe('planLumpFromJsConfig', () => {
     let projectRoot: string;
+    let remoteDir: string;
     let localConfigFolderPath: string;
     let globalConfigFolderPath: string;
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-util-'));
+        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-util-remote-'));
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         globalConfigFolderPath = FIXTURES_GLOBAL;
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'preview-lump'), { recursive: true });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'preview-project' } });
 
-        initLocalGitRepo({ cwd: projectRoot });
+        initBareRemoteAndCheckout({ projectRoot, remoteDir });
 
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
@@ -45,6 +47,7 @@ describe('planLumpFromJsConfig', () => {
 
     afterEach(async () => {
         await fs.rm(projectRoot, { recursive: true, force: true });
+        await fs.rm(remoteDir, { recursive: true, force: true });
     });
 
     it('validate depth returns valid without contexts', async () => {
@@ -289,47 +292,38 @@ describe('planLumpFromJsConfig', () => {
         });
 
         it('C4: plan reports tooManyOpenBranches when cap inherited from project', async () => {
-            const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-cap-remote-'));
-            try {
-                execGit('init --bare', remoteDir);
-                execGit(`remote add origin ${remoteDir}`, projectRoot);
-                execGit('push -u origin main', projectRoot);
+            const makeOpen = (ctx: string) => {
+                const branch = `lump/preview-lump/${ctx}`;
+                execGit('checkout main', projectRoot);
+                execGit(`checkout -b ${branch}`, projectRoot);
+                execGit('commit --allow-empty -m "lump work"', projectRoot);
+                execGit(`push origin ${branch}`, projectRoot);
+                execGit('checkout main', projectRoot);
+            };
+            makeOpen('ctx-a');
+            makeOpen('ctx-b');
 
-                const makeOpen = (ctx: string) => {
-                    const branch = `lump/preview-lump/${ctx}`;
-                    execGit('checkout main', projectRoot);
-                    execGit(`checkout -b ${branch}`, projectRoot);
-                    execGit('commit --allow-empty -m "lump work"', projectRoot);
-                    execGit(`push origin ${branch}`, projectRoot);
-                    execGit('checkout main', projectRoot);
-                };
-                makeOpen('ctx-a');
-                makeOpen('ctx-b');
-
-                await writeJsonFile({
-                    filePath: path.join(localConfigFolderPath, 'project.json'),
-                    data: {
-                        projectName: 'preview-project',
-                        maximumNumberOfConcurrentBranches: 2,
-                    },
-                });
-
-                const result = await planLumpFromJsConfig({
-                    lumpName: 'preview-lump',
-                    localConfigFolderPath,
-                    globalConfigFolderPath,
-                    projectRoot,
-                    depth: 'plan',
-                });
-                expect(result.success).toBe(true);
-                if (!result.success) throw new Error('unreachable');
-                expect(result.data.plan?.skipped).toMatchObject({
-                    reason: 'tooManyOpenBranches',
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
+                    projectName: 'preview-project',
                     maximumNumberOfConcurrentBranches: 2,
-                });
-            } finally {
-                await fs.rm(remoteDir, { recursive: true, force: true });
-            }
+                },
+            });
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.plan?.skipped).toMatchObject({
+                reason: 'tooManyOpenBranches',
+                maximumNumberOfConcurrentBranches: 2,
+            });
         });
     });
 });

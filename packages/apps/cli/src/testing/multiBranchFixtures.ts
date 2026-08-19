@@ -8,7 +8,7 @@ import {
     appendMissingGitignoreLines,
     execGit,
     gitCommitAllAndPush,
-    initLocalGitRepo,
+    initBareRemoteAndCheckout as initBareRemoteAndCheckoutUtil,
     MINIMAL_RUNNABLE_LUMP_CONFIG,
     writeJsonFile,
     writeLumpConfigJson,
@@ -28,12 +28,10 @@ export type MultiBranchLumpSpec = {
     configOverrides?: Record<string, unknown>;
 };
 
+/** Positional testing re-export; delegates git bootstrap to the util. */
 export function initBareRemoteAndCheckout(projectRoot: string, remoteDir: string): void {
-    execGit('init --bare', remoteDir);
-    initLocalGitRepo({ cwd: projectRoot });
-    execGit(`remote add origin ${remoteDir}`, projectRoot);
-    execGit('push -u origin main', projectRoot);
-    // Mirror project-setup: keep machine-local config out of integration-branch commits.
+    initBareRemoteAndCheckoutUtil({ projectRoot, remoteDir });
+    // Keep machine-local config out of commits for callers that skip writeLocalJson.
     const gitignorePath = path.join(projectRoot, '.gitignore');
     try {
         const existing = fsSync.readFileSync(gitignorePath, 'utf-8');
