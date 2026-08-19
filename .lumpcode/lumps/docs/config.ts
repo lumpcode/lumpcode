@@ -98,6 +98,7 @@ export default backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetS
     command: 'cursor',
     registerCommands: ['cursor'],
     maximumNumberOfConcurrentBranches: 2,
+    disabled: true,
     verbose: true,
     keepHistory: true,
     lumpVariables: { model: 'cursor-grok-4.5-high-fast' },

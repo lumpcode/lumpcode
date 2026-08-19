@@ -1,29 +1,22 @@
-import * as path from 'node:path';
-import * as os from 'node:os';
-import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { countOpenLumpBranches } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 
 describe('countOpenLumpBranches', () => {
     let projectRoot: string;
     let remoteDir: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-count-branches-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-count-branches-remote-'));
-        execGit('init --bare', remoteDir);
-        initLocalGitRepo({ cwd: projectRoot });
-        execGit(`remote add origin ${remoteDir}`, projectRoot);
-        execGit('push -u origin main', projectRoot);
+        ({ projectRoot, remoteDir } = await createTempTestDirs({ prefix: 'lump-count-branches-', global: false }));
+        initBareRemoteAndCheckout({ projectRoot, remoteDir });
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir });
     });
 
     function createAndPushLumpBranch(lumpName: string, contextName: string) {

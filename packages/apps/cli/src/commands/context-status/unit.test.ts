@@ -1,11 +1,10 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import { command } from './main';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
-import { execGit, initLocalGitRepo } from '../../utils';
+import { initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('context-status command', () => {
@@ -14,21 +13,12 @@ describe('context-status command', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-context-status-'));
-        bareDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-context-status-bare-'));
-
-        execGit('init --bare', bareDir);
-        initLocalGitRepo({ cwd: projectRoot });
-        execGit(`remote add origin ${bareDir}`, projectRoot);
-        execGit('push -u origin main', projectRoot);
-
-        await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir: bareDir, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-context-status-', global: false }));
+        initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
     }, 60_000);
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(bareDir, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir: bareDir });
     }, 60_000);
 
     async function writeLump(lumpName: string, contextKey: string) {

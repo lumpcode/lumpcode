@@ -16,37 +16,37 @@ describe('readDaemonPidIfAlive', () => {
         await fs.rm(dir, { recursive: true, force: true });
     });
 
-    it('returns success(undefined) when the PID file is missing', async () => {
+    it('returns missing when the PID file is absent', async () => {
         const result = await readDaemonPidIfAlive(path.join(dir, 'missing.pid'));
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data).toBeUndefined();
+        expect(result.data).toEqual({ status: 'missing' });
     });
 
-    it('returns success({ stale: true }) when the PID file is not a number', async () => {
+    it('returns stale when the PID file is not a number', async () => {
         const pidPath = path.join(dir, 'bad.pid');
         await fs.writeFile(pidPath, 'not-a-pid', 'utf8');
         const result = await readDaemonPidIfAlive(pidPath);
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data).toEqual({ stale: true });
+        expect(result.data).toEqual({ status: 'stale' });
     });
 
-    it('returns success({ pid }) for the current process', async () => {
+    it('returns alive for the current process', async () => {
         const pidPath = path.join(dir, 'alive.pid');
         await fs.writeFile(pidPath, String(process.pid), 'utf8');
         const result = await readDaemonPidIfAlive(pidPath);
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data).toEqual({ pid: process.pid });
+        expect(result.data).toEqual({ status: 'alive', pid: process.pid });
     });
 
-    it('returns success({ stale: true }) when the process does not exist', async () => {
+    it('returns stale when the process does not exist', async () => {
         const pidPath = path.join(dir, 'gone.pid');
         await fs.writeFile(pidPath, '999999999', 'utf8');
         const result = await readDaemonPidIfAlive(pidPath);
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data).toEqual({ stale: true });
+        expect(result.data).toEqual({ status: 'stale' });
     });
 });

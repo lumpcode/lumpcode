@@ -29,6 +29,12 @@ export {
     Injections as StartInjections,
 } from './start';
 export {
+    command as supervise,
+    Input as SuperviseInput,
+    Output as SuperviseOutput,
+    Injections as SuperviseInjections,
+} from './supervise';
+export {
     command as daemonStatus,
     Input as DaemonStatusInput,
     Output as DaemonStatusOutput,

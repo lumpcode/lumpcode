@@ -10,7 +10,7 @@ This page documents every `lumpcode` subcommand and its options.
 
 **[Run](#ref-section-run)** — [`lumpcode run`](#ref-cmd-run) · [`lumpcode lump-plan`](#ref-cmd-lump-plan)
 
-**[Daemon](#ref-daemon)** — [`lumpcode start`](#ref-cmd-start) · [`lumpcode stop`](#ref-cmd-stop) · [`lumpcode restart`](#ref-cmd-restart) · [`lumpcode daemon-status`](#ref-cmd-daemon-status) · [`lumpcode daemon-log`](#ref-cmd-daemon-log)
+**[Daemon](#ref-daemon)** — [`lumpcode start`](#ref-cmd-start) · [`lumpcode stop`](#ref-cmd-stop) · [`lumpcode restart`](#ref-cmd-restart) · [`lumpcode supervise`](#ref-cmd-supervise) · [`lumpcode daemon-status`](#ref-cmd-daemon-status) · [`lumpcode daemon-log`](#ref-cmd-daemon-log)
 
 **[Status & cleanup](#ref-status-cleanup)** — [`lumpcode lump-status`](#ref-cmd-lump-status) · [`lumpcode context-status`](#ref-cmd-context-status) · [`lumpcode clean`](#ref-cmd-clean) · [`lumpcode reset-presets`](#ref-cmd-reset-presets)
 
@@ -271,9 +271,11 @@ With **`--json`**, all the logs even the ones of the deamon will be with json ou
 
 **Daemon files** under `~/.lumpcode/daemons/`:
 
-| Scope | PID / log / meta |
-| ----- | ---------------- |
-| Any daemon | `<projectName>.<daemonId>.daemon.pid`, `.daemon.log`, `.daemon.meta.json` |
+| Scope | Files |
+| ----- | ----- |
+| Any daemon | `<projectName>.<daemonId>.daemon.pid`, `.daemon.log`, `.daemon.meta.json`, `.daemon.desired.json` |
+
+The per-project **supervisor** lives under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.log`, `.meta.json`). It is not a daemon id.
 
 Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `workspaceStrategy`, optional `include` / `exclude` / `maxParallelRun`, and `inFlightLumpCount`.
 
@@ -285,14 +287,17 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 **Detached mode (default):**
 
 - Ensures `~/.lumpcode/daemons/` exists.
+- Writes `<project>.<id>.daemon.desired.json` (spawn recipe; no `--json` / `--verbose`) **before** spawn.
+- Starts the per-project supervisor if it is not running (`lumpcode supervise --foreground`).
 - Applies the collision rules above.
 - Re-launches itself with `--foreground --cronSetup <expr> --daemonId <id>` (and include/exclude/maxParallelRun when set) and detaches, redirecting stdio to the log file.
-- Writes PID + meta for `restart` and `daemon-status`.
+- The detached parent writes the PID file with the child pid; the foreground child writes meta.
 
 **Foreground mode:**
 
-- Validates cron, runs an immediate tick, then schedules ticks on the same cron.
-- On SIGINT/SIGTERM, stops the scheduler and removes PID/meta if they belong to this process.
+- Validates cron, writes desired + PID + meta, runs an immediate tick, then schedules ticks on the same cron.
+- On SIGINT/SIGTERM, marks desired `stopping` so the supervisor does not respawn, stops the scheduler, and removes PID/meta/desired if they belong to this process.
+- If the supervisor dies, the daemon finishes in-flight work then exits without clearing desired, so a restarted supervisor can relaunch it.
 
 **Fails if:** Invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
 
@@ -310,17 +315,20 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 | ------------ | ------- | -------- | ------------------------------------------------ |
 | `--daemonId` | string  | No       | Stop this daemon id (default: `global`)          |
 | `--lumpName` | string  | No       | **Deprecated.** Treated as `--daemonId`          |
+| `--all`      | flag    | No       | Stop every start-daemon for this project, then the supervisor |
 | `--force`    | boolean | No       | Force-stop the daemon and its child processes    |
 
 **Behavior:** Reads the scoped PID file under `~/.lumpcode/daemons/` and daemon meta.
 
-When the daemon is **idle** (`inFlightLumpCount` is `0` or absent, and legacy `busy` is not `true`), sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID and meta files on success.
+When the daemon is **idle** (`inFlightLumpCount` is `0` or absent, and legacy `busy` is not `true`), marks desired `stopping`, sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID, meta, and desired files on success.
 
-When the daemon is **mid-run** (`inFlightLumpCount >= 1`, or legacy `busy: true` from an older CLI), default stop **refuses** (non-zero; with `--json`, `data.code: "daemonBusy"`) and suggests **`--force`**. Artifacts and the process are left alone so in-flight work can finish.
+When the daemon is **mid-run** (`inFlightLumpCount >= 1`, or legacy `busy: true` from an older CLI), default stop **refuses** (non-zero; with `--json`, `data.code: "daemonBusy"`) and suggests **`--force`**. Artifacts, desired.json, and the process are left alone so in-flight work can finish.
 
 When the PID is alive but daemon **meta is missing or invalid**, default stop **refuses** (non-zero; with `--json`, `data.code: "daemonMetaCorrupt"`) and suggests **`--force`**. Do not invent idle or checkout state from a missing file.
 
-**`lumpcode stop --force`** immediately tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID and meta on success. Force does **not** require a readable meta file. This is **best-effort**: agent processes that detached from the daemon process tree may survive. A force-killed daemon may leave a workspace lock behind; it is removed automatically on the next acquire ([concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
+**`lumpcode stop --force`** marks desired `stopping` (so the supervisor will not respawn), immediately tree-kills the daemon PID and all descendant processes (discovered at stop time), polls up to **5 seconds** until the daemon PID is gone, then removes PID, meta, and desired.json on success. Force does **not** require a readable meta file. This is **best-effort**: agent processes that detached from the daemon process tree may survive. A force-killed daemon may leave a workspace lock behind; it is removed automatically on the next acquire ([concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
+
+**`lumpcode stop --all`** is project-scoped. It marks every start-daemon desired file `stopping` first, SIGTERMs idle daemons (busy ones drain), waits for PIDs to exit, deletes leftovers, then stops the supervisor. **`--all --force`** marks stopping then tree-kills, and still unlinks desired only after the processes are gone. Do not combine `--all` with `--daemonId`.
 
 **Fails if:** No PID file, invalid PID, mid-run without `--force`, corrupt meta without `--force`, cannot signal process, or process does not exit within the deadline.
 
@@ -330,7 +338,7 @@ When the PID is alive but daemon **meta is missing or invalid**, default stop **
 
 ### `lumpcode restart`
 
-**Description:** `lumpcode stop` then `lumpcode start`, restoring `cronSetup`, `include` / `exclude`, `maxParallelRun`, and `daemonId` from meta.
+**Description:** `lumpcode stop` then `lumpcode start`, restoring `cronSetup`, `include` / `exclude`, `maxParallelRun`, and `daemonId` from desired.json (legacy: live meta).
 
 **Usage:** `lumpcode restart [options]`
 
@@ -339,9 +347,36 @@ When the PID is alive but daemon **meta is missing or invalid**, default stop **
 | `--daemonId` | string | No       | Restart this daemon id (default: `global`)       |
 | `--lumpName` | string | No       | **Deprecated.** Treated as `--daemonId`          |
 
-If meta is missing or invalid, restart uses **`stop --force`** then starts again (repair path). Mid-run with readable meta still refuses via normal stop (`daemonBusy`).
+If desired.json is missing, restart adopts filters from live meta. If both desired.json and meta are missing or invalid, restart fails and does not invent a default recipe. If meta is missing or invalid but desired.json is readable, restart uses **`stop --force`** then starts from desired. Mid-run with readable meta still refuses via normal stop (`daemonBusy`).
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon).
+
+<a id="ref-cmd-supervise"></a>
+
+### `lumpcode supervise`
+
+**Description:** Run the per-project supervisor that keeps start-daemons up from `desired.json`. `lumpcode start` starts this process when it is down. It is not a daemon id.
+
+**Usage:** `lumpcode supervise --foreground [options]`
+
+| Option          | Type   | Required | Description                                              |
+| --------------- | ------ | -------- | -------------------------------------------------------- |
+| `--foreground`  | flag   | Yes      | Blocking in this terminal (no detached supervise mode)   |
+| `--projectRoot` | string | No       | Absolute project workspace (default: current directory)  |
+
+Every 30 seconds the supervisor reconciles desired.json against live PIDs: spawn missing start-daemons, leave running ones, adopt pre-feature PIDs into desired.json, orphan-kill PIDs with unreadable meta, and delete leftover files after a drain. Lump daemons are not placed under PM2.
+
+**systemd (optional):** keep only this small process under `Restart=always`. Example unit:
+
+```ini
+[Service]
+ExecStart=/usr/bin/lumpcode supervise --projectRoot /abs/path/to/repo --foreground
+Restart=always
+```
+
+There is no `lumpcode supervise-install`. `stop --all` stops the supervisor after the project's start-daemons.
+
+**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon) (daemon files table).
 
 <a id="ref-cmd-daemon-status"></a>
 
@@ -358,7 +393,7 @@ If meta is missing or invalid, restart uses **`stop --force`** then starts again
 
 **Output highlights:**
 
-- With no flags: every alive daemon id for the project (plus pid / running summary)
+- With no flags: every alive daemon id for the project (plus pid / running summary) and a `supervisor` object (`running`, optional `pid`)
 - With `--daemonId`: single-daemon detail (paths, stale PID, cron, filters, `inFlightLumpCount`, `metaStatus` when corrupt)
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon) (daemon files table).

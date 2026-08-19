@@ -14,6 +14,8 @@ function makeGate(): Gate {
 }
 
 describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => {
+    const items = (...lumpNames: string[]) => lumpNames.map((lumpName) => ({ lumpName }));
+
     it('P1: caps concurrency and drains the queue', async () => {
         const gates = new Map<string, Gate>();
         let inFlight = 0;
@@ -21,7 +23,7 @@ describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => 
         const started: string[] = [];
 
         const poolPromise = runLumpQueueWithConcurrency({
-            lumpNames: ['a', 'b', 'c', 'd'],
+            items: items('a', 'b', 'c', 'd'),
             concurrency: 2,
             runOneLump: async ({ lumpName }) => {
                 started.push(lumpName);
@@ -61,7 +63,7 @@ describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => 
         let inFlight = 0;
 
         const poolPromise = runLumpQueueWithConcurrency({
-            lumpNames: ['a', 'b', 'c'],
+            items: items('a', 'b', 'c'),
             concurrency: 5,
             runOneLump: async ({ lumpName }) => {
                 inFlight += 1;
@@ -87,7 +89,7 @@ describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => 
         const gates = new Map<string, Gate>();
 
         const poolPromise = runLumpQueueWithConcurrency({
-            lumpNames: ['a', 'b', 'c'],
+            items: items('a', 'b', 'c'),
             concurrency: 1,
             runOneLump: async ({ lumpName }) => {
                 started.push(lumpName);
@@ -117,7 +119,7 @@ describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => 
         const gates = new Map<string, Gate>();
 
         const poolPromise = runLumpQueueWithConcurrency({
-            lumpNames: ['a', 'b', 'c'],
+            items: items('a', 'b', 'c'),
             concurrency: 2,
             runOneLump: async ({ lumpName }) => {
                 started.push(lumpName);
@@ -145,7 +147,7 @@ describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => 
         const gates = new Map<string, Gate>();
 
         const poolPromise = runLumpQueueWithConcurrency({
-            lumpNames: ['a', 'b', 'c'],
+            items: items('a', 'b', 'c'),
             concurrency: 2,
             runOneLump: async ({ lumpName }) => {
                 started.push(lumpName);
@@ -171,7 +173,7 @@ describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => 
     it('P5: empty list resolves immediately without calling runOneLump', async () => {
         let calls = 0;
         await runLumpQueueWithConcurrency({
-            lumpNames: [],
+            items: items(),
             concurrency: 3,
             runOneLump: async () => {
                 calls += 1;
@@ -185,7 +187,7 @@ describe('runLumpQueueWithConcurrency (parallel-global-daemon-worktree)', () => 
         const gates = new Map<string, Gate>();
 
         const poolPromise = runLumpQueueWithConcurrency({
-            lumpNames: ['a', 'b', 'c'],
+            items: items('a', 'b', 'c'),
             concurrency: 2,
             runOneLump: async ({ lumpName }) => {
                 started.push(lumpName);

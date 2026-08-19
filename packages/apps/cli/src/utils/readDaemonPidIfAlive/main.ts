@@ -1,17 +1,14 @@
-import * as fs from 'node:fs/promises';
-
 import type { Failure, Success } from '@lumpcode/core';
 import { failure, isProcessAlive, nodeErrnoCode, success } from '@lumpcode/core';
+import * as fs from 'node:fs/promises';
 
-export type DaemonPidAlive = { pid: number };
-export type DaemonPidStale = { stale: true };
-export type DaemonPidReadResult = DaemonPidAlive | DaemonPidStale | undefined;
-
-const stalePid: DaemonPidStale = { stale: true };
+export type DaemonPidReadResult =
+    | { status: 'alive'; pid: number }
+    | { status: 'stale' }
+    | { status: 'missing' };
 
 /**
  * Reads a daemon PID file and checks whether the process is still running.
- * Returns `success(undefined)` when the file is missing or unreadable (ENOENT).
  */
 export async function readDaemonPidIfAlive(
     pidFilePath: string,
@@ -22,21 +19,21 @@ export async function readDaemonPidIfAlive(
     } catch (error: unknown) {
         const code = nodeErrnoCode(error);
         if (code === 'ENOENT') {
-            return success(undefined);
+            return success({ status: 'missing' as const });
         }
         return failure(`Cannot read PID file "${pidFilePath}": ${String(error)}`);
     }
 
     const pid = Number.parseInt(raw.trim(), 10);
     if (Number.isNaN(pid)) {
-        return success(stalePid);
+        return success({ status: 'stale' as const });
     }
 
     try {
         if (!isProcessAlive(pid)) {
-            return success(stalePid);
+            return success({ status: 'stale' as const });
         }
-        return success({ pid });
+        return success({ status: 'alive' as const, pid });
     } catch (e) {
         return failure(`Could not inspect process ${pid}: ${String(e)}`);
     }

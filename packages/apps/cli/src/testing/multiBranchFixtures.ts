@@ -1,14 +1,14 @@
 import * as fs from 'node:fs/promises';
 import * as fsSync from 'node:fs';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { pathExists } from '@lumpcode/core';
 
 import {
     appendMissingGitignoreLines,
+    createTempTestDirs,
     execGit,
     gitCommitAllAndPush,
-    initLocalGitRepo,
+    initBareRemoteAndCheckout as initBareRemoteAndCheckoutUtil,
     MINIMAL_RUNNABLE_LUMP_CONFIG,
     writeJsonFile,
     writeLumpConfigJson,
@@ -28,12 +28,10 @@ export type MultiBranchLumpSpec = {
     configOverrides?: Record<string, unknown>;
 };
 
+/** Positional testing re-export; delegates git bootstrap to the util. */
 export function initBareRemoteAndCheckout(projectRoot: string, remoteDir: string): void {
-    execGit('init --bare', remoteDir);
-    initLocalGitRepo({ cwd: projectRoot });
-    execGit(`remote add origin ${remoteDir}`, projectRoot);
-    execGit('push -u origin main', projectRoot);
-    // Mirror project-setup: keep machine-local config out of integration-branch commits.
+    initBareRemoteAndCheckoutUtil({ projectRoot, remoteDir });
+    // Keep machine-local config out of commits for callers that skip writeLocalJson.
     const gitignorePath = path.join(projectRoot, '.gitignore');
     try {
         const existing = fsSync.readFileSync(gitignorePath, 'utf-8');
@@ -217,10 +215,7 @@ export async function scaffoldMultiBranchProject(input: {
     globalConfigFolderPath: string;
     localConfigFolderPath: string;
 }> {
-    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-mbb-'));
-    const remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-mbb-remote-'));
-    const globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-mbb-global-'));
-    const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+    const { projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-mbb-' });
 
     initBareRemoteAndCheckout(projectRoot, remoteDir);
     await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });

@@ -36,10 +36,12 @@ const exclude = excludeRaw
 
 fs.mkdirSync(daemonsDir, { recursive: true });
 fs.writeFileSync(pidFilePath, String(process.pid), 'utf8');
+// Idle 0 distinguishes this overwrite from the parent stub (which omits the field).
 const metaPayload = {
     daemonId,
     cronSetup,
     workspaceStrategy,
+    inFlightLumpCount: 0,
     ...(include.length ? { include } : {}),
     ...(exclude.length ? { exclude } : {}),
 };

@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -9,10 +8,11 @@ import {
     setDaemonTestGlobalConfigFolder,
     waitForDaemonMetaFile,
     waitForDaemonPidFile,
+    writeDaemonMetaSticky,
 } from '../../testing';
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
-import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson } from '../../utils';
+import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson, createTempTestDirs, removeTempTestDirs } from '../../utils';
 
 describe('restart command', () => {
     let projectRoot: string;
@@ -21,12 +21,12 @@ describe('restart command', () => {
     const projectName = 'restart-test-project';
     const pidPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
     const metaPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
+    const desiredPath = () =>
+        path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.desired.json`);
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-global-'));
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-restart-', remote: false }));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         initLocalGitRepo({ cwd: projectRoot });
         await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
@@ -35,8 +35,7 @@ describe('restart command', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, globalConfigFolderPath });
     });
 
     function makeRestartHandler(
@@ -46,6 +45,7 @@ describe('restart command', () => {
             projectRoot,
             localConfigFolderPath,
             globalConfigFolderPath,
+            skipEnsureSupervisor: true,
             ...overrides,
         });
     }
@@ -56,28 +56,26 @@ describe('restart command', () => {
             localConfigFolderPath,
             globalConfigFolderPath,
             spawnFn,
+            skipEnsureSupervisor: true,
         });
         const result = await handle({ options, arguments: {} });
         expect(result.success).toBe(true);
     }
 
     it('fails when not a Lumpcode project root', async () => {
-        const badRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-bad-'));
-        const badGlobal = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-bad-global-'));
+        const dirs = await createTempTestDirs({ prefix: 'lump-restart-bad-', remote: false });
         try {
-            await fs.mkdir(path.join(badRoot, '.lumpcode'), { recursive: true });
             const handle = restartCommand.handlerMaker({
-                projectRoot: badRoot,
-                localConfigFolderPath: path.join(badRoot, '.lumpcode'),
-                globalConfigFolderPath: badGlobal,
+                projectRoot: dirs.projectRoot,
+                localConfigFolderPath: dirs.localConfigFolderPath,
+                globalConfigFolderPath: dirs.globalConfigFolderPath,
             });
             const result = await handle({ options: {}, arguments: {} });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
             expect(result.data.messages[0]).toContain('Not a Lumpcode project root');
         } finally {
-            await fs.rm(badRoot, { recursive: true, force: true });
-            await fs.rm(badGlobal, { recursive: true, force: true });
+            await removeTempTestDirs(dirs);
         }
     });
 
@@ -142,7 +140,7 @@ describe('restart command', () => {
         }
     });
 
-    it('falls back to the default cron schedule when the meta file is missing', async () => {
+    it('preserves cron from desired.json when meta is missing', async () => {
         await runStart(aliveDaemonSpawnFn, { cronSetup: '*/9 * * * *' });
         await waitForDaemonPidFile(pidPath());
         await waitForDaemonMetaFile(metaPath());
@@ -154,7 +152,7 @@ describe('restart command', () => {
                 const argList = args as readonly string[];
                 const cronIdx = argList.indexOf('--cronSetup');
                 expect(cronIdx).toBeGreaterThanOrEqual(0);
-                expect(argList[cronIdx + 1]).toBe('*/5 * * * *');
+                expect(argList[cronIdx + 1]).toBe('*/9 * * * *');
                 return aliveDaemonSpawnFn(command, argList, options ?? {});
             },
         ) as unknown as typeof nodeSpawn;
@@ -166,7 +164,34 @@ describe('restart command', () => {
 
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.data?.cronSetup).toBe('*/5 * * * *');
+        expect(result.data.data?.cronSetup).toBe('*/9 * * * *');
+    });
+
+    it('unlinks a stale pid file when there is no recipe to restart', async () => {
+        await fs.mkdir(path.dirname(pidPath()), { recursive: true });
+        await fs.writeFile(pidPath(), '999999999', 'utf8');
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/Invalid PID|stale/);
+        expect(spawnFn).not.toHaveBeenCalled();
+        await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('fails when desired.json and meta are both missing', async () => {
+        await runStart(aliveDaemonSpawnFn, { cronSetup: '*/9 * * * *' });
+        await waitForDaemonPidFile(pidPath());
+        await waitForDaemonMetaFile(metaPath());
+        await fs.unlink(metaPath());
+        await fs.unlink(desiredPath());
+
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/desired\.json is missing and daemon meta is unreadable/);
+        expect(spawnFn).not.toHaveBeenCalled();
     });
 
     it('K5: restart while mid-run fails via stop refuse (parallel-global-daemon-worktree)', async () => {
@@ -175,14 +200,13 @@ describe('restart command', () => {
         const pid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
         expect(Number.isNaN(pid)).toBe(false);
 
-        await writeJsonFile({
+        await writeDaemonMetaSticky({
             filePath: metaPath(),
             data: {
                 cronSetup: '*/5 * * * *',
                 workspaceStrategy: 'checkout',
                 inFlightLumpCount: 2,
             },
-            trailingNewline: true,
         });
 
         const spawnFn = vi.fn() as unknown as typeof nodeSpawn;

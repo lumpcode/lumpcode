@@ -27,10 +27,13 @@ export async function waitForPidGone(pid: number, timeoutMs = 5000): Promise<voi
 /**
  * Poll until a ready file contains a non-empty `pids` array.
  * Ready-file contract: JSON `{ "pids": number[] }`.
+ *
+ * Default 10s: under parallel vitest load, Node fixture spawn can exceed a
+ * tighter wait before the child writes the file (see execBinary E4/E5).
  */
 export async function waitForReadyFile(
     readyFile: string,
-    timeoutMs = 5000,
+    timeoutMs = 10_000,
 ): Promise<{ pids: number[] }> {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {

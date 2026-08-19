@@ -248,23 +248,25 @@ type GitCommitMessageFn = (input: {
 
 Maps a context to its normalized git commit message. **The returned message must be unique per context** -- it is the source of truth used to track whether a context has already been processed (see [Context Tracking with Git Commits](#context-tracking-with-git-commits)).
 
-### `gitAddCommandFn`
+### `gitAddCommitFn`
 
-**Type:** `GitAddCommandFn` -- **Default:** `git add .`
+**Type:** `GitAddCommitFn` -- **Default:** ``git add . && git commit --allow-empty -m <commitMessage>``
 
-Customize the git add command. Receives `{ baseBranch, branchName, contextList, workspacePath, context }` and is invoked **once per context**, right before that context's commit.
+Per-context add+commit. Receives `{ baseBranch, branchName, workspacePath, context, commitMessage }` (no `contextList`) and returns a `Success` / `Failure` result:
 
-### `gitCommitCommandFn`
+| Return | Behavior |
+| --- | --- |
+| `success(string)` | Core runs that shell string with `cwd: workspacePath` |
+| `success(null \| undefined)` | No-op (injector already did the work, or intentional skip) |
+| `success('')` / `failure(msg)` / throw | Hard-fail the run with `reason: 'gitAddCommitFailed'` |
 
-**Type:** `GitCommitCommandFn` -- **Default:** ``git commit -m "${commitMessage}"``
+Invoked **once per context** after `teardownFn`, producing exactly one commit per context on the work branch.
 
-Customize the git commit command. Receives the same input as `gitAddCommandFn` plus `{ commitMessage }`. Invoked **once per context**, producing exactly one commit per context on the work branch.
+### `gitPushFn`
 
-### `gitPushCommandFn`
+**Type:** `GitPushFn` -- **Default:** ``git push origin <branchName>``
 
-**Type:** `GitPushCommandFn` -- **Default:** ``git push origin ${branchName}``
-
-Customize the git push command. Invoked **once per branch**, after all per-context commits are made.
+Once-per-branch push after all per-context add+commits succeed. Same Success / Failure payload rules as `gitAddCommitFn`, except failures are **log-only** (the run stays successful).
 
 ### `setupWorkspaceFn`
 
@@ -275,7 +277,7 @@ Prepares the workspace before prompt execution. It returns an object with two fi
 - `command` — the shell command to run (e.g. checkout the base branch, fetch, create the work branch).
 - `workspacePath` — the directory where all subsequent operations (prompt execution, git add/commit/push) will take place. The default implementation returns `'.'`, so those commands run with `cwd: '.'` (the **host process's current working directory**). If your process's cwd is not `projectRoot`, pass an absolute path (e.g. `projectRoot` or a worktree path) so behavior is unambiguous.
 
-> **Where commands run:** `setupWorkspaceFn` is the only function whose returned `command` runs at `projectRoot`. All other function parameters that return commands (`gitAddCommandFn`, `gitCommitCommandFn`, `gitPushCommandFn`, `commandFn`, `teardownWorkspaceFn`) execute their commands at `workspacePath`.
+> **Where commands run:** `setupWorkspaceFn` is the only function whose returned `command` runs at `projectRoot`. All other function parameters that return commands (`gitAddCommitFn`, `gitPushFn`, `commandFn`, `teardownWorkspaceFn`) execute their commands at `workspacePath`.
 
 The default implementation command checks out the base branch, fetches, pulls, deletes and re-creates the work branch (with `cwd: projectRoot` for this setup command only):
 
@@ -510,10 +512,10 @@ flowchart TD
     LoopStart --> Setup["setupFn()"]
     Setup --> ExecPrompts["Execute steps sequentially"]
     ExecPrompts --> Teardown["teardownFn()"]
-    Teardown --> AddCommit["git add + git commit -m gitCommitMessageFn(context)"]
+    Teardown --> AddCommit["gitAddCommitFn (commitMessage from gitCommitMessageFn)"]
     AddCommit --> LoopCheck{"More contexts?"}
     LoopCheck -->|Yes| LoopStart
-    LoopCheck -->|No| Push["gitPushCommandFn (branch only)"]
+    LoopCheck -->|No| Push["gitPushFn (branch only)"]
     Push --> TeardownWorkspace["teardownWorkspaceFn()"]
     TeardownWorkspace --> Done["Return Success or Failure"]
 ```

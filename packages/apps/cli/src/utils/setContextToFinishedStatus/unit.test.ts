@@ -6,7 +6,7 @@ import { setContextToFinishedStatus } from './main';
 import { getContextStatus } from '../getContextStatus';
 import { getGitCommitMessage } from '../getGitCommitMessage';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 
 describe('setContextToFinishedStatus', () => {
     let tmpDir: string;
@@ -18,10 +18,7 @@ describe('setContextToFinishedStatus', () => {
     beforeEach(async () => {
         tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-set-finished-${dateId}-`));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), `lump-set-finished-remote-${dateId}-`));
-        execGit('init --bare', remoteDir);
-        initLocalGitRepo({ cwd: tmpDir });
-        execGit(`remote add origin ${remoteDir}`, tmpDir);
-        execGit('push -u origin main', tmpDir);
+        initBareRemoteAndCheckout({ projectRoot: tmpDir, remoteDir });
     });
 
     afterEach(async () => {

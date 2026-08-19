@@ -122,9 +122,6 @@ function formatHumanPlan(data: PlanLumpOutput): string[] {
             if (data.plan.teardownWorkspaceCommand) {
                 lines.push(`teardownWorkspaceCommand: ${data.plan.teardownWorkspaceCommand}`);
             }
-            if (data.plan.gitPushCommand) {
-                lines.push(`gitPushCommand: ${data.plan.gitPushCommand}`);
-            }
         }
     }
 

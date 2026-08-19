@@ -2,8 +2,7 @@ import * as os from 'node:os';
 import { spawn, type ChildProcess } from 'node:child_process';
 
 import {
-    daemonMetaPath,
-    daemonPidPath,
+    daemonSchedulerFiles,
     daemonsDirPath,
     isDaemonMidRun,
     pollUntil,
@@ -18,12 +17,11 @@ import { subprocessEnv } from './subprocessEnv';
 
 /** PID and meta file paths for a daemon under the project's isolated HOME. */
 export function daemonPathsForProject(project: E2eProject, daemonId = 'global') {
-    const daemonsDir = daemonsDirPath({ globalConfigFolderPath: project.globalConfigFolderPath });
-    const base = { daemonsDir, projectName: project.projectName, daemonId };
-    return {
-        pidFilePath: daemonPidPath(base),
-        metaFilePath: daemonMetaPath(base),
-    };
+    return daemonSchedulerFiles({
+        daemonsDir: daemonsDirPath({ globalConfigFolderPath: project.globalConfigFolderPath }),
+        projectName: project.projectName,
+        daemonId,
+    });
 }
 
 /** Polls until a file exists or the timeout elapses. */
@@ -77,7 +75,9 @@ export async function waitForDaemonIdle(input: {
 /** Treats `stop` responses that mean no daemon is running as success during teardown. */
 function isDaemonNotRunningStop(result: RunCliResult): boolean {
     const msg = result.json.messages.join(' ');
-    return /no daemon pid file|already gone|not running|invalid pid|removed stale file/i.test(msg);
+    return /no daemon pid file|already gone|not running|invalid pid|removed stale file|stopped all lumpcode daemons/i.test(
+        msg,
+    );
 }
 
 /** Runs `lumpcode stop --force` and ignores "already stopped" outcomes; throws on unexpected failures. */
@@ -88,13 +88,9 @@ export async function stopDaemonSafely(input: {
     /** @deprecated use daemonId */
     lumpName?: string;
 }): Promise<void> {
-    const daemonId = input.daemonId ?? input.lumpName;
-    const args = [
-        'stop',
-        '--json',
-        '--force',
-        ...(daemonId ? ['--daemonId', daemonId] : []),
-    ];
+    void input.daemonId;
+    void input.lumpName;
+    const args = ['stop', '--json', '--force', '--all'];
     const result = await input.runCli(args);
     if (result.code === 0) return;
     if (isDaemonNotRunningStop(result)) return;
@@ -160,19 +156,43 @@ export async function runForegroundUntilMarkers(input: {
     let stderr = '';
     child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
     child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    let waitingForMarkers = true;
+    const childExitedEarly = new Promise<never>((_, reject) => {
+        const fail = (code: number | null, signal: NodeJS.Signals | null) => {
+            if (!waitingForMarkers) {
+                return;
+            }
+            reject(
+                new Error(
+                    `Foreground daemon exited before markers (code ${code} signal ${signal}).\nstdout:\n${stdout}\nstderr:\n${stderr}`,
+                ),
+            );
+        };
+        if (child.exitCode !== null || child.signalCode !== null) {
+            fail(child.exitCode, child.signalCode);
+            return;
+        }
+        child.once('exit', (code, signal) => {
+            fail(code, signal);
+        });
+    });
     try {
-        await Promise.all(
-            input.waitFor.map((target) =>
-                waitForRemoteMarker({
-                    remoteDir: input.project.remoteDir,
-                    lumpName: target.lumpName,
-                    contextName: target.contextName,
-                    timeoutMs: 120_000,
-                }),
+        await Promise.race([
+            Promise.all(
+                input.waitFor.map((target) =>
+                    waitForRemoteMarker({
+                        remoteDir: input.project.remoteDir,
+                        lumpName: target.lumpName,
+                        contextName: target.contextName,
+                        timeoutMs: 120_000,
+                    }),
+                ),
             ),
-        );
+            childExitedEarly,
+        ]);
         return { stdout, stderr };
     } finally {
+        waitingForMarkers = false;
         await stopDaemonSafely({
             project: input.project,
             runCli: (stopArgs) => runE2eCli({ project: input.project, args: stopArgs }),

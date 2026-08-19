@@ -4,17 +4,16 @@ import type { Failure, Success } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
 import { RESERVED_DAEMON_ID } from '../daemonFileBaseName';
-import { daemonLogPath, legacyGlobalDaemonLogPath } from '../daemonLogPath';
-import { daemonMetaPath, legacyGlobalDaemonMetaPath } from '../daemonMetaPath';
-import { daemonPidPath, legacyGlobalDaemonPidPath } from '../daemonPidPath';
+import {
+    daemonSchedulerFiles,
+    legacyGlobalDaemonSchedulerFiles,
+    type DaemonSchedulerFiles,
+} from '../daemonSchedulerFiles';
 import { daemonsDirPath } from '../daemonsDirPath';
 import { getProjectName } from '../getProjectName';
 
-export type ResolvedDaemonPaths = {
+export type ResolvedDaemonPaths = DaemonSchedulerFiles & {
     daemonsDir: string;
-    pidFilePath: string;
-    logFilePath: string;
-    metaFilePath: string;
     projectName: string;
     daemonId: string;
     /** True when companions resolved the legacy bare `<project>.daemon.*` paths. */
@@ -56,15 +55,13 @@ export async function resolveDaemonPaths(input: {
 
     const projectName = nameResult.data;
     const daemonsDir = daemonsDirPath({ globalConfigFolderPath });
-    const pathInput = { daemonsDir, projectName, daemonId };
+    const files = daemonSchedulerFiles({ daemonsDir, projectName, daemonId });
 
     const modern: ResolvedDaemonPaths = {
         daemonsDir,
-        pidFilePath: daemonPidPath(pathInput),
-        logFilePath: daemonLogPath(pathInput),
-        metaFilePath: daemonMetaPath(pathInput),
         projectName,
         daemonId,
+        ...files,
     };
 
     if (
@@ -72,15 +69,13 @@ export async function resolveDaemonPaths(input: {
         daemonId === RESERVED_DAEMON_ID &&
         !(await pathExists(modern.pidFilePath))
     ) {
-        const legacyPid = legacyGlobalDaemonPidPath({ daemonsDir, projectName });
-        if (await pathExists(legacyPid)) {
+        const legacy = legacyGlobalDaemonSchedulerFiles({ daemonsDir, projectName });
+        if (await pathExists(legacy.pidFilePath)) {
             return success({
-                daemonsDir,
-                pidFilePath: legacyPid,
-                logFilePath: legacyGlobalDaemonLogPath({ daemonsDir, projectName }),
-                metaFilePath: legacyGlobalDaemonMetaPath({ daemonsDir, projectName }),
-                projectName,
-                daemonId,
+                ...modern,
+                pidFilePath: legacy.pidFilePath,
+                logFilePath: legacy.logFilePath,
+                metaFilePath: legacy.metaFilePath,
                 usedLegacyGlobalAlias: true,
             });
         }

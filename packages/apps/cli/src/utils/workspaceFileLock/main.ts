@@ -18,6 +18,11 @@ import { formatJsonFileContent } from '../writeJsonFile';
 
 export type WorkspaceLockMode = 'wait' | 'fail';
 
+export type WorkspaceLockWaitTimeoutReason = 'waitTimedOut';
+
+export const WORKSPACE_LOCK_WAIT_TIMEOUT_MS = 15 * 60 * 1000;
+export const WORKSPACE_LOCK_WAIT_LOG_INTERVAL_MS = 30_000;
+
 export type WorkspaceFileLockSpec = {
     locksSubdirName: string;
     busyCode: string;
@@ -32,6 +37,7 @@ export type WorkspaceFileBusyError<S extends WorkspaceFileLockSpec> = {
     message: string;
     holderPid?: number;
     holderLumpName?: string;
+    reason?: WorkspaceLockWaitTimeoutReason;
 } & {
     [K in S['workspacePathField']]: string;
 };
@@ -86,22 +92,32 @@ export function isWorkspaceFileBusyError(
     );
 }
 
+function formatHolderClause(
+    holder: WorkspaceLockHolder | undefined,
+    style: 'busy' | 'held',
+): string {
+    if (holder?.lumpName && holder.pid) {
+        return style === 'busy'
+            ? ` (pid ${holder.pid}, lump "${holder.lumpName}")`
+            : ` (held by lump "${holder.lumpName}" pid ${holder.pid})`;
+    }
+    if (holder?.pid) {
+        return style === 'busy' ? ` (pid ${holder.pid})` : ` (held by pid ${holder.pid})`;
+    }
+    return '';
+}
+
 function formatBusyMessage(input: {
     spec: WorkspaceFileLockSpec;
     workspacePath: string;
     holder?: WorkspaceLockHolder;
 }): string {
     const { spec, workspacePath, holder } = input;
-    if (holder?.lumpName && holder.pid) {
+    const clause = formatHolderClause(holder, 'busy');
+    if (clause) {
         return (
-            `${spec.workspaceLabel} "${workspacePath}" is in use by another lumpcode run ` +
-            `(pid ${holder.pid}, lump "${holder.lumpName}"). Wait for it to finish or stop the daemon before running again.`
-        );
-    }
-    if (holder?.pid) {
-        return (
-            `${spec.workspaceLabel} "${workspacePath}" is in use by another lumpcode run ` +
-            `(pid ${holder.pid}). Wait for it to finish or stop the daemon before running again.`
+            `${spec.workspaceLabel} "${workspacePath}" is in use by another lumpcode run` +
+            `${clause}. Wait for it to finish or stop the daemon before running again.`
         );
     }
     return (
@@ -116,13 +132,55 @@ export function formatWorkspaceFileWaitMessage(input: {
     holder?: WorkspaceLockHolder;
 }): string {
     const { spec, workspacePath, holder } = input;
-    if (holder?.lumpName && holder.pid) {
-        return (
-            `${spec.waitLogNoun} busy at "${workspacePath}" ` +
-            `(held by lump "${holder.lumpName}" pid ${holder.pid}); waiting…`
-        );
-    }
-    return `${spec.waitLogNoun} busy at "${workspacePath}"; waiting…`;
+    return (
+        `${spec.waitLogNoun} busy at "${workspacePath}"` +
+        `${formatHolderClause(holder, 'held')}; waiting…`
+    );
+}
+
+export function formatWorkspaceFileStillWaitingMessage(input: {
+    spec: WorkspaceFileLockSpec;
+    workspacePath: string;
+    holder?: WorkspaceLockHolder;
+    elapsedMs: number;
+}): string {
+    const { spec, workspacePath, holder, elapsedMs } = input;
+    const elapsedSec = Math.max(1, Math.round(elapsedMs / 1000));
+    return (
+        `${spec.waitLogNoun} busy at "${workspacePath}"` +
+        `${formatHolderClause(holder, 'held')}; still waiting (${elapsedSec}s)…`
+    );
+}
+
+function formatWaitTimeoutMessage(input: {
+    spec: WorkspaceFileLockSpec;
+    workspacePath: string;
+    holder?: WorkspaceLockHolder;
+    waitTimeoutMs: number;
+}): string {
+    const { spec, workspacePath, holder, waitTimeoutMs } = input;
+    return (
+        `Waited ${waitTimeoutMs}ms for ${spec.waitLogNoun} "${workspacePath}"` +
+        `${formatHolderClause(holder, 'held')}; giving up.`
+    );
+}
+
+function toBusyError<S extends WorkspaceFileLockSpec>(input: {
+    spec: S;
+    workspacePath: string;
+    holder?: WorkspaceLockHolder;
+    message: string;
+    reason?: WorkspaceLockWaitTimeoutReason;
+}): WorkspaceFileBusyError<S> {
+    const { spec, workspacePath, holder, message, reason } = input;
+    return {
+        code: spec.busyCode,
+        message,
+        [spec.workspacePathField]: workspacePath,
+        ...(holder?.pid !== undefined ? { holderPid: holder.pid } : {}),
+        ...(holder?.lumpName !== undefined ? { holderLumpName: holder.lumpName } : {}),
+        ...(reason !== undefined ? { reason } : {}),
+    } as WorkspaceFileBusyError<S>;
 }
 
 async function readLockHolder(lockFilePath: string): Promise<WorkspaceLockHolder | undefined> {
@@ -187,10 +245,14 @@ export async function acquireWorkspaceFileLock<S extends WorkspaceFileLockSpec>(
     mode: WorkspaceLockMode;
     projectName?: string;
     logger?: Logger;
+    waitTimeoutMs?: number;
+    waitLogIntervalMs?: number;
 }): Promise<
     Success<ReleaseWorkspaceFileLockFn> | Failure<WorkspaceFileBusyError<S>>
 > {
     const { spec, globalConfigFolderPath, workspacePath, lumpName, mode, projectName, logger } = input;
+    const waitTimeoutMs = input.waitTimeoutMs ?? WORKSPACE_LOCK_WAIT_TIMEOUT_MS;
+    const waitLogIntervalMs = input.waitLogIntervalMs ?? WORKSPACE_LOCK_WAIT_LOG_INTERVAL_MS;
 
     const normalizedWorkspacePath = path.resolve(workspacePath);
     const locksDir = workspaceLocksDirPath({ globalConfigFolderPath, spec });
@@ -211,6 +273,8 @@ export async function acquireWorkspaceFileLock<S extends WorkspaceFileLockSpec>(
     };
 
     let loggedWait = false;
+    let lastWaitLogAt = 0;
+    const waitStartedAt = Date.now();
 
     for (;;) {
         const attempt = await tryAcquireWorkspaceFileLockOnce({ lockFilePath, payload, spec, logger });
@@ -248,32 +312,59 @@ export async function acquireWorkspaceFileLock<S extends WorkspaceFileLockSpec>(
         }
 
         if (mode === 'fail') {
-            return failure({
-                code: spec.busyCode,
-                message: formatBusyMessage({
+            return failure(
+                toBusyError({
                     spec,
                     workspacePath: normalizedWorkspacePath,
                     holder: attempt.holder,
-                }),
-                [spec.workspacePathField]: normalizedWorkspacePath,
-                ...(attempt.holder?.pid !== undefined ? { holderPid: attempt.holder.pid } : {}),
-                ...(attempt.holder?.lumpName !== undefined
-                    ? { holderLumpName: attempt.holder.lumpName }
-                    : {}),
-            } as WorkspaceFileBusyError<S>);
-        }
-
-        if (!loggedWait) {
-            logger?.info(
-                formatWorkspaceFileWaitMessage({
-                    spec,
-                    workspacePath: normalizedWorkspacePath,
-                    holder: attempt.holder,
+                    message: formatBusyMessage({
+                        spec,
+                        workspacePath: normalizedWorkspacePath,
+                        holder: attempt.holder,
+                    }),
                 }),
             );
-            loggedWait = true;
         }
 
-        await new Promise((resolve) => setTimeout(resolve, WAIT_POLL_MS));
+        const now = Date.now();
+        const elapsedMs = now - waitStartedAt;
+        if (elapsedMs >= waitTimeoutMs) {
+            return failure(
+                toBusyError({
+                    spec,
+                    workspacePath: normalizedWorkspacePath,
+                    holder: attempt.holder,
+                    reason: 'waitTimedOut',
+                    message: formatWaitTimeoutMessage({
+                        spec,
+                        workspacePath: normalizedWorkspacePath,
+                        holder: attempt.holder,
+                        waitTimeoutMs,
+                    }),
+                }),
+            );
+        }
+
+        if (!loggedWait || now - lastWaitLogAt >= waitLogIntervalMs) {
+            logger?.info(
+                loggedWait
+                    ? formatWorkspaceFileStillWaitingMessage({
+                          spec,
+                          workspacePath: normalizedWorkspacePath,
+                          holder: attempt.holder,
+                          elapsedMs,
+                      })
+                    : formatWorkspaceFileWaitMessage({
+                          spec,
+                          workspacePath: normalizedWorkspacePath,
+                          holder: attempt.holder,
+                      }),
+            );
+            loggedWait = true;
+            lastWaitLogAt = now;
+        }
+
+        const remainingMs = waitTimeoutMs - elapsedMs;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(WAIT_POLL_MS, Math.max(0, remainingMs))));
     }
 }

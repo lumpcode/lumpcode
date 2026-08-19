@@ -1,9 +1,9 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { writeMinimalLump } from '../../../testing';
+import { createTempTestDirs, removeTempTestDirs } from '../../../utils';
 import { writeJsonFile } from '../../../utils/writeJsonFile';
 import { command } from '../main';
 import {
@@ -34,22 +34,19 @@ describe('start command', () => {
     const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
 
     it('fails when not a Lumpcode project root', async () => {
-        const badRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-bad-'));
-        const badGlobal = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-bad-global-'));
+        const dirs = await createTempTestDirs({ prefix: 'lump-start-bad-', remote: false });
         try {
-            await fs.mkdir(path.join(badRoot, '.lumpcode'), { recursive: true });
             const handle = command.handlerMaker({
-                projectRoot: badRoot,
-                localConfigFolderPath: path.join(badRoot, '.lumpcode'),
-                globalConfigFolderPath: badGlobal,
+                projectRoot: dirs.projectRoot,
+                localConfigFolderPath: dirs.localConfigFolderPath,
+                globalConfigFolderPath: dirs.globalConfigFolderPath,
             });
             const result = await handle({ options: {}, arguments: {} });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
             expect(result.data.messages[0]).toContain('Not a Lumpcode project root');
         } finally {
-            await fs.rm(badRoot, { recursive: true, force: true });
-            await fs.rm(badGlobal, { recursive: true, force: true });
+            await removeTempTestDirs(dirs);
         }
     });
 
@@ -298,7 +295,7 @@ describe('start command', () => {
         }
     });
 
-    it('does not write PID or meta when detaching (spawn mocked)', async () => {
+    it('writes PID and stub meta when detaching (spawn mocked)', async () => {
         const projectName = 'test-daemon-project';
         await writeDefaultProjectJson(projectRoot, projectName);
         await writeDefaultLocalJson(projectRoot);
@@ -323,7 +320,16 @@ describe('start command', () => {
         expect(spawnFn).toHaveBeenCalledOnce();
 
         const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
-        await expect(fs.access(pidPath)).rejects.toMatchObject({ code: 'ENOENT' });
+        expect((await fs.readFile(pidPath, 'utf8')).trim()).toBe('424242');
+        const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
+        await expect(fs.access(metaPath)).resolves.toBeUndefined();
+        const desiredPath = path.join(
+            globalConfigFolderPath,
+            'daemons',
+            `${projectName}.global.daemon.desired.json`,
+        );
+        const desired = JSON.parse(await fs.readFile(desiredPath, 'utf8')) as { daemonId: string };
+        expect(desired.daemonId).toBe('global');
     });
 
     it('writes PID and meta in foreground mode', async () => {
@@ -439,6 +445,35 @@ describe('start command', () => {
         } finally {
             await stopDaemon(deps());
         }
+    });
+
+    it('foreground start continues when the pid file already belongs to this process', async () => {
+        const projectName = 'self-pid-foreground-project';
+        await writeDefaultProjectJson(projectRoot, projectName);
+        await writeDefaultLocalJson(projectRoot);
+        await writeMinimalLump(projectRoot, 'alpha');
+
+        const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
+        const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
+        await fs.mkdir(path.dirname(pidPath), { recursive: true });
+        await fs.writeFile(pidPath, `${process.pid}\n`, 'utf8');
+        await writeJsonFile({
+            filePath: metaPath,
+            data: {
+                daemonId: 'global',
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+            },
+            trailingNewline: true,
+        });
+
+        const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
+        const result = await handle({
+            options: { foreground: true, cronSetup: '*/5 * * * *' },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
     });
 
     it('allows two filtered daemons under checkout strategy', async () => {

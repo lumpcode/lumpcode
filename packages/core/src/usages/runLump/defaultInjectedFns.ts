@@ -1,27 +1,24 @@
 import {
+    GitAddCommitFn,
     GitCommitMessageFn,
-    GitPushCommandFn,
-    GitAddCommandFn,
-    GitCommitCommandFn,
+    GitPushFn,
     SetupWorkspaceFn,
     TeardownWorkspaceFn,
 } from "../../types";
-import { shellSingleQuote } from "../../utils";
+import { shellSingleQuote, success } from "../../utils";
 
 export const defaultGitCommitMessageFn: GitCommitMessageFn = ({ context }) => {
     return `LUMP:${context.name}`;
 };
 
-export const defaultGitPushCommandFn: GitPushCommandFn = (input) => {
-    return `git push origin ${shellSingleQuote(input.branchName)}`;
+export const defaultGitAddCommitFn: GitAddCommitFn = (input) => {
+    return success(
+        `git add . && git commit --allow-empty -m ${shellSingleQuote(input.commitMessage)}`,
+    );
 };
 
-export const defaultGitAddCommandFn: GitAddCommandFn = () => {
-    return `git add .`;
-};
-
-export const defaultGitCommitCommandFn: GitCommitCommandFn = (input) => {
-    return `git commit --allow-empty -m ${shellSingleQuote(input.commitMessage)}`;
+export const defaultGitPushFn: GitPushFn = (input) => {
+    return success(`git push origin ${shellSingleQuote(input.branchName)}`);
 };
 
 export const defaultSetupWorkspaceFn: SetupWorkspaceFn = async (input) => {

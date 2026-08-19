@@ -28,6 +28,7 @@ process.on('SIGTERM', arm);
 process.stdin.resume();
 process.stdin.on('end', disarmAndExit);
 process.stdin.on('close', disarmAndExit);
+process.stdout.write('ready\\n');
 `.trim();
 
 export function resolveNodeExecutableForWatchdog(): string {

@@ -1,7 +1,7 @@
 import type { Failure, Success } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
-import type { RunningDaemonInfo, RunningProjectDaemons } from '../listRunningProjectDaemons';
+import { hasRunningDaemonMeta, type RunningProjectDaemons } from '../listRunningProjectDaemons';
 
 export type AssertDaemonStartAllowedFailure = {
     message: string;
@@ -13,23 +13,28 @@ export function assertDaemonStartAllowed(input: {
     projectName: string;
     daemonId: string;
     running: RunningProjectDaemons;
+    /** When set, a live pid file for this daemonId matching this pid is treated as this process. */
+    selfPid?: number;
 }): Success<void> | Failure<AssertDaemonStartAllowedFailure> {
-    const { projectName, daemonId, running } = input;
+    const { projectName, daemonId, running, selfPid } = input;
 
     for (const [peerId, info] of Object.entries(running)) {
-        if (info.meta === 'ok') continue;
+        if (peerId === daemonId && selfPid !== undefined && info.pid === selfPid) {
+            continue;
+        }
+        if (hasRunningDaemonMeta(info)) continue;
         return failure<AssertDaemonStartAllowedFailure>({
             code: 'daemonMetaCorrupt',
-            reason: info.meta,
+            reason: info.metaStatus,
             message:
                 `Cannot start: daemon "${peerId}" for "${projectName}" is running (pid ${info.pid}) ` +
-                `but its meta is invalid (reason: ${info.meta}). ` +
+                `but its meta is invalid (reason: ${info.metaStatus}). ` +
                 `Run \`lumpcode stop --daemonId ${peerId} --force\` first.`,
         });
     }
 
-    const same = running[daemonId] as RunningDaemonInfo | undefined;
-    if (same !== undefined) {
+    const same = running[daemonId];
+    if (same !== undefined && (selfPid === undefined || same.pid !== selfPid)) {
         return failure<AssertDaemonStartAllowedFailure>({
             code: 'daemonIdInUse',
             message:

@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { load as loadYaml } from 'js-yaml';
 
 import type { CommandFn, Step } from '@lumpcode/core';
-import { runLump } from '@lumpcode/core';
+import { runLump, success } from '@lumpcode/core';
 
 import type { LumpJsConfig, LumpJsConfigStep, LumpJsConfigSteps } from '../../../types';
 import { jsConfigToRunLumpInput } from '../main';
@@ -104,10 +104,9 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
                 ...resolved,
                 setupWorkspaceFn: async () => ({ command: '', workspacePath: tmpDir }),
                 teardownWorkspaceFn: async () => '',
-                gitAddCommandFn: () => 'echo git-add',
-                gitCommitCommandFn: () => 'echo git-commit',
+                gitAddCommitFn: () => success('echo git-add-commit'),
                 gitCommitMessageFn: () => 'test commit',
-                gitPushCommandFn: () => 'echo git-push',
+                gitPushFn: () => success('echo git-push'),
             });
             expect(runResult.success).toBe(true);
             expect(log).toEqual(['Top-level step for Button.tsx', 'Sub-step 1 for Button.tsx', 'Sub-step 2 for Button.tsx']);
@@ -180,10 +179,9 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
                 ...resolved,
                 setupWorkspaceFn: async () => ({ command: '', workspacePath: tmpDir }),
                 teardownWorkspaceFn: async () => '',
-                gitAddCommandFn: () => 'echo git-add',
-                gitCommitCommandFn: () => 'echo git-commit',
+                gitAddCommitFn: () => success('echo git-add-commit'),
                 gitCommitMessageFn: () => 'test commit',
-                gitPushCommandFn: () => 'echo git-push',
+                gitPushFn: () => success('echo git-push'),
             });
             expect(runResult.success).toBe(true);
         } finally {
@@ -220,10 +218,9 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
                 ...resolved,
                 setupWorkspaceFn: async () => ({ command: '', workspacePath: tmpDir }),
                 teardownWorkspaceFn: async () => '',
-                gitAddCommandFn: () => 'echo git-add',
-                gitCommitCommandFn: () => 'echo git-commit',
+                gitAddCommitFn: () => success('echo git-add-commit'),
                 gitCommitMessageFn: () => 'test commit',
-                gitPushCommandFn: () => 'echo git-push',
+                gitPushFn: () => success('echo git-push'),
             });
             expect(runResult.success).toBe(true);
 

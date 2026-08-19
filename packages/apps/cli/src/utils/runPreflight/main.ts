@@ -3,6 +3,7 @@ import * as path from 'node:path';
 
 import { execAsync, failure, type Failure, shellSingleQuote, success, type Success } from '@lumpcode/core';
 
+import { DISCOVERY_GIT_TIMEOUT_MS } from '../../consts';
 import type { Mode } from '../../types/Mode';
 import {
     type GitCommonDirLockContext,
@@ -174,7 +175,10 @@ async function resetProjectBaseBranch({
 
     const runCommands = async (): Promise<Success<void> | Failure<string>> => {
         for (const command of commands) {
-            const result = await execAsync(command, { cwd: executionWorkspacePath });
+            const result = await execAsync(command, {
+                cwd: executionWorkspacePath,
+                timeoutMillis: DISCOVERY_GIT_TIMEOUT_MS,
+            });
             if (!result.success) {
                 return failure(
                     `Pre-flight failed while running "${command}" in ${executionWorkspacePath}: ${result.data.message}`,

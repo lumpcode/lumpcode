@@ -8,8 +8,9 @@ import { execAsync, shellSingleQuote } from '@lumpcode/core';
 import { shellBestEffort } from '../shellBestEffort';
 import { makeLumpWorkspaceFns } from './main';
 import { lumpWorktreePath } from '../getLumpWorktreePath';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 
 describe('makeLumpWorkspaceFns', () => {
     const executionWorkspacePath = '/wk';
@@ -155,18 +156,13 @@ describe('makeLumpWorkspaceFns', () => {
         let remoteDir: string;
 
         beforeEach(async () => {
-            gitExecutionWorkspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-wt-int-'));
-            remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-wt-int-remote-'));
+            ({ projectRoot: gitExecutionWorkspacePath, remoteDir } = await createTempTestDirs({ prefix: 'lump-wt-int-', global: false, mkdirLocalConfig: false }));
 
-            execGit('init --bare', remoteDir);
-            initLocalGitRepo({ cwd: gitExecutionWorkspacePath });
-            execGit(`remote add origin ${remoteDir}`, gitExecutionWorkspacePath);
-            execGit('push -u origin main', gitExecutionWorkspacePath);
+            initBareRemoteAndCheckout({ projectRoot: gitExecutionWorkspacePath, remoteDir });
         });
 
         afterEach(async () => {
-            await fs.rm(gitExecutionWorkspacePath, { recursive: true, force: true });
-            await fs.rm(remoteDir, { recursive: true, force: true });
+            await removeTempTestDirs({ projectRoot: gitExecutionWorkspacePath, remoteDir });
         });
 
         it('checkout strategy creates lump branch in execution workspace when setup runs from a different cwd', async () => {

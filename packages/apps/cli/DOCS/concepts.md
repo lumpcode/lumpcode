@@ -170,9 +170,12 @@ Useful pairings on a server:
 | `<projectName>.<daemonId>.daemon.pid` | PID of the foreground scheduler child             |
 | `<projectName>.<daemonId>.daemon.log` | Child stdout/stderr                               |
 | `<projectName>.<daemonId>.daemon.meta.json` | `daemonId`, `cronSetup`, filters, `workspaceStrategy`, `inFlightLumpCount` |
+| `<projectName>.<daemonId>.daemon.desired.json` | Spawn recipe for the supervisor (`projectRoot`, `cronSetup`, filters). `stopping: true` means drain, not respawn. |
 
 
-**Common flags:** `lumpcode start --foreground`, `lumpcode start --include=backlog,refacto-* --daemonId=agents`. Inspect: `lumpcode daemon-status` (lists all). Stop: `lumpcode stop --daemonId <id>`. Restart: `lumpcode restart --daemonId <id>`.
+Supervisor files live under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.log`, `.meta.json`), not under `daemons/` and not as a daemon id. `lumpcode start` starts `lumpcode supervise --foreground` if that PID is dead.
+
+**Common flags:** `lumpcode start --foreground`, `lumpcode start --include=backlog,refacto-* --daemonId=agents`. Inspect: `lumpcode daemon-status` (lists daemons plus supervisor). Stop: `lumpcode stop --daemonId <id>`. Stop the fleet: `lumpcode stop --all`. Restart: `lumpcode restart --daemonId <id>`.
 
 **Tick behavior:** discover loadable configs (dedicated: one locked discover per primary-branch scan), apply include/exclude, soft-skip disabled lumps at run time, then run the same per-lump path as `lumpcode run <lumpName>` for each match (optionally in parallel under worktree + `maxParallelRun`). Shared vs dedicated tick wrappers and hook order: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
 
@@ -221,7 +224,7 @@ What you need to know as an operator:
 - **One writer per workspace path.** Each execution workspace and each branch workspace is protected by its own lock. Two runs never mutate the same path at the same time.
 - **One writer per git object database.** Path locks alone do not cover linked worktrees sharing one `.git`. The git-common-dir lock serializes fetch/reset/worktree lifecycle, finish git, and status refresh so overlapping daemons do not corrupt `FETCH_HEAD` or race ref updates.
 - **Lock order.** Path lock first, then git-common-dir lock. Git sections stay short; the agent think loop does not hold the git lock. Coding agents should not run `git` themselves (presets typically deny it).
-- **Manual `run` fails fast; daemons wait.** If another run or daemon holds a path or git-common-dir lock, `lumpcode run` exits with **`workspacePathBusy`** or **`gitCommonDirBusy`** (with `--json`: `data.code` plus path/holder when known). A daemon tick **waits** and proceeds when the lock frees up.
+- **Manual `run` fails fast; daemons wait.** If another run or daemon holds a path or git-common-dir lock, `lumpcode run` exits with **`workspacePathBusy`** or **`gitCommonDirBusy`** (with `--json`: `data.code` plus path/holder when known). A daemon tick **waits** and proceeds when the lock frees up. If the wait exceeds **15 minutes**, that acquire fails with the same busy `code` and `reason: 'waitTimedOut'`; the tick skips that scan branch or lump and continues so the next cron fire can run. Discovery/preflight git (`ls-remote`, fetch/switch/reset) fails after **5 minutes** and that scan or tick step is skipped.
 - **`checkout` strategy = one path lock for the whole run.** Execution and branch workspaces are the same path, so the path lock is held from pre-flight to teardown — one lump at a time per workspace.
 - **`worktree` strategy allows agent parallelism.** Pre-flight and worktree setup on the main checkout take the execution-path lock (then release it after setup); agents on different worktrees run **concurrently**, each behind its own branch-workspace lock, while git mutations still serialize on the common-dir lock. A daemon with `maxParallelRun` > 1 in `local.json` schedules up to that many lumps per tick into those worktrees; `"checkout"` stays sequential regardless of `maxParallelRun`.
 - **Overlapping filtered daemons** (`--include` / `--daemonId`) on one dedicated clone are supported when every daemon uses `worktree` (and the git-common-dir lock is in play). Full start rules: [commands.md § start](./commands.md#ref-cmd-start).

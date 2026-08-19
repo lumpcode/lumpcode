@@ -25,6 +25,13 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
     args: readonly string[],
     options: SpawnOptions,
 ) => {
+    if (args.includes('supervise')) {
+        return nodeSpawn(execPath, ['-e', 'setInterval(() => {}, 60000)'], {
+            ...options,
+            stdio: 'ignore',
+        });
+    }
+
     const daemonId = parseSpawnArg(args, '--daemonId') ?? 'global';
     const include = parseSpawnArg(args, '--include') ?? '';
     const exclude = parseSpawnArg(args, '--exclude') ?? '';

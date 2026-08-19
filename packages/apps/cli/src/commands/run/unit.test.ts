@@ -1,5 +1,4 @@
 import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -17,6 +16,7 @@ import { gitCommitAllAndPush } from '../../utils/gitCommitAllAndPush';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import * as runLumpFromLumpNameModule from '../../utils/runLumpFromLumpName';
 import { command } from './main';
+import { createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
@@ -34,10 +34,7 @@ describe('run command — multi discovery branches', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-cmd-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-cmd-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-cmd-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-run-cmd-' }));
 
         initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
@@ -54,9 +51,7 @@ describe('run command — multi discovery branches', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
         vi.restoreAllMocks();
     });
 
@@ -248,10 +243,7 @@ describe('run command — dynamic-discovery-branch (C*)', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-ddb-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-ddb-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-ddb-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-run-ddb-' }));
 
         initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
@@ -271,9 +263,7 @@ describe('run command — dynamic-discovery-branch (C*)', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
         vi.restoreAllMocks();
     });
 
@@ -400,10 +390,7 @@ describe('run command abort signal wiring (W2)', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-signal-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-signal-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-run-signal-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-run-signal-' }));
 
         initBareRemoteAndCheckout(projectRoot, remoteDir);
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
@@ -419,9 +406,7 @@ describe('run command abort signal wiring (W2)', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
         vi.restoreAllMocks();
     });
 

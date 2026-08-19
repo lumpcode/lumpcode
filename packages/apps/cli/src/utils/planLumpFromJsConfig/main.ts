@@ -4,9 +4,6 @@ import {
     collectStepsForContext,
     type CollectedStep,
     type Context,
-    defaultGitAddCommandFn,
-    defaultGitCommitCommandFn,
-    defaultGitPushCommandFn,
     failure,
     type Failure,
     getCodeBasePaths,
@@ -57,8 +54,6 @@ export type PlanLumpOutput = {
         workspacePath?: string;
         contextNames?: string[];
         teardownWorkspaceCommand?: string;
-        gitCommandsByContext?: Record<string, { gitAdd: string; gitCommit: string }>;
-        gitPushCommand?: string;
     };
 };
 
@@ -269,35 +264,11 @@ export async function planLumpFromJsConfig(input: {
         lumpVariables,
     });
 
-    const gitAddCommandFn = runLumpInput.gitAddCommandFn ?? defaultGitAddCommandFn;
-    const gitCommitCommandFn = runLumpInput.gitCommitCommandFn ?? defaultGitCommitCommandFn;
-    const gitPushCommandFn = runLumpInput.gitPushCommandFn ?? defaultGitPushCommandFn;
-
     const workspaceSetup = await runLumpInput.setupWorkspaceFn!({
         baseBranch,
         branchName,
         contextList: batchContexts,
     });
-
-    const gitCommandsByContext: Record<string, { gitAdd: string; gitCommit: string }> = {};
-    for (const context of batchContexts) {
-        const perContextInput = {
-            baseBranch,
-            branchName,
-            contextList: batchContexts,
-            workspacePath: workspaceSetup.workspacePath,
-            context,
-        };
-        const commitMessage = runLumpInput.gitCommitMessageFn!({
-            context,
-            lumpVariables,
-            baseBranch,
-        });
-        gitCommandsByContext[context.name] = {
-            gitAdd: (await gitAddCommandFn(perContextInput)) ?? '',
-            gitCommit: (await gitCommitCommandFn({ ...perContextInput, commitMessage })) ?? '',
-        };
-    }
 
     const teardownWorkspaceCommand = await runLumpInput.teardownWorkspaceFn!({
         baseBranch,
@@ -312,14 +283,6 @@ export async function planLumpFromJsConfig(input: {
         workspacePath: workspaceSetup.workspacePath,
         contextNames: batchContexts.map((c) => c.name),
         teardownWorkspaceCommand,
-        gitCommandsByContext,
-        gitPushCommand:
-            (await gitPushCommandFn({
-                baseBranch,
-                branchName,
-                contextList: batchContexts,
-                workspacePath: workspaceSetup.workspacePath,
-            })) ?? '',
     };
 
     return success(baseOutput);

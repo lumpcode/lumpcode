@@ -6,7 +6,7 @@ Follow this guide in order to get started with your first `lumpcode run`. Links 
 
 ## Prerequisites
 
-Install and prepare the following:
+You only need a machine with your repo, git access, and a configured CLI agent. Install and prepare the following:
 
 1. **Lumpcode agent skill** — so your coding agent has current Lumpcode docs context (without it, the agent has no current product context): `npx skills add lumpcode/skills`.
 2. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).

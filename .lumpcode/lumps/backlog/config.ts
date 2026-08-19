@@ -213,7 +213,7 @@ export default backlog<
     configUrl,
     command: 'cursor',
     registerCommands: ['cursor'],
-    maximumNumberOfConcurrentBranches: 2,
+    maximumNumberOfConcurrentBranches: 1,
     verbose: true,
     keepHistory: true,
     lumpVariables: { model: 'cursor-grok-4.5-high-fast' },

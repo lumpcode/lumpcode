@@ -1,10 +1,9 @@
 export * from './main';
 
 export {
-    defaultGitAddCommandFn,
-    defaultGitCommitCommandFn,
+    defaultGitAddCommitFn,
     defaultGitCommitMessageFn,
-    defaultGitPushCommandFn,
+    defaultGitPushFn,
     defaultSetupWorkspaceFn,
     defaultTeardownWorkspaceFn,
     defaultSetupWorkspaceFnWithWorktree,
