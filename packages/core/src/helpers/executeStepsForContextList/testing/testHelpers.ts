@@ -1,11 +1,11 @@
 import { execSync } from 'node:child_process';
 
 import type { BranchFn, CommandFn, Logger, Steps } from '../../../types';
+import { success } from '../../../utils';
 
 export const stubBranchFn: BranchFn = async () => 'lump/test/ctx';
-export const stubGitAdd = () => 'echo git-add';
-export const stubGitCommit = () => 'echo git-commit';
-export const stubGitPush = () => 'echo git-push';
+export const stubGitAddCommit = () => success('echo git-add-commit');
+export const stubGitPush = () => success('echo git-push');
 export const stubGitCommitMessage = () => 'LUMP:ctx';
 export const echoCommandFn: CommandFn = () => ({ executable: 'echo', args: ['ok'] });
 
@@ -25,17 +25,13 @@ export function makeSteps(prompts: string[]): Steps {
 
 export function recordingGitFns(events: string[]) {
     return {
-        gitAddCommandFn: () => {
-            events.push('gitAdd');
-            return 'echo git-add';
+        gitAddCommitFn: () => {
+            events.push('gitAddCommit');
+            return success('echo git-add-commit');
         },
-        gitCommitCommandFn: () => {
-            events.push('gitCommit');
-            return 'echo git-commit';
-        },
-        gitPushCommandFn: () => {
+        gitPushFn: () => {
             events.push('gitPush');
-            return 'echo git-push';
+            return success('echo git-push');
         },
     };
 }

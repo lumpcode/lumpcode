@@ -1,4 +1,4 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommandFn, GitCommitCommandFn, GitCommitMessageFn, GitPushCommandFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData } from "../../types";
 import { createConsoleLogger, set, success } from "../../utils";
 import { 
     getToDoContextList,
@@ -6,7 +6,7 @@ import {
     ExecuteStepsForContextListResult,
     type RefreshRemoteTrackingRefsFn,
 } from "../../helpers";
-import { defaultGitAddCommandFn, defaultGitCommitCommandFn, defaultGitCommitMessageFn, defaultGitPushCommandFn, defaultSetupWorkspaceFn, defaultTeardownWorkspaceFn } from "./defaultInjectedFns";
+import { defaultGitAddCommitFn, defaultGitCommitMessageFn, defaultGitPushFn, defaultSetupWorkspaceFn, defaultTeardownWorkspaceFn } from "./defaultInjectedFns";
 
 export async function runLump<
     V extends LumpVariables = LumpVariables,
@@ -20,10 +20,9 @@ Failure<ExecuteStepsFailureData>
         branchFn,
         lumpVariables: lumpVariablesInput,
         getContextListFn,
-        gitAddCommandFn = defaultGitAddCommandFn,
-        gitCommitCommandFn = defaultGitCommitCommandFn,
+        gitAddCommitFn = defaultGitAddCommitFn,
         gitCommitMessageFn = defaultGitCommitMessageFn,
-        gitPushCommandFn = defaultGitPushCommandFn,
+        gitPushFn = defaultGitPushFn,
         numberOfContextsPerBranch = 1,
         projectRoot,
         steps,
@@ -84,10 +83,9 @@ Failure<ExecuteStepsFailureData>
         branchFn: branchFn,
         lumpVariables: lumpVariables,
         contextList: nextContextsForBranchList,
-        gitAddCommandFn,
-        gitCommitCommandFn,
+        gitAddCommitFn,
         gitCommitMessageFn,
-        gitPushCommandFn,
+        gitPushFn,
         projectRoot,
         steps,
         setupFn,
@@ -125,10 +123,9 @@ export interface RunLumpInput<
     lumpVariables?: V;
     setupFn?: SetupFn<V>;
     teardownFn?: TeardownFn<V>;
-    gitAddCommandFn?: GitAddCommandFn;
-    gitCommitCommandFn?: GitCommitCommandFn;
+    gitAddCommitFn?: GitAddCommitFn;
     gitCommitMessageFn?: GitCommitMessageFn<V>;
-    gitPushCommandFn?: GitPushCommandFn;
+    gitPushFn?: GitPushFn;
     setupWorkspaceFn?: SetupWorkspaceFn;
     teardownWorkspaceFn?: TeardownWorkspaceFn;
     logger?: Logger;

@@ -43,7 +43,7 @@ import { resolveImportable } from '../resolveImportable';
 import { resolveFnOrDefaultImport } from '../resolveFnOrDefaultImport';
 import { resolvePromptTemplateString } from '../resolvePromptTemplateString';
 import type { GitCommonDirLockContext } from '../gitCommonDirLock';
-import { makeGatedGitCommandFns } from '../makeGatedGitCommandFns';
+import { makeGatedGitFns } from '../makeGatedGitFns';
 import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
 import { makeLumpWorkspaceFns } from '../makeLumpWorkspaceFns';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
@@ -82,7 +82,7 @@ export async function jsConfigToRunLumpInput({
     localConfig?: LocalConfig;
     /** Concrete discovery branch bound for author context source + baseBranch resolve. */
     effectiveDiscoveryBranch?: string;
-    /** When set, workspace setup/teardown and git add/commit/push use the common-dir lock. */
+    /** When set, workspace setup/teardown and git add+commit/push use the common-dir lock. */
     gitLock?: GitCommonDirLockContext;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
@@ -186,7 +186,7 @@ export async function jsConfigToRunLumpInput({
     });
 
     const gitCommitMessageFn = makeGitCommitMessageFnFromLumpName(lumpName);
-    const gatedGitFns = gitLock ? makeGatedGitCommandFns({ gitLock }) : undefined;
+    const gatedGitFns = gitLock ? makeGatedGitFns({ gitLock }) : undefined;
     const refreshRemoteTrackingRefsFn = gitLock
         ? makeLockedRefreshRemoteTrackingRefsFn({ gitLock })
         : undefined;

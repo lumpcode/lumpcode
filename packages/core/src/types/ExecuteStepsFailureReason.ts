@@ -1,3 +1,4 @@
 export type ExecuteStepsFailureReason =
     | 'stepWalkFailed'
-    | 'workspaceTeardownFailed';
+    | 'workspaceTeardownFailed'
+    | 'gitAddCommitFailed';

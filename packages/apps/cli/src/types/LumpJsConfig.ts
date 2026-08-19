@@ -29,9 +29,8 @@ export type LumpJsConfig<
     | 'baseBranch' 
     | 'setupWorkspaceFn' 
     | 'teardownWorkspaceFn'
-    | 'gitAddCommandFn' 
-    | 'gitCommitCommandFn' 
-    | 'gitPushCommandFn'
+    | 'gitAddCommitFn'
+    | 'gitPushFn'
     | 'getContextListFn'
     | 'refreshRemoteTrackingRefsFn'
 >, {

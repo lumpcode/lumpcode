@@ -6,7 +6,16 @@ import { shellSingleQuote } from '@lumpcode/core';
 
 import { shellBestEffort } from '../../shellBestEffort';
 import { LUMP_BRANCH_PREFIX, LUMP_COMMIT_PREFIX } from '../../../consts';
-import { assertSuccess, resolveJsConf } from './testHelpers';
+import { jsConfigToRunLumpInput } from '../main';
+import {
+    assertSuccess,
+    DEFAULT_TEST_GLOBAL_CONFIG,
+    DEFAULT_TEST_LOCAL_CONFIG,
+    DEFAULT_TEST_PROJECT_BASE_BRANCH,
+    DEFAULT_TEST_WORKSPACE,
+    makeConfig,
+    resolveJsConf,
+} from './testHelpers';
 
 describe('jsConfigToRunLumpInput', () => {
     beforeEach(() => {
@@ -189,6 +198,38 @@ describe('jsConfigToRunLumpInput', () => {
             expect(data.numberOfContextsPerBranch).toBe(3);
             expect(data.lumpVariables).toEqual({ framework: 'vue' });
             expect('verbose' in data).toBe(false);
+        });
+    });
+
+    describe('gated git fns', () => {
+        it('spreads gitAddCommitFn + gitPushFn when gitLock is set', async () => {
+            const result = await jsConfigToRunLumpInput({
+                config: makeConfig({}),
+                lumpName: 'my-lump',
+                localConfigFolderPath: DEFAULT_TEST_LOCAL_CONFIG,
+                globalConfigFolderPath: DEFAULT_TEST_GLOBAL_CONFIG,
+                projectBaseBranch: DEFAULT_TEST_PROJECT_BASE_BRANCH,
+                executionWorkspacePath: DEFAULT_TEST_WORKSPACE,
+                workspaceStrategy: 'checkout',
+                gitLock: {
+                    globalConfigFolderPath: DEFAULT_TEST_GLOBAL_CONFIG,
+                    gitCwd: DEFAULT_TEST_WORKSPACE,
+                    lumpName: 'my-lump',
+                    lockMode: 'fail',
+                },
+            });
+            const data = assertSuccess(result);
+            expect(typeof data.gitAddCommitFn).toBe('function');
+            expect(typeof data.gitPushFn).toBe('function');
+            expect('gitAddCommandFn' in data).toBe(false);
+            expect('gitCommitCommandFn' in data).toBe(false);
+            expect('gitPushCommandFn' in data).toBe(false);
+        });
+
+        it('omits gated git hooks when gitLock is unset', async () => {
+            const data = assertSuccess(await resolveJsConf({}));
+            expect(data.gitAddCommitFn).toBeUndefined();
+            expect(data.gitPushFn).toBeUndefined();
         });
     });
 
