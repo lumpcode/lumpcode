@@ -7,7 +7,7 @@ const backlogItemsDir = '.lumpcode/lumps/abstractionImplementer/backlogItems';
 
 export default {
     ...abstractionFinder<CursorPresetLumpVariables, CursorPresetStepVariables>({
-        maxPendingAbstractions: 5,
+        maxPendingAbstractions: 1,
         scanDirectories,
         backlogItemsDir,
         command: 'cursor',
