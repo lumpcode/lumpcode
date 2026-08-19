@@ -2,15 +2,14 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { writeMinimalLump } from '../../../testing';
+import { withAliveDaemon, writeMinimalLump } from '../../../testing';
 import { createTempTestDirs, removeTempTestDirs } from '../../../utils';
 import { writeJsonFile } from '../../../utils/writeJsonFile';
 import { command } from '../main';
 import {
+    localConfigFolderPath,
     makeStartHandler,
-    runDetachedStart,
     setupStartTestRepo,
-    stopDaemon,
     teardownStartTestRepo,
     writeDefaultLocalJson,
     writeDefaultProjectJson,
@@ -32,6 +31,11 @@ describe('start command', () => {
         await teardownStartTestRepo({ projectRoot, remoteDir, globalConfigFolderPath });
     });
     const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
+    const aliveDaemonDeps = () => ({
+        projectRoot,
+        localConfigFolderPath: localConfigFolderPath(projectRoot),
+        globalConfigFolderPath,
+    });
 
     it('fails when not a Lumpcode project root', async () => {
         const dirs = await createTempTestDirs({ prefix: 'lump-start-bad-', remote: false });
@@ -416,17 +420,17 @@ describe('start command', () => {
 
         const spawnFn = vi.fn(() => ({ pid: 444444, unref: vi.fn() })) as unknown as typeof import('node:child_process').spawn;
 
-        try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
-
-            const result = await makeStartHandler(deps(), { spawnFn })({ options: {}, arguments: {} });
-            expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(spawnFn).toHaveBeenCalledOnce();
-        } finally {
-            await stopDaemon(deps(), { daemonId: 'alpha' });
-            await stopDaemon(deps(), { daemonId: 'global' });
-        }
+        await withAliveDaemon({
+            ...aliveDaemonDeps(),
+            lumpName: 'alpha',
+            alsoStopDaemonIds: ['global'],
+            run: async () => {
+                const result = await makeStartHandler(deps(), { spawnFn })({ options: {}, arguments: {} });
+                expect(result.success).toBe(true);
+                if (!result.success) throw new Error('unreachable');
+                expect(spawnFn).toHaveBeenCalledOnce();
+            },
+        });
     });
 
     it('fails to start when the same daemonId is already running', async () => {
@@ -435,16 +439,15 @@ describe('start command', () => {
 
         await writeMinimalLump(projectRoot, 'alpha');
 
-        try {
-            await runDetachedStart(deps(), {});
-
-            const result = await makeStartHandler(deps())({ options: {}, arguments: {} });
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages[0]).toMatch(/already in use|already running/i);
-        } finally {
-            await stopDaemon(deps());
-        }
+        await withAliveDaemon({
+            ...aliveDaemonDeps(),
+            run: async () => {
+                const result = await makeStartHandler(deps())({ options: {}, arguments: {} });
+                expect(result.success).toBe(false);
+                if (result.success) throw new Error('unreachable');
+                expect(result.data.messages[0]).toMatch(/already in use|already running/i);
+            },
+        });
     });
 
     it('foreground start continues when the pid file already belongs to this process', async () => {
@@ -486,20 +489,20 @@ describe('start command', () => {
 
         const spawnFn = vi.fn(() => ({ pid: 555555, unref: vi.fn() })) as unknown as typeof import('node:child_process').spawn;
 
-        try {
-            await runDetachedStart(deps(), { lumpName: 'alpha' });
-
-            const result = await makeStartHandler(deps(), { spawnFn })({
-                options: { include: 'beta' },
-                arguments: {},
-            });
-            expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(spawnFn).toHaveBeenCalledOnce();
-        } finally {
-            await stopDaemon(deps(), { daemonId: 'alpha' });
-            await stopDaemon(deps(), { daemonId: 'beta' });
-        }
+        await withAliveDaemon({
+            ...aliveDaemonDeps(),
+            lumpName: 'alpha',
+            alsoStopDaemonIds: ['beta'],
+            run: async () => {
+                const result = await makeStartHandler(deps(), { spawnFn })({
+                    options: { include: 'beta' },
+                    arguments: {},
+                });
+                expect(result.success).toBe(true);
+                if (!result.success) throw new Error('unreachable');
+                expect(spawnFn).toHaveBeenCalledOnce();
+            },
+        });
     });
 
     it('rejects --maxParallelRun when workspaceStrategy is checkout', async () => {

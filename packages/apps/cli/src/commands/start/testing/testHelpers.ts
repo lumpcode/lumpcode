@@ -1,17 +1,12 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { expect } from 'vitest';
 import { success } from '@lumpcode/core';
 
 import {
-    aliveDaemonSpawnFn,
     setDaemonTestGlobalConfigFolder,
-    waitForDaemonPidFile,
-    waitForDaemonMetaFile,
     writeLocalJson,
     writeMinimalLump,
 } from '../../../testing';
-import { command as stopCommand } from '../../stop/main';
 import { command } from '../main';
 import {
     createTempTestDirs,
@@ -20,7 +15,6 @@ import {
     execGit,
     initBareRemoteAndCheckout,
     removeTempTestDirs,
-    resolveDaemonPaths,
     writeJsonFile,
 } from '../../../utils';
 
@@ -106,64 +100,6 @@ export function makeStartHandler(
         globalConfigFolderPath: deps.globalConfigFolderPath,
         skipEnsureSupervisor: true,
         ...overrides,
-    });
-}
-
-export async function runDetachedStart(
-    deps: StartHandlerDeps,
-    options: {
-        daemonId?: string;
-        include?: string;
-        lumpName?: string;
-        cronSetup?: string;
-        spawnFn?: typeof aliveDaemonSpawnFn;
-    } = {},
-) {
-    const { daemonId, include, lumpName, cronSetup, spawnFn = aliveDaemonSpawnFn } = options;
-    const handle = makeStartHandler(deps, { spawnFn });
-    const result = await handle({
-        options: {
-            ...(daemonId !== undefined ? { daemonId } : {}),
-            ...(include !== undefined ? { include } : {}),
-            ...(lumpName !== undefined ? { lumpName } : {}),
-            ...(cronSetup !== undefined ? { cronSetup } : {}),
-        },
-        arguments: {},
-    });
-    expect(result.success).toBe(true);
-    if (!result.success) throw new Error('unreachable');
-    const resolvedId = result.data.data?.daemonId ?? 'global';
-
-    const pathsResult = await resolveDaemonPaths({
-        projectRoot: deps.projectRoot,
-        localConfigFolderPath:
-            deps.localConfigFolderPath ?? localConfigFolderPath(deps.projectRoot),
-        globalConfigFolderPath: deps.globalConfigFolderPath,
-        daemonId: resolvedId,
-    });
-    if (!pathsResult.success) {
-        throw new Error(pathsResult.data);
-    }
-    await waitForDaemonPidFile(pathsResult.data.pidFilePath);
-    await waitForDaemonMetaFile(pathsResult.data.metaFilePath);
-}
-
-export async function stopDaemon(
-    deps: StartHandlerDeps,
-    options: { daemonId?: string; lumpName?: string } = {},
-) {
-    const handle = stopCommand.handlerMaker({
-        projectRoot: deps.projectRoot,
-        localConfigFolderPath:
-            deps.localConfigFolderPath ?? localConfigFolderPath(deps.projectRoot),
-        globalConfigFolderPath: deps.globalConfigFolderPath,
-    });
-    await handle({
-        options: {
-            ...(options.daemonId !== undefined ? { daemonId: options.daemonId } : {}),
-            ...(options.lumpName !== undefined ? { lumpName: options.lumpName } : {}),
-        },
-        arguments: {},
     });
 }
 

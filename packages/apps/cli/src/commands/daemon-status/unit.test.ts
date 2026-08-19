@@ -3,14 +3,11 @@ import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import {
-    aliveDaemonSpawnFn,
     removeDaemonMetaUntilGone,
     setDaemonTestGlobalConfigFolder,
-    waitForDaemonPidFile,
+    withAliveDaemon,
     writeDaemonMetaSticky,
 } from '../../testing';
-import { command as startCommand } from '../start/main';
-import { command as stopCommand } from '../stop/main';
 import { command as daemonStatusCommand } from './main';
 import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson, createTempTestDirs, removeTempTestDirs } from '../../utils';
 
@@ -41,6 +38,13 @@ describe('daemon-status command', () => {
             globalConfigFolderPath,
         });
     }
+
+    const aliveDaemonDeps = () => ({
+        projectRoot,
+        localConfigFolderPath,
+        globalConfigFolderPath,
+        cronSetup: '15 * * * *',
+    });
 
     it('fails when not a Lumpcode project root', async () => {
         const dirs = await createTempTestDirs({ prefix: 'lump-status-bad-', remote: false });
@@ -90,192 +94,116 @@ describe('daemon-status command', () => {
     });
 
     it('lists running daemons after a detached start', async () => {
-        const startHandle = startCommand.handlerMaker({
-            projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            spawnFn: aliveDaemonSpawnFn,
-            skipEnsureSupervisor: true,
-        });
-        const startResult = await startHandle({
-            options: { cronSetup: '15 * * * *' },
-            arguments: {},
-        });
-        expect(startResult.success).toBe(true);
-        await waitForDaemonPidFile(
-            path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`),
-        );
+        await withAliveDaemon({
+            ...aliveDaemonDeps(),
+            run: async () => {
+                const listResult = await makeDaemonStatusHandler()({ options: { json: true }, arguments: {} });
+                expect(listResult.success).toBe(true);
+                if (!listResult.success) throw new Error('unreachable');
+                const listData = listResult.data.data as {
+                    daemons: Array<{ daemonId: string; running: boolean; cronSetup?: string; pid?: number }>;
+                };
+                expect(listData.daemons).toHaveLength(1);
+                expect(listData.daemons[0]!.daemonId).toBe('global');
+                expect(listData.daemons[0]!.running).toBe(true);
 
-        try {
-            const listResult = await makeDaemonStatusHandler()({ options: { json: true }, arguments: {} });
-            expect(listResult.success).toBe(true);
-            if (!listResult.success) throw new Error('unreachable');
-            const listData = listResult.data.data as {
-                daemons: Array<{ daemonId: string; running: boolean; cronSetup?: string; pid?: number }>;
-            };
-            expect(listData.daemons).toHaveLength(1);
-            expect(listData.daemons[0]!.daemonId).toBe('global');
-            expect(listData.daemons[0]!.running).toBe(true);
-
-            const statusResult = await makeDaemonStatusHandler()({
-                options: { json: true, daemonId: 'global' },
-                arguments: {},
-            });
-            expect(statusResult.success).toBe(true);
-            if (!statusResult.success) throw new Error('unreachable');
-            expect((statusResult.data.data as { running: boolean }).running).toBe(true);
-            expect((statusResult.data.data as { cronSetup?: string }).cronSetup).toBe('15 * * * *');
-            expect(typeof (statusResult.data.data as { pid?: number }).pid).toBe('number');
-        } finally {
-            const stopHandle = stopCommand.handlerMaker({
-                projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-            });
-            await stopHandle({ options: {}, arguments: {} });
-        }
+                const statusResult = await makeDaemonStatusHandler()({
+                    options: { json: true, daemonId: 'global' },
+                    arguments: {},
+                });
+                expect(statusResult.success).toBe(true);
+                if (!statusResult.success) throw new Error('unreachable');
+                expect((statusResult.data.data as { running: boolean }).running).toBe(true);
+                expect((statusResult.data.data as { cronSetup?: string }).cronSetup).toBe('15 * * * *');
+                expect(typeof (statusResult.data.data as { pid?: number }).pid).toBe('number');
+            },
+        });
     });
 
     describe('inFlightLumpCount surface (parallel-global-daemon-worktree D*)', () => {
         it('D1: JSON status includes inFlightLumpCount when running', async () => {
-            const startHandle = startCommand.handlerMaker({
-                projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                spawnFn: aliveDaemonSpawnFn,
-                skipEnsureSupervisor: true,
-            });
-            const startResult = await startHandle({
-                options: { cronSetup: '15 * * * *' },
-                arguments: {},
-            });
-            expect(startResult.success).toBe(true);
-            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
-            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
-            await waitForDaemonPidFile(pidPath);
+            await withAliveDaemon({
+                ...aliveDaemonDeps(),
+                forceStop: true,
+                run: async ({ metaFilePath }) => {
+                    await writeDaemonMetaSticky({
+                        filePath: metaFilePath,
+                        data: {
+                            cronSetup: '15 * * * *',
+                            workspaceStrategy: 'checkout',
+                            inFlightLumpCount: 2,
+                        },
+                    });
 
-            await writeDaemonMetaSticky({
-                filePath: metaPath,
-                data: {
-                    cronSetup: '15 * * * *',
-                    workspaceStrategy: 'checkout',
-                    inFlightLumpCount: 2,
+                    const statusResult = await makeDaemonStatusHandler()({
+                        options: { json: true, daemonId: 'global' },
+                        arguments: {},
+                    });
+                    expect(statusResult.success).toBe(true);
+                    if (!statusResult.success) throw new Error('unreachable');
+                    expect((statusResult.data.data as { running: boolean }).running).toBe(true);
+                    expect(
+                        (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
+                    ).toBe(2);
+                    expect(statusResult.data.messages.join('\n')).toMatch(/in[- ]?flight|2/i);
                 },
             });
-
-            try {
-                const statusResult = await makeDaemonStatusHandler()({
-                    options: { json: true, daemonId: 'global' },
-                    arguments: {},
-                });
-                expect(statusResult.success).toBe(true);
-                if (!statusResult.success) throw new Error('unreachable');
-                expect((statusResult.data.data as { running: boolean }).running).toBe(true);
-                expect(
-                    (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
-                ).toBe(2);
-                expect(statusResult.data.messages.join('\n')).toMatch(/in[- ]?flight|2/i);
-            } finally {
-                const stopHandle = stopCommand.handlerMaker({
-                    projectRoot,
-                    localConfigFolderPath,
-                    globalConfigFolderPath,
-                });
-                await stopHandle({ options: { force: true }, arguments: {} });
-            }
         });
 
         it('D2: idle running daemon surfaces inFlightLumpCount 0', async () => {
-            const startHandle = startCommand.handlerMaker({
-                projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                spawnFn: aliveDaemonSpawnFn,
-                skipEnsureSupervisor: true,
-            });
-            const startResult = await startHandle({
-                options: { cronSetup: '15 * * * *' },
-                arguments: {},
-            });
-            expect(startResult.success).toBe(true);
-            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
-            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
-            await waitForDaemonPidFile(pidPath);
+            await withAliveDaemon({
+                ...aliveDaemonDeps(),
+                forceStop: true,
+                run: async ({ metaFilePath }) => {
+                    await writeDaemonMetaSticky({
+                        filePath: metaFilePath,
+                        data: {
+                            cronSetup: '15 * * * *',
+                            workspaceStrategy: 'checkout',
+                            inFlightLumpCount: 0,
+                        },
+                    });
 
-            await writeDaemonMetaSticky({
-                filePath: metaPath,
-                data: {
-                    cronSetup: '15 * * * *',
-                    workspaceStrategy: 'checkout',
-                    inFlightLumpCount: 0,
+                    const statusResult = await makeDaemonStatusHandler()({
+                        options: { json: true, daemonId: 'global' },
+                        arguments: {},
+                    });
+                    expect(statusResult.success).toBe(true);
+                    if (!statusResult.success) throw new Error('unreachable');
+                    expect((statusResult.data.data as { running: boolean }).running).toBe(true);
+                    expect(
+                        (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
+                    ).toBe(0);
                 },
             });
-
-            try {
-                const statusResult = await makeDaemonStatusHandler()({
-                    options: { json: true, daemonId: 'global' },
-                    arguments: {},
-                });
-                expect(statusResult.success).toBe(true);
-                if (!statusResult.success) throw new Error('unreachable');
-                expect((statusResult.data.data as { running: boolean }).running).toBe(true);
-                expect(
-                    (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
-                ).toBe(0);
-            } finally {
-                const stopHandle = stopCommand.handlerMaker({
-                    projectRoot,
-                    localConfigFolderPath,
-                    globalConfigFolderPath,
-                });
-                await stopHandle({ options: { force: true }, arguments: {} });
-            }
         });
 
         it('reports metaStatus when PID is alive but meta is missing', async () => {
-            const startHandle = startCommand.handlerMaker({
-                projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                spawnFn: aliveDaemonSpawnFn,
-                skipEnsureSupervisor: true,
-            });
-            const startResult = await startHandle({
-                options: { cronSetup: '15 * * * *' },
-                arguments: {},
-            });
-            expect(startResult.success).toBe(true);
-            const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
-            const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
-            await waitForDaemonPidFile(pidPath);
-            await removeDaemonMetaUntilGone(metaPath);
+            await withAliveDaemon({
+                ...aliveDaemonDeps(),
+                forceStop: true,
+                run: async ({ metaFilePath }) => {
+                    await removeDaemonMetaUntilGone(metaFilePath);
 
-            try {
-                const statusResult = await makeDaemonStatusHandler()({
-                    options: { json: true, daemonId: 'global' },
-                    arguments: {},
-                });
-                expect(statusResult.success).toBe(true);
-                if (!statusResult.success) throw new Error('unreachable');
-                const data = statusResult.data.data as {
-                    running: boolean;
-                    metaStatus?: string;
-                    inFlightLumpCount?: number;
-                    workspaceStrategy?: string;
-                };
-                expect(data.running).toBe(true);
-                expect(data.metaStatus).toBe('missing');
-                expect(data.inFlightLumpCount).toBeUndefined();
-                expect(data.workspaceStrategy).toBeUndefined();
-                expect(statusResult.data.messages.join('\n')).toMatch(/meta|--force/i);
-            } finally {
-                const stopHandle = stopCommand.handlerMaker({
-                    projectRoot,
-                    localConfigFolderPath,
-                    globalConfigFolderPath,
-                });
-                await stopHandle({ options: { force: true }, arguments: {} });
-            }
+                    const statusResult = await makeDaemonStatusHandler()({
+                        options: { json: true, daemonId: 'global' },
+                        arguments: {},
+                    });
+                    expect(statusResult.success).toBe(true);
+                    if (!statusResult.success) throw new Error('unreachable');
+                    const data = statusResult.data.data as {
+                        running: boolean;
+                        metaStatus?: string;
+                        inFlightLumpCount?: number;
+                        workspaceStrategy?: string;
+                    };
+                    expect(data.running).toBe(true);
+                    expect(data.metaStatus).toBe('missing');
+                    expect(data.inFlightLumpCount).toBeUndefined();
+                    expect(data.workspaceStrategy).toBeUndefined();
+                    expect(statusResult.data.messages.join('\n')).toMatch(/meta|--force/i);
+                },
+            });
         });
     });
 });
