@@ -13,7 +13,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
-import { execGit, initLocalGitRepo } from '../../utils';
+import { execGit, initLocalGitRepo, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 const LUMP_CONFIG_JS = `export default {
@@ -196,9 +196,7 @@ describe('lump-plan command — dynamic-discovery-branch (F*)', () => {
     const globalConfigFolderPath = path.join(os.homedir(), '.lumpcode-test-plan-ddb-global');
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-ddb-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-ddb-remote-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-plan-ddb-', global: false }));
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.mkdir(globalConfigFolderPath, { recursive: true });
         initBareRemoteAndCheckout(projectRoot, remoteDir);
@@ -209,8 +207,7 @@ describe('lump-plan command — dynamic-discovery-branch (F*)', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir });
     });
 
     function makeHandler() {

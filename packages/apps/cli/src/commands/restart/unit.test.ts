@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -13,7 +12,7 @@ import {
 } from '../../testing';
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
-import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson } from '../../utils';
+import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson, createTempTestDirs, removeTempTestDirs } from '../../utils';
 
 describe('restart command', () => {
     let projectRoot: string;
@@ -26,10 +25,8 @@ describe('restart command', () => {
         path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.desired.json`);
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-global-'));
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-restart-', remote: false }));
         setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         initLocalGitRepo({ cwd: projectRoot });
         await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
@@ -38,8 +35,7 @@ describe('restart command', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, globalConfigFolderPath });
     });
 
     function makeRestartHandler(
@@ -67,22 +63,19 @@ describe('restart command', () => {
     }
 
     it('fails when not a Lumpcode project root', async () => {
-        const badRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-bad-'));
-        const badGlobal = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-bad-global-'));
+        const dirs = await createTempTestDirs({ prefix: 'lump-restart-bad-', remote: false });
         try {
-            await fs.mkdir(path.join(badRoot, '.lumpcode'), { recursive: true });
             const handle = restartCommand.handlerMaker({
-                projectRoot: badRoot,
-                localConfigFolderPath: path.join(badRoot, '.lumpcode'),
-                globalConfigFolderPath: badGlobal,
+                projectRoot: dirs.projectRoot,
+                localConfigFolderPath: dirs.localConfigFolderPath,
+                globalConfigFolderPath: dirs.globalConfigFolderPath,
             });
             const result = await handle({ options: {}, arguments: {} });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
             expect(result.data.messages[0]).toContain('Not a Lumpcode project root');
         } finally {
-            await fs.rm(badRoot, { recursive: true, force: true });
-            await fs.rm(badGlobal, { recursive: true, force: true });
+            await removeTempTestDirs(dirs);
         }
     });
 

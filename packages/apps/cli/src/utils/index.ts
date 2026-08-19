@@ -15,6 +15,7 @@ export * from './commandFailure';
 export * from './contextNamesAfterLumpPrefix';
 export * from './contextStatusRecordPath';
 export * from './countOpenLumpBranches';
+export * from './createTempTestDirs';
 export * from './daemonFileBaseName';
 export * from './daemonSchedulerFiles';
 export * from './daemonsDirPath';

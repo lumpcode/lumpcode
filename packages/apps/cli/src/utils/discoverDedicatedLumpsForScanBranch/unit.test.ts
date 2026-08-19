@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
@@ -14,6 +13,7 @@ import {
 } from '../../testing';
 import { discoverDedicatedLumpsForScanBranch } from './main';
 import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeJsonFile } from '../writeJsonFile';
 
 function createLogger(): Logger {
@@ -33,10 +33,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-discover-dedicated-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-discover-dedicated-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-discover-dedicated-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-discover-dedicated-' }));
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         initBareRemoteAndCheckout(projectRoot, remoteDir);
@@ -49,9 +46,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
     });
 
     async function seedBranchOnlyFixtures(): Promise<void> {
@@ -130,10 +125,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-discover-pattern-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-discover-pattern-remote-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-discover-pattern-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-discover-pattern-' }));
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         initBareRemoteAndCheckout(projectRoot, remoteDir);
@@ -149,9 +141,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
     });
 
     async function seedMultiAndExactLumps(): Promise<void> {

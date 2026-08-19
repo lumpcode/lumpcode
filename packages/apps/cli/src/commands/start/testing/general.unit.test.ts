@@ -1,9 +1,9 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { writeMinimalLump } from '../../../testing';
+import { createTempTestDirs, removeTempTestDirs } from '../../../utils';
 import { writeJsonFile } from '../../../utils/writeJsonFile';
 import { command } from '../main';
 import {
@@ -34,22 +34,19 @@ describe('start command', () => {
     const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
 
     it('fails when not a Lumpcode project root', async () => {
-        const badRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-bad-'));
-        const badGlobal = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-start-bad-global-'));
+        const dirs = await createTempTestDirs({ prefix: 'lump-start-bad-', remote: false });
         try {
-            await fs.mkdir(path.join(badRoot, '.lumpcode'), { recursive: true });
             const handle = command.handlerMaker({
-                projectRoot: badRoot,
-                localConfigFolderPath: path.join(badRoot, '.lumpcode'),
-                globalConfigFolderPath: badGlobal,
+                projectRoot: dirs.projectRoot,
+                localConfigFolderPath: dirs.localConfigFolderPath,
+                globalConfigFolderPath: dirs.globalConfigFolderPath,
             });
             const result = await handle({ options: {}, arguments: {} });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
             expect(result.data.messages[0]).toContain('Not a Lumpcode project root');
         } finally {
-            await fs.rm(badRoot, { recursive: true, force: true });
-            await fs.rm(badGlobal, { recursive: true, force: true });
+            await removeTempTestDirs(dirs);
         }
     });
 

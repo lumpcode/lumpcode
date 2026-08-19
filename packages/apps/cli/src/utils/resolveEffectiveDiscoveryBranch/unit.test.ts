@@ -1,5 +1,4 @@
 import * as path from 'node:path';
-import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -11,6 +10,7 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeJsonFile } from '../writeJsonFile';
 import { resolveEffectiveDiscoveryBranch } from './main';
 
@@ -35,9 +35,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
     let localConfigFolderPath: string;
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-eff-discovery-'));
-        remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-eff-discovery-remote-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        ({ projectRoot, remoteDir, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-eff-discovery-', global: false }));
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
         await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
         initBareRemoteAndCheckout(projectRoot, remoteDir);
@@ -48,8 +46,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(remoteDir, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, remoteDir });
     });
 
     it('E1: dedicated concrete flag allowlisted and matching lump', async () => {
