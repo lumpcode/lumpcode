@@ -36,6 +36,7 @@ describe('resolveDaemonPaths', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
         expect(result.data.pidFilePath).toMatch(/demo_proj\.global\.daemon\.pid$/);
+        expect(result.data.desiredFilePath).toMatch(/demo_proj\.global\.daemon\.desired\.json$/);
         expect(result.data.daemonId).toBe('global');
         expect(result.data.usedLegacyGlobalAlias).toBeUndefined();
     });

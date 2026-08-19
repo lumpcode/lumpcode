@@ -1,58 +1,58 @@
-import * as fs from 'node:fs/promises';
+import { failure, success, type Failure, type Success } from '@lumpcode/core';
 
-import { failure, nodeErrnoCode, success, type Failure, type Success } from '@lumpcode/core';
-
-import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { RESERVED_DAEMON_ID } from '../daemonFileBaseName';
-import { daemonPidPath, legacyGlobalDaemonPidPath } from '../daemonPidPath';
-import { metaFilePathFromPidFilePath, readDaemonMeta } from '../readDaemonMeta';
+import {
+    daemonSchedulerFiles,
+    legacyGlobalDaemonSchedulerFiles,
+    listDaemonIds,
+    type DaemonSchedulerFiles,
+} from '../daemonSchedulerFiles';
+import {
+    daemonMetaInclude,
+    readDaemonMeta,
+    type DaemonMeta,
+} from '../readDaemonMeta';
 import { readDaemonPidIfAlive } from '../readDaemonPidIfAlive';
 
-export type RunningDaemonInfo =
-    | {
-          pid: number;
-          meta: 'ok';
-          workspaceStrategy: WorkspaceStrategy;
-      }
-    | {
-          pid: number;
-          meta: 'missing' | 'invalid';
-      };
+export type RunningDaemonInfo = DaemonSchedulerFiles & { pid: number } & (
+        | { meta: DaemonMeta }
+        | { metaStatus: 'missing' | 'invalid' }
+    );
+
+export function hasRunningDaemonMeta(
+    info: RunningDaemonInfo,
+): info is DaemonSchedulerFiles & { pid: number; meta: DaemonMeta } {
+    return !('metaStatus' in info);
+}
 
 /** Alive daemons for a project, keyed by daemonId. */
 export type RunningProjectDaemons = Record<string, RunningDaemonInfo>;
 
-function escapeRegExp(value: string): string {
-    return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function daemonIdPidFilePattern(projectName: string): RegExp {
-    return new RegExp(`^${escapeRegExp(projectName)}\\.([a-zA-Z0-9_-]+)\\.daemon\\.pid$`);
-}
-
 async function readRunningDaemonInfo(
-    pidFilePath: string,
+    files: DaemonSchedulerFiles,
 ): Promise<Success<RunningDaemonInfo | undefined> | Failure<string>> {
-    const aliveResult = await readDaemonPidIfAlive(pidFilePath);
+    const aliveResult = await readDaemonPidIfAlive(files.pidFilePath);
     if (!aliveResult.success) return aliveResult;
-    if (!aliveResult.data || !('pid' in aliveResult.data)) {
+    if (aliveResult.data.status !== 'alive') {
         return success(undefined);
     }
 
     const pid = aliveResult.data.pid;
-    const metaResult = await readDaemonMeta(metaFilePathFromPidFilePath(pidFilePath));
+    const metaResult = await readDaemonMeta(files.metaFilePath);
     if (!metaResult.success) {
         const reason = metaResult.data.reason;
         if (reason === 'missing' || reason === 'invalid') {
-            return success<RunningDaemonInfo>({ pid, meta: reason });
+            return success<RunningDaemonInfo>({ pid, ...files, metaStatus: reason });
         }
         return failure(metaResult.data.message);
     }
 
+    const parsed = metaResult.data;
+    const include = daemonMetaInclude(parsed);
     return success<RunningDaemonInfo>({
         pid,
-        meta: 'ok',
-        workspaceStrategy: metaResult.data.workspaceStrategy,
+        ...files,
+        meta: include !== undefined ? { ...parsed, include } : parsed,
     });
 }
 
@@ -65,25 +65,19 @@ export async function listRunningProjectDaemons(input: {
 }): Promise<Success<RunningProjectDaemons> | Failure<string>> {
     const { daemonsDir, projectName } = input;
     const result: RunningProjectDaemons = {};
-    const idPattern = daemonIdPidFilePattern(projectName);
 
-    let entries: string[];
-    try {
-        entries = await fs.readdir(daemonsDir);
-    } catch (error: unknown) {
-        const code = nodeErrnoCode(error);
-        if (code === 'ENOENT') {
-            return success(result);
-        }
-        return failure(`Cannot read daemons directory "${daemonsDir}": ${String(error)}`);
+    const idsResult = await listDaemonIds({
+        dir: daemonsDir,
+        projectName,
+        kind: 'pid',
+    });
+    if (!idsResult.success) {
+        return idsResult;
     }
 
-    for (const name of entries) {
-        const match = idPattern.exec(name);
-        if (!match) continue;
-        const daemonId = match[1]!;
+    for (const daemonId of idsResult.data) {
         const infoResult = await readRunningDaemonInfo(
-            daemonPidPath({ daemonsDir, projectName, daemonId }),
+            daemonSchedulerFiles({ daemonsDir, projectName, daemonId }),
         );
         if (!infoResult.success) return infoResult;
         if (infoResult.data !== undefined) {
@@ -94,7 +88,7 @@ export async function listRunningProjectDaemons(input: {
     // Legacy bare `<project>.daemon.pid` → id `global` when new-style global is absent.
     if (result[RESERVED_DAEMON_ID] === undefined) {
         const legacyInfo = await readRunningDaemonInfo(
-            legacyGlobalDaemonPidPath({ daemonsDir, projectName }),
+            legacyGlobalDaemonSchedulerFiles({ daemonsDir, projectName }),
         );
         if (!legacyInfo.success) return legacyInfo;
         if (legacyInfo.data !== undefined) {

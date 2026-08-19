@@ -17,8 +17,8 @@ import {
 import {
     appendHistoryEntry,
     createConsoleLogger,
+    failure,
     formatExecFailureMessage,
-    set,
     success,
 } from '../../utils';
 import { GitAndWorkspaceFnsInput } from '../../types/GitAndWorkspaceFnsInput';
@@ -194,11 +194,9 @@ export async function executeStepsForContextList<
         });
         logger.verbose(`setupWorkspaceCommandExec ${JSON.stringify(setupWorkspaceCommandExec)}`);
         if (!setupWorkspaceCommandExec.success) {
-            return set(
-                setupWorkspaceCommandExec, 
-                ['data', 'message'], 
-                `Failed to setup the workspace: ${setupWorkspaceCommandExec.data.message}`
-            );
+            return failure({
+                message: `Failed to setup the workspace: ${setupWorkspaceCommandExec.data.message}`,
+            });
         }
 
         if (afterExec) {

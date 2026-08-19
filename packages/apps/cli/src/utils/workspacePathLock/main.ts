@@ -75,6 +75,8 @@ export async function acquireWorkspacePathLock(input: {
     mode: WorkspacePathLockMode;
     projectName?: string;
     logger?: Parameters<typeof acquireWorkspaceFileLock>[0]['logger'];
+    waitTimeoutMs?: number;
+    waitLogIntervalMs?: number;
 }): Promise<Success<ReleaseWorkspacePathLockFn> | Failure<WorkspacePathBusyError>> {
     return acquireWorkspaceFileLock({
         spec: WORKSPACE_PATH_LOCK_SPEC,
@@ -84,5 +86,7 @@ export async function acquireWorkspacePathLock(input: {
         mode: input.mode,
         projectName: input.projectName,
         logger: input.logger,
+        waitTimeoutMs: input.waitTimeoutMs,
+        waitLogIntervalMs: input.waitLogIntervalMs,
     });
 }

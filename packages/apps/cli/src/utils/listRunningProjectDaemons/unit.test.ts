@@ -44,8 +44,15 @@ describe('listRunningProjectDaemons', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.global).toEqual({
             pid: process.pid,
-            meta: 'ok',
-            workspaceStrategy: 'worktree',
+            pidFilePath: path.join(daemonsDir, `${projectName}.global.daemon.pid`),
+            metaFilePath: path.join(daemonsDir, `${projectName}.global.daemon.meta.json`),
+            logFilePath: path.join(daemonsDir, `${projectName}.global.daemon.log`),
+            desiredFilePath: path.join(daemonsDir, `${projectName}.global.daemon.desired.json`),
+            meta: {
+                daemonId: 'global',
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'worktree',
+            },
         });
     });
 
@@ -64,8 +71,14 @@ describe('listRunningProjectDaemons', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.global).toEqual({
             pid: process.pid,
-            meta: 'ok',
-            workspaceStrategy: 'checkout',
+            pidFilePath: path.join(daemonsDir, `${projectName}.daemon.pid`),
+            metaFilePath: path.join(daemonsDir, `${projectName}.daemon.meta.json`),
+            logFilePath: path.join(daemonsDir, `${projectName}.daemon.log`),
+            desiredFilePath: path.join(daemonsDir, `${projectName}.daemon.desired.json`),
+            meta: {
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+            },
         });
     });
 
@@ -78,6 +91,15 @@ describe('listRunningProjectDaemons', () => {
         const result = await listRunningProjectDaemons({ daemonsDir, projectName });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data).toEqual({ alpha: { pid: process.pid, meta: 'missing' } });
+        expect(result.data).toEqual({
+            alpha: {
+                pid: process.pid,
+                pidFilePath: path.join(daemonsDir, `${projectName}.alpha.daemon.pid`),
+                metaFilePath: path.join(daemonsDir, `${projectName}.alpha.daemon.meta.json`),
+                logFilePath: path.join(daemonsDir, `${projectName}.alpha.daemon.log`),
+                desiredFilePath: path.join(daemonsDir, `${projectName}.alpha.daemon.desired.json`),
+                metaStatus: 'missing',
+            },
+        });
     });
 });

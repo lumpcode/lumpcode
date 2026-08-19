@@ -9,6 +9,7 @@ import {
     setDaemonTestGlobalConfigFolder,
     waitForDaemonMetaFile,
     waitForDaemonPidFile,
+    writeDaemonMetaSticky,
 } from '../../testing';
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
@@ -21,6 +22,8 @@ describe('restart command', () => {
     const projectName = 'restart-test-project';
     const pidPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
     const metaPath = () => path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
+    const desiredPath = () =>
+        path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.desired.json`);
 
     beforeEach(async () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-restart-'));
@@ -46,6 +49,7 @@ describe('restart command', () => {
             projectRoot,
             localConfigFolderPath,
             globalConfigFolderPath,
+            skipEnsureSupervisor: true,
             ...overrides,
         });
     }
@@ -56,6 +60,7 @@ describe('restart command', () => {
             localConfigFolderPath,
             globalConfigFolderPath,
             spawnFn,
+            skipEnsureSupervisor: true,
         });
         const result = await handle({ options, arguments: {} });
         expect(result.success).toBe(true);
@@ -142,7 +147,7 @@ describe('restart command', () => {
         }
     });
 
-    it('falls back to the default cron schedule when the meta file is missing', async () => {
+    it('preserves cron from desired.json when meta is missing', async () => {
         await runStart(aliveDaemonSpawnFn, { cronSetup: '*/9 * * * *' });
         await waitForDaemonPidFile(pidPath());
         await waitForDaemonMetaFile(metaPath());
@@ -154,7 +159,7 @@ describe('restart command', () => {
                 const argList = args as readonly string[];
                 const cronIdx = argList.indexOf('--cronSetup');
                 expect(cronIdx).toBeGreaterThanOrEqual(0);
-                expect(argList[cronIdx + 1]).toBe('*/5 * * * *');
+                expect(argList[cronIdx + 1]).toBe('*/9 * * * *');
                 return aliveDaemonSpawnFn(command, argList, options ?? {});
             },
         ) as unknown as typeof nodeSpawn;
@@ -166,7 +171,34 @@ describe('restart command', () => {
 
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.data?.cronSetup).toBe('*/5 * * * *');
+        expect(result.data.data?.cronSetup).toBe('*/9 * * * *');
+    });
+
+    it('unlinks a stale pid file when there is no recipe to restart', async () => {
+        await fs.mkdir(path.dirname(pidPath()), { recursive: true });
+        await fs.writeFile(pidPath(), '999999999', 'utf8');
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/Invalid PID|stale/);
+        expect(spawnFn).not.toHaveBeenCalled();
+        await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('fails when desired.json and meta are both missing', async () => {
+        await runStart(aliveDaemonSpawnFn, { cronSetup: '*/9 * * * *' });
+        await waitForDaemonPidFile(pidPath());
+        await waitForDaemonMetaFile(metaPath());
+        await fs.unlink(metaPath());
+        await fs.unlink(desiredPath());
+
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/desired\.json is missing and daemon meta is unreadable/);
+        expect(spawnFn).not.toHaveBeenCalled();
     });
 
     it('K5: restart while mid-run fails via stop refuse (parallel-global-daemon-worktree)', async () => {
@@ -175,14 +207,13 @@ describe('restart command', () => {
         const pid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
         expect(Number.isNaN(pid)).toBe(false);
 
-        await writeJsonFile({
+        await writeDaemonMetaSticky({
             filePath: metaPath(),
             data: {
                 cronSetup: '*/5 * * * *',
                 workspaceStrategy: 'checkout',
                 inFlightLumpCount: 2,
             },
-            trailingNewline: true,
         });
 
         const spawnFn = vi.fn() as unknown as typeof nodeSpawn;

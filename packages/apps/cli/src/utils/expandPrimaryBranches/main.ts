@@ -1,6 +1,7 @@
 import type { Failure, Logger, Success } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
+import { DISCOVERY_GIT_TIMEOUT_MS } from '../../consts';
 import type { LocalConfig } from '../../types/LocalConfig';
 import { isGitRefGlob } from '../isGitRefGlob';
 import { listRemoteHeadBranches } from '../listRemoteHeadBranches';
@@ -51,24 +52,24 @@ export async function expandPrimaryBranches(
             continue;
         }
 
-        let heads: string[];
-        try {
-            heads = await listRemoteHeadBranches({ cwd, branchGlob: entry });
-        } catch (err) {
-            const detail = err instanceof Error ? err.message : String(err);
+        const listed = await listRemoteHeadBranches({
+            cwd,
+            branchGlob: entry,
+            timeoutMillis: DISCOVERY_GIT_TIMEOUT_MS,
+        });
+        if (!listed.success && listed.data.reason === 'timeout') {
             return failure(
-                `Failed to expand primaryBranches glob "${entry}" via ls-remote: ${detail}`,
+                `Failed to expand primaryBranches glob "${entry}" via ls-remote: ${listed.data.message}`,
             );
         }
-
-        if (heads.length === 0) {
+        if (!listed.success || listed.data.length === 0) {
             logger?.info(
                 `primaryBranches glob "${entry}" matched no remote heads; skipping.`,
             );
             continue;
         }
 
-        for (const head of heads) {
+        for (const head of listed.data) {
             if (!seen.has(head)) {
                 seen.add(head);
                 concrete.push(head);

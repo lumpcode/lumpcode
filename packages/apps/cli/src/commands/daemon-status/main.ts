@@ -9,12 +9,18 @@ import {
     daemonMetaInclude,
     daemonsDirPath,
     getProjectName,
+    hasRunningDaemonMeta,
     listRunningProjectDaemons,
     readDaemonMeta,
     readDaemonPidIfAlive,
     resolveDaemonCommandScope,
     resolveDaemonPaths,
+    supervisorLogPath,
+    supervisorPidPath,
+    type DaemonMeta,
     type DaemonMetaReadErrorReason,
+    type DaemonPidReadResult,
+    type DaemonSchedulerFiles,
 } from '../../utils';
 import { commandFailure } from '../../utils/commandFailure';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
@@ -52,9 +58,17 @@ export type StatusData = {
     metaStatus?: DaemonMetaReadErrorReason;
 };
 
+export type SupervisorStatusData = {
+    running: boolean;
+    pidFilePath: string;
+    logFilePath: string;
+    pid?: number;
+    stalePidFile?: boolean;
+};
+
 export type Output = {
     messages: string[];
-    data?: StatusData | { projectName: string; daemons: StatusData[] };
+    data?: StatusData | { projectName: string; daemons: StatusData[]; supervisor: SupervisorStatusData };
 };
 
 export interface Injections {
@@ -63,42 +77,126 @@ export interface Injections {
     globalConfigFolderPath: string;
 }
 
-type MetaRead =
-    | {
-          ok: true;
-          cronSetup?: string;
-          lumpName?: string;
-          include?: string[];
-          exclude?: string[];
-          maxParallelRun?: number;
-          workspaceStrategy: string;
-          inFlightLumpCount: number;
-          daemonId?: string;
-      }
-    | {
-          ok: false;
-          reason: DaemonMetaReadErrorReason;
-      };
-
-async function readMetaFromFile(metaFilePath: string): Promise<MetaRead> {
-    const metaResult = await readDaemonMeta(metaFilePath);
-    if (!metaResult.success) {
-        return { ok: false, reason: metaResult.data.reason };
-    }
-    const include = daemonMetaInclude(metaResult.data);
-    return {
-        ok: true,
-        ...(metaResult.data.daemonId !== undefined ? { daemonId: metaResult.data.daemonId } : {}),
-        ...(metaResult.data.cronSetup !== undefined ? { cronSetup: metaResult.data.cronSetup } : {}),
-        ...(metaResult.data.lumpName !== undefined ? { lumpName: metaResult.data.lumpName } : {}),
-        ...(include !== undefined ? { include } : {}),
-        ...(metaResult.data.exclude !== undefined ? { exclude: metaResult.data.exclude } : {}),
-        ...(metaResult.data.maxParallelRun !== undefined
-            ? { maxParallelRun: metaResult.data.maxParallelRun }
-            : {}),
-        workspaceStrategy: metaResult.data.workspaceStrategy,
-        inFlightLumpCount: metaResult.data.inFlightLumpCount ?? 0,
+function toStatusData(input: {
+    projectName: string;
+    daemonId: string;
+    files: Pick<DaemonSchedulerFiles, 'pidFilePath' | 'logFilePath' | 'metaFilePath'>;
+    pidAlive: DaemonPidReadResult;
+    meta: DaemonMeta | undefined;
+    metaReason?: DaemonMetaReadErrorReason;
+    lumpNameDeprecated?: string;
+}): { messages: string[]; data: StatusData } {
+    const { projectName, daemonId, files, pidAlive, meta, metaReason, lumpNameDeprecated } = input;
+    const { pidFilePath, logFilePath, metaFilePath } = files;
+    const scopeLabel = ` daemon "${daemonId}"`;
+    const baseData = {
+        projectName,
+        daemonId,
+        pidFilePath,
+        logFilePath,
+        metaFilePath,
+        ...(lumpNameDeprecated !== undefined ? { lumpName: lumpNameDeprecated } : {}),
     };
+
+    if (pidAlive.status === 'missing') {
+        const messages: string[] = [
+            `No Lumpcode background daemon PID file for "${projectName}"${scopeLabel} (${pidFilePath}). The daemon is not running.`,
+        ];
+        if (meta?.cronSetup !== undefined) {
+            messages.push(`Detached schedule on file: ${meta.cronSetup}`);
+        }
+        return {
+            messages,
+            data: {
+                running: false,
+                ...baseData,
+                ...(meta?.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
+                ...(meta?.include !== undefined ? { include: meta.include } : {}),
+                ...(meta?.exclude !== undefined ? { exclude: meta.exclude } : {}),
+                ...(metaReason !== undefined ? { metaStatus: metaReason } : {}),
+            },
+        };
+    }
+
+    if (pidAlive.status === 'stale') {
+        return {
+            messages: [
+                `PID file for "${projectName}"${scopeLabel} references a process that is not running (stale PID file at ${pidFilePath}).`,
+            ],
+            data: {
+                running: false,
+                ...baseData,
+                stalePidFile: true,
+                ...(meta?.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
+                ...(metaReason !== undefined ? { metaStatus: metaReason } : {}),
+            },
+        };
+    }
+
+    const pid = pidAlive.pid;
+    if (meta === undefined) {
+        return {
+            messages: [
+                `Lumpcode background daemon is running for "${projectName}"${scopeLabel} (pid ${pid}).`,
+                `Log file: ${logFilePath}`,
+                `Daemon meta is invalid (reason: ${metaReason}) at ${metaFilePath}; run \`lumpcode stop --force\` to repair.`,
+            ],
+            data: {
+                running: true,
+                ...baseData,
+                pid,
+                metaStatus: metaReason,
+            },
+        };
+    }
+
+    const messages: string[] = [
+        `Lumpcode background daemon "${daemonId}" is running for "${projectName}" (pid ${pid}).`,
+        `Log file: ${logFilePath}`,
+    ];
+    if (meta.cronSetup !== undefined) {
+        messages.push(`Cron schedule: ${meta.cronSetup}`);
+    }
+    if (meta.include?.length) {
+        messages.push(`Include: ${meta.include.join(', ')}`);
+    }
+    if (meta.exclude?.length) {
+        messages.push(`Exclude: ${meta.exclude.join(', ')}`);
+    }
+    messages.push(`In-flight lump runs: ${meta.inFlightLumpCount ?? 0}`);
+
+    return {
+        messages,
+        data: {
+            running: true,
+            ...baseData,
+            pid,
+            cronSetup: meta.cronSetup,
+            include: meta.include,
+            exclude: meta.exclude,
+            maxParallelRun: meta.maxParallelRun,
+            workspaceStrategy: meta.workspaceStrategy,
+            inFlightLumpCount: meta.inFlightLumpCount ?? 0,
+            lumpName: meta.lumpName ?? lumpNameDeprecated,
+        },
+    };
+}
+
+async function supervisorStatusForProject(input: {
+    globalConfigFolderPath: string;
+    projectName: string;
+}): Promise<SupervisorStatusData> {
+    const pidFilePath = supervisorPidPath(input);
+    const logFilePath = supervisorLogPath(input);
+    const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
+    const base = { pidFilePath, logFilePath };
+    if (!pidAliveResult.success || pidAliveResult.data.status === 'missing') {
+        return { running: false, ...base };
+    }
+    if (pidAliveResult.data.status === 'stale') {
+        return { running: false, stalePidFile: true, ...base };
+    }
+    return { running: true, pid: pidAliveResult.data.pid, ...base };
 }
 
 async function statusForDaemonId(input: {
@@ -116,106 +214,24 @@ async function statusForDaemonId(input: {
         return failure(pathsResult.data);
     }
     const { pidFilePath, logFilePath, metaFilePath, projectName, daemonId } = pathsResult.data;
-    const scopeLabel = ` daemon "${daemonId}"`;
-    const meta = await readMetaFromFile(metaFilePath);
-
     const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
     if (!pidAliveResult.success) {
         return failure(pidAliveResult.data);
     }
-    const pidAlive = pidAliveResult.data;
-
-    const baseData = {
-        projectName,
-        daemonId,
-        pidFilePath,
-        logFilePath,
-        metaFilePath,
-        ...(input.lumpNameDeprecated !== undefined ? { lumpName: input.lumpNameDeprecated } : {}),
-    };
-
-    if (pidAlive === undefined) {
-        const messages: string[] = [
-            `No Lumpcode background daemon PID file for "${projectName}"${scopeLabel} (${pidFilePath}). The daemon is not running.`,
-        ];
-        if (meta.ok && meta.cronSetup !== undefined) {
-            messages.push(`Detached schedule on file: ${meta.cronSetup}`);
-        }
-        return success({
-            messages,
-            data: {
-                running: false,
-                ...baseData,
-                ...(meta.ok && meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
-                ...(meta.ok && meta.include !== undefined ? { include: meta.include } : {}),
-                ...(meta.ok && meta.exclude !== undefined ? { exclude: meta.exclude } : {}),
-                ...(!meta.ok ? { metaStatus: meta.reason } : {}),
-            },
-        });
-    }
-
-    if ('stale' in pidAlive) {
-        const messages: string[] = [
-            `PID file for "${projectName}"${scopeLabel} references a process that is not running (stale PID file at ${pidFilePath}).`,
-        ];
-        return success({
-            messages,
-            data: {
-                running: false,
-                ...baseData,
-                stalePidFile: true,
-                ...(meta.ok && meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
-                ...(!meta.ok ? { metaStatus: meta.reason } : {}),
-            },
-        });
-    }
-
-    const pid = pidAlive.pid;
-    if (!meta.ok) {
-        return success({
-            messages: [
-                `Lumpcode background daemon is running for "${projectName}"${scopeLabel} (pid ${pid}).`,
-                `Log file: ${logFilePath}`,
-                `Daemon meta is invalid (reason: ${meta.reason}) at ${metaFilePath}; run \`lumpcode stop --force\` to repair.`,
-            ],
-            data: {
-                running: true,
-                ...baseData,
-                pid,
-                metaStatus: meta.reason,
-            },
-        });
-    }
-
-    const messages: string[] = [
-        `Lumpcode background daemon "${daemonId}" is running for "${projectName}" (pid ${pid}).`,
-        `Log file: ${logFilePath}`,
-    ];
-    if (meta.cronSetup !== undefined) {
-        messages.push(`Cron schedule: ${meta.cronSetup}`);
-    }
-    if (meta.include?.length) {
-        messages.push(`Include: ${meta.include.join(', ')}`);
-    }
-    if (meta.exclude?.length) {
-        messages.push(`Exclude: ${meta.exclude.join(', ')}`);
-    }
-    messages.push(`In-flight lump runs: ${meta.inFlightLumpCount}`);
-
-    return success({
-        messages,
-        data: {
-            running: true,
-            ...baseData,
-            pid,
-            ...(meta.cronSetup !== undefined ? { cronSetup: meta.cronSetup } : {}),
-            ...(meta.include !== undefined ? { include: meta.include } : {}),
-            ...(meta.exclude !== undefined ? { exclude: meta.exclude } : {}),
-            ...(meta.maxParallelRun !== undefined ? { maxParallelRun: meta.maxParallelRun } : {}),
-            workspaceStrategy: meta.workspaceStrategy,
-            inFlightLumpCount: meta.inFlightLumpCount,
-        },
-    });
+    const metaResult = await readDaemonMeta(metaFilePath);
+    return success(
+        toStatusData({
+            projectName,
+            daemonId,
+            files: { pidFilePath, logFilePath, metaFilePath },
+            pidAlive: pidAliveResult.data,
+            meta: metaResult.success
+                ? { ...metaResult.data, include: daemonMetaInclude(metaResult.data) }
+                : undefined,
+            metaReason: metaResult.success ? undefined : metaResult.data.reason,
+            lumpNameDeprecated: input.lumpNameDeprecated,
+        }),
+    );
 }
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
@@ -243,30 +259,35 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         }
 
         const daemonIds = Object.keys(runningResult.data).sort();
+        const supervisor = await supervisorStatusForProject({ globalConfigFolderPath, projectName });
+        const supervisorLine = supervisor.running
+            ? `Supervisor: running (pid ${supervisor.pid}).`
+            : 'Supervisor: not running.';
         if (daemonIds.length === 0) {
             return success({
-                messages: [`No Lumpcode background daemons running for "${projectName}".`],
-                data: { projectName, daemons: [] },
+                messages: [`No Lumpcode background daemons running for "${projectName}".`, supervisorLine],
+                data: { projectName, daemons: [], supervisor },
             });
         }
 
         const daemons: StatusData[] = [];
         const messages: string[] = [`Lumpcode daemons for "${projectName}":`];
         for (const daemonId of daemonIds) {
-            const one = await statusForDaemonId({
-                projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
+            const info = runningResult.data[daemonId]!;
+            const entry = toStatusData({
+                projectName,
                 daemonId,
-            });
-            if (!one.success) {
-                return failure({ messages: [one.data] });
-            }
-            const entry = one.data.data;
+                files: info,
+                pidAlive: { status: 'alive', pid: info.pid },
+                ...(hasRunningDaemonMeta(info)
+                    ? { meta: info.meta }
+                    : { meta: undefined, metaReason: info.metaStatus }),
+            }).data;
             daemons.push(entry);
             messages.push(`- ${daemonId}: running=${entry.running} pid=${entry.pid ?? 'n/a'}`);
         }
-        return success({ messages, data: { projectName, daemons } });
+        messages.push(supervisorLine);
+        return success({ messages, data: { projectName, daemons, supervisor } });
     }
 
     const scopeResult = await resolveDaemonCommandScope({

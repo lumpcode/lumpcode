@@ -1,9 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
 import { assertDaemonStartAllowed } from './main';
+import type { RunningDaemonInfo } from '../listRunningProjectDaemons';
 
 describe('assertDaemonStartAllowed', () => {
     const projectName = 'proj';
+    const files = {
+        pidFilePath: '/p',
+        metaFilePath: '/m',
+        logFilePath: '/l',
+        desiredFilePath: '/d',
+    };
+
+    function runningOk(pid: number): RunningDaemonInfo {
+        return {
+            ...files,
+            pid,
+            meta: { workspaceStrategy: 'checkout' },
+        };
+    }
+
+    function runningBad(pid: number, metaStatus: 'missing' | 'invalid'): RunningDaemonInfo {
+        return { ...files, pid, metaStatus };
+    }
 
     it('allows start when nothing is running', () => {
         const result = assertDaemonStartAllowed({
@@ -19,7 +38,7 @@ describe('assertDaemonStartAllowed', () => {
             projectName,
             daemonId: 'beta',
             running: {
-                alpha: { pid: 101, meta: 'ok', workspaceStrategy: 'checkout' },
+                alpha: runningOk(101),
             },
         });
         expect(result.success).toBe(true);
@@ -30,7 +49,7 @@ describe('assertDaemonStartAllowed', () => {
             projectName,
             daemonId: 'alpha',
             running: {
-                alpha: { pid: 102, meta: 'ok', workspaceStrategy: 'worktree' },
+                alpha: { ...runningOk(102), meta: { workspaceStrategy: 'worktree' } },
             },
         });
         expect(result.success).toBe(false);
@@ -39,11 +58,23 @@ describe('assertDaemonStartAllowed', () => {
         expect(result.data.message).toContain('alpha');
     });
 
+    it('allows start when the live pid is this process', () => {
+        const result = assertDaemonStartAllowed({
+            projectName,
+            daemonId: 'global',
+            selfPid: 42,
+            running: {
+                global: runningBad(42, 'missing'),
+            },
+        });
+        expect(result.success).toBe(true);
+    });
+
     it('blocks start when a running daemon has missing meta', () => {
         const result = assertDaemonStartAllowed({
             projectName,
             daemonId: 'beta',
-            running: { alpha: { pid: 103, meta: 'missing' } },
+            running: { alpha: runningBad(103, 'missing') },
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
@@ -56,7 +87,7 @@ describe('assertDaemonStartAllowed', () => {
         const result = assertDaemonStartAllowed({
             projectName,
             daemonId: 'global',
-            running: { nightly: { pid: 100, meta: 'invalid' } },
+            running: { nightly: runningBad(100, 'invalid') },
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');

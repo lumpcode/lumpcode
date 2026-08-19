@@ -5,8 +5,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import {
     aliveDaemonSpawnFn,
+    removeDaemonMetaUntilGone,
     setDaemonTestGlobalConfigFolder,
     waitForDaemonPidFile,
+    writeDaemonMetaSticky,
 } from '../../testing';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from '../stop/main';
@@ -70,6 +72,7 @@ describe('daemon-status command', () => {
         if (!result.success) throw new Error('unreachable');
         const data = result.data.data as { daemons: unknown[] };
         expect(data.daemons).toEqual([]);
+        expect((result.data.data as { supervisor: { running: boolean } }).supervisor.running).toBe(false);
         expect(result.data.messages[0]).toMatch(/No Lumpcode background daemons/i);
     });
 
@@ -99,6 +102,7 @@ describe('daemon-status command', () => {
             localConfigFolderPath,
             globalConfigFolderPath,
             spawnFn: aliveDaemonSpawnFn,
+            skipEnsureSupervisor: true,
         });
         const startResult = await startHandle({
             options: { cronSetup: '15 * * * *' },
@@ -146,6 +150,7 @@ describe('daemon-status command', () => {
                 localConfigFolderPath,
                 globalConfigFolderPath,
                 spawnFn: aliveDaemonSpawnFn,
+                skipEnsureSupervisor: true,
             });
             const startResult = await startHandle({
                 options: { cronSetup: '15 * * * *' },
@@ -156,14 +161,13 @@ describe('daemon-status command', () => {
             const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
             await waitForDaemonPidFile(pidPath);
 
-            await writeJsonFile({
+            await writeDaemonMetaSticky({
                 filePath: metaPath,
                 data: {
                     cronSetup: '15 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount: 2,
                 },
-                trailingNewline: true,
             });
 
             try {
@@ -194,6 +198,7 @@ describe('daemon-status command', () => {
                 localConfigFolderPath,
                 globalConfigFolderPath,
                 spawnFn: aliveDaemonSpawnFn,
+                skipEnsureSupervisor: true,
             });
             const startResult = await startHandle({
                 options: { cronSetup: '15 * * * *' },
@@ -204,14 +209,13 @@ describe('daemon-status command', () => {
             const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
             await waitForDaemonPidFile(pidPath);
 
-            await writeJsonFile({
+            await writeDaemonMetaSticky({
                 filePath: metaPath,
                 data: {
                     cronSetup: '15 * * * *',
                     workspaceStrategy: 'checkout',
                     inFlightLumpCount: 0,
                 },
-                trailingNewline: true,
             });
 
             try {
@@ -241,6 +245,7 @@ describe('daemon-status command', () => {
                 localConfigFolderPath,
                 globalConfigFolderPath,
                 spawnFn: aliveDaemonSpawnFn,
+                skipEnsureSupervisor: true,
             });
             const startResult = await startHandle({
                 options: { cronSetup: '15 * * * *' },
@@ -250,7 +255,7 @@ describe('daemon-status command', () => {
             const pidPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.pid`);
             const metaPath = path.join(globalConfigFolderPath, 'daemons', `${projectName}.global.daemon.meta.json`);
             await waitForDaemonPidFile(pidPath);
-            await fs.unlink(metaPath);
+            await removeDaemonMetaUntilGone(metaPath);
 
             try {
                 const statusResult = await makeDaemonStatusHandler()({

@@ -18,10 +18,10 @@ export async function countOpenLumpBranches(input: {
     const { executionWorkspacePath, lumpName } = input;
     const branchGlob = lumpBranchGlob({ lumpName });
     const shortNamePrefix = branchGlob.slice(0, -1);
-    const branches = await listRemoteHeadBranches({
+    const listed = await listRemoteHeadBranches({
         cwd: executionWorkspacePath,
         branchGlob,
         postFilterBranchShortName: (shortName) => shortName.startsWith(shortNamePrefix),
     });
-    return branches.length;
+    return listed.success ? listed.data.length : 0;
 }

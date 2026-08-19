@@ -1,4 +1,3 @@
-import * as fs from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -37,8 +36,6 @@ describe('E2E daemon scenarios', () => {
             await runE2eCli({ project, args: ['start', '--cronSetup', '*/1 * * * *', '--json'] }),
             'detached start',
         );
-        await expect(fs.access(pidFilePath)).rejects.toThrow();
-
         await waitForPath(pidFilePath, 30_000);
         await waitForPath(metaFilePath, 30_000);
 

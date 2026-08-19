@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Hands-on: dedicated Lumpcode daemon</title>
+  <style>
+    body {
+      max-width: 42rem;
+      margin: 2rem auto;
+      padding: 0 1.25rem 4rem;
+      font: 18px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #0f1419;
+    }
+    .meta {
+      margin: 0 0 1.5rem;
+      padding: 0.75rem 1rem;
+      background: #f7f9f9;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #536471;
+    }
+    .meta strong { color: #0f1419; }
+    .subtitle {
+      margin: 0 0 1.75rem;
+      font-size: 1.15rem;
+      color: #536471;
+    }
+    h2 {
+      margin: 1.75rem 0 0.75rem;
+      font-size: 1.35rem;
+      line-height: 1.3;
+    }
+    p { margin: 0 0 0.9rem; }
+    ul, ol {
+      margin: 0 0 0.9rem;
+      padding-left: 1.25rem;
+    }
+    li { margin: 0 0 0.45rem; }
+    a { color: #1d9bf0; }
+    pre {
+      margin: 0 0 0.9rem;
+      padding: 0.85rem 1rem;
+      overflow-x: auto;
+      background: #f7f9f9;
+      border-radius: 8px;
+      font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    code {
+      font: 0.9em/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    p code, li code {
+      background: #f7f9f9;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <p class="meta">
+    <strong>How to paste into X Articles</strong><br />
+    1. Title field: <em>Hands-on: dedicated Lumpcode daemon</em><br />
+    2. Subtitle field (if present): <em>Laptop in shared mode, worker in dedicated mode, first campaign in between.</em><br />
+    3. Select from the subtitle (or from the first body paragraph) through the last paragraph — do not select this gray box.<br />
+    4. Copy, then paste into the X article body (Cmd/Ctrl+V). Paste as rich text, not plain text.<br />
+    Alternate: copy body from <a href="https://markdown2x.com/">markdown2x.com</a>.
+  </p>
+
+  <p class="subtitle">Laptop in shared mode, worker in dedicated mode, first campaign in between.</p>
+
+  <p>Lumpcode is a <strong>git-first loop manager</strong>: a small CLI that runs long agent campaigns over your own repo, in reviewable slices. Git is the gate (one PR at a time) and the source of truth (what is left is read from remote history, not a dashboard). You describe the campaign once, merge what is good, and the next tick continues with the rest.</p>
+
+  <p>The unit is a <strong>lump</strong>: a body of work too big for one chat, stored in <code>.lumpcode/lumps/</code> and worked through one isolated <strong>context</strong> at a time (one branch, one PR). You can run a tick by hand, or leave a daemon on a machine that stays on.</p>
+
+  <p>This article is that dedicated-daemon path. You author on your laptop. A second clone, that you do not develop in, runs the scheduler. When a lump lands on the primary branch, the worker picks it up.</p>
+
+  <h2>1. Requirements</h2>
+
+  <p>The dedicated clone is a checkout you do not develop in. Put it on a remote machine if you want it to run forever. Pre-flight hard-resets that tree.</p>
+
+  <p>You need:</p>
+  <ul>
+    <li>Git <code>origin</code> with fetch and push</li>
+    <li>A coding agent CLI on <code>PATH</code> (<code>cursor-agent</code>, <code>copilot</code>, <code>claude</code>, …), already logged in</li>
+    <li>Node 22+</li>
+  </ul>
+
+  <p>Nothing else. No server, no dashboard.</p>
+
+  <p>Install the <code>/lumpcode</code> skill so your agent has current docs while you set this up and write configs:</p>
+
+  <pre><code>npx skills add lumpcode/skills</code></pre>
+
+  <p>Use <code>/lumpcode</code> in the session when you hit a config or CLI question.</p>
+
+  <h2>2. Install the CLI</h2>
+
+  <p>On both machines:</p>
+
+  <pre><code>npm install -g @lumpcode/cli
+lumpcode --version</code></pre>
+
+  <h2>3. Laptop: project setup, shared mode</h2>
+
+  <p>From your day-to-day repo:</p>
+
+  <pre><code>lumpcode project-setup --primaryBranch main</code></pre>
+
+  <p>Use your real integration branch instead of <code>main</code> if that is what you merge to.</p>
+
+  <p><code>.lumpcode/local.json</code> is gitignored and per machine. On the laptop it should be:</p>
+
+  <pre><code>{
+  "mode": "shared"
+}</code></pre>
+
+  <p>Shared mode never touches this checkout. Runs go to <code>~/.lumpcode/project-copies/&lt;projectName&gt;/</code>.</p>
+
+  <p>Install <code>@lumpcode/cli-utils</code> and <code>@lumpcode/recipes</code> into this repo <strong>now</strong>, before the first push. Later TypeScript lumps import them from the project's <code>node_modules</code> (the global CLI does not ship them). If they are already in <code>package.json</code> when the dedicated clone is set up, that machine runs <code>npm install</code> once and does not need another install when the first lump lands.</p>
+
+  <pre><code>npm install --save-dev @lumpcode/cli-utils @lumpcode/recipes</code></pre>
+
+  <p>If the repo has no <code>package.json</code> yet, this creates a minimal one. Commit it with the Lumpcode project in the next step.</p>
+
+  <h2>4. Push the Lumpcode project</h2>
+
+  <p>Commit <code>.lumpcode/project.json</code>, the <code>.gitignore</code> updates, and <code>package.json</code> plus the lockfile. Do not commit <code>local.json</code>.</p>
+
+  <pre><code>git add .lumpcode/project.json .gitignore package.json package-lock.json
+git commit -m "Add Lumpcode project"
+git push</code></pre>
+
+  <p>Merge that to your primary branch if you are not already on it.</p>
+
+  <h2>5. Dedicated clone: dedicated mode, then start</h2>
+
+  <p>On the worker, clone (or pull) the same repo. <code>.lumpcode/</code> is already there, so <code>project-setup</code> will refuse. Install project deps (this is the <code>npm install</code> that pulls in <code>cli-utils</code> and <code>recipes</code>):</p>
+
+  <pre><code>npm install</code></pre>
+
+  <p>Then write <code>.lumpcode/local.json</code>:</p>
+
+  <pre><code>{
+  "mode": "dedicated"
+}</code></pre>
+
+  <p>Then:</p>
+
+  <pre><code>lumpcode start
+lumpcode daemon-status</code></pre>
+
+  <p>No lumps yet. That is fine. The default <code>global</code> daemon ticks every five minutes. When a lump appears on the primary branch, the next tick runs it. You do not restart for new lumps.</p>
+
+  <p>Do not edit product code in this clone.</p>
+
+  <h2>6. First lump (laptop)</h2>
+
+  <p>Back on the day-to-day repo. This example is a React → Vue migration, one component per context, with tests retried until green. <code>cli-utils</code> and <code>recipes</code> are already in the project from step 3.</p>
+
+  <pre><code>lumpcode lump-create reactToVue --config ts</code></pre>
+
+  <p>Replace <code>.lumpcode/lumps/reactToVue/config.ts</code> (adjust paths and <code>command</code> to your repo and agent):</p>
+
+  <pre><code>import { defineConfig } from '@lumpcode/cli-utils';
+import { retryUntilGreen, shellCommand } from '@lumpcode/recipes';
+
+export default defineConfig({
+    command: 'cursor',
+    contextListJson: {
+        FOLDER: 'src/components/{COMPONENT_NAME}/',
+        COMPONENT: 'src/components/{COMPONENT_NAME}/{COMPONENT_NAME}.tsx',
+        TEST: 'src/components/{COMPONENT_NAME}/{COMPONENT_NAME}.test.tsx',
+    },
+    steps: retryUntilGreen({
+        steps: [
+            {
+                promptTemplate:
+                    'Port @{COMPONENT} to Vue 3 &lt;script setup&gt; as {COMPONENT_NAME}.vue in @{FOLDER}. Port @{TEST} to Vitest + @vue/test-utils. Keep behavior identical.',
+            },
+        ],
+        validationCommandFn: () => shellCommand('npm test'),
+    }),
+});</code></pre>
+
+  <p><code>/lumpcode</code> can help you reshape discovery and prompts.</p>
+
+  <h2>7. Dry run, optional shared run</h2>
+
+  <p>Still on the laptop:</p>
+
+  <pre><code>lumpcode lump-plan reactToVue --plan --contexts</code></pre>
+
+  <p>That loads the config, lists contexts, and previews the tick. It does not run the agent, branch, or push. Add <code>--contextName Button</code> to inspect one context.</p>
+
+  <p>If you want a real tick on one context, shared mode keeps your checkout untouched:</p>
+
+  <pre><code>lumpcode run reactToVue</code></pre>
+
+  <p>Default is one context per branch (the next eligible one). Review the pushed <code>lump/reactToVue/…</code> branch before you let the daemon loose.</p>
+
+  <h2>8. Merge the lump to primary</h2>
+
+  <p>When the plan (and optional shared run) look right, commit the lump, push, and merge to your primary branch.</p>
+
+  <p>The dedicated daemon fetches that branch on the next tick and starts. Recipes are already installed there from step 5.</p>
+
+  <h2>9. Merge work branches</h2>
+
+  <p>Each finished context is a branch <code>lump/reactToVue/&lt;contextName&gt;</code> with commit subject <code>LUMP: reactToVue - &lt;contextName&gt;</code>. Open a PR into the primary branch and merge as usual; if you squash or rebase, keep that <code>LUMP: …</code> line (drop it and Lumpcode treats the context as not done). Git is the record: Lumpcode scans remote history for that marker, so <strong>toDo</strong> means it is not on any remote ref, <strong>branchPushed</strong> means it is on a work branch, and <strong>finished</strong> means the marker is an ancestor of <code>origin/&lt;primaryBranch&gt;</code>. Merge the PR; the next tick skips that context and picks another.</p>
+
+  <h2>10. Disable the lump</h2>
+
+  <p>In the lump config:</p>
+
+  <pre><code>disabled: true,</code></pre>
+
+  <p>Push and merge. The next tick soft-skips it. The daemon stays up.</p>
+
+  <p>That's all. Thanks for reading. Next articles will cover other lump shapes. Stay tuned, and follow along at <a href="https://x.com/ddyods">x.com/ddyods</a>.</p>
+</body>
+</html>

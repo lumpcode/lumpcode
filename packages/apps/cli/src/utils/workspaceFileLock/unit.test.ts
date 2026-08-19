@@ -129,6 +129,99 @@ describe('workspaceFileLock', () => {
         vi.restoreAllMocks();
     });
 
+    it('wait mode times out with reason waitTimedOut', async () => {
+        const first = await acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'holder',
+            mode: 'fail',
+        });
+        expect(first.success).toBe(true);
+        if (!first.success) throw new Error('unreachable');
+
+        const second = await acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'waiter',
+            mode: 'wait',
+            waitTimeoutMs: 40,
+            waitLogIntervalMs: 20,
+        });
+        expect(second.success).toBe(false);
+        if (second.success) throw new Error('unreachable');
+        expect(isWorkspaceFileBusyError(second.data, TEST_LOCK_SPEC.busyCode)).toBe(true);
+        expect(second.data.reason).toBe('waitTimedOut');
+        expect(second.data.message).toMatch(/Waited 40ms/);
+        expect(second.data.holderLumpName).toBe('holder');
+
+        await first.data();
+    });
+
+    it('re-logs still waiting after the wait log interval', async () => {
+        vi.spyOn(console, 'log').mockImplementation(() => {});
+
+        const first = await acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'holder',
+            mode: 'fail',
+        });
+        expect(first.success).toBe(true);
+        if (!first.success) throw new Error('unreachable');
+
+        const logger = createConsoleLogger({ prefix: '[lumpcode]' });
+        const waiterPromise = acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'waiter',
+            mode: 'wait',
+            waitTimeoutMs: 800,
+            waitLogIntervalMs: 30,
+            logger,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 550));
+        await first.data();
+        await waiterPromise;
+
+        const lines = vi.mocked(console.log).mock.calls.map((call) => String(call[0]));
+        expect(lines.some((line) => line.includes('waiting…') && !line.includes('still waiting'))).toBe(
+            true,
+        );
+        expect(lines.some((line) => line.includes('still waiting'))).toBe(true);
+
+        vi.restoreAllMocks();
+    });
+
+    it('fail mode busy error has no waitTimedOut reason', async () => {
+        const first = await acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'lump-a',
+            mode: 'fail',
+        });
+        expect(first.success).toBe(true);
+        if (!first.success) throw new Error('unreachable');
+
+        const second = await acquireWorkspaceFileLock({
+            spec: TEST_LOCK_SPEC,
+            globalConfigFolderPath,
+            workspacePath,
+            lumpName: 'lump-b',
+            mode: 'fail',
+        });
+        expect(second.success).toBe(false);
+        if (second.success) throw new Error('unreachable');
+        expect(second.data.reason).toBeUndefined();
+
+        await first.data();
+    });
+
     it('recovers stale lock when holder pid is dead', async () => {
         const lockFilePath = workspaceLockFilePath({
             globalConfigFolderPath,
