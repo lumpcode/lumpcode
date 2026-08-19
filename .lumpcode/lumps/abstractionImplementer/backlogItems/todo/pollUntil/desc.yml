@@ -1,8 +1,0 @@
-name: pollUntil
-task: >-
-  Extract repeated deadline polling loops (`Date.now() + timeoutMs`, `while` + `setTimeout` sleep)
-  into util `pollUntil`; refactor `commands/stop/main.ts` (force + SIGTERM exit wait),
-  `testing/waitForDaemonPidFile.ts`, `e2e/harness/daemonHelpers.ts` (`waitForPath`, `waitForDaemonIdle`),
-  `e2e/harness/markerAssertions.ts` (`waitForRemoteMarker`), and test helpers in
-  `commands/stop/unit.test.ts` and `utils/killProcessTree/unit.test.ts`.
-priority: 1
