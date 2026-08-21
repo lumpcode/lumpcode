@@ -228,6 +228,63 @@ describe('backlog recipe', () => {
         );
     });
 
+    it('discovers tickets as items with nested BACKLOG_ITEM_DIR and dependsOn', async () => {
+        const ticketDir = path.join(
+            projectRoot,
+            lumpRelativePath,
+            'backlogItems',
+            'todo',
+            'umbrella',
+            'tickets',
+            't1',
+        );
+        await mkdir(ticketDir, { recursive: true });
+        await writeFile(
+            path.join(ticketDir, 'desc.yml'),
+            'name: t1\ntask: Ticket one\npriority: 1\ndependsOn:\n  - other\n',
+        );
+
+        const config = backlog({
+            configUrl: pathToFileURL(configPath),
+            stages: {
+                draft: {
+                    completion: 'keepPending',
+                    steps: [{ promptTemplate: 'Draft @{TASK}' }],
+                },
+            },
+            resolveItem() {
+                return { stage: 'draft' };
+            },
+        });
+
+        const contexts = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts).toHaveLength(1);
+        expect(contexts[0]).toMatchObject({
+            name: 't1',
+            variables: {
+                TASK_NAME: 't1',
+                TASK: 'Ticket one',
+                BACKLOG_ITEM_DIR: path.join(
+                    '.lumpcode',
+                    'lumps',
+                    'sample',
+                    'backlogItems',
+                    'todo',
+                    'umbrella',
+                    'tickets',
+                    't1',
+                ),
+                BACKLOG_STAGE: 'draft',
+            },
+            options: { priority: 1, dependsOnContexts: ['other'] },
+        });
+    });
+
     it('rejects absolute backlogItemsDir overrides', () => {
         expect(() =>
             backlog({

@@ -106,6 +106,47 @@ describe('folderSetTaskDoneStep', () => {
         warnSpy.mockRestore();
     });
 
+    it('moves nested ticket folders using BACKLOG_ITEM_DIR', async () => {
+        const itemsDir = path.join(workspacePath, itemsDirRelative);
+        const ticketRelative = path.join(
+            itemsDirRelative,
+            'todo',
+            'umbrella',
+            'tickets',
+            't1',
+        );
+        await writeTodoItem(itemsDir, path.join('umbrella', 'tickets', 't1'), { name: 't1' });
+
+        const step = folderSetTaskDoneStep({ itemsDirVarName: 'BACKLOG_ITEMS_DIR' });
+        const descriptor = await step.commandFn!({
+            context: {
+                name: 't1',
+                variables: {
+                    BACKLOG_ITEMS_DIR: itemsDirRelative,
+                    TASK_NAME: 't1',
+                    BACKLOG_ITEM_DIR: ticketRelative,
+                },
+            },
+            workspacePath,
+        } as never);
+
+        expect(descriptor).toMatchObject({
+            executable: 'cat',
+            args: [
+                path.join(itemsDir, 'completed', 'umbrella', 'tickets', 't1', 'desc.yml'),
+            ],
+        });
+
+        await expect(
+            access(path.join(itemsDir, 'todo', 'umbrella', 'tickets', 't1')),
+        ).rejects.toThrow();
+        const completed = await readFile(
+            path.join(itemsDir, 'completed', 'umbrella', 'tickets', 't1', 'desc.yml'),
+            'utf-8',
+        );
+        expect(completed).toContain('completedAt:');
+    });
+
     it('sets continueOnError true', () => {
         const step = folderSetTaskDoneStep({ itemsDirVarName: 'BACKLOG_ITEMS_DIR' });
         expect(step.continueOnError).toBe(true);

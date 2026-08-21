@@ -647,3 +647,179 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         }
     });
 });
+
+describe('start command — daemon-primary-branch-refresh-command (T5–T7)', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+
+    beforeEach(async () => {
+        const project = await setupStartTestRepo({
+            tmpPrefix: 'lump-start-refresh',
+            projectName: 'refresh-daemon-project',
+        });
+        projectRoot = project.projectRoot;
+        remoteDir = project.remoteDir;
+        globalConfigFolderPath = project.globalConfigFolderPath;
+    });
+
+    afterEach(async () => {
+        await teardownStartTestRepo({ projectRoot, remoteDir, globalConfigFolderPath });
+        vi.restoreAllMocks();
+    });
+
+    const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
+
+    function discoverRefreshCommand(
+        call: { scanBranch: string } & { refreshCommand?: string },
+    ): string | undefined {
+        return call.refreshCommand;
+    }
+
+    it('T5: glob-before-exact scan order still starts with resolved primary', async () => {
+        await writeLocalJson(localConfigFolderPath(projectRoot), {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            primaryBranches: ['feature/*', 'main'],
+        });
+        await writeMinimalLump(projectRoot, 'multiLine', {
+            discoveryBranches: ['main', 'feature/*'],
+        });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "multiLine on main"', projectRoot);
+        execGit('push origin main', projectRoot);
+        await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'feature/a' });
+
+        const discoverSpy = vi.spyOn(
+            await import('../../../utils/discoverDedicatedLumpsForScanBranch'),
+            'discoverDedicatedLumpsForScanBranch',
+        );
+        const runLumpSpy = vi.spyOn(
+            await import('../../../utils/runLumpFromLumpName'),
+            'runLumpFromLumpName',
+        ).mockResolvedValue(
+            success({
+                skipped: false,
+                result: {
+                    branchName: '',
+                    contextNames: [],
+                    contextRunStateList: [],
+                },
+            }),
+        );
+
+        try {
+            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            expect(result.success).toBe(true);
+            const scanBranches = discoverSpy.mock.calls.map((c) => c[0].scanBranch);
+            expect(scanBranches).toEqual(['main', 'feature/a', 'main', 'feature/a']);
+        } finally {
+            discoverSpy.mockRestore();
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('T6: tick discover passes frozen refreshCommand; launch discover omits it', async () => {
+        const refreshCommand = 'node -e "process.exit(0)"';
+        await writeJsonFile({
+            filePath: path.join(projectRoot, '.lumpcode', 'local.json'),
+            data: {
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                refreshCommand,
+            },
+        });
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "mainLine"', projectRoot);
+        execGit('push origin main', projectRoot);
+
+        const discoverSpy = vi.spyOn(
+            await import('../../../utils/discoverDedicatedLumpsForScanBranch'),
+            'discoverDedicatedLumpsForScanBranch',
+        );
+        const runLumpSpy = vi.spyOn(
+            await import('../../../utils/runLumpFromLumpName'),
+            'runLumpFromLumpName',
+        ).mockResolvedValue(
+            success({
+                skipped: false,
+                result: {
+                    branchName: '',
+                    contextNames: [],
+                    contextRunStateList: [],
+                },
+            }),
+        );
+
+        try {
+            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            expect(result.success).toBe(true);
+            const calls = discoverSpy.mock.calls.map((c) =>
+                c[0] as (typeof c)[0] & { refreshCommand?: string },
+            );
+            const launchCalls = calls.filter((c) => discoverRefreshCommand(c) === undefined);
+            const tickCalls = calls.filter((c) => discoverRefreshCommand(c) === refreshCommand);
+            expect(launchCalls.length).toBeGreaterThan(0);
+            expect(tickCalls.length).toBeGreaterThan(0);
+        } finally {
+            discoverSpy.mockRestore();
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('T7: shared mode does not run refreshCommand', async () => {
+        const markerName = 'shared-refresh.marker';
+        const script = `require('fs').writeFileSync(${JSON.stringify(markerName)}, 'ran')`;
+        const refreshCommand = `node -e ${JSON.stringify(script)}`;
+        await writeJsonFile({
+            filePath: path.join(projectRoot, '.lumpcode', 'local.json'),
+            data: {
+                mode: 'shared',
+                primaryBranch: 'main',
+                refreshCommand,
+            },
+        });
+        await writeMinimalLump(projectRoot, 'mainLine');
+
+        const discoverSpy = vi.spyOn(
+            await import('../../../utils/discoverDedicatedLumpsForScanBranch'),
+            'discoverDedicatedLumpsForScanBranch',
+        );
+        const runLumpSpy = vi.spyOn(
+            await import('../../../utils/runLumpFromLumpName'),
+            'runLumpFromLumpName',
+        ).mockResolvedValue(
+            success({
+                skipped: false,
+                result: {
+                    branchName: '',
+                    contextNames: [],
+                    contextRunStateList: [],
+                },
+            }),
+        );
+
+        try {
+            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+
+            expect(result.success).toBe(true);
+            expect(discoverSpy).not.toHaveBeenCalled();
+            await expect(fs.access(path.join(projectRoot, markerName))).rejects.toThrow();
+        } finally {
+            discoverSpy.mockRestore();
+            runLumpSpy.mockRestore();
+        }
+    });
+});

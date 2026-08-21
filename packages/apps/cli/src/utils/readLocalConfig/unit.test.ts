@@ -385,4 +385,36 @@ describe('readLocalConfig', () => {
             expect(result.data.maxParallelRun).toBe(1);
         });
     });
+
+    describe('daemon-primary-branch-refresh-command L10–L11', () => {
+        it('L10: accepts refreshCommand string', async () => {
+            await writeJsonFile({
+                filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                data: {
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    refreshCommand: 'npm i',
+                },
+            });
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect((result.data as { refreshCommand?: string }).refreshCommand).toBe('npm i');
+        });
+
+        it('L11: empty refreshCommand fails', async () => {
+            await writeJsonFile({
+                filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                data: {
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    refreshCommand: '',
+                },
+            });
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/refreshCommand/i);
+        });
+    });
 });

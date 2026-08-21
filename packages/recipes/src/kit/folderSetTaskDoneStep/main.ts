@@ -9,7 +9,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Moves a finished backlog item folder from todo/ to completed/ after the context completes. */
+/** Moves a finished backlog item folder from todo/ to the same relative path under completed/. */
 export function folderSetTaskDoneStep<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
@@ -24,14 +24,28 @@ export function folderSetTaskDoneStep<
             const variables = context.variables as Record<string, string>;
             const itemsDirRelative = variables[input.itemsDirVarName];
             const taskName = variables[nameVarName];
+            const itemDirRelative = variables.BACKLOG_ITEM_DIR;
 
-            if (!itemsDirRelative || !taskName) {
+            if (!itemsDirRelative || (!itemDirRelative && !taskName)) {
                 throw new Error('Backlog items directory and task name are required');
             }
 
             const itemsDir = path.join(workspacePath, itemsDirRelative);
-            const fromDir = path.join(itemsDir, 'todo', taskName);
-            const toDir = path.join(itemsDir, 'completed', taskName);
+            const todoDir = path.join(itemsDir, 'todo');
+            const fromDir = itemDirRelative
+                ? path.join(workspacePath, itemDirRelative)
+                : path.join(todoDir, taskName);
+            const relativeFromTodo = path.relative(todoDir, fromDir);
+            if (
+                relativeFromTodo === '' ||
+                relativeFromTodo.startsWith('..') ||
+                path.isAbsolute(relativeFromTodo)
+            ) {
+                throw new Error(
+                    `BACKLOG_ITEM_DIR must be a folder under ${todoDir}: ${itemDirRelative ?? fromDir}`,
+                );
+            }
+            const toDir = path.join(itemsDir, 'completed', relativeFromTodo);
             const descPath = path.join(fromDir, 'desc.yml');
             const completedDescPath = path.join(toDir, 'desc.yml');
 
@@ -41,7 +55,7 @@ export function folderSetTaskDoneStep<
 
             if (await pathExists(toDir)) {
                 console.warn(
-                    `[lumpcode/recipes] Cannot move backlog item "${taskName}": already exists at ${toDir}`,
+                    `[lumpcode/recipes] Cannot move backlog item "${taskName ?? relativeFromTodo}": already exists at ${toDir}`,
                 );
                 return null;
             }
@@ -56,7 +70,7 @@ export function folderSetTaskDoneStep<
                 ...raw,
                 completedAt: new Date().toISOString(),
             };
-            await fs.mkdir(path.join(itemsDir, 'completed'), { recursive: true });
+            await fs.mkdir(path.dirname(toDir), { recursive: true });
             await fs.rename(fromDir, toDir);
             await fs.writeFile(completedDescPath, dumpYaml(updated));
 

@@ -22,6 +22,7 @@ export { requireArtifactStep } from './requireArtifactStep';
 export { resolveBacklogPaths, type BacklogPaths } from './resolveBacklogPaths';
 export {
     folderBacklogContexts,
+    listTodoRelativeDirs,
     type FolderBacklogContextsOptions,
 } from './folderBacklogContexts';
 export { folderSetTaskDoneStep } from './folderSetTaskDoneStep';

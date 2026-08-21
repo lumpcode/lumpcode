@@ -172,7 +172,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 
 | Option              | Type   | Required | Description                                                                                    |
 | ------------------- | ------ | -------- | ---------------------------------------------------------------------------------------------- |
-| `--discoveryBranch` | string | No       | Dedicated mode only: concrete discovery branch (not a glob). Must be allowlisted by `primaryBranches` and match the lump's discovery rules. Required when the lump's rules are pattern-only. |
+| `--discoveryBranch` | string | No       | Concrete discovery branch (not a glob). Must match the lump's discovery rules. Required when the lump's rules are pattern-only. In shared mode, honored by `lump-plan` and `lump-status` only (context filtering; no checkout); ignored by `run`. In dedicated mode, must also be allowlisted by `primaryBranches`. |
 
 
 Plus global [`--json`](#ref-json-output).
@@ -180,7 +180,7 @@ Plus global [`--json`](#ref-json-output).
 **Behavior:**
 
 1. Reads `.lumpcode/local.json` (hard-fails if missing); in dedicated mode, phase 1 locks the execution workspace, pre-flights to `effectiveDiscoveryBranch` (CLI override or lump `discoveryBranch`), loads config, then runs the lump; phase 2 pre-flights to the lump `baseBranch` before agent work.
-2. In shared mode, `--discoveryBranch` is ignored (warn once); discovery workspace state is operator-managed.
+2. In shared mode, `--discoveryBranch` is ignored by `run` (warn once); `lump-plan` and `lump-status` honor it for context filtering without checkout.
 3. After a dedicated manual run, switches the operator checkout back to the branch you were on before `run`.
 
 **Success cases:**
@@ -217,7 +217,7 @@ With **`--json`**, busy responses include a stable `code` field (`workspacePathB
 | `--prompts`         | flag   | No       | Include per-context prompt text and resolved agent command (`executable` + `args`) |
 | `--plan`            | flag   | No       | Full dry-run: branch name, workspace setup/teardown shell commands, batch contexts, git add/commit/push strings, concurrent-branch skip reason |
 | `--contextName`     | string | No       | Scope contexts / prompts / plan to one context                              |
-| `--discoveryBranch` | string | No       | Concrete discovery branch (same rules as [`run`](#ref-cmd-run); required when lump discovery rules are pattern-only) |
+| `--discoveryBranch` | string | No       | Concrete discovery branch (not a glob). Must match the lump's discovery rules. Required when rules are pattern-only. In shared mode, binds context filtering only (no checkout). |
 
 Plus global [`--json`](#ref-json-output).
 
@@ -267,7 +267,7 @@ With **`--json`**, all the logs even the ones of the deamon will be with json ou
 
 **Parallel ticks:** when `workspaceStrategy` is `"worktree"`, every daemon uses `maxParallelRun` from `--maxParallelRun` or `local.json` (default `1`) as the in-tick concurrency for its filtered queue. `"checkout"` stays sequential; passing `--maxParallelRun` with checkout fails.
 
-**Pre-flight per tick:** skips the tick when `disabled` is `true` in the frozen config (no pre-flight, no lump runs). Otherwise it discovers eligible lumps per primary branch (subtick), applies include/exclude, then runs the filtered queue (soft-skipping per-lump `disabled` at phase 1). Empty filter matches idle; the daemon stays up. If discovery/pre-flight fails for a branch the daemon logs and continues with other branches.
+**Pre-flight per tick:** skips the tick when `disabled` is `true` in the frozen config (no pre-flight, no lump runs). Otherwise it discovers eligible lumps per primary branch (subtick), applies include/exclude, then runs the filtered queue (soft-skipping per-lump `disabled` at phase 1). Dedicated discovery checks out each scan branch, then runs frozen `refreshCommand` from merged `project.json` / `local.json` when set (for example `npm i`) before loading lump configs. A refresh failure skips that scan branch; other branches continue. Shared mode and manual `run` do not run it. Empty filter matches idle; the daemon stays up. If discovery/pre-flight fails for a branch the daemon logs and continues with other branches.
 
 **Daemon files** under `~/.lumpcode/daemons/`:
 
@@ -439,7 +439,7 @@ There is no `lumpcode supervise-install`. `stop --all` stops the supervisor afte
 | Option              | Type   | Default | Description                                                                                                                   |
 | ------------------- | ------ | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `--lumpName`        | string | —       | If omitted, all lumps with loadable configs                                                                                   |
-| `--discoveryBranch` | string | —       | Concrete discovery branch (same rules as [`run`](#ref-cmd-run); required when lump discovery rules are pattern-only) |
+| `--discoveryBranch` | string | —       | Concrete discovery branch (not a glob). Must match the lump's discovery rules. Required when rules are pattern-only. In shared mode, binds context filtering only (no checkout). |
 | `--silent`          | flag   | No      | Omit pretty-printed status JSON; print summary lines only (default is verbose when not using `--json`)                         |
 | `--json`            | flag   | No      | JSON output mode                                                                                                              |
 

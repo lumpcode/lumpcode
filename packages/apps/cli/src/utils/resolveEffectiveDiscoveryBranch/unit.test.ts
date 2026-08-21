@@ -242,4 +242,71 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         if (result.success) throw new Error('unreachable');
         expect(result.data).toMatch(/primaryBranches|ver\/x|discoveryBranch/i);
     });
+
+    it('E8: shared honor returns matching concrete flag without allowlist', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'shared',
+            primaryBranch: 'main',
+        });
+        await writeMinimalLump(projectRoot, 'multi', {
+            discoveryBranches: ['main', 'feature/*'],
+        });
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi lump' });
+
+        const result = await resolveEffectiveDiscoveryBranch({
+            discoveryBranchOpt: 'feature/a',
+            lumpName: 'multi',
+            localConfigFolderPath,
+            localConfig: { mode: 'shared', primaryBranch: 'main', workspaceStrategy: 'checkout' },
+            honorDiscoveryBranchOptInShared: true,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toBe('feature/a');
+    });
+
+    it('E9: shared honor rejects glob flag', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'shared',
+            primaryBranch: 'main',
+        });
+        await writeMinimalLump(projectRoot, 'multi', {
+            discoveryBranches: ['main', 'feature/*'],
+        });
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'multi lump' });
+
+        const result = await resolveEffectiveDiscoveryBranch({
+            discoveryBranchOpt: 'feature/*',
+            lumpName: 'multi',
+            localConfigFolderPath,
+            localConfig: { mode: 'shared', primaryBranch: 'main', workspaceStrategy: 'checkout' },
+            honorDiscoveryBranchOptInShared: true,
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data).toMatch(/concrete|pattern|discoveryBranch/i);
+    });
+
+    it('E10: shared honor rejects flag that mismatches lump discovery rules', async () => {
+        await writeLocalJson(localConfigFolderPath, {
+            mode: 'shared',
+            primaryBranch: 'main',
+        });
+        await writeMinimalLump(projectRoot, 'featureOnly', {
+            discoveryBranch: 'feature/*',
+        });
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'feature-only lump' });
+
+        const result = await resolveEffectiveDiscoveryBranch({
+            discoveryBranchOpt: 'main',
+            lumpName: 'featureOnly',
+            localConfigFolderPath,
+            localConfig: { mode: 'shared', primaryBranch: 'main', workspaceStrategy: 'checkout' },
+            honorDiscoveryBranchOptInShared: true,
+        });
+
+        expect(result.success).toBe(false);
+    });
 });

@@ -46,9 +46,11 @@ export function resolveJsConf(
         workspaceStrategy?: 'checkout' | 'worktree';
         /** Post-impl: concrete discovery branch bound before author context source + baseBranch resolve. */
         effectiveDiscoveryBranch?: string;
+        /** Post-impl: plan path skips composing post workspace hooks. */
+        skipPostWorkspaceHooks?: boolean;
     } = {},
 ) {
-    const { effectiveDiscoveryBranch, ...restOpts } = opts;
+    const { effectiveDiscoveryBranch, skipPostWorkspaceHooks, ...restOpts } = opts;
     return jsConfigToRunLumpInput({
         config: makeConfig(configOverrides),
         lumpName: restOpts.lumpName ?? 'my-lump',
@@ -58,7 +60,11 @@ export function resolveJsConf(
         executionWorkspacePath: restOpts.executionWorkspacePath ?? DEFAULT_TEST_WORKSPACE,
         workspaceStrategy: restOpts.workspaceStrategy ?? 'checkout',
         ...(effectiveDiscoveryBranch !== undefined ? { effectiveDiscoveryBranch } : {}),
-    } as Parameters<typeof jsConfigToRunLumpInput>[0] & { effectiveDiscoveryBranch?: string });
+        ...(skipPostWorkspaceHooks !== undefined ? { skipPostWorkspaceHooks } : {}),
+    } as Parameters<typeof jsConfigToRunLumpInput>[0] & {
+        effectiveDiscoveryBranch?: string;
+        skipPostWorkspaceHooks?: boolean;
+    });
 }
 
 export function resolveWithFixtures(

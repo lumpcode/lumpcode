@@ -43,6 +43,11 @@
     "keepHistory": {
       "type": "boolean",
       "description": "Default for lump `keepHistory` when the lump omits it. Overridden by local.json or the lump."
+    },
+    "refreshCommand": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Dedicated daemon only: shell command run after each scan-branch checkout and before lump discovery (e.g. npm i). Local wins over project. Ignored in shared mode and by manual run. Frozen at daemon start; restart to pick up changes."
     }
   }
 }

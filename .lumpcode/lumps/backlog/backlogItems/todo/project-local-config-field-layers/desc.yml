@@ -1,0 +1,11 @@
+name: project-local-config-field-layers
+manualReq: true
+workflow: directImpl
+task: >-
+  Single source of truth for .lumpcode/project.json vs local.json field
+  membership (project-only, local-only, shared with local wins). Derive Zod
+  allowlists, SHARED_KEYS merge, and ProjectJsonConfig / LocalJsonConfig Picks
+  from that table so they cannot drift. Parameterize merge tests from the table
+  instead of adding per-key cases (e.g. refreshCommand M13–M16). Does not change
+  merge semantics.
+priority: 12

@@ -1,5 +1,5 @@
 name: backlog-recipe-tutorial
-workflow: manual
+workflow: directImpl
 task: >-
   Add one DOCS page that is a concise tutorial for the backlog recipe (scaffold →
   minimal files → run). Write it so the same page can seed an X thread and a

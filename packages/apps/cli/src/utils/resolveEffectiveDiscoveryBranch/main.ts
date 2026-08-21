@@ -20,6 +20,8 @@ export async function resolveEffectiveDiscoveryBranch(input: {
     logger?: Logger;
     /** When true, log once if discoveryBranchOpt is ignored in shared mode. */
     warnSharedDiscoveryBranchIgnored?: boolean;
+    /** Inspect commands: honor concrete `--discoveryBranch` in shared (no checkout). */
+    honorDiscoveryBranchOptInShared?: boolean;
 }): Promise<Success<string> | Failure<string>> {
     const {
         discoveryBranchOpt,
@@ -28,9 +30,12 @@ export async function resolveEffectiveDiscoveryBranch(input: {
         localConfig,
         logger,
         warnSharedDiscoveryBranchIgnored = false,
+        honorDiscoveryBranchOptInShared = false,
     } = input;
 
     const trimmedOpt = discoveryBranchOpt?.trim();
+    const shouldHonorSharedFlag =
+        localConfig.mode === 'shared' && honorDiscoveryBranchOptInShared && !!trimmedOpt;
 
     let primaryBranch: string;
     try {
@@ -39,7 +44,7 @@ export async function resolveEffectiveDiscoveryBranch(input: {
         return failure(err instanceof Error ? err.message : String(err));
     }
 
-    if (trimmedOpt && localConfig.mode === 'shared') {
+    if (trimmedOpt && localConfig.mode === 'shared' && !shouldHonorSharedFlag) {
         if (warnSharedDiscoveryBranchIgnored) {
             logger?.info(
                 '--discoveryBranch is ignored in shared mode; discovery workspace state is operator-managed.',
@@ -47,7 +52,7 @@ export async function resolveEffectiveDiscoveryBranch(input: {
         }
     }
 
-    if (localConfig.mode === 'shared') {
+    if (localConfig.mode === 'shared' && !shouldHonorSharedFlag) {
         return success(primaryBranch);
     }
 

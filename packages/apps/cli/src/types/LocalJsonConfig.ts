@@ -17,4 +17,5 @@ export type LocalJsonConfig = Pick<
     | 'maximumNumberOfConcurrentBranches'
     | 'keepHistory'
     | 'verbose'
+    | 'refreshCommand'
 >;

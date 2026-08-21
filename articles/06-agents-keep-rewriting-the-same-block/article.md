@@ -18,7 +18,7 @@ A report is the easy part. It does not name the util, does not write the plan, d
 
 **Git is the gate:** one abstraction, one branch, one PR. The unit of trust is a change a human can hold in their head.
 
-**Git is the source of truth:** what landed lives in remote history. Merge three this week, leave the rest. What is left should come from the remote, not from a dashboard.
+**Git is the source of truth:** what landed lives in remote history. Merge three this week, leave the rest. What is left should come from the remote, not from a distant database.
 
 That is the job of a **git-first loop manager**. I am building one: Lumpcode. A **lump** is one campaign, described in the repo, worked through one isolated **context** at a time.
 
@@ -49,6 +49,6 @@ Early development, Apache 2.0, on npm as `@lumpcode/cli`. Agents do not replace 
 
 Repo: [https://github.com/lumpcode/lumpcode](https://github.com/lumpcode/lumpcode)
 
-If you want to wire this in your own repo (scanner, two lumps, daemon), I wrote the setup as a how-to on DEV: [Set up an abstraction campaign](../07-setup-abstraction-campaign/article.md).
+If you want to wire this in your own repo (scanner, two lumps, daemon), I wrote the setup as a how-to on DEV: [Turn a dupes report into small PRs with Lumpcode](https://dev.to/dyod/turn-a-dupes-report-into-small-prs-with-lumpcode-1ome).
 
 Follow along at [x.com/ddyods](https://x.com/ddyods).

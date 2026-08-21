@@ -4,6 +4,7 @@ import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
 
+import type { LocalConfig } from '../../types/LocalConfig';
 import {
     createIntegrationBranch,
     initBareRemoteAndCheckout,
@@ -29,6 +30,15 @@ function createLogger(): Logger & { warnings: string[] } {
         child: () => logger,
     };
     return logger;
+}
+
+function launchTestLocalConfig(
+    config: Pick<LocalConfig, 'mode'> & Partial<Omit<LocalConfig, 'mode'>> & { refreshCommand?: string },
+): LocalConfig & { refreshCommand?: string } {
+    return {
+        workspaceStrategy: 'checkout',
+        ...config,
+    };
 }
 
 describe('validateDaemonLaunch', () => {
@@ -63,7 +73,7 @@ describe('validateDaemonLaunch', () => {
             projectRoot,
             localConfigFolderPath,
             globalConfigFolderPath,
-            localConfig: { mode: 'dedicated', primaryBranch: 'main' },
+            localConfig: launchTestLocalConfig({ mode: 'dedicated', primaryBranch: 'main' }),
             logger,
         });
 
@@ -93,11 +103,11 @@ describe('validateDaemonLaunch', () => {
             projectRoot,
             localConfigFolderPath,
             globalConfigFolderPath,
-            localConfig: {
+            localConfig: launchTestLocalConfig({
                 mode: 'dedicated',
                 primaryBranch: 'main',
                 primaryBranches: ['main', 'ver/0.0.9'],
-            },
+            }),
             logger,
         });
 
@@ -119,10 +129,10 @@ describe('validateDaemonLaunch', () => {
                 projectRoot,
                 localConfigFolderPath,
                 globalConfigFolderPath,
-                localConfig: {
+                localConfig: launchTestLocalConfig({
                     mode: 'dedicated',
                     primaryBranches: ['feature/*'],
-                },
+                }),
                 logger,
             });
 
@@ -143,11 +153,11 @@ describe('validateDaemonLaunch', () => {
                 projectRoot,
                 localConfigFolderPath,
                 globalConfigFolderPath,
-                localConfig: {
+                localConfig: launchTestLocalConfig({
                     mode: 'dedicated',
                     primaryBranch: 'main',
                     primaryBranches: ['main', 'feature/*'],
-                },
+                }),
                 logger,
             });
             expect(result.success).toBe(true);
@@ -164,11 +174,11 @@ describe('validateDaemonLaunch', () => {
                 projectRoot,
                 localConfigFolderPath,
                 globalConfigFolderPath,
-                localConfig: {
+                localConfig: launchTestLocalConfig({
                     mode: 'dedicated',
                     primaryBranch: 'main',
                     primaryBranches: ['main', 'feature/*'],
-                },
+                }),
                 logger,
             });
 
@@ -178,4 +188,27 @@ describe('validateDaemonLaunch', () => {
         });
     });
 
+    it('V4: validateDaemonLaunch does not run refreshCommand', async () => {
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
+        gitCommitAllAndPush({ cwd: projectRoot, message: 'mainLine' });
+
+        const markerName = 'launch-refresh.marker';
+        const script = `require('fs').writeFileSync(${JSON.stringify(markerName)}, 'ran')`;
+        const refreshCommand = `node -e ${JSON.stringify(script)}`;
+
+        const result = await validateDaemonLaunch({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig: launchTestLocalConfig({
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                refreshCommand,
+            }),
+            logger: createLogger(),
+        });
+
+        expect(result.success).toBe(true);
+        await expect(fs.access(path.join(projectRoot, markerName))).rejects.toThrow();
+    });
 });

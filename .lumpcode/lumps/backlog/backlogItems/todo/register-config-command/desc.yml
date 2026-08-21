@@ -1,5 +1,4 @@
 name: register-config-command
-manualReq: true
 workflow: directImpl
 task: >-
   Bugfix: ensure the command specified in lump/step `command` is registered

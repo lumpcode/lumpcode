@@ -7,12 +7,13 @@ import { folderBacklogContexts } from './main';
 
 async function writeTodoItem(
     backlogItemsDir: string,
-    name: string,
+    todoRelativeDir: string,
     fields: Record<string, unknown>,
 ) {
-    const itemDir = path.join(backlogItemsDir, 'todo', name);
+    const itemDir = path.join(backlogItemsDir, 'todo', todoRelativeDir);
     await mkdir(itemDir, { recursive: true });
-    const lines = Object.entries({ name, ...fields }).map(([key, value]) => {
+    const itemName = path.basename(todoRelativeDir);
+    const lines = Object.entries({ name: itemName, ...fields }).map(([key, value]) => {
         if (typeof value === 'string' && value.includes('\n')) {
             return `${key}: >-\n  ${value.replace(/\n/g, '\n  ')}`;
         }
@@ -137,5 +138,77 @@ describe('folderBacklogContexts', () => {
         const contexts = await getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' });
         expect(contexts).toHaveLength(1);
         expect(contexts[0]?.name).toBe('alpha');
+    });
+
+    it('treats tickets/ children as items and skips the parent folder', async () => {
+        await writeTodoItem(backlogItemsDir, 'standalone', { task: 'Solo', priority: 1 });
+        await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t2', {
+            task: 'Second',
+            priority: 2,
+            dependsOn: ['t1'],
+        });
+        await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t1', {
+            task: 'First',
+            priority: 2,
+        });
+
+        const getContextListFn = folderBacklogContexts({ backlogItemsDir });
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts.map((ctx) => ctx.name)).toEqual(['standalone', 't1', 't2']);
+        expect(contexts.find((ctx) => ctx.name === 'umbrella')).toBeUndefined();
+        expect(contexts.find((ctx) => ctx.name === 't2')?.options?.dependsOnContexts).toEqual(['t1']);
+    });
+
+    it('passes the todo-relative ticket path to parseItem and parseContext', async () => {
+        await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t1', {
+            task: 'First',
+            priority: 1,
+        });
+
+        const getContextListFn = folderBacklogContexts({
+            backlogItemsDir,
+            parseItem(baseItem, folderName) {
+                expect(folderName).toBe('umbrella/tickets/t1');
+                return baseItem;
+            },
+            parseContext(_item, folderName) {
+                expect(folderName).toBe('umbrella/tickets/t1');
+                return {};
+            },
+        });
+
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+        expect(contexts).toHaveLength(1);
+        expect(contexts[0]?.name).toBe('t1');
+    });
+
+    it('throws when a ticket folder is missing desc.yml', async () => {
+        await mkdir(path.join(backlogItemsDir, 'todo', 'umbrella', 'tickets', 't1'), {
+            recursive: true,
+        });
+
+        const getContextListFn = folderBacklogContexts({ backlogItemsDir });
+        await expect(
+            getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
+        ).rejects.toThrow(/missing desc.yml/);
+    });
+
+    it('throws when a ticket name collides with another item', async () => {
+        await writeTodoItem(backlogItemsDir, 't1', { task: 'Top', priority: 1 });
+        await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t1', { task: 'Nested', priority: 2 });
+
+        const getContextListFn = folderBacklogContexts({ backlogItemsDir });
+        await expect(
+            getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
+        ).rejects.toThrow(/Duplicate backlog item name "t1"/);
     });
 });
