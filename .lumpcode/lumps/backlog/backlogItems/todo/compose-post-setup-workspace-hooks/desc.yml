@@ -1,0 +1,17 @@
+name: compose-post-setup-workspace-hooks
+manualReq: true
+workflow: tdd
+task: >-
+  Allow custom per-lump workspace prep by composing on top of CLI-generated
+  workspaceStrategy (checkout | worktree from local.json via makeLumpWorkspaceFns),
+  not by re-exposing raw core setupWorkspaceFn / teardownWorkspaceFn on LumpJsConfig.
+  Optional lump-config postSetupWorkspaceFn (FilePath or fn) receiving
+  { baseBranch, branchName, contextList, workspacePath, executionWorkspacePath,
+  workspaceStrategy }, returning optional { command?, afterExec? } chained after
+  built-in setup. User must not override workspacePath; chain afterExec so
+  worktree lock-layer release still works. Optional twin postTeardownWorkspaceFn.
+  JSON-only configs get postSetupWorkspaceCommand (string append after built-in).
+  Existing setupFn stays the wrong layer (per-context, after workspace setup,
+  no workspacePath). Core likely unchanged; CLI owns jsConfigToRunLumpInput,
+  makeLumpWorkspaceFns, LumpJsConfig, schema, DOCS.
+priority: 2

@@ -326,4 +326,61 @@ describe('planLumpFromJsConfig', () => {
             });
         });
     });
+
+    describe('plan skips post workspace hooks', () => {
+        it('does not splice postSetupWorkspaceCommand into setupWorkspaceCommand', async () => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+                `export default {
+  getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
+  postSetupWorkspaceCommand: 'npm i',
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`,
+                'utf-8',
+            );
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.plan?.setupWorkspaceCommand).toBeTruthy();
+            expect(result.data.plan?.setupWorkspaceCommand).not.toContain('npm i');
+        });
+
+        it('does not invoke postSetupWorkspaceFn', async () => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+                `export default {
+  getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
+  postSetupWorkspaceFn: () => {
+    throw new Error('plan must not invoke postSetupWorkspaceFn');
+  },
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`,
+                'utf-8',
+            );
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+        });
+    });
 });

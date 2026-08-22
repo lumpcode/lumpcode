@@ -126,6 +126,7 @@ export async function planLumpFromJsConfig(input: {
         workspaceStrategy,
         localConfig,
         effectiveDiscoveryBranch: discoveryResult.data,
+        skipPostWorkspaceHooks: true,
     });
     if (!runLumpInputResult.success) return runLumpInputResult;
 
