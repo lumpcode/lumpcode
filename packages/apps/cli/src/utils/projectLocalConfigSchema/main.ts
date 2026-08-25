@@ -50,6 +50,10 @@ const sharedLumpDefaultFields = {
     keepHistory: z.boolean().optional(),
 } as const;
 
+const sharedRefreshCommandField = {
+    refreshCommand: z.string().min(1).optional(),
+} as const;
+
 export const projectJsonConfigSchema = z
     .object({
         projectName: z
@@ -62,6 +66,7 @@ export const projectJsonConfigSchema = z
             }),
         ...sharedPrimaryFields,
         ...sharedLumpDefaultFields,
+        ...sharedRefreshCommandField,
     })
     .strict();
 
@@ -77,6 +82,7 @@ export const localJsonConfigSchema = z
             .optional(),
         ...sharedPrimaryFields,
         ...sharedLumpDefaultFields,
+        ...sharedRefreshCommandField,
         verbose: z.boolean().optional(),
     })
     .strict();
@@ -113,6 +119,7 @@ export const resolvedProjectLocalConfigSchema = z
             .optional(),
         ...sharedPrimaryFields,
         ...sharedLumpDefaultFields,
+        ...sharedRefreshCommandField,
         verbose: z.boolean().optional(),
     })
     .strict()

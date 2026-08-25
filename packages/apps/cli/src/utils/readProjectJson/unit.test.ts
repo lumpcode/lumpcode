@@ -163,4 +163,22 @@ describe('readProjectJson (clean-local-project-json-config)', () => {
         if (result.success) throw new Error('unreachable');
         expect(result.data).toMatch(/duplicate/i);
     });
+
+    describe('daemon-primary-branch-refresh-command P15–P16', () => {
+        it('P15: accepts refreshCommand string', async () => {
+            await writeProject({ projectName: 'demo', refreshCommand: 'npm i' });
+            const result = await readProjectJson({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect((result.data as { refreshCommand?: string }).refreshCommand).toBe('npm i');
+        });
+
+        it('P16: empty refreshCommand fails', async () => {
+            await writeProject({ projectName: 'demo', refreshCommand: '' });
+            const result = await readProjectJson({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/refreshCommand/i);
+        });
+    });
 });

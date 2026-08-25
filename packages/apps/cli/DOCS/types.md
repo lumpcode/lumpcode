@@ -96,7 +96,7 @@ Per–prompt-step bag from `stepVariables` on a prompt item. Independent of `V`:
 | ------- | ----------- | ----- |
 | `PromptFn` / `PromptFnInput`, `CommandFn`, `PostCommandExecFn`, `Step`, `Steps`, `LumpJsConfig`, `LumpJsConfigStep` / `Steps` / `StepsItem`, `LumpJsonConfig`, `CommandModule` | `<V, SV>` | Both bags on leaf steps and both-bag hooks |
 | `LumpJsConfigStepsFn` / `StepFn` | `<V, SV>` on return; **input is lump-bag only** (`Omit<PromptFnInput<V, SV>, 'stepVariables'>`) | Dynamic expanders are not leaf steps |
-| `BranchFn`, `SetupFn`, `TeardownFn`, `GetContextListFn`, `GitCommitMessageFn`, `ContextMatchFn` | `<V>` | Lump bag only |
+| `BranchFn`, `SetupFn`, `TeardownFn`, `GetContextListFn`, `GitCommitMessageFn`, `ContextMatchFn`, `PostSetupWorkspaceFn`, `PostTeardownWorkspaceFn` | `<V>` | Lump bag only |
 | Cursor / Copilot / Claude Code / OpenCode / Codex preset contracts | — | Closed option shapes exported from `@lumpcode/cli-utils`: `CursorPresetLumpVariables`, `CursorPresetStepVariables`, `CopilotPresetLumpVariables`, `CopilotPresetStepVariables`, `ClaudeCodePresetLumpVariables`, `ClaudeCodePresetStepVariables`, `OpenCodePresetLumpVariables`, `OpenCodePresetStepVariables`, `CodexPresetLumpVariables`, `CodexPresetStepVariables`, plus `PresetSessionStepVariables`, `CursorAgentPermissions`, `CopilotAgentPermissions`, `ClaudeCodeAgentPermissions`, `OpenCodeAgentPermissions`, `CodexAgentPermissions`. Extend with `& { myFlag: boolean }` — no open index signature. |
 | `@lumpcode/recipes` factories (`featureBacklog`, `backlog`, …) and variable-carrying kit | `<V, SV>` (context-list kit `<V>` only) | Same dual generics as `defineConfig`; omit type args for default bags. See the [`@lumpcode/recipes` README](https://github.com/lumpcode/lumpcode/blob/main/packages/recipes/README.md). |
 
@@ -283,7 +283,30 @@ type TeardownFn<V extends LumpVariables = LumpVariables> = (params: {
 
 ### Workspace hooks
 
-There is no user-facing `setupWorkspaceFn` / `teardownWorkspaceFn` in lump config any more — the CLI generates both from the resolved workspace (per [local-config.md](./local-config.md)'s `mode`) and the lump's `baseBranch`. See [advanced-config.md](./advanced-config.md#workspace-handling) for the rationale.
+There is no user-facing `setupWorkspaceFn` / `teardownWorkspaceFn` in lump config — the CLI generates both from the resolved workspace (per [local-config.md](./local-config.md)'s `mode`) and the lump's `baseBranch`. Compose extra prep with `postSetupWorkspaceFn` / `postTeardownWorkspaceFn` (or the `*Command` string fields). See [advanced-config.md](./advanced-config.md#workspace-handling).
+
+```ts
+type PostSetupWorkspaceFnInput<V extends LumpVariables = LumpVariables> = {
+  baseBranch: string;
+  branchName: string;
+  contextList: ContextList;
+  workspacePath: string;
+  executionWorkspacePath: string;
+  workspaceStrategy: 'checkout' | 'worktree';
+  projectRoot: string;
+  lumpVariables: V;
+};
+
+type PostSetupWorkspaceFn<V extends LumpVariables = LumpVariables> = (
+  input: PostSetupWorkspaceFnInput<V>,
+) => MaybePromise<{ command?: string } | void>;
+
+type PostTeardownWorkspaceFn<V extends LumpVariables = LumpVariables> = (
+  input: PostSetupWorkspaceFnInput<V>,
+) => MaybePromise<{ command?: string } | void>;
+```
+
+`command` is a shell fragment run in `workspacePath`. `void`, `{}`, and whitespace-only `command` mean no extra command. `workspacePath` is read-only (strategy-owned).
 
 ### Command module (`command` / `setup` / `teardown`)
 

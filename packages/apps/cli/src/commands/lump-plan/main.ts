@@ -39,7 +39,7 @@ const inputSchema = z.object({
             .string()
             .optional()
             .describe(
-                'Concrete discovery branch (dedicated; required when lump discovery rules are pattern-only)',
+                'Concrete discovery branch for context filtering (must match lump discovery rules; required when rules are pattern-only)',
             ),
     }),
     arguments: z.object({
@@ -70,6 +70,7 @@ function resolveDepth(options: Input['options']): LumpPlanDepth {
 function formatHumanPlan(data: PlanLumpOutput): string[] {
     const lines: string[] = [
         `Lump "${data.lumpName}" is valid.`,
+        `discoveryBranch: ${data.discoveryBranch}`,
         `baseBranch: ${data.baseBranch}`,
         `executionWorkspacePath: ${data.executionWorkspacePath}`,
         `disabled: ${data.disabled}`,

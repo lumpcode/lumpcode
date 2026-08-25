@@ -72,11 +72,13 @@
 
   <p class="subtitle">Laptop in shared mode, worker in dedicated mode, first campaign in between.</p>
 
-  <p>Lumpcode is a <strong>git-first loop manager</strong>: a small CLI that runs long agent campaigns over your own repo, in reviewable slices. Git is the gate (one PR at a time) and the source of truth (what is left is read from remote history, not a dashboard). You describe the campaign once, merge what is good, and the next tick continues with the rest.</p>
+  <p>Lumpcode is a <strong>git-first loop manager</strong>: a small CLI that runs long agent campaigns over your own repo, in reviewable slices. Git is the gate (one PR at a time) and the source of truth (what is left is read from remote history, not a distant database). You describe the campaign once, merge what is good, and the next tick continues with the rest.</p>
 
-  <p>The unit is a <strong>lump</strong>: a body of work too big for one chat, stored in <code>.lumpcode/lumps/</code> and worked through one isolated <strong>context</strong> at a time (one branch, one PR). You can run a tick by hand, or leave a daemon on a machine that stays on.</p>
+  <p>A <strong>lump</strong> is one campaign under <code>.lumpcode/lumps/&lt;name&gt;/</code>. Each <strong>context</strong> is one isolated unit of work: one branch, one PR. You can run a tick by hand, or leave a daemon on a machine that stays on.</p>
 
   <p>This article is that dedicated-daemon path. You author on your laptop. A second clone, that you do not develop in, runs the scheduler. When a lump lands on the primary branch, the worker picks it up.</p>
+
+  <p>The argument for why loops should plug into git is <a href="https://github.com/lumpcode/lumpcode/blob/main/articles/04-why-lumpcode/article.md">Codemods grew a brain. Our tooling didn't.</a></p>
 
   <h2>1. Requirements</h2>
 
@@ -89,7 +91,7 @@
     <li>Node 22+</li>
   </ul>
 
-  <p>Nothing else. No server, no dashboard.</p>
+  <p>Nothing else. No extra service to stand up.</p>
 
   <p>Install the <code>/lumpcode</code> skill so your agent has current docs while you set this up and write configs:</p>
 
@@ -220,6 +222,6 @@ export default defineConfig({
 
   <p>Push and merge. The next tick soft-skips it. The daemon stays up.</p>
 
-  <p>That's all. Thanks for reading. Next articles will cover other lump shapes. Stay tuned, and follow along at <a href="https://x.com/ddyods">x.com/ddyods</a>.</p>
+  <p>That's all. Once the worker is up, a next campaign is <a href="https://dev.to/dyod/turn-a-dupes-report-into-small-prs-with-lumpcode-1ome">turning a dupes report into small PRs</a>. Follow along at <a href="https://x.com/ddyods">x.com/ddyods</a>.</p>
 </body>
 </html>

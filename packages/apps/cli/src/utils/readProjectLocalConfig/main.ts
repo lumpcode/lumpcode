@@ -19,6 +19,7 @@ const SHARED_KEYS = [
     'command',
     'maximumNumberOfConcurrentBranches',
     'keepHistory',
+    'refreshCommand',
 ] as const satisfies ReadonlyArray<keyof ProjectJsonConfig & keyof LocalJsonConfig>;
 
 /**

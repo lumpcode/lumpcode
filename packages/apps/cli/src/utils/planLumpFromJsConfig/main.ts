@@ -35,6 +35,7 @@ export type PlanLumpOutput = {
     lumpName: string;
     valid: true;
     disabled: boolean;
+    discoveryBranch: string;
     baseBranch: string;
     executionWorkspacePath: string;
     mode: string;
@@ -99,7 +100,7 @@ export async function planLumpFromJsConfig(input: {
         lumpName,
         localConfigFolderPath,
         localConfig,
-        warnSharedDiscoveryBranchIgnored: true,
+        honorDiscoveryBranchOptInShared: true,
     });
     if (!discoveryResult.success) return discoveryResult;
 
@@ -126,6 +127,7 @@ export async function planLumpFromJsConfig(input: {
         workspaceStrategy,
         localConfig,
         effectiveDiscoveryBranch: discoveryResult.data,
+        skipPostWorkspaceHooks: true,
     });
     if (!runLumpInputResult.success) return runLumpInputResult;
 
@@ -136,6 +138,7 @@ export async function planLumpFromJsConfig(input: {
         lumpName,
         valid: true,
         disabled: disabledResult.data.disabled,
+        discoveryBranch: discoveryResult.data,
         baseBranch,
         executionWorkspacePath,
         mode,

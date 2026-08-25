@@ -1,8 +1,0 @@
-name: history-yaml-string-escaping
-manualReq: true
-workflow: directImpl
-task: >-
-  Fix keepHistory YAML writes so all string fields (prompt, commandResult,
-  etc.) escape cleanly and remain valid YAML under agent output with special
-  characters.
-priority: 7

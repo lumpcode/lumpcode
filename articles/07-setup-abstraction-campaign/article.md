@@ -1,10 +1,12 @@
-# Set up an abstraction campaign
+# Turn a dupes report into small PRs with Lumpcode
 
-A scanner finds repeated code. One lump proposes a single abstraction as a plan in git. A second lump implements it, with tests, until green. You merge small PRs; the loop does not finish.
+Lumpcode is a **git-first loop manager**: a small CLI that runs long agent campaigns over your own repo, in reviewable slices. Git is the gate (one PR at a time) and the source of truth (what is left is read from remote history, not a distant database). You describe the campaign once, merge what is good, and the next tick continues with the rest.
 
-This is the setup. The argument for why this loop exists is [Agents keep rewriting the same block](../06-agents-keep-rewriting-the-same-block/article.md) (X). You should already have a Lumpcode project. If you do not, start with the [dedicated daemon how-to](https://github.com/lumpcode/lumpcode/blob/main/articles/05-hands-on-dedicated-daemon/article.md).
+A **lump** is one campaign under `.lumpcode/lumps/<name>/`. Each **context** is one isolated unit of work: one branch, one PR. You can run a tick by hand, or leave a daemon on a machine that stays on.
 
-A **lump** is one campaign under `.lumpcode/lumps/<name>/`. Each **context** is one isolated unit of work: one branch, one PR.
+This article is one campaign: a scanner finds repeated code; one lump proposes a single abstraction as a plan in git; a second lump implements it, with tests, until green. You merge small PRs; the loop does not finish.
+
+The argument for why loops should plug into git is [Codemods grew a brain. Our tooling didn't.](https://github.com/lumpcode/lumpcode/blob/main/articles/04-why-lumpcode/article.md). If you do not have a Lumpcode project yet, start with the [dedicated daemon how-to](https://dev.to/dyod/hands-on-dedicated-lumpcode-daemon-5c38).
 
 Use `/lumpcode` in your agent session when you hit a config question (`npx skills add lumpcode/skills`).
 
@@ -53,7 +55,7 @@ lumpcode lump-create abstractionFinder --config ts
 lumpcode lump-create abstractionImplementer --config ts
 ```
 
-Replace the finder config. The shipped `abstractionFinder` recipe is a useful skeleton (`ephemeralContextListFn`, backlog path). Override `steps` so a scanner runs first, and so the prompt is about **your** tree, not Lumpcode's CLI package (the recipe default still mentions `packages/apps/cli`).
+Replace the finder config. `abstractionFinder` counts pending `todo/` items, emits one context per tick while under `maxPendingAbstractions`, and takes an optional `scanCommand` plus `scanDirectories` for the default prompt.
 
 `.lumpcode/lumps/abstractionFinder/config.ts`:
 
@@ -62,43 +64,16 @@ import { abstractionFinder } from '@lumpcode/recipes';
 
 const backlogItemsDir = '.lumpcode/lumps/abstractionImplementer/backlogItems';
 
-export default {
-    ...abstractionFinder({
-        maxPendingAbstractions: 1,
-        scanDirectories: ['src'],
-        backlogItemsDir,
-        command: 'cursor',
-        maximumNumberOfConcurrentBranches: 1,
-    }),
-    steps: [
-        {
-            commandFn() {
-                return {
-                    executable: 'sh',
-                    args: [
-                        '-c',
-                        'npx fallow dupes --mode semantic --format json > .lumpcode/dupes.json < /dev/null',
-                    ],
-                };
-            },
-        },
-        {
-            promptTemplate: `Read @.lumpcode/dupes.json and scan @src for duplicated logic (same pattern, not merely similar file structure).
-
-List existing names under @${backlogItemsDir}/todo/ and @${backlogItemsDir}/completed/. Do not re-propose those names.
-
-Pick exactly one new abstraction:
-- A util name matching ^[a-zA-Z0-9_-]+$
-- Refactoring all call sites in src/ should reduce net line count (excluding new unit tests)
-
-Create exactly one folder @${backlogItemsDir}/todo/<utilName>/ with:
-- desc.yml: name, task, priority (max todo priority + 1, or 1)
-- requirements.md: problem, goals and non-goals, proposed API, affected files, acceptance criteria (net reduction + unit tests)
-
-Do not implement product code.`,
-        },
-    ],
-};
+export default abstractionFinder({
+    configUrl: import.meta.url,
+    maxPendingAbstractions: 1,
+    scanDirectories: ['src'],
+    backlogItemsDir,
+    command: 'cursor',
+    maximumNumberOfConcurrentBranches: 1,
+    scanCommand:
+        'npx fallow dupes --mode semantic --format json > .lumpcode/dupes.json < /dev/null',
+});
 ```
 
 `.lumpcode/lumps/abstractionImplementer/config.ts`:
@@ -114,9 +89,9 @@ export default abstractionBacklog({
 });
 ```
 
-Change `command`, `scanDirectories`, the Fallow invocation, and `implValidateCommand` (`npm test && npm run build`, a workspace `-w`, …). `/lumpcode` can reshape paths and prompts.
+Change `command`, `scanDirectories`, `scanCommand`, and `implValidateCommand` (`npm test && npm run build`, a workspace `-w`, …). Pass `steps` when the default prompt is not enough. `/lumpcode` can reshape paths and prompts.
 
-The implementer skips items without `requirements.md`. `configUrl: import.meta.url` is required so the recipe can resolve the project root.
+The implementer skips items without `requirements.md`. Both recipes need `configUrl: import.meta.url` so they can resolve the project root.
 
 ## 5. Dry run
 

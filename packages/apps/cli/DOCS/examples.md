@@ -1,6 +1,6 @@
 # Example lumps
 
-Eight common shapes for a lump, each a complete, drop-in `.lumpcode/lumps/<name>/config.json` (or `config.js` / `config.ts`). Mix and match: a lump can use `contextMatchFn` for discovery and multi-step `steps`; a ticket queue can include `setupFn` to install deps before the agent runs; a sweep can add `branchFn` to follow your team's naming convention.
+Eight common shapes for a lump, each a complete, drop-in `.lumpcode/lumps/<name>/config.json` (or `config.js` / `config.ts`). Mix and match: a lump can use `contextMatchFn` for discovery and multi-step `steps`; a ticket queue can include `postSetupWorkspaceCommand` to install deps in the branch workspace before the agent runs; a sweep can add `branchFn` to follow your team's naming convention.
 
 Deep references: [concepts.md](./concepts.md), [lump-config.md](./lump-config.md), [advanced-config.md](./advanced-config.md), [types.md](./types.md).
 
@@ -68,6 +68,7 @@ Treat a JSON ticket file as the source of truth and let `dependsOnContexts` enfo
   "command": "copilot",
   "getContextListFn": "./tickets.js",
   "numberOfContextsPerBranch": 1,
+  "postSetupWorkspaceCommand": "npm ci",
   "prompt": {
     "promptTemplate": "Implement ticket {TICKET_ID}: {TITLE}\n\nAcceptance criteria:\n{ACCEPTANCE}\n\nLikely files:\n{FILE_HINT}"
   }

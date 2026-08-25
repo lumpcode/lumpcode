@@ -1,5 +1,5 @@
 name: docs-dedicated-installation-guide
-workflow: manual
+workflow: directImpl
 task: >-
   Quick-start DOCS guide for dedicated mode (the most powerful / production-intended
   way to use Lumpcode). Cover roughly: (1) the machine needs only a repo clone with

@@ -4,16 +4,6 @@
 #   daemon | git | status | hooks | history | config | engine | cli | recipes |
 #   workspace | presets | hygiene | skills | cloud | auth | agents | sandbox | meta
 # Ephemeral names (1, A) are OK.
-- name: git-driven-daemon-configs
-  task: >-
-    Declarative daemon configs (JSON/YAML only — no TS/JS) discovered on the primary discovery
-    branch, with fields such as daemonId, cronSetup, include, exclude, disabled. Add a supervisor
-    loop above existing daemon loops that starts configs that are not running and not disabled, and
-    stops daemons that are running but disabled. Goal: full control of a dedicated machine via git
-    pushes only (commit/push daemon configs to drive start/stop). Complements
-    daemon-orchestration-priority (lump scheduling) but owns the daemon lifecycle from repo files.
-  priority: 1
-  tags: [daemon, git, config]
 - name: cli-command-names-by-group
   task: >-
     Clean CLI command names by group. Canonical name is `<group>-<verb>` (e.g. `daemon-start`,
@@ -72,30 +62,6 @@
     optionally the context or step if not)
   priority: 21
   tags: [config, engine]
-- name: rethink-lump-history-storage
-  task: >-
-    Rethink lump history persistence (`keepHistory: true` → `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml`).
-    Today `packages/core/src/utils/historyFile/main.ts` read-modify-writes a full YAML array of `HistoryEntry`
-    objects (prompt, commandResult, context, stepIndex, contextRunState, lumpVariables, etc.) on every
-    step append. All-YAML has proven fragile: js-yaml literal blocks break on ANSI escapes in verification
-    output (SEA build colors, vitest); verify loops duplicate full `npm run build && npm run test` output
-    in both commandResult and retry prompts (45KB+ for a handful of entries); corrupt files block further
-    appends until manual repair. Recent mitigations (write sanitization, read-side ANSI recovery, non-blocking
-    history errors in executeStepsForContextList) are band-aids. Tier 1 near-term (may ship before format
-    change): truncate large prompt/commandResult fields; post-write YAML round-trip validation. Tier 2/3
-    direction to evaluate: append-only JSONL per context, or a split layout — small YAML/JSON index per
-    context plus separate `.log` (or hashed blob) files for full command output. Preserve resumable session
-    semantics (contextRunState, command module setup keys) regardless of format. Update project-setup
-    gitignore and CLI docs if paths change. Complements `option-for-light-history` (content shape) but
-    targets storage robustness.
-  priority: 22
-  tags: [history]
-- name: option-for-light-history
-  task: >-
-    Add an option to the config to run the lump code with a light history optimized for reusing later
-    with a new agent (only texts).
-  priority: 23
-  tags: [history, config]
 - name: add-after-push-commit-hook
   task: >-
     Add an after-push-commit hook to the config. This hook will be called after the commit is pushed to

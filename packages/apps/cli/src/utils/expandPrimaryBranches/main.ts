@@ -18,8 +18,9 @@ export type ExpandPrimaryBranchesInput = {
  * concrete, deduped scan list via `listRemoteHeadBranches` / `git ls-remote`.
  * Exact entries are kept as-is even when missing on the remote.
  *
- * Expand order: configured-entry order — exact entries first-as-listed, then
- * each glob's hits in ls-remote/dedupe order.
+ * Expand order: configured-entry order (exact as listed, then each glob's
+ * ls-remote hits), then the resolved primary (first exact) is moved to index 0.
+ * Remaining concrete branches keep that expand order.
  *
  * Shared mode: do not expand globs for scan fan-out (exact primary only).
  */
@@ -77,5 +78,6 @@ export async function expandPrimaryBranches(
         }
     }
 
-    return success(concrete);
+    const primary = resolvePrimaryBranch(localConfig, logger);
+    return success([primary, ...concrete.filter((branch) => branch !== primary)]);
 }

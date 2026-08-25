@@ -34,7 +34,10 @@ import type {
     LumpJsConfigPostCommandExecFn,
     LumpJsConfigStep,
     CommandConfigPaths,
+    PostSetupWorkspaceFn,
+    PostTeardownWorkspaceFn,
 } from "../../types";
+import { composeLumpWorkspaceFns } from '../composeLumpWorkspaceFns';
 import { isCommandFileRef } from '../lumpConfigPathRef';
 import { isGitRefGlob } from '../isGitRefGlob';
 import { makePromptFnFromTemplate } from '../makePromptFnFromTemplate';
@@ -67,6 +70,7 @@ export async function jsConfigToRunLumpInput({
     localConfig,
     effectiveDiscoveryBranch: providedEffectiveDiscoveryBranch,
     gitLock,
+    skipPostWorkspaceHooks = false,
 }: {
     config: LumpJsConfig;
     lumpName: string;
@@ -84,6 +88,8 @@ export async function jsConfigToRunLumpInput({
     effectiveDiscoveryBranch?: string;
     /** When set, workspace setup/teardown and git add+commit/push use the common-dir lock. */
     gitLock?: GitCommonDirLockContext;
+    /** Plan path: skip composing postSetup/postTeardown (no invoke, no command splice). */
+    skipPostWorkspaceHooks?: boolean;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
         baseBranch: lumpBaseBranchOverride,
@@ -100,9 +106,20 @@ export async function jsConfigToRunLumpInput({
         registerCommands,
         setupFn: userSetupFn,
         teardownFn: userTeardownFn,
+        postSetupWorkspaceFn: postSetupWorkspaceFnField,
+        postSetupWorkspaceCommand,
+        postTeardownWorkspaceFn: postTeardownWorkspaceFnField,
+        postTeardownWorkspaceCommand,
         verbose: _configVerbose,
         ...rest
     } = config;
+
+    if (postSetupWorkspaceFnField !== undefined && postSetupWorkspaceCommand !== undefined) {
+        return failure('postSetupWorkspaceFn and postSetupWorkspaceCommand are mutually exclusive');
+    }
+    if (postTeardownWorkspaceFnField !== undefined && postTeardownWorkspaceCommand !== undefined) {
+        return failure('postTeardownWorkspaceFn and postTeardownWorkspaceCommand are mutually exclusive');
+    }
 
     const presetInstallResult = await ensurePresetCommandsInstalled({ globalConfigFolderPath });
     if (!presetInstallResult.success) return presetInstallResult;
@@ -177,13 +194,41 @@ export async function jsConfigToRunLumpInput({
     if (!baseBranchResult.success) return baseBranchResult;
     const baseBranch = baseBranchResult.data;
 
-    const { setupWorkspaceFn, teardownWorkspaceFn } = makeLumpWorkspaceFns({
-        executionWorkspacePath: path.resolve(executionWorkspacePath), // TODO : why need path.resolve ?
+    const resolvedExecutionWorkspacePath = path.resolve(executionWorkspacePath);
+    let { setupWorkspaceFn, teardownWorkspaceFn } = makeLumpWorkspaceFns({
+        executionWorkspacePath: resolvedExecutionWorkspacePath, // TODO : why need path.resolve ?
         projectBaseBranch,
         lumpBaseBranch: baseBranch,
         workspaceStrategy,
         gitLock,
     });
+
+    if (!skipPostWorkspaceHooks) {
+        const postSetupResult = await resolvePostWorkspaceHook<PostSetupWorkspaceFn>({
+            fnField: postSetupWorkspaceFnField,
+            commandField: postSetupWorkspaceCommand,
+            fnImportOptions,
+        });
+        if (!postSetupResult.success) return postSetupResult;
+
+        const postTeardownResult = await resolvePostWorkspaceHook<PostTeardownWorkspaceFn>({
+            fnField: postTeardownWorkspaceFnField,
+            commandField: postTeardownWorkspaceCommand,
+            fnImportOptions,
+        });
+        if (!postTeardownResult.success) return postTeardownResult;
+
+        ({ setupWorkspaceFn, teardownWorkspaceFn } = composeLumpWorkspaceFns({
+            setupWorkspaceFn,
+            teardownWorkspaceFn,
+            postSetupWorkspaceFn: postSetupResult.data,
+            postTeardownWorkspaceFn: postTeardownResult.data,
+            executionWorkspacePath: resolvedExecutionWorkspacePath,
+            workspaceStrategy,
+            projectRoot,
+            lumpVariables: config.lumpVariables ?? {},
+        }));
+    }
 
     const gitCommitMessageFn = makeGitCommitMessageFnFromLumpName(lumpName);
     const gatedGitFns = gitLock ? makeGatedGitFns({ gitLock }) : undefined;
@@ -750,5 +795,24 @@ async function loadCommandModule({
         setup: modData.setup,
         teardown: modData.teardown,
     });
+    return success(undefined);
+}
+
+async function resolvePostWorkspaceHook<T extends Function>({
+    fnField,
+    commandField,
+    fnImportOptions,
+}: {
+    fnField: T | string | undefined;
+    commandField: string | undefined;
+    fnImportOptions: { importBasePath: string };
+}): Promise<Success<T | undefined> | Failure<string>> {
+    if (fnField !== undefined) {
+        return resolveFnOrDefaultImport<T>(fnField, fnImportOptions);
+    }
+    if (commandField !== undefined) {
+        const fromCommand = (async () => ({ command: commandField })) as unknown as T;
+        return success(fromCommand);
+    }
     return success(undefined);
 }

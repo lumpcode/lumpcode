@@ -326,4 +326,99 @@ describe('planLumpFromJsConfig', () => {
             });
         });
     });
+
+    describe('plan skips post workspace hooks', () => {
+        it('does not splice postSetupWorkspaceCommand into setupWorkspaceCommand', async () => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+                `export default {
+  getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
+  postSetupWorkspaceCommand: 'npm i',
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`,
+                'utf-8',
+            );
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.plan?.setupWorkspaceCommand).toBeTruthy();
+            expect(result.data.plan?.setupWorkspaceCommand).not.toContain('npm i');
+        });
+
+        it('does not invoke postSetupWorkspaceFn', async () => {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+                `export default {
+  getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
+  postSetupWorkspaceFn: () => {
+    throw new Error('plan must not invoke postSetupWorkspaceFn');
+  },
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`,
+                'utf-8',
+            );
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+        });
+    });
+
+    describe('shared mode discoveryBranch override', () => {
+        it('binds --discoveryBranch into getContextListFn when honor is enabled', async () => {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: { mode: 'shared', primaryBranch: 'main' },
+            });
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+                `export default {
+  discoveryBranches: ['main', 'feature/*'],
+  getContextListFn: ({ discoveryBranch }) => [
+    { name: \`branch-\${discoveryBranch}\`, variables: {} },
+  ],
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`,
+                'utf-8',
+            );
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'contexts',
+                discoveryBranchOpt: 'feature/a',
+            });
+
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.discoveryBranch).toBe('feature/a');
+            expect(result.data.contexts?.map((c) => c.name)).toEqual(['branch-feature/a']);
+        });
+    });
 });

@@ -1,0 +1,10 @@
+name: 06-reconcile-stop-and-restart
+manualReq: true
+workflow: directImpl
+priority: 3
+dependsOn:
+  - 05-reconcile-start
+task: >-
+  File-launched daemons: graceful stop when disabled or no longer considered;
+  hash-restart on normalized change; daemonBusy stays due. Completes Goal 3
+  of the parent git-driven-daemon-configs requirements.

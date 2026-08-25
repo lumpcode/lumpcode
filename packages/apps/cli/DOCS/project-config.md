@@ -38,6 +38,7 @@ With lump defaults:
 | `command` | no | Lump default; **tag shape only** (not a `.ts`/`.js` path) |
 | `maximumNumberOfConcurrentBranches` | no | Lump default |
 | `keepHistory` | no | Lump default |
+| `refreshCommand` | no | Dedicated daemon tick only; local wins; ignored by shared mode and `lumpcode run` |
 
 Not allowed here: `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, `verbose`. Unknown keys hard-fail.
 
@@ -51,7 +52,7 @@ Not allowed here: `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, `ve
 
 Precedence where the field exists on that layer: **lump > local > project**. Inherit only when the lump value is `undefined`. Values such as `false` or `0` are not overridden. `verbose` never comes from `project.json`.
 
-`run`, `start`, `lump-plan`, and `lump-status` all apply the same merge and defaults. Daemon `start` freezes one merged read at process start.
+`run`, `start`, `lump-plan`, and `lump-status` all apply the same merge and defaults. Daemon `start` freezes one merged read at process start, including `refreshCommand`. Restart the daemon to pick up a new command.
 
 ## Why `.lumpcode/` lives next to `.git`
 

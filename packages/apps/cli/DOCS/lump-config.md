@@ -119,10 +119,14 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `verbose` | boolean | Extra engine operational logging (`verbose` level). Also enabled for an invocation when you pass **`lumpcode run … --verbose`** or **`lumpcode start --verbose`** (OR-merge with this field) |
 | `registerCommands` | string[] | Pre-load command modules (`.lumpcode/commands/<name>.ts` or `.js`) before resolving dynamic `steps` |
 | `setupFn` / `teardownFn` | [Function reference](#field-forms-conventions) | Per-context lifecycle hooks |
+| `postSetupWorkspaceFn` | [Function reference](#field-forms-conventions) | After generated checkout/worktree setup. Receives the prepared branch `workspacePath`. Return `{ command }` for a shell fragment in that workspace. Mutually exclusive with `postSetupWorkspaceCommand`. |
+| `postSetupWorkspaceCommand` | string | Shell fragment in the branch workspace after generated git setup (e.g. `npm ci`). Mutually exclusive with `postSetupWorkspaceFn`. |
+| `postTeardownWorkspaceFn` | [Function reference](#field-forms-conventions) | Before generated workspace teardown, while the branch workspace still exists. Mutually exclusive with `postTeardownWorkspaceCommand`. |
+| `postTeardownWorkspaceCommand` | string | Shell fragment in the branch workspace before generated git teardown. Mutually exclusive with `postTeardownWorkspaceFn`. |
 | `contextOptionsFn` | [Function reference](#field-forms-conventions) | **Only with `contextListJson`:** set per-context `options` (`priority`, `dependsOnContexts`) after template expansion. See [contextOptionsFn](#contextoptionsfn-only-with-contextlistjson) and [Context ordering](#context-ordering-and-cross-lump-dependencies) |
 | `keepHistory` | boolean | When `true`, append one YAML mapping per prompt step (after the agent command) to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` |
 
-Workspace preparation (fetch / switch / hard-reset / branch) is generated for you from `local.json` and the resolved `baseBranch`—there are no `workspaceSetup`, `setupWorkspaceFn`, or `teardownWorkspaceFn` knobs. When each hook runs: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
+Workspace preparation (fetch / switch / hard-reset / branch) is generated for you from `local.json` and the resolved `baseBranch`—there are no `workspaceSetup`, `setupWorkspaceFn`, or `teardownWorkspaceFn` knobs. Compose extra prep with `postSetupWorkspaceFn` / `postSetupWorkspaceCommand` (and the teardown twins). `lump-plan` does not invoke these hooks or run their commands. Do not put git mutations in post-setup (not covered by `gitCommonDirLock`). When each hook runs: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
 
 ### Commit messages
 

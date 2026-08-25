@@ -13,6 +13,10 @@ import { validateBaseBacklogItem } from '../validateBaseBacklogItem';
 
 export type FolderBacklogContextsOptions<Item extends BaseBacklogItem = BaseBacklogItem> = {
     backlogItemsDir: string;
+    /**
+     * `folderName` is the path relative to `todo/`: the item folder, or
+     * `<parent>/tickets/<ticket>` when the parent has a `tickets/` directory.
+     */
     parseItem?: (item: BaseBacklogItem, folderName: string, raw: unknown) => Item;
     parseContext?: (
         item: Item,
@@ -36,6 +40,23 @@ async function listTodoFolderNames(todoDir: string): Promise<string[]> {
     }
 }
 
+/** Path relative to `todo/`, using `/` so it is stable in context variables. */
+export async function listTodoRelativeDirs(todoDir: string): Promise<string[]> {
+    const topNames = await listTodoFolderNames(todoDir);
+    const relativeDirs: string[] = [];
+    for (const name of topNames) {
+        const ticketNames = await listTodoFolderNames(path.join(todoDir, name, 'tickets'));
+        if (ticketNames.length === 0) {
+            relativeDirs.push(name);
+            continue;
+        }
+        for (const ticketName of ticketNames) {
+            relativeDirs.push(`${name}/tickets/${ticketName}`);
+        }
+    }
+    return relativeDirs;
+}
+
 export function folderBacklogContexts<
     Item extends BaseBacklogItem = BaseBacklogItem,
     V extends LumpVariables = LumpVariables,
@@ -46,7 +67,7 @@ export function folderBacklogContexts<
 }: FolderBacklogContextsOptions<Item>): GetContextListFn<V> {
     return async () => {
         const todoDir = path.join(backlogItemsDir, 'todo');
-        const folderNames = await listTodoFolderNames(todoDir);
+        const folderNames = await listTodoRelativeDirs(todoDir);
 
         const discovered = await Promise.all(
             folderNames.map(async (folderName) => {
@@ -65,8 +86,9 @@ export function folderBacklogContexts<
                 }
 
                 const raw = loadYaml(rawText);
+                const itemFolderName = path.basename(folderName);
                 const baseItem = validateBaseBacklogItem(raw, `in folder "${folderName}"`);
-                if (baseItem.name !== folderName) {
+                if (baseItem.name !== itemFolderName) {
                     throw new Error(
                         `Backlog item folder "${folderName}" desc.yml name "${baseItem.name}" must match folder name`,
                     );
@@ -76,6 +98,17 @@ export function folderBacklogContexts<
                 return { item, folderName };
             }),
         );
+
+        const seenNames = new Map<string, string>();
+        for (const { item, folderName } of discovered) {
+            const previous = seenNames.get(item.name);
+            if (previous !== undefined) {
+                throw new Error(
+                    `Duplicate backlog item name "${item.name}" in folders "${previous}" and "${folderName}"`,
+                );
+            }
+            seenNames.set(item.name, folderName);
+        }
 
         discovered.sort((a, b) => {
             if (a.item.priority !== b.item.priority) {

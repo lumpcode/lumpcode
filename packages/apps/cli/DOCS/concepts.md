@@ -74,7 +74,8 @@ Resolution sketch:
 ```text
 effectivePrimaryBranches = configured list (exact + optional git globs such as feature/*)
 primary                = first exact entry in that list   # fail if none
-scanBranches           = expand(effectivePrimaryBranches)  # dedicated only; shared uses exact primary
+scanBranches           = expand(effectivePrimaryBranches), then resolved primary first
+                       # dedicated only; shared uses exact primary
 
 effectiveDiscovery     = --discoveryBranch <concrete>
                        | first exact lump discovery rule (discoveryBranch / discoveryBranches)
@@ -85,9 +86,9 @@ resolvedBaseBranch     = baseBranch string
                        | effectiveDiscovery
 ```
 
-The **primary branch** is the first **exact** entry of `primaryBranches` when set, else `primaryBranch`. Glob entries in `primaryBranches` are discovery/scan rules only (dedicated expands them via `git ls-remote`); they are never used as checkout refs. Shared mode does not expand globs.
+The **primary branch** is the first **exact** entry of `primaryBranches` when set, else `primaryBranch`. Glob entries in `primaryBranches` are discovery/scan rules only (dedicated expands them via `git ls-remote`); they are never used as checkout refs. After expand, the dedicated scan list always starts with that resolved primary; remaining concrete branches keep expand order (exact-as-listed, then each glob’s `ls-remote` hits). Shared mode does not expand globs.
 
-Per-lump **`discoveryBranch`** or **`discoveryBranches`** (mutually exclusive) accept exact names and/or git refname globs. Dedicated allowlist checks each rule against **configured** (unexpanded) `primaryBranches` (exact match, pattern-entry equality, or concrete via a primary glob). Shared mode ignores lump discovery rules for scheduling. Manual `run` / `lump-plan` / `lump-status` without `--discoveryBranch` use the first exact discovery rule; pattern-only lumps require a concrete `--discoveryBranch`. Author `getContextListFn` / `contextMatchFn` receive that concrete `discoveryBranch`.
+Per-lump **`discoveryBranch`** or **`discoveryBranches`** (mutually exclusive) accept exact names and/or git refname globs. Dedicated allowlist checks each rule against **configured** (unexpanded) `primaryBranches` (exact match, pattern-entry equality, or concrete via a primary glob). Shared mode ignores lump discovery rules for scheduling and execution. Inspect commands (`lump-plan`, `lump-status`) honor a concrete `--discoveryBranch` in shared mode for context filtering (no checkout; files still come from the source tree). `run` still ignores `--discoveryBranch` in shared. Without `--discoveryBranch`, dedicated manual commands use the first exact discovery rule; pattern-only lumps require a concrete `--discoveryBranch`. Author `getContextListFn` / `contextMatchFn` receive that concrete `discoveryBranch`.
 
 `maximumNumberOfConcurrentBranches` remains a single cap per `lumpName` across all discovery lines. Multiple primary branches / globs: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
 

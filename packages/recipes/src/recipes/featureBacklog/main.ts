@@ -1,3 +1,4 @@
+import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -7,6 +8,7 @@ import {
     type StepVariables,
 } from '@lumpcode/cli-utils';
 import { pathExists } from '@lumpcode/core';
+import { load as loadYaml } from 'js-yaml';
 
 import {
     projectRootFromConfigUrl,
@@ -22,11 +24,25 @@ import {
     type BacklogItemResolution,
 } from '../backlog';
 
+export type FeatureBacklogWorkflow = 'tdd' | 'directImpl' | 'manual';
+export type FeatureBacklogRunnableWorkflow = Exclude<FeatureBacklogWorkflow, 'manual'>;
+
 export type FeatureBacklogItem = BaseBacklogItem & {
     manualReq?: boolean;
+    workflow?: FeatureBacklogWorkflow;
+    completedAt?: string;
+    /** Path relative to `backlogItems/todo/`; tickets live at `<parent>/tickets/<name>`. */
+    todoRelativeDir: string;
+    /** Parent todo folder name when this item is a ticket. */
+    parentName?: string;
 };
 
-export type FeatureBacklogStage = 'makeReq' | 'makeTestPlan' | 'testImpl' | 'implementation';
+export type FeatureBacklogStage =
+    | 'makeReq'
+    | 'makeTestPlan'
+    | 'testImpl'
+    | 'implementation'
+    | 'directImpl';
 
 export type FeatureBacklogContextVariables = {
     TASK_NAME: string;
@@ -43,13 +59,18 @@ export type FeatureBacklogOptions<
     SV extends StepVariables = StepVariables,
 > = {
     configUrl: string | URL;
-    baseBranch: string;
     implValidateCommand?: ValidationCommandFn<V, SV> | string;
     backlogItemsDir?: string;
 } & Omit<
     LumpJsConfig<V, SV>,
-    'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps' | 'baseBranch'
+    'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps'
 >;
+
+export const FEATURE_BACKLOG_WORKFLOWS = [
+    'tdd',
+    'directImpl',
+    'manual',
+] as const satisfies readonly FeatureBacklogWorkflow[];
 
 const RESERVED_NAME_SUFFIXES = ['_req', '_testPlan', '_tests_impl'] as const;
 
@@ -61,6 +82,10 @@ function assertValidFeatureItemName(name: string): void {
     }
 }
 
+function featureItemContextBaseName(item: Pick<FeatureBacklogItem, 'name' | 'parentName'>): string {
+    return item.parentName ? `${item.parentName}-${item.name}` : item.name;
+}
+
 function featureContextName(itemName: string, stage: FeatureBacklogStage): string {
     switch (stage) {
         case 'makeReq':
@@ -70,6 +95,7 @@ function featureContextName(itemName: string, stage: FeatureBacklogStage): strin
         case 'testImpl':
             return `${itemName}_tests_impl`;
         case 'implementation':
+        case 'directImpl':
             return itemName;
         default: {
             const _exhaustive: never = stage;
@@ -78,17 +104,121 @@ function featureContextName(itemName: string, stage: FeatureBacklogStage): strin
     }
 }
 
-export async function resolveFeatureBacklogItem(
-    item: FeatureBacklogItem,
-    paths: BacklogPaths,
-    projectRoot: string,
-    lumpName: string,
-    baseBranch: string,
-): Promise<BacklogItemResolution<FeatureBacklogStage>> {
-    const reqFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'requirements.md');
-    const testPlanFilePath = path.join(paths.backlogItemsDir, 'todo', item.name, 'testPlan.md');
+function parentNameFromTodoRelativeDir(todoRelativeDir: string): string | undefined {
+    const parts = todoRelativeDir.split('/');
+    if (parts.length === 3 && parts[1] === 'tickets') {
+        return parts[0];
+    }
+    return undefined;
+}
+
+export function parseFeatureWorkflow(itemName: string, raw: unknown): FeatureBacklogWorkflow | undefined {
+    if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+        return undefined;
+    }
+    const record = raw as Record<string, unknown>;
+    if (record.workflow === undefined) {
+        return undefined;
+    }
+    if (
+        typeof record.workflow !== 'string' ||
+        !(FEATURE_BACKLOG_WORKFLOWS as readonly string[]).includes(record.workflow)
+    ) {
+        throw new Error(
+            `Backlog item "${itemName}" field "workflow" must be one of: ${FEATURE_BACKLOG_WORKFLOWS.join(', ')}`,
+        );
+    }
+    return record.workflow as FeatureBacklogWorkflow;
+}
+
+async function resolveItemWorkflow(input: {
+    item: FeatureBacklogItem;
+    paths: BacklogPaths;
+    projectRoot: string;
+}): Promise<FeatureBacklogWorkflow> {
+    const { item, paths, projectRoot } = input;
+    if (item.workflow !== undefined) {
+        return item.workflow;
+    }
+    if (item.parentName === undefined) {
+        return 'tdd';
+    }
+
+    const parentDescPath = path.join(
+        projectRoot,
+        paths.backlogItemsDir,
+        'todo',
+        item.parentName,
+        'desc.yml',
+    );
+    let rawText: string;
+    try {
+        rawText = await fs.readFile(parentDescPath, 'utf-8');
+    } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === 'ENOENT') {
+            return 'tdd';
+        }
+        throw error;
+    }
+
+    return parseFeatureWorkflow(item.parentName, loadYaml(rawText)) ?? 'tdd';
+}
+
+/**
+ * `dev` → only top-level `directImpl` (tickets never run on `dev`, even if `directImpl`).
+ * `feature/<key>` → exact item name, or the parent todo name for tickets.
+ * `manual` never reaches here (`resolveFeatureBacklogItem` ignores it first).
+ */
+function itemMatchesDiscoveryBranch(input: {
+    itemName: string;
+    parentName?: string;
+    discoveryBranch: string;
+    workflow: FeatureBacklogRunnableWorkflow;
+}): boolean {
+    const { itemName, parentName, discoveryBranch, workflow } = input;
+    if (discoveryBranch === 'dev') {
+        return workflow === 'directImpl' && parentName === undefined;
+    }
+    if (!discoveryBranch.startsWith('feature/')) {
+        return false;
+    }
+    const key = discoveryBranch.slice('feature/'.length);
+    return (parentName ?? itemName) === key;
+}
+
+export async function resolveFeatureBacklogItem(input: {
+    item: FeatureBacklogItem;
+    paths: BacklogPaths;
+    projectRoot: string;
+    discoveryBranch: string;
+}): Promise<BacklogItemResolution<FeatureBacklogStage>> {
+    const { item, paths, projectRoot, discoveryBranch } = input;
+    const contextBaseName = featureItemContextBaseName(item);
+    const workflow = await resolveItemWorkflow({ item, paths, projectRoot });
+
+    if (workflow === 'manual') {
+        return { ignored: true };
+    }
+
+    if (
+        !!item.completedAt ||
+        !itemMatchesDiscoveryBranch({
+            itemName: item.name,
+            parentName: item.parentName,
+            discoveryBranch,
+            workflow,
+        })
+    ) {
+        return { ignored: true };
+    }
+
+    const itemDir = path.join(paths.backlogItemsDir, 'todo', item.todoRelativeDir);
+    const reqFilePath = path.join(itemDir, 'requirements.md');
+    const testPlanFilePath = path.join(itemDir, 'testPlan.md');
 
     const hasReq = await pathExists(path.join(projectRoot, reqFilePath));
+
     if (!hasReq) {
         if (item.manualReq === true) {
             return { ignored: true };
@@ -96,7 +226,15 @@ export async function resolveFeatureBacklogItem(
 
         return {
             stage: 'makeReq',
-            contextName: featureContextName(item.name, 'makeReq'),
+            contextName: featureContextName(contextBaseName, 'makeReq'),
+            variables: { REQ_FILE: reqFilePath },
+        };
+    }
+
+    if (workflow === 'directImpl') {
+        return {
+            stage: 'directImpl',
+            contextName: featureContextName(contextBaseName, 'directImpl'),
             variables: { REQ_FILE: reqFilePath },
         };
     }
@@ -105,7 +243,7 @@ export async function resolveFeatureBacklogItem(
     if (!hasTestPlan) {
         return {
             stage: 'makeTestPlan',
-            contextName: featureContextName(item.name, 'makeTestPlan'),
+            contextName: featureContextName(contextBaseName, 'makeTestPlan'),
             variables: {
                 REQ_FILE: reqFilePath,
                 TEST_PLAN_FILE: testPlanFilePath,
@@ -113,18 +251,18 @@ export async function resolveFeatureBacklogItem(
         };
     }
 
-    const testsImplContextName = featureContextName(item.name, 'testImpl');
+    const testsImplContextName = featureContextName(contextBaseName, 'testImpl');
     const testsImplStatus = await getContextStatus({
         projectRoot,
         contextName: testsImplContextName,
-        lumpName,
-        baseBranch,
+        lumpName: paths.lumpName,
+        baseBranch: discoveryBranch,
     });
 
     if (testsImplStatus === 'finished') {
         return {
             stage: 'implementation',
-            contextName: featureContextName(item.name, 'implementation'),
+            contextName: featureContextName(contextBaseName, 'implementation'),
             variables: {
                 REQ_FILE: reqFilePath,
                 TEST_PLAN_FILE: testPlanFilePath,
@@ -152,7 +290,6 @@ export const featureBacklog = defineRecipe(function featureBacklog<
 >(options: FeatureBacklogOptions<V, SV>): LumpJsConfig<V, SV> {
     const {
         configUrl,
-        baseBranch,
         implValidateCommand,
         backlogItemsDir,
         ...rest
@@ -167,26 +304,31 @@ export const featureBacklog = defineRecipe(function featureBacklog<
     return backlog<FeatureBacklogItem, V, SV>({
         configUrl,
         backlogItemsDir,
-        baseBranch,
-        parseItem(baseItem, _folderName, raw) {
+        parseItem(baseItem, folderName, raw) {
             assertValidFeatureItemName(baseItem.name);
             const record = raw as Record<string, unknown>;
             if (record.manualReq !== undefined && typeof record.manualReq !== 'boolean') {
                 throw new Error(`Backlog item "${baseItem.name}" field "manualReq" must be a boolean`);
             }
+            const parentName = parentNameFromTodoRelativeDir(folderName);
             return {
                 ...baseItem,
+                todoRelativeDir: folderName,
+                parentName,
+                dependsOn: parentName
+                    ? baseItem.dependsOn?.map((dep) => `${parentName}-${dep}`)
+                    : baseItem.dependsOn,
                 manualReq: record.manualReq === true ? true : undefined,
+                workflow: parseFeatureWorkflow(baseItem.name, raw),
             };
         },
-        async resolveItem({ item, paths }) {
-            return resolveFeatureBacklogItem(
+        async resolveItem({ item, paths, discoveryBranch }) {
+            return resolveFeatureBacklogItem({
                 item,
                 paths,
                 projectRoot,
-                paths.lumpName,
-                baseBranch,
-            );
+                discoveryBranch,
+            });
         },
         stages: {
             makeReq: {
@@ -334,6 +476,26 @@ Implement the feature described in @${REQ_FILE}.
 The tests have already been implemented according to the test plan in @${TEST_PLAN_FILE}.
 Unskip all the tests that were skipped in the tests implementation.
 The implementation should make the tests pass. Do not edit any test file except to unskip them or if absolutely necessary.
+                                `.trim();
+                            },
+                        },
+                    ],
+                    validationCommandFn: runImplValidation,
+                }),
+            },
+            directImpl: {
+                completion: 'moveToDone',
+                steps: retryUntilGreen<V, SV>({
+                    steps: [
+                        {
+                            promptFn({ context: ctx }) {
+                                const vars = ctx.variables as FeatureBacklogContextVariables;
+                                const { REQ_FILE } = vars;
+
+                                return `
+Implement the feature described in @${REQ_FILE}.
+Add or update tests as needed so the suite covers the change, and make validation pass.
+Do not edit @${REQ_FILE} unless absolutely necessary.
                                 `.trim();
                             },
                         },
