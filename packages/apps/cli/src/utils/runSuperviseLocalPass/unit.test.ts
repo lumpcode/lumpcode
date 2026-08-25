@@ -35,15 +35,42 @@ describe('runSuperviseLocalPass', () => {
         await fs.rm(tmp, { recursive: true, force: true });
     });
 
-    it('spawns start --foreground when desired is present and no live pid', async () => {
+    async function writeDesiredAndMeta(input: {
+        daemonId: string;
+        cronSetup: string;
+        workspaceStrategy: 'checkout' | 'worktree';
+        include?: string[];
+    }): Promise<{ desiredFilePath: string; metaFilePath: string }> {
+        const desiredFilePath = path.join(daemonsDir, `${projectName}.${input.daemonId}.daemon.desired.json`);
+        const metaFilePath = path.join(daemonsDir, `${projectName}.${input.daemonId}.daemon.meta.json`);
         await writeStartDaemonDesired({
-            desiredFilePath: path.join(daemonsDir, `${projectName}.global.daemon.desired.json`),
+            desiredFilePath,
             desired: {
                 projectRoot,
-                daemonId: 'global',
-                cronSetup: '*/7 * * * *',
-                include: ['backlog'],
+                daemonId: input.daemonId,
+                cronSetup: input.cronSetup,
+                include: input.include,
             },
+        });
+        await writeJsonFile({
+            filePath: metaFilePath,
+            data: {
+                daemonId: input.daemonId,
+                cronSetup: input.cronSetup,
+                workspaceStrategy: input.workspaceStrategy,
+                include: input.include,
+            },
+            trailingNewline: true,
+        });
+        return { desiredFilePath, metaFilePath };
+    }
+
+    it('spawns start --foreground when desired is present and no live pid', async () => {
+        await writeDesiredAndMeta({
+            daemonId: 'global',
+            cronSetup: '*/7 * * * *',
+            workspaceStrategy: 'worktree',
+            include: ['backlog'],
         });
         const spawnFn = vi.fn(() => ({ pid: 4242, unref: vi.fn() })) as unknown as typeof nodeSpawn;
         const result = await runSuperviseLocalPass({
@@ -62,6 +89,83 @@ describe('runSuperviseLocalPass', () => {
         expect((await fs.readFile(path.join(daemonsDir, `${projectName}.global.daemon.pid`), 'utf8')).trim()).toBe(
             '4242',
         );
+    });
+
+    it('respawns with meta workspaceStrategy, not live local.json', async () => {
+        const { metaFilePath } = await writeDesiredAndMeta({
+            daemonId: 'agents',
+            cronSetup: '*/5 * * * *',
+            workspaceStrategy: 'checkout',
+        });
+        // local.json is worktree; meta is checkout — respawn must keep checkout
+        const spawnFn = vi.fn(() => ({ pid: 5151, unref: vi.fn() })) as unknown as typeof nodeSpawn;
+        const result = await runSuperviseLocalPass({
+            projectName,
+            projectRoot,
+            daemonsDir,
+            logger: noopLogger,
+            spawnFn,
+        });
+        expect(result.success).toBe(true);
+        expect(spawnFn).toHaveBeenCalledOnce();
+        const stubMeta = JSON.parse(await fs.readFile(metaFilePath, 'utf8')) as {
+            workspaceStrategy: string;
+        };
+        expect(stubMeta.workspaceStrategy).toBe('checkout');
+    });
+
+    it('skips spawn when meta is missing', async () => {
+        await writeStartDaemonDesired({
+            desiredFilePath: path.join(daemonsDir, `${projectName}.global.daemon.desired.json`),
+            desired: {
+                projectRoot,
+                daemonId: 'global',
+                cronSetup: '*/7 * * * *',
+            },
+        });
+        const warn = vi.fn();
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await runSuperviseLocalPass({
+            projectName,
+            projectRoot,
+            daemonsDir,
+            logger: { ...noopLogger, warn },
+            spawnFn,
+        });
+        expect(result.success).toBe(true);
+        expect(spawnFn).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledWith(expect.stringMatching(/skip spawn for "global".*meta missing/));
+        await expect(fs.access(path.join(daemonsDir, `${projectName}.global.daemon.pid`))).rejects.toMatchObject({
+            code: 'ENOENT',
+        });
+    });
+
+    it('skips spawn when meta is invalid', async () => {
+        await writeStartDaemonDesired({
+            desiredFilePath: path.join(daemonsDir, `${projectName}.global.daemon.desired.json`),
+            desired: {
+                projectRoot,
+                daemonId: 'global',
+                cronSetup: '*/7 * * * *',
+            },
+        });
+        await fs.writeFile(
+            path.join(daemonsDir, `${projectName}.global.daemon.meta.json`),
+            '{ not valid json',
+            'utf8',
+        );
+        const warn = vi.fn();
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await runSuperviseLocalPass({
+            projectName,
+            projectRoot,
+            daemonsDir,
+            logger: { ...noopLogger, warn },
+            spawnFn,
+        });
+        expect(result.success).toBe(true);
+        expect(spawnFn).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledWith(expect.stringMatching(/skip spawn for "global".*meta invalid/));
     });
 
     it('deletes leftover desired when stopping and the pid is gone', async () => {
