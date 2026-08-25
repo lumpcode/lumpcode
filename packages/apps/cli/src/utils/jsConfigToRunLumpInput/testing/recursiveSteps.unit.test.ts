@@ -50,7 +50,30 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
         expect(recursiveFn).toHaveBeenCalledOnce();
     });
 
-    it('should require registerCommands for string commands inside recursive items', async () => {
+    it('should pre-register the lump command tag so recursive items can use it without registerCommands', async () => {
+        const withTag = async () => [{ promptTemplate: 'Do work', command: 'test-agent' } as LumpJsConfigStep];
+        const inheritDefault = async () => ['Inherited'];
+        const data = assertSuccess(await resolveWithFixtures({
+            command: 'test-agent',
+            prompt: undefined,
+            steps: [withTag, inheritDefault],
+        }));
+        const tagged = await (data.steps[0] as Function)(promptFnInput()) as Step[];
+        const inherited = await (data.steps[1] as Function)(promptFnInput()) as Step[];
+        expect(tagged[0].commandFn?.commandName).toBe('test-agent');
+        expect(inherited[0].commandFn?.commandName).toBe('test-agent');
+
+        const setupResult = await data.setupFn!({
+            contextList: [],
+            lumpVariables: {},
+            currentContextIndex: 0,
+        });
+        expect(setupResult?.contextRunState).toEqual({
+            'test-agentSetup': { source: 'local' },
+        });
+    });
+
+    it('should require registerCommands for other string commands inside recursive items', async () => {
         const recursiveFn = async () => [{ promptTemplate: 'Do work', command: 'test-agent' } as LumpJsConfigStep];
         const data = assertSuccess(await resolveWithFixtures({
             command: stubCommandFn,
