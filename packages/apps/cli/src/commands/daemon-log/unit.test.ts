@@ -4,8 +4,9 @@ import { EventEmitter } from 'node:events';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+import { createDaemonCommandTestProject } from '../../testing';
 import { buildTailArgs, command as daemonLogCommand } from './main';
-import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson, createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { createTempTestDirs, removeTempTestDirs } from '../../utils';
 
 describe('buildTailArgs', () => {
     it('builds follow-only args by default', () => {
@@ -32,12 +33,7 @@ describe('daemon-log command', () => {
     const projectName = 'daemon-log-test-project';
 
     beforeEach(async () => {
-        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-daemon-log-', remote: false }));
-        initLocalGitRepo({ cwd: projectRoot });
-        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
-        await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createDaemonCommandTestProject({ prefix: 'lump-daemon-log-', projectName, bindDaemonTestEnv: false }));
     });
 
     afterEach(async () => {

@@ -3,13 +3,13 @@ import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 import {
+    createDaemonCommandTestProject,
     removeDaemonMetaUntilGone,
-    setDaemonTestGlobalConfigFolder,
     withAliveDaemon,
     writeDaemonMetaSticky,
 } from '../../testing';
 import { command as daemonStatusCommand } from './main';
-import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson, createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { writeJsonFile, createTempTestDirs, removeTempTestDirs } from '../../utils';
 
 describe('daemon-status command', () => {
     let projectRoot: string;
@@ -18,13 +18,7 @@ describe('daemon-status command', () => {
     const projectName = 'status-test-project';
 
     beforeEach(async () => {
-        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-status-', remote: false }));
-        setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        initLocalGitRepo({ cwd: projectRoot });
-        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
-        await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createDaemonCommandTestProject({ prefix: 'lump-status-', projectName }));
     });
 
     afterEach(async () => {
