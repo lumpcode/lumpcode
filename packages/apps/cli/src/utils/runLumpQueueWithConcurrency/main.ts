@@ -1,15 +1,15 @@
-export type RunLumpQueueItem = {
+export type LumpLine = {
     lumpName: string;
-    effectiveDiscoveryBranch?: string;
+    effectiveDiscoveryBranch: string;
 };
+
+export type RunLumpQueueItem = Pick<LumpLine, 'lumpName'> &
+    Partial<Pick<LumpLine, 'effectiveDiscoveryBranch'>>;
 
 export type RunLumpQueueWithConcurrencyInput = {
     items: RunLumpQueueItem[];
     concurrency: number;
-    runOneLump: (input: {
-        lumpName: string;
-        effectiveDiscoveryBranch?: string;
-    }) => Promise<unknown>;
+    runOneLump: (input: RunLumpQueueItem) => Promise<unknown>;
 };
 
 /**
