@@ -246,7 +246,7 @@ Plus global [`--json`](#ref-json-output).
 
 ### `lumpcode start`
 
-**Description:** Run a **scheduler** that periodically discovers and executes lumps (all loadable lumps by default, or a filtered subset). Every daemon uses the same discovery path; identity is a unique `daemonId`.
+**Description:** Run a **scheduler** that periodically discovers and executes lumps (all loadable lumps by default, or a filtered subset). Every daemon uses the same discovery path; identity is a unique `daemonId`. Pass **`--superviseOnly`** to keep the project supervisor up without launching a daemon.
 
 **Usage:** `lumpcode start [options]`
 
@@ -259,7 +259,10 @@ Plus global [`--json`](#ref-json-output).
 | `--exclude`         | string  | No       | Comma-separated patterns subtracted after include                        |
 | `--daemonId`        | string  | No       | Unique id for PID/log/meta (`[a-zA-Z0-9_-]+`). Default unfiltered: `global` |
 | `--maxParallelRun`  | number  | No       | Override `local.json` maxParallelRun for this worktree daemon            |
+| `--superviseOnly`   | flag    | No       | Start or adopt the project supervisor only (no daemon spawn)           |
 | `--lumpName`        | string  | No       | **Deprecated.** Equivalent to `--include=<name>`                         |
+
+**`--superviseOnly`:** starts (or adopts) the per-project supervisor under `~/.lumpcode/supervisor/` and exits. Does not write `desired.json`, spawn a scheduler, or resolve a `daemonId`. Idempotent when the supervisor is already alive. Cannot be combined with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. Success envelope: `{ projectName, supervisorPid? }` (not the ticks payload). This is not the same as `--exclude=*`, which still starts a real daemon that discovers every tick.
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 
