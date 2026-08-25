@@ -51,6 +51,16 @@ Flat helpers under `src/kit/` (re-exported from the package root):
 - `ymlBacklogContexts` / `setTaskDoneStep` — **deprecated** YAML-list helpers (warn once, still work)
 - `resolveImplValidateCommand` — string, descriptor, or fn → `ValidationCommandFn`
 - `shellCommand` — `sh -c` helper for validation commands
+- `openPrPostTeardown` — `postTeardownWorkspaceFn` that opens a PR from `branchName` into resolved `baseBranch`. Pass `{ provider: 'github' }` (`gh` on PATH). Skips when the branch was not pushed or a PR already exists; create failures are logged and do not fail the run.
+
+```ts
+import { featureBacklog, openPrPostTeardown } from '@lumpcode/recipes';
+
+export default featureBacklog({
+  configUrl: import.meta.url,
+  postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
+});
+```
 
 ## Generic backlog stage map
 

@@ -1,5 +1,11 @@
 export { shellCommand } from './shellCommand';
 export {
+    OPEN_PR_PROVIDERS,
+    openPrPostTeardown,
+    type OpenPrPostTeardownOptions,
+    type OpenPrProvider,
+} from './openPrPostTeardown';
+export {
     ephemeralContextListFn,
     type EphemeralContextListFnOptions,
 } from './ephemeralContextListFn';

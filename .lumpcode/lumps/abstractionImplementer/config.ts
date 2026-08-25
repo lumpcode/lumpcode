@@ -1,6 +1,6 @@
 import { LumpJsConfig } from '@lumpcode/cli-utils';
 import { CursorPresetLumpVariables, CursorPresetStepVariables } from '@lumpcode/cli-utils';
-import { abstractionBacklog } from '@lumpcode/recipes';
+import { abstractionBacklog, openPrPostTeardown } from '@lumpcode/recipes';
 
 export default {
     ...abstractionBacklog<CursorPresetLumpVariables, CursorPresetStepVariables>({
@@ -13,5 +13,6 @@ export default {
         keepHistory: true,
         lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
         discoveryBranch: 'dev',
+        postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     }),
 } satisfies LumpJsConfig<CursorPresetLumpVariables, CursorPresetStepVariables>;
