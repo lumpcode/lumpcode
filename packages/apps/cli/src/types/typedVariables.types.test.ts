@@ -16,6 +16,8 @@ import type {
 } from './LumpJsConfigSteps';
 import type { LumpJsonConfig } from './LumpJsonConfig';
 import type { LumpJsonConfigStep } from './LumpJsonConfigStep';
+import type { PostSetupWorkspaceFn } from './PostSetupWorkspaceFn';
+import type { PostTeardownWorkspaceFn } from './PostTeardownWorkspaceFn';
 
 type V = { model?: string; myHookFlag: boolean };
 type SV = { model?: string; newChat?: boolean; stepOnly: number };
@@ -127,5 +129,32 @@ describe('CLI authoring types <V, SV> (A1–A6)', () => {
     };
     expectTypeOf(config).toMatchTypeOf<LumpJsConfig>();
     expectTypeOf(mod).toMatchTypeOf<CommandModule>();
+  });
+
+  it('post workspace hooks carry V; JSON keeps FilePath / command string only', () => {
+    const postSetup: PostSetupWorkspaceFn<V> = (input) => {
+      expectTypeOf(input.lumpVariables).toEqualTypeOf<V>();
+      expectTypeOf(input.workspacePath).toEqualTypeOf<string>();
+      return { command: 'npm i' };
+    };
+    const postTeardown: PostTeardownWorkspaceFn<V> = (input) => {
+      expectTypeOf(input.lumpVariables).toEqualTypeOf<V>();
+    };
+    const config: LumpJsConfig<V, SV> = {
+      lumpVariables: { myHookFlag: true },
+      postSetupWorkspaceFn: postSetup,
+      postTeardownWorkspaceFn: postTeardown,
+    };
+    expectTypeOf(config.postSetupWorkspaceFn).toEqualTypeOf<
+      LumpJsConfig<V, SV>['postSetupWorkspaceFn']
+    >();
+
+    const json: LumpJsonConfig<V, SV> = {
+      postSetupWorkspaceCommand: 'npm i',
+      postSetupWorkspaceFn: './postSetup.ts',
+    };
+    expectTypeOf(json.postSetupWorkspaceCommand).toEqualTypeOf<string | undefined>();
+    expectTypeOf<LumpJsonConfig<V, SV>>().not.toHaveProperty('setupWorkspaceFn');
+    void json;
   });
 });

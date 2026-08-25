@@ -1,10 +1,12 @@
 # Hands-on: dedicated Lumpcode daemon
 
-Lumpcode is a **git-first loop manager**: a small CLI that runs long agent campaigns over your own repo, in reviewable slices. Git is the gate (one PR at a time) and the source of truth (what is left is read from remote history, not a dashboard). You describe the campaign once, merge what is good, and the next tick continues with the rest.
+Lumpcode is a **git-first loop manager**: a small CLI that runs long agent campaigns over your own repo, in reviewable slices. Git is the gate (one PR at a time) and the source of truth (what is left is read from remote history, not a distant database). You describe the campaign once, merge what is good, and the next tick continues with the rest.
 
-The unit is a **lump**: a body of work too big for one chat, stored in `.lumpcode/lumps/` and worked through one isolated **context** at a time (one branch, one PR). You can run a tick by hand, or leave a daemon on a machine that stays on.
+A **lump** is one campaign under `.lumpcode/lumps/<name>/`. Each **context** is one isolated unit of work: one branch, one PR. You can run a tick by hand, or leave a daemon on a machine that stays on.
 
 This article is that dedicated-daemon path. You author on your laptop. A second clone, that you do not develop in, runs the scheduler. When a lump lands on the primary branch, the worker picks it up.
+
+The argument for why loops should plug into git is [Codemods grew a brain. Our tooling didn't.](https://github.com/lumpcode/lumpcode/blob/main/articles/04-why-lumpcode/article.md).
 
 ## 1. Requirements
 
@@ -16,7 +18,7 @@ You need:
 - A coding agent CLI on `PATH` (`cursor-agent`, `copilot`, `claude`, …), already logged in
 - Node 22+
 
-Nothing else. No server, no dashboard.
+Nothing else. No extra service to stand up.
 
 Install the `/lumpcode` skill so your agent has current docs while you set this up and write configs:
 
@@ -175,4 +177,4 @@ disabled: true,
 
 Push and merge. The next tick soft-skips it. The daemon stays up.
 
-That's all. Thanks for reading. Next articles will cover other lump shapes. Stay tuned, and follow along at [x.com/ddyods](https://x.com/ddyods).
+That's all. Once the worker is up, a next campaign is [turning a dupes report into small PRs](https://dev.to/dyod/turn-a-dupes-report-into-small-prs-with-lumpcode-1ome). Follow along at [x.com/ddyods](https://x.com/ddyods).

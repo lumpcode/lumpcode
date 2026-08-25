@@ -151,6 +151,7 @@ async function collectTickLumps(session: TickSession): Promise<CollectTickLumpsR
                 globalConfigFolderPath,
                 localConfig: frozenLocalConfig,
                 logger,
+                refreshCommand: frozenLocalConfig.refreshCommand,
             });
             if (!discoverResult.success) {
                 logger.error(`discovery branch "${scanBranch}": ${discoverResult.data}; skipping`);

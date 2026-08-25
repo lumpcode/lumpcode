@@ -1,0 +1,14 @@
+name: history-and-transcripts
+workflow: tdd
+manualReq: true
+task: >-
+  Two artifacts from the same step walk. keepHistory: replace the gitignored
+  YAML rewrite with append-only JSONL on projectRoot (truncate + shared
+  ANSI/C0 sanitize; skip corrupt lines so a bad file cannot block later
+  appends). keepTranscripts: opt-in light markdown (prompt + stdout only)
+  under workspacePath so git add . commits it with the LUMP marker. Overlay
+  like keepHistory (lump > local > project). Do not gitignore transcripts/.
+  No thinking capture, no stream-json parse, no engine auto-inject. Merges
+  former IDEAS rethink-lump-history-storage and option-for-light-history;
+  supersedes keep-transcripts and history-yaml-string-escaping.
+priority: 18

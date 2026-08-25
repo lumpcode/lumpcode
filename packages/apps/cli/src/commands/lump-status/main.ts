@@ -28,7 +28,7 @@ const inputSchema = z.object({
             .string()
             .optional()
             .describe(
-                'Concrete discovery branch (dedicated; required when lump discovery rules are pattern-only)',
+                'Concrete discovery branch for context filtering (must match lump discovery rules; required when rules are pattern-only)',
             ),
     }),
     arguments: z.object({}),
@@ -93,7 +93,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             lumpName,
             localConfigFolderPath,
             localConfig,
-            warnSharedDiscoveryBranchIgnored: true,
+            honorDiscoveryBranchOptInShared: true,
         });
         if (!discoveryResult.success) {
             return failure({ messages: [discoveryResult.data] });

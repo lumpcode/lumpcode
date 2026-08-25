@@ -8,6 +8,8 @@ import { FilePath } from "./FilePath";
 import type { GetContextListFn } from "./GetContextListFn";
 import { LumpJsConfigSteps, LumpJsConfigStepsItem } from "./LumpJsConfigSteps";
 import { MergeObjs } from "./MergeObjs";
+import type { PostSetupWorkspaceFn } from "./PostSetupWorkspaceFn";
+import type { PostTeardownWorkspaceFn } from "./PostTeardownWorkspaceFn";
 
 type LumpJsConfigSoloStep<
     V extends LumpVariables = LumpVariables,
@@ -58,4 +60,18 @@ export type LumpJsConfig<
     registerCommands?: string[];
     keepHistory?: boolean;
     verbose?: boolean;
+    /**
+     * After generated checkout/worktree setup. Mutually exclusive with
+     * `postSetupWorkspaceCommand`.
+     */
+    postSetupWorkspaceFn?: FilePath | PostSetupWorkspaceFn<V>;
+    /** Shell fragment in the branch workspace. Mutually exclusive with `postSetupWorkspaceFn`. */
+    postSetupWorkspaceCommand?: string;
+    /**
+     * Before generated workspace teardown. Mutually exclusive with
+     * `postTeardownWorkspaceCommand`.
+     */
+    postTeardownWorkspaceFn?: FilePath | PostTeardownWorkspaceFn<V>;
+    /** Shell fragment in the branch workspace. Mutually exclusive with `postTeardownWorkspaceFn`. */
+    postTeardownWorkspaceCommand?: string;
 }>;

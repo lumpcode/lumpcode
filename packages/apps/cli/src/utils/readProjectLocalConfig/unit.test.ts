@@ -171,6 +171,78 @@ describe('readProjectLocalConfig (clean-local-project-json-config)', () => {
     });
 });
 
+/**
+ * daemon-primary-branch-refresh-command M13–M16.
+ * Skipped until merge includes refreshCommand (local wins).
+ */
+describe('readProjectLocalConfig refreshCommand (daemon-primary-branch-refresh-command M*)', () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-project-local-refresh-'));
+    });
+
+    afterEach(async () => {
+        await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    async function writePair(project: unknown, local: unknown) {
+        await writeJsonFile({ filePath: path.join(dir, PROJECT_JSON_FILE_NAME), data: project });
+        await writeJsonFile({ filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME), data: local });
+    }
+
+    it('M13: local wins refreshCommand', async () => {
+        await writePair(
+            { projectName: 'demo', primaryBranch: 'main', refreshCommand: 'npm i' },
+            { mode: 'dedicated', refreshCommand: 'npm ci' },
+        );
+        const result = await readProjectLocalConfig({ localConfigFolderPath: dir });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect((result.data as { refreshCommand?: string }).refreshCommand).toBe('npm ci');
+    });
+
+    it('M14: project-only refreshCommand', async () => {
+        await writePair(
+            { projectName: 'demo', primaryBranch: 'main', refreshCommand: 'npm i' },
+            { mode: 'dedicated' },
+        );
+        const result = await readProjectLocalConfig({ localConfigFolderPath: dir });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect((result.data as { refreshCommand?: string }).refreshCommand).toBe('npm i');
+    });
+
+    it('M15: local-only refreshCommand', async () => {
+        await writePair(
+            { projectName: 'demo', primaryBranch: 'main' },
+            { mode: 'dedicated', refreshCommand: 'npm i' },
+        );
+        const result = await readProjectLocalConfig({ localConfigFolderPath: dir });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect((result.data as { refreshCommand?: string }).refreshCommand).toBe('npm i');
+    });
+
+    it('M16: empty refreshCommand on either file fails', async () => {
+        await writePair(
+            { projectName: 'demo', primaryBranch: 'main', refreshCommand: '' },
+            { mode: 'dedicated' },
+        );
+        const fromProject = await readProjectLocalConfig({ localConfigFolderPath: dir });
+        expect(fromProject.success).toBe(false);
+
+        await writePair(
+            { projectName: 'demo', primaryBranch: 'main' },
+            { mode: 'dedicated', refreshCommand: '' },
+        );
+        const fromLocal = await readProjectLocalConfig({ localConfigFolderPath: dir });
+        expect(fromLocal.success).toBe(false);
+        if (fromLocal.success) throw new Error('unreachable');
+        expect(fromLocal.data).toMatch(/refreshCommand/i);
+    });
+});
+
 describe('ResolvedProjectLocalConfig types (clean-local-project-json-config T*)', () => {
     it('T1: ResolvedProjectLocalConfig equals z.infer of resolved schema', () => {
         expectTypeOf<ResolvedProjectLocalConfig>().toEqualTypeOf<

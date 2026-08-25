@@ -17,6 +17,9 @@ export const DISCOVERY_SCAN_LOCK_HOLDER = '__discovery__';
 /** Timeout for discovery/preflight git (`ls-remote`, fetch/switch/reset). */
 export const DISCOVERY_GIT_TIMEOUT_MS = 300_000;
 
+/** Timeout for dedicated-daemon `refreshCommand` after scan-branch checkout. */
+export const REFRESH_COMMAND_TIMEOUT_MS = 900_000;
+
 /** Local reconcile interval for `lumpcode supervise`. */
 export const SUPERVISE_LOCAL_PASS_INTERVAL_MS = 30_000;
 

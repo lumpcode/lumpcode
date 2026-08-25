@@ -41,6 +41,7 @@ Machine overrides and lump defaults:
 | `maximumNumberOfConcurrentBranches` | no | Lump default; same precedence |
 | `keepHistory` | no | Lump default; same precedence |
 | `verbose` | no | Lump default; **local-only** (not on `project.json`) |
+| `refreshCommand` | no | Shared with `project.json`; **local wins**; dedicated daemon tick only |
 
 Misplaced keys (for example `projectName`) and unknown keys **hard-fail**. `command` must be a registered tag, not a `.ts`/`.js` file path.
 
@@ -86,8 +87,8 @@ Pick `worktree` when you want the base branch checked out in the main tree durin
 
 How a dedicated global daemon uses the list, each tick:
 
-1. Expand configured entries (exact kept as-is; globs via `git ls-remote --heads origin <pattern>`). Empty glob matches log and skip that entry; `ls-remote` failure fails the expand path.
-2. For **each** concrete scan branch in expand order: locked pre-flight, then discover lumps whose discovery rules match that branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)).
+1. Expand configured entries (exact kept as-is; globs via `git ls-remote --heads origin <pattern>`). Empty glob matches log and skip that entry; `ls-remote` failure fails the expand path. The resolved primary (first exact) is moved to the front of the concrete list.
+2. For **each** concrete scan branch: locked pre-flight, then if frozen merged `refreshCommand` is set, run it in the checkout (`stdio` discarded; failure skips that branch). Then discover lumps whose discovery rules match that branch ([concepts.md § Branch resolution](./concepts.md#branch-resolution)). `refreshCommand` is ignored in shared mode and by `lumpcode run`. Change it and restart the daemon.
 3. Per scan branch (subtick): discover loadable lumps, apply the daemon's `--include` / `--exclude` filter, then run the filtered queue (optionally in parallel when `workspaceStrategy` is `"worktree"` and `maxParallelRun` > 1, including `--maxParallelRun` on `start`). Same `lumpName` on different scan branches is allowed and runs once per matching line. A failure on one branch or lump is logged and does not stop the rest of the tick.
 
 Rules:

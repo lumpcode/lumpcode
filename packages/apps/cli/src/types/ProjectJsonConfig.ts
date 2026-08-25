@@ -13,4 +13,5 @@ export type ProjectJsonConfig = Pick<
     | 'command'
     | 'maximumNumberOfConcurrentBranches'
     | 'keepHistory'
+    | 'refreshCommand'
 >;

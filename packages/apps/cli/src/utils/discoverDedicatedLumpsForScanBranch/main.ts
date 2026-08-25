@@ -1,7 +1,7 @@
 import type { Failure, Logger, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { execBinary, failure, success } from '@lumpcode/core';
 
-import { DISCOVERY_SCAN_LOCK_HOLDER } from '../../consts';
+import { DISCOVERY_SCAN_LOCK_HOLDER, REFRESH_COMMAND_TIMEOUT_MS } from '../../consts';
 import type { LocalConfig } from '../../types/LocalConfig';
 import { discoverLoadableLumps, type LoadableLump } from '../discoverLoadableLumpNames';
 import { preflightDiscoveryBranchWithLock } from '../preflightDiscoveryBranchWithLock';
@@ -19,6 +19,7 @@ export async function discoverDedicatedLumpsForScanBranch(input: {
     globalConfigFolderPath: string;
     localConfig: LocalConfig;
     logger: Logger;
+    refreshCommand?: string;
 }): Promise<Success<LoadableLump[]> | Failure<string>> {
     const {
         scanBranch,
@@ -27,6 +28,7 @@ export async function discoverDedicatedLumpsForScanBranch(input: {
         globalConfigFolderPath,
         localConfig,
         logger,
+        refreshCommand,
     } = input;
 
     const discoveryResult = await preflightDiscoveryBranchWithLock({
@@ -40,6 +42,24 @@ export async function discoverDedicatedLumpsForScanBranch(input: {
         logger,
         holdForRun: false,
         fn: async () => {
+            if (refreshCommand) {
+                logger.info(`refreshCommand on "${scanBranch}": ${refreshCommand}`);
+                const isWin = process.platform === 'win32';
+                const refreshResult = await execBinary({
+                    binaryPath: isWin ? 'cmd.exe' : '/bin/sh',
+                    args: isWin ? ['/d', '/s', '/c', refreshCommand] : ['-c', refreshCommand],
+                    cwd: sourceProjectRoot,
+                    timeoutMillis: REFRESH_COMMAND_TIMEOUT_MS,
+                    stdio: 'ignore',
+                });
+                if (!refreshResult.success) {
+                    return failure(
+                        `refreshCommand failed on "${scanBranch}": ${refreshResult.data.message}`,
+                    );
+                }
+                logger.info(`refreshCommand on "${scanBranch}": ok`);
+            }
+
             let primaryBranch: string;
             try {
                 primaryBranch = resolvePrimaryBranch(localConfig, logger);

@@ -20,6 +20,24 @@
         { "required": ["steps"], "not": { "required": ["prompt"] } }
       ],
       "description": "Exactly one prompt definition must be provided: either 'prompt' (a single prompt item) or 'steps' (an ordered list of prompt steps)."
+    },
+    {
+      "not": {
+        "allOf": [
+          { "required": ["postSetupWorkspaceFn"] },
+          { "required": ["postSetupWorkspaceCommand"] }
+        ]
+      },
+      "description": "postSetupWorkspaceFn and postSetupWorkspaceCommand are mutually exclusive."
+    },
+    {
+      "not": {
+        "allOf": [
+          { "required": ["postTeardownWorkspaceFn"] },
+          { "required": ["postTeardownWorkspaceCommand"] }
+        ]
+      },
+      "description": "postTeardownWorkspaceFn and postTeardownWorkspaceCommand are mutually exclusive."
     }
   ],
   "properties": {
@@ -144,6 +162,26 @@
       "type": "string",
       "description": "File path to a module exporting a TeardownFn — a per-context lifecycle hook that runs after all prompt items for a context, receiving the accumulated contextRunState. In the JS config this can be the function itself; in JSON it must be a file path.",
       "examples": ["./lump/teardownFn.ts"]
+    },
+    "postSetupWorkspaceFn": {
+      "type": "string",
+      "description": "File path to a module exporting a PostSetupWorkspaceFn. Runs after generated checkout/worktree setup, with the branch workspace already prepared. Return { command } for a shell fragment executed in that workspace. Mutually exclusive with postSetupWorkspaceCommand. Not invoked by lump-plan. Do not put git mutations here (not covered by gitCommonDirLock).",
+      "examples": ["./postSetupWorkspace.ts"]
+    },
+    "postSetupWorkspaceCommand": {
+      "type": "string",
+      "description": "Shell fragment run in the branch workspace after generated git setup (for example npm ci). Mutually exclusive with postSetupWorkspaceFn. Not run by lump-plan.",
+      "examples": ["npm ci", "npm i"]
+    },
+    "postTeardownWorkspaceFn": {
+      "type": "string",
+      "description": "File path to a module exporting a PostTeardownWorkspaceFn. Runs before generated workspace teardown, while the branch workspace still exists. Return { command } for a shell fragment executed in that workspace. Mutually exclusive with postTeardownWorkspaceCommand. Not invoked by lump-plan.",
+      "examples": ["./postTeardownWorkspace.ts"]
+    },
+    "postTeardownWorkspaceCommand": {
+      "type": "string",
+      "description": "Shell fragment run in the branch workspace before generated git teardown. Mutually exclusive with postTeardownWorkspaceFn. Not run by lump-plan.",
+      "examples": ["rm -rf node_modules/.cache"]
     },
     "keepHistory": {
       "type": "boolean",

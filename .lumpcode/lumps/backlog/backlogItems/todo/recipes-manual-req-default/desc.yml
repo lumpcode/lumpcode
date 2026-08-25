@@ -1,5 +1,4 @@
 name: recipes-manual-req-default
-manualReq: true
 workflow: directImpl
 task: >-
   In recipes (e.g. featureBacklog / backlog), default manualReq to true so

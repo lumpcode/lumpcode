@@ -17,12 +17,21 @@ function createLogger(): Logger {
     };
 }
 
+function expandTestLocalConfig(
+    config: Pick<LocalConfig, 'mode' | 'primaryBranches'>,
+): LocalConfig {
+    return {
+        workspaceStrategy: 'checkout',
+        ...config,
+    };
+}
+
 /**
  * dynamic-discovery-branch X1–X6.
  * Skipped until expandPrimaryBranches is implemented.
  *
- * Expand order contract (document in impl): configured-entry order — exact
- * entries first-as-listed, then each glob's hits in ls-remote/dedupe order.
+ * Expand order contract (document in impl): configured-entry expand, then
+ * resolved primary (first exact) moved to index 0.
  * Fixture default branch is `main` (matches initBareRemoteAndCheckout).
  */
 describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
@@ -39,10 +48,10 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
             .spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches')
             .mockResolvedValue(success(['feature/a', 'feature/b']));
 
-        const localConfig: LocalConfig = {
+        const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
             primaryBranches: ['main', 'feature/*'],
-        };
+        });
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
@@ -62,10 +71,10 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
             success([]),
         );
 
-        const localConfig: LocalConfig = {
+        const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
             primaryBranches: ['main', 'feature/*'],
-        };
+        });
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
@@ -83,10 +92,10 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         );
         const logger = createLogger();
 
-        const localConfig: LocalConfig = {
+        const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
             primaryBranches: ['main', 'feature/*'],
-        };
+        });
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
@@ -104,13 +113,13 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
 
     it('X4: ls-remote timeout returns Failure', async () => {
         vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
-            failure({ message: 'ls-remote timed out after 300000ms', reason: 'timeout' }),
+            failure({ message: 'ls-remote timed out after 300000ms', reason: 'timeout' as const }),
         );
 
-        const localConfig: LocalConfig = {
+        const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
             primaryBranches: ['main', 'feature/*'],
-        };
+        });
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
@@ -124,14 +133,14 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
 
     it('X4b: non-timeout ls-remote failure skips the glob like an empty match', async () => {
         vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
-            failure({ message: 'git failed', reason: 'exit' }),
+            failure({ message: 'git failed', reason: 'exit' as const }),
         );
         const logger = createLogger();
 
-        const localConfig: LocalConfig = {
+        const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
             primaryBranches: ['main', 'feature/*'],
-        };
+        });
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
@@ -152,10 +161,10 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
             success(['main', 'feature/a']),
         );
 
-        const localConfig: LocalConfig = {
+        const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
             primaryBranches: ['main', 'feature/*'],
-        };
+        });
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
@@ -173,10 +182,10 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
             .spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches')
             .mockResolvedValue(success(['feature/a']));
 
-        const localConfig: LocalConfig = {
+        const localConfig = expandTestLocalConfig({
             mode: 'shared',
             primaryBranches: ['main', 'feature/*'],
-        };
+        });
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
@@ -188,5 +197,59 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         // Exact primary only — no feature/* fan-out
         expect(result.data).toEqual(['main']);
         expect(listSpy).not.toHaveBeenCalled();
+    });
+});
+
+/**
+ * daemon-primary-branch-refresh-command X7–X8.
+ * Skipped until expandPrimaryBranches pulls the resolved primary to index 0.
+ */
+describe('expandPrimaryBranches primary-first order (daemon-primary-branch-refresh-command X*)', () => {
+    beforeEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
+    it('X7: glob before exact primary is reordered so primary is first', async () => {
+        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
+            success(['feature/a', 'feature/b']),
+        );
+
+        const localConfig = expandTestLocalConfig({
+            mode: 'dedicated',
+            primaryBranches: ['feature/*', 'main'],
+        });
+        const result = await expandPrimaryBranches({
+            localConfig,
+            cwd: '/tmp/repo',
+            logger: createLogger(),
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual(['main', 'feature/a', 'feature/b']);
+    });
+
+    it('X8: only the first exact moves to front; other exacts keep expand order', async () => {
+        vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
+            success(['feature/a']),
+        );
+
+        const localConfig = expandTestLocalConfig({
+            mode: 'dedicated',
+            primaryBranches: ['feature/*', 'hotfix', 'dev'],
+        });
+        const result = await expandPrimaryBranches({
+            localConfig,
+            cwd: '/tmp/repo',
+            logger: createLogger(),
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual(['hotfix', 'feature/a', 'dev']);
     });
 });
