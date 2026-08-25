@@ -124,7 +124,7 @@ describe('openPrPostTeardown', () => {
                 '--head',
                 'lump/backlog/foo',
                 '--title',
-                'foo_req, foo',
+                'LUMP: backlog - foo_req, foo',
                 '--body',
                 'LUMP contexts: foo_req, foo',
             ],
@@ -159,6 +159,22 @@ describe('openPrPostTeardown', () => {
                 '--body',
                 'into dev',
             ],
+            cwd: '/tmp/ws',
+        });
+    });
+
+    it('uses an explicit lumpName over the branch prefix', async () => {
+        execBinaryMock
+            .mockResolvedValueOnce(execOk('abc123\trefs/heads/lump/backlog/foo\n'))
+            .mockResolvedValueOnce(execOk('[]'))
+            .mockResolvedValueOnce(execOk(''));
+
+        const hook = openPrPostTeardown({ provider: 'github', lumpName: 'customLump' });
+        await hook(hookInput());
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: expect.arrayContaining(['--title', 'LUMP: customLump - foo']),
             cwd: '/tmp/ws',
         });
     });
