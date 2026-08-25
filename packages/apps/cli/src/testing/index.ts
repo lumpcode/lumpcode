@@ -2,6 +2,8 @@ export { aliveDaemonSpawnFn } from './aliveDaemonSpawn';
 export { setDaemonTestGlobalConfigFolder } from './daemonTestEnv';
 export { waitForDaemonMetaFile, waitForDaemonPidFile } from './waitForDaemonPidFile';
 export { removeDaemonMetaUntilGone, writeDaemonMetaSticky } from './writeDaemonMetaSticky';
+export { withAliveDaemon } from './withAliveDaemon';
+export type { AliveDaemonTestPaths } from './withAliveDaemon';
 export {
     LUMP_PLAN_COMMAND_CONFIG_TS,
     LUMP_PLAN_UTIL_CONFIG_TS,
