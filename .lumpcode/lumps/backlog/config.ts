@@ -11,7 +11,7 @@ export default featureBacklog<
     configUrl: import.meta.url,
     command: 'cursor',
     registerCommands: ['cursor'],
-    maximumNumberOfConcurrentBranches: 1,
+    maximumNumberOfConcurrentBranches: 2,
     verbose: true,
     keepHistory: true,
     lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
