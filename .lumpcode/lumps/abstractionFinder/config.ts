@@ -2,7 +2,7 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { abstractionFinder } from '@lumpcode/recipes';
+import { abstractionFinder, openPrPostTeardown } from '@lumpcode/recipes';
 
 const scanDirectories = ['packages/apps/cli'];
 const backlogItemsDir = '.lumpcode/lumps/abstractionImplementer/backlogItems';
@@ -16,6 +16,7 @@ export default abstractionFinder<CursorPresetLumpVariables, CursorPresetStepVari
     lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
     discoveryBranch: 'dev',
     maximumNumberOfConcurrentBranches: 1,
+    postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     scanCommand:
         'npx fallow dupes -w @lumpcode/cli --mode semantic --format json > packages/apps/cli/cli.dupes.json < /dev/null',
     steps: [
