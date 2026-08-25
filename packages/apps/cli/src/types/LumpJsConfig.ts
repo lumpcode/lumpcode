@@ -57,6 +57,11 @@ export type LumpJsConfig<
     maximumNumberOfConcurrentBranches?: number;
     prompt?: LumpJsConfigSoloStep<V, SV>;
     steps?: LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>;
+    /**
+     * Extra command tags to pre-load before composed setup/teardown.
+     * A tag top-level `command` is pre-registered automatically; list other
+     * tags that appear only in dynamic/recursive returns.
+     */
     registerCommands?: string[];
     keepHistory?: boolean;
     verbose?: boolean;

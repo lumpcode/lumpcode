@@ -193,8 +193,8 @@
       "items": {
         "type": "string"
       },
-      "description": "An array of command names to pre-register before processing prompt items. Required when prompt items are defined dynamically (via functions) and reference commands by name, since dynamic prompt items cannot trigger command registration at build time. Each name is resolved to a command module file (e.g. 'cursor-agent' resolves to 'commands/cursor-agent.js').",
-      "examples": [["claude-code"], ["cursor-agent", "aider"]]
+      "description": "An array of extra command tag names to pre-register before processing prompt items. The lump `command` tag is pre-registered automatically. Required when prompt items are defined dynamically (via functions) and reference a *different* command by name. Each name is resolved to a command module file (e.g. 'cursor' resolves to 'commands/presets/cursor.js').",
+      "examples": [["claude-code"], ["cursor", "aider"]]
     },
     "prompt": {
       "$ref": "#/$defs/LumpJsonConfigStep",
