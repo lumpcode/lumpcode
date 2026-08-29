@@ -13,7 +13,8 @@
     "azure-daemon-vm": "node scripts/azure-daemon-vm/deploy.mjs",
     "hetzner-daemon-vm": "node scripts/hetzner-daemon-vm/deploy.mjs",
     "publish-skills": "node scripts/publish-skills.mjs",
-    "test:scripts": "vitest run --config scripts/vitest.config.ts"
+    "test:scripts": "vitest run --config scripts/vitest.config.ts",
+    "website": "npm run dev -w=@lumpcode/website"
   },
   "workspaces": [
     "packages/core",
