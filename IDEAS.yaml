@@ -352,3 +352,13 @@
   blocked: >-
     parked: after the current daemon-lifecycle PR (feat/better-concurrency-error-logs)
   tags: [daemon, cli, hygiene]
+- name: daemon-status-in-flight-lumps
+  task: >-
+    Extend existing `lumpcode daemon-status` so operators see which lump(s) are in flight on a
+    running daemon versus idle (none running). Today the command lists daemons (and supervisor)
+    and meta can expose a mid-run count (`inFlightLumpCount`; `busy` is deprecated), but not the
+    executing lump names. Worktree + `--maxParallelRun` can run more than one lump, so surface a
+    list. Keep it git-first / file-shaped: read live daemon meta under `~/.lumpcode/daemons/`,
+    not a new database. Complements `unified-status-command` (one combined view later); this is
+    the existing command, not a new one.
+  tags: [cli, status, daemon]
