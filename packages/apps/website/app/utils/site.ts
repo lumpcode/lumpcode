@@ -68,8 +68,8 @@ export const steps = [
     body: 'Lumpcode takes the next unfinished context, runs the agent, commits, and pushes a branch.',
   },
   {
-    title: 'Merge the PR',
-    body: 'One context, one branch. Merge what is good.',
+    title: 'Review, adjust, then merge',
+    body: 'Open the PR. Review it, and change the branch if you need to. Merge when it is good.',
   },
   {
     title: 'It continues',
@@ -77,12 +77,21 @@ export const steps = [
   },
 ] as const
 
-export const campaignCase = {
-  title: 'Hundreds of utils, one PR each.',
-  body: 'A prompt does the edit; a command retries typecheck and tests. Cap how many branches are open. Stop for a week; the next tick reads origin and continues.',
-  outcome:
-    "This repo's abstraction lumps have landed 17 utils that way, one PR at a time.",
-} as const
+export const rangeLead =
+  'You can start with a JSON prompt. The same CLI runs TypeScript, validation, and multi-lump pipelines when you need them.'
+
+export const rangeCases = [
+  {
+    title: 'Start with a JSON file.',
+    body: 'A file pattern and a prompt. lump-create writes it. You run once and open the PR.',
+    href: '/get-started',
+    linkLabel: 'The tutorial is this.',
+  },
+  {
+    title: 'Grow the loop when the work needs it.',
+    body: "TypeScript, validation, retries, hooks, two lumps in a pipeline. This repo's abstraction lumps find a duplicated util and implement it. 17 have landed that way, one PR at a time.",
+  },
+] as const
 
 export const agents = [
   'Cursor',

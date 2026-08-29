@@ -13,8 +13,9 @@ useHead({
         <h1>Write the loop once.<br>Review one PR at a time.</h1>
         <p class="lede">
           One chat cannot do a 200-file migration. Lumpcode runs your agent
-          through the work in slices: next file or ticket, a branch, you merge.
-          Progress lives on origin.
+          through the work in slices: next file or ticket, a branch, you review
+          and merge.
+          Progress lives on your git remote.
         </p>
         <p class="lede-lump">
           A <strong>lump</strong> is that body of work, described once and
@@ -48,8 +49,8 @@ useHead({
       <h2 class="section-title">What you do.</h2>
       <p class="section-lead">
         Describe the work once. Lumpcode picks the next slice, runs your
-        agent, and pushes a branch. You open the PR and merge. It continues
-        from origin.
+        agent, and pushes a branch. You open the PR, review it, adjust the
+        branch if you need to, and merge. It continues from your remote.
       </p>
       <div class="steps">
         <article v-for="(step, index) in steps" :key="step.title" class="step">
@@ -60,11 +61,16 @@ useHead({
           </div>
         </article>
       </div>
-      <article class="usage-case">
-        <h3>{{ campaignCase.title }}</h3>
-        <p>{{ campaignCase.body }}</p>
-        <p>{{ campaignCase.outcome }}</p>
-      </article>
+      <p class="range-lead">{{ rangeLead }}</p>
+      <div class="range-grid">
+        <article v-for="item in rangeCases" :key="item.title" class="range-card">
+          <h3>{{ item.title }}</h3>
+          <p>{{ item.body }}</p>
+          <p v-if="item.href">
+            <NuxtLink :to="item.href">{{ item.linkLabel }}</NuxtLink>
+          </p>
+        </article>
+      </div>
     </section>
 
     <section class="section wrap" id="specific">

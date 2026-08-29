@@ -435,6 +435,16 @@ pre code {
   line-height: 1.7;
 }
 
+.hero-visual .code-window-bar {
+  padding-inline: 0.55rem;
+}
+
+.hero-visual .code-window pre {
+  overflow: hidden;
+  padding-inline: 0.55rem;
+  font-size: 0.74rem;
+}
+
 .copy-btn {
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -492,29 +502,40 @@ pre code {
   font-size: 0.92rem;
 }
 
-.usage-case {
+.range-lead {
+  margin: 2rem 0 0;
   max-width: 40rem;
-  margin-top: 1.4rem;
+  color: var(--text-muted);
+}
+
+.range-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem;
+  margin-top: 1.1rem;
+}
+
+.range-card {
   padding: 1.2rem 1.2rem 1.3rem;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: rgb(10 20 34 / 52%);
 }
 
-.usage-case h3 {
+.range-card h3 {
   margin: 0 0 0.45rem;
   font-size: 1.02rem;
   font-weight: 650;
   letter-spacing: -0.02em;
 }
 
-.usage-case p {
+.range-card p {
   margin: 0;
   color: var(--text-muted);
   font-size: 0.92rem;
 }
 
-.usage-case p + p {
+.range-card p + p {
   margin-top: 0.7rem;
 }
 
@@ -744,7 +765,8 @@ pre code {
   .install-panel,
   .footer-grid,
   .path-nav,
-  .machine-grid {
+  .machine-grid,
+  .range-grid {
     grid-template-columns: 1fr;
   }
 
