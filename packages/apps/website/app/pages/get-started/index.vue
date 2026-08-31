@@ -7,16 +7,6 @@ const createCommands = `lumpcode project-setup
 lumpcode lump-create myFirstLump`
 
 const runCommand = 'lumpcode run myFirstLump'
-
-const starterConfig = `{
-  "contextListJson": {
-    "FILE": "src/{NAME}.ts"
-  },
-  "prompt": {
-    "promptTemplate": "Improve the code at @{FILE}.",
-    "command": "cursor"
-  }
-}`
 </script>
 
 <template>
@@ -25,10 +15,11 @@ const starterConfig = `{
       <p class="section-kicker">Tutorial</p>
       <h1>From install to the first PR.</h1>
       <p>
-        Shared mode on the machine you develop on. Lumpcode never touches
-        this checkout. One campaign, one PR, by hand.
+        First PR on the machine you develop on. One campaign, by hand. Lumpcode never touches this checkout.
       </p>
-      <GuidePathNav current="run" />
+      <p class="page-intro-skip">
+        <NuxtLink to="/get-started/worker">Already ran a lump locally? Try the worker.</NuxtLink>
+      </p>
     </header>
 
     <div class="guide">
@@ -43,20 +34,27 @@ const starterConfig = `{
       </section>
 
       <section class="guide-step">
-        <h2>2. Install the skill and the CLI</h2>
+        <h2>2. Install the CLI</h2>
         <p>
-          The skill gives your coding agent current Lumpcode docs. Without it,
-          the agent has no product context.
+          Puts <code>lumpcode</code> on your <code>PATH</code>. This is what runs a lump.
         </p>
-        <CodeWindow filename="terminal" :code="`${skillInstall}\n${cliInstall}`" />
+        <CodeWindow filename="terminal" :code="cliInstall" />
+      </section>
+
+      <section class="guide-step">
+        <h2>2b. Optional: install the skill</h2>
+        <p>
+          Helps the agent in your editor write and update lumps.
+          Call the skill <code>/lumpcode</code> in your agent's session to help it write and update lumps.
+          Not used when a lump runs.
+        </p>
+        <CodeWindow filename="terminal" :code="skillInstall" />
       </section>
 
       <section class="guide-step">
         <h2>3. Initialize a project and create a lump</h2>
         <p>
-          From the repo root. <code>project-setup</code> writes
-          <code>.lumpcode/project.json</code> (commit this) and
-          <code>.lumpcode/local.json</code> (per machine, gitignored).
+          From the repo root. <code>project-setup</code> writes <code>.lumpcode/project.json</code> (commit this) and <code>.lumpcode/local.json</code> (per machine, gitignored).
         </p>
         <CodeWindow filename="terminal" :code="createCommands" />
       </section>
@@ -64,19 +62,15 @@ const starterConfig = `{
       <section class="guide-step">
         <h2>4. Point the lump at real work</h2>
         <p>
-          Edit <code>.lumpcode/lumps/myFirstLump/config.json</code>.
-          One context source, one prompt. <code>{NAME}</code> becomes one
-          context per matching file.
+          Edit <code>.lumpcode/lumps/myFirstLump/config.json</code>. This replaces the stub <code>lump-create</code> wrote.
         </p>
-        <CodeWindow filename=".lumpcode/lumps/myFirstLump/config.json" :code="starterConfig" />
+        <CodeWindow filename=".lumpcode/lumps/myFirstLump/config.json" :code="exampleConfig" />
       </section>
 
       <section class="guide-step">
         <h2>5. Run once</h2>
         <p>
-          Lumpcode runs the agent on one context, writes a
-          <code>LUMP: myFirstLump - …</code> marker commit, and pushes a
-          <code>lump/myFirstLump/…</code> branch. Open that as a PR.
+          Lumpcode runs the agent on one context, writes a <code>LUMP: myFirstLump - …</code> marker commit, and pushes a <code>lump/myFirstLump/…</code> branch. Open that as a PR.
         </p>
         <CodeWindow filename="terminal" :code="runCommand" />
         <p>
@@ -85,16 +79,21 @@ const starterConfig = `{
         </p>
       </section>
 
-      <section class="guide-step">
-        <h2>Next: a worker that keeps ticking</h2>
-        <p>
-          When a one-off run works, leave a dedicated clone running the
-          default daemon. You keep authoring and merging on the laptop.
-        </p>
-        <p>
-          <NuxtLink to="/get-started/daemon">Dedicated daemon →</NuxtLink>
-        </p>
-      </section>
     </div>
+
+    <section class="guide-payoff">
+      <h2>This is how Lumpcode is meant to run</h2>
+      <p>
+        A one-off run is how you check it. A worker is how you live with it.
+        Start it once on a clone you never edit; you keep authoring and merging on the laptop.
+      </p>
+      <NuxtLink class="btn btn-primary" to="/get-started/worker">Leave a worker running</NuxtLink>
+      <BranchWindow
+        filename="origin"
+        :branches="workerBranches"
+        :footer="workerBranchesFooter"
+        loop
+      />
+    </section>
   </div>
 </template>

@@ -4,6 +4,8 @@ const props = defineProps<{
   code: string
 }>()
 
+const highlighted = computed(() => highlightSnippet(props.code, props.filename))
+
 const copied = ref(false)
 let resetTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -38,6 +40,6 @@ onBeforeUnmount(() => {
         {{ copied ? 'Copied' : 'Copy' }}
       </button>
     </div>
-    <pre><code>{{ code }}</code></pre>
+    <pre><code v-html="highlighted"></code></pre>
   </div>
 </template>

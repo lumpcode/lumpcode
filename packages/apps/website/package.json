@@ -7,6 +7,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "deploy": "nuxt generate && npx wrangler pages deploy .output/public --project-name lumpcode --branch main --commit-dirty=true",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "typecheck": "nuxt typecheck"

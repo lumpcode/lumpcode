@@ -1,7 +1,19 @@
-const siteUrl = 'https://lumpcode.com'
-const title = 'Lumpcode — write the loop once'
+import { copyFileSync, mkdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const websiteRoot = dirname(fileURLToPath(import.meta.url))
+const publicSchemaDir = join(websiteRoot, 'public/schemas')
+mkdirSync(publicSchemaDir, { recursive: true })
+copyFileSync(
+  join(websiteRoot, '../cli/src/schemas/lumpConfig.schema.json'),
+  join(publicSchemaDir, 'lumpConfig.schema.json'),
+)
+
+const siteUrl = 'https://www.lumpcode.com'
+const title = 'Lumpcode — run your coding agent across a whole codebase'
 const description =
-  'Write an agent loop once. Lumpcode runs the next slice on your repo, you review the PR. Progress lives in git.'
+  'Lumpcode is an open-source CLI that runs your coding agent over a list of files or tickets, giving each one its own branch and pull request. Everything it needs lives in git.'
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-29',
@@ -44,7 +56,7 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: true,
-      routes: ['/', '/get-started', '/get-started/daemon'],
+      routes: ['/', '/get-started', '/get-started/worker'],
     },
   },
 })

@@ -7,13 +7,13 @@
             <img src="/logo-mark.png" alt="" width="34" height="34">
             <span>lumpcode</span>
           </NuxtLink>
-          <p>A git-first loop manager. Named after the lumpfish.</p>
+          <p>Named after the lumpfish.</p>
         </div>
         <div class="footer-col">
           <h2>Product</h2>
           <ul>
             <li><NuxtLink to="/get-started">Get started</NuxtLink></li>
-            <li><NuxtLink to="/get-started/daemon">Dedicated daemon</NuxtLink></li>
+            <li><NuxtLink to="/get-started/worker">Worker</NuxtLink></li>
             <li><a :href="docs.concepts">Concepts</a></li>
             <li><a :href="docs.examples">Examples</a></li>
           </ul>
