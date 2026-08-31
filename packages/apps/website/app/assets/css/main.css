@@ -73,6 +73,7 @@ code {
   font-family: var(--mono);
   font-size: 0.86em;
   color: var(--teal-bright);
+  overflow-wrap: anywhere;
 }
 
 pre code {
@@ -218,10 +219,8 @@ pre code {
 .brand {
   display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
+  flex: none;
   color: var(--text);
-  font-weight: 700;
-  letter-spacing: -0.03em;
   text-decoration: none;
 }
 
@@ -229,10 +228,10 @@ pre code {
   color: var(--text);
 }
 
-.brand img {
-  width: 2.15rem;
-  height: 2.15rem;
-  border-radius: 50%;
+.brand-lockup {
+  display: block;
+  width: auto;
+  height: 2.35rem;
 }
 
 .nav {
@@ -587,6 +586,8 @@ pre code {
 
 .code-window {
   position: relative;
+  min-width: 0;
+  max-width: 100%;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -750,6 +751,7 @@ pre code {
 
 .steps {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-prose);
   margin-top: var(--space-block);
 }
@@ -914,6 +916,7 @@ pre code {
   font-size: clamp(2rem, 4vw, 2.7rem);
   letter-spacing: -0.04em;
   line-height: 1.1;
+  text-wrap: balance;
 }
 
 .page-intro p {
@@ -1007,6 +1010,7 @@ pre code {
 
 .guide {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 1.6rem;
   padding-bottom: 4.5rem;
 }
@@ -1024,6 +1028,7 @@ pre code {
   font-size: clamp(1.65rem, 2.8vw, 2.25rem);
   letter-spacing: -0.03em;
   line-height: 1.15;
+  text-wrap: balance;
 }
 
 .guide-payoff p {
@@ -1051,6 +1056,7 @@ pre code {
   margin: 0 0 0.5rem;
   font-size: 1.15rem;
   letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 .guide-step p,
@@ -1110,7 +1116,8 @@ pre code {
   }
 
   .path-nav-arrow {
-    display: none;
+    justify-self: center;
+    transform: rotate(90deg);
   }
 
   .hero-visual .code-window pre {
@@ -1144,7 +1151,7 @@ pre code {
 
 @media (max-width: 560px) {
   .wrap {
-    width: min(var(--max), calc(100% - 1.5rem));
+    width: min(var(--max), calc(100% - 2rem));
   }
 
   .feature-grid {
@@ -1157,6 +1164,83 @@ pre code {
 
   .section:last-child {
     padding-bottom: var(--space-section);
+  }
+
+  .nav-optional {
+    display: none;
+  }
+
+  .site-header-inner {
+    gap: 0.65rem;
+  }
+
+  .nav {
+    gap: 0.7rem;
+  }
+
+  .brand-lockup {
+    height: 1.7rem;
+  }
+
+  .page-intro {
+    padding: 1.6rem 0 0.9rem;
+  }
+
+  .page-intro h1 {
+    font-size: 1.65rem;
+  }
+
+  .guide {
+    gap: 1rem;
+    padding-bottom: 3rem;
+  }
+
+  .guide:has(+ .guide-payoff) {
+    padding-bottom: 1.4rem;
+  }
+
+  .guide-step {
+    padding: 1rem 0.9rem 1.05rem;
+  }
+
+  .guide-step h2 {
+    font-size: 1.05rem;
+  }
+
+  .guide-payoff {
+    padding-bottom: 3rem;
+  }
+
+  .guide-payoff .btn {
+    width: 100%;
+  }
+
+  .code-window-bar {
+    padding: 0.55rem 0.7rem;
+  }
+
+  .code-window pre {
+    padding: 0.8rem 0.7rem 0.95rem;
+    font-size: 0.74rem;
+  }
+
+  .guide-step .code-window pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .step {
+    padding: 0.95rem 0.95rem;
+    gap: 0.75rem;
+  }
+
+  .path-card {
+    padding: 0.85rem 0.95rem;
+  }
+
+  .callout-warn {
+    padding: 0.65rem 0.75rem;
+    font-size: 0.86rem;
   }
 }
 

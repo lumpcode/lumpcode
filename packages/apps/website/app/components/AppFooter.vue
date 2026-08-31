@@ -4,8 +4,13 @@
       <div class="footer-grid">
         <div class="footer-brand">
           <NuxtLink class="brand" to="/" aria-label="Lumpcode">
-            <img src="/logo-mark.png" alt="" width="34" height="34">
-            <span>lumpcode</span>
+            <img
+              class="brand-lockup"
+              src="/logo-lockup.png"
+              alt=""
+              width="142"
+              height="38"
+            >
           </NuxtLink>
           <p>Named after the lumpfish.</p>
         </div>
