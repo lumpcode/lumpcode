@@ -14,7 +14,8 @@
     "hetzner-daemon-vm": "node scripts/hetzner-daemon-vm/deploy.mjs",
     "publish-skills": "node scripts/publish-skills.mjs",
     "test:scripts": "vitest run --config scripts/vitest.config.ts",
-    "website": "npm run dev -w=@lumpcode/website"
+    "website": "npm run dev -w=@lumpcode/website",
+    "website:deploy": "npm run deploy -w=@lumpcode/website"
   },
   "workspaces": [
     "packages/core",
