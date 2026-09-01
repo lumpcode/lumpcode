@@ -1,6 +1,6 @@
 # Example lumps
 
-Eight common shapes for a lump, each a complete, drop-in `.lumpcode/lumps/<name>/config.json` (or `config.js` / `config.ts`). Mix and match: a lump can use `contextMatchFn` for discovery and multi-step `steps`; a ticket queue can include `postSetupWorkspaceCommand` to install deps in the branch workspace before the agent runs; a sweep can add `branchFn` to follow your team's naming convention.
+Nine common shapes for a lump, each a complete, drop-in `.lumpcode/lumps/<name>/config.json` (or `config.js` / `config.ts`). Mix and match: a lump can use `contextMatchFn` for discovery and multi-step `steps`; a ticket queue can include `postSetupWorkspaceCommand` to install deps in the branch workspace before the agent runs; a sweep can add `branchFn` to follow your team's naming convention.
 
 Deep references: [concepts.md](./concepts.md), [lump-config.md](./lump-config.md), [advanced-config.md](./advanced-config.md), [types.md](./types.md).
 
@@ -286,3 +286,49 @@ export default function contextOptionsFn() {
 The dependency string is **`scaffoldApi/README`**: lump folder name, `/`, context name. Until `LUMP: scaffoldApi - README` is an ancestor of `origin/main`, `apiDocs` skips every context. After you merge the scaffold PR, `lumpcode run apiDocs` (or the daemon on the next tick) picks up work.
 
 Same-lump ordering without a second lump: [§ 2 Feature ticket queue](#2-feature-ticket-queue--strict-dependency-order).
+
+## 8. Retry until green — gate every context on your own command
+
+*When to use:* the agent's work should be checked by a real build or test command before it ever reaches a PR, and retried with the failure output when that command fails.
+
+A step does not have to be an agent prompt. Omit the prompt and give it a `commandFn` and it runs a plain command instead. Its `postCommandExecFn` may **return more steps**, which Lumpcode runs next — that returned array is the entire retry loop.
+
+`.lumpcode/lumps/typeExports/config.js`:
+
+```js
+const MAX_ATTEMPTS = 4;
+
+function verifyStep(attempt) {
+  return {
+    commandFn: () => ({ executable: 'npm', args: ['run', 'test'] }),
+    // Only the last attempt is allowed to fail the context.
+    continueOnError: attempt < MAX_ATTEMPTS,
+    postCommandExecFn({ commandSucceeded, commandResult }) {
+      if (commandSucceeded || attempt >= MAX_ATTEMPTS) return;
+      return [
+        {
+          promptFn: () =>
+            `The test suite still fails. Fix it.\n\nOutput:\n\n${commandResult}`,
+        },
+        verifyStep(attempt + 1),
+      ];
+    },
+  };
+}
+
+export default {
+  command: 'copilot',
+  contextListJson: { FILE: 'src/utils/{NAME}.ts' },
+  postSetupWorkspaceCommand: 'npm ci',
+  steps: [
+    { promptTemplate: 'Add an explicit return type to every exported function in @{FILE}.' },
+    verifyStep(1),
+  ],
+};
+```
+
+The fix prompt uses `promptFn`, not `promptTemplate`, so raw command output is passed through untouched instead of being scanned for `{VAR}` placeholders.
+
+`continueOnError: true` is what keeps a red suite from ending the context early. On the final attempt it is `false`, so a suite that is still failing fails the step walk: Lumpcode skips the commit and push for that context and ends the run, and the context stays `toDo` for next time. A branch reaches your remote only when the command went green.
+
+`@lumpcode/recipes` exports `retryUntilGreen`, which packages this same loop (iteration cap, a default fix prompt that includes the command it ran) if you would rather not hand-roll it.
