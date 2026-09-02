@@ -3,16 +3,16 @@ export const siteUrl = 'https://www.lumpcode.com'
 export const githubRepoUrl = 'https://github.com/lumpcode/lumpcode'
 export const npmCliUrl = 'https://www.npmjs.com/package/@lumpcode/cli'
 
-const docsRoot =
-  'https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS'
-
 export const docs = {
-  getStarted: `${docsRoot}/get-started.md`,
-  concepts: `${docsRoot}/concepts.md`,
-  commands: `${docsRoot}/commands.md`,
-  lumpConfig: `${docsRoot}/lump-config.md`,
-  localConfig: `${docsRoot}/local-config.md`,
-  examples: `${docsRoot}/examples.md`,
+  overview: '/docs/start/overview',
+  getStarted: '/docs/start/first-pr',
+  firstPr: '/docs/start/first-pr',
+  worker: '/docs/start/worker',
+  concepts: '/docs/start/run',
+  commands: '/docs/reference/commands',
+  lumpConfig: '/docs/config/lump',
+  localConfig: '/docs/config/local',
+  examples: '/docs/reference/examples',
 } as const
 
 export const skillInstall = 'npx skills add lumpcode/skills'

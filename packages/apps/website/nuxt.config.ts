@@ -1,8 +1,10 @@
-import { copyFileSync, mkdirSync } from 'node:fs'
+import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { docsPrerenderRoutes, docsRedirects } from './app/utils/docsNav'
 
 const websiteRoot = dirname(fileURLToPath(import.meta.url))
+const siteUrl = 'https://www.lumpcode.com'
 const publicSchemaDir = join(websiteRoot, 'public/schemas')
 mkdirSync(publicSchemaDir, { recursive: true })
 copyFileSync(
@@ -10,7 +12,19 @@ copyFileSync(
   join(publicSchemaDir, 'lumpConfig.schema.json'),
 )
 
-const siteUrl = 'https://www.lumpcode.com'
+const sitemapPaths = ['/', ...docsPrerenderRoutes]
+writeFileSync(
+  join(websiteRoot, 'public/sitemap.xml'),
+  `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${sitemapPaths.map((path) => `  <url><loc>${siteUrl}${path === '/' ? '' : path}</loc></url>`).join('\n')}
+</urlset>
+`,
+)
+writeFileSync(
+  join(websiteRoot, 'public/_redirects'),
+  `${docsRedirects.map(({ from, to }) => `${from} ${to} 301!`).join('\n')}\n`,
+)
 const title = 'Lumpcode — run your coding agent across a whole codebase'
 const description =
   'Lumpcode is an open-source CLI that runs your coding agent over a list of files or tickets, giving each one its own branch and pull request. Everything it needs lives in git.'
@@ -18,7 +32,7 @@ const description =
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-29',
   devtools: { enabled: false },
-  css: ['~/assets/css/main.css'],
+  css: ['~/assets/css/main.css', '~/assets/css/docs.css'],
   app: {
     head: {
       htmlAttrs: { lang: 'en' },
@@ -43,7 +57,6 @@ export default defineNuxtConfig({
       link: [
         { rel: 'icon', type: 'image/png', href: '/logo-mark.png' },
         { rel: 'apple-touch-icon', href: '/logo-mark.png' },
-        { rel: 'canonical', href: siteUrl },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
@@ -63,7 +76,13 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: true,
-      routes: ['/', '/get-started', '/get-started/worker'],
+      routes: ['/', '/docs/start/overview', '/docs/start/first-pr', '/docs/start/worker', ...docsPrerenderRoutes],
     },
   },
+  routeRules: Object.fromEntries(
+    docsRedirects.map(({ from, to }) => [
+      from,
+      { redirect: { to, statusCode: 301 }, prerender: false },
+    ]),
+  ),
 })

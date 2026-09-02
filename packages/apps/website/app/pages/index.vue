@@ -25,7 +25,7 @@ useHead({
           A <strong>lump</strong> is that whole campaign, described once in your repo and worked through over many PRs.
         </p>
         <div class="hero-actions">
-          <NuxtLink class="btn btn-primary" to="/get-started">Get started</NuxtLink>
+          <NuxtLink class="btn btn-primary" :to="docs.firstPr">Get started</NuxtLink>
           <a class="btn btn-ghost" :href="githubRepoUrl">View on GitHub</a>
         </div>
         <p class="hero-install">
@@ -66,7 +66,7 @@ useHead({
         </ul>
         <p class="use-when-more">
           {{ useWhenMore }}
-          <a :href="docs.examples">See the examples.</a>
+          <NuxtLink :to="docs.examples">See the examples.</NuxtLink>
         </p>
       </div>
     </section>
@@ -91,7 +91,7 @@ useHead({
       </div>
       <p class="range-lead">
         {{ rangeLead }}
-        <NuxtLink to="/get-started">Start here.</NuxtLink>
+        <NuxtLink :to="docs.firstPr">Start here.</NuxtLink>
       </p>
     </section>
 
@@ -126,7 +126,7 @@ useHead({
       <p class="worker-line">{{ workerLine }}</p>
       <p class="section-lead">{{ workerLead }}</p>
       <div class="hero-actions worker-actions">
-        <NuxtLink class="btn btn-primary" to="/get-started/worker">Set up a worker</NuxtLink>
+        <NuxtLink class="btn btn-primary" :to="docs.worker">Set up a worker</NuxtLink>
       </div>
       <div class="worker-panel">
         <div class="steps">

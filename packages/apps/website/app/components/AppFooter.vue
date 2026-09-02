@@ -17,18 +17,18 @@
         <div class="footer-col">
           <h2>Product</h2>
           <ul>
-            <li><NuxtLink to="/get-started">Get started</NuxtLink></li>
-            <li><NuxtLink to="/get-started/worker">Worker</NuxtLink></li>
-            <li><a :href="docs.concepts">Concepts</a></li>
-            <li><a :href="docs.examples">Examples</a></li>
+            <li><NuxtLink :to="docs.firstPr">Get started</NuxtLink></li>
+            <li><NuxtLink :to="docs.worker">Worker</NuxtLink></li>
+            <li><NuxtLink :to="docs.concepts">How a run works</NuxtLink></li>
+            <li><NuxtLink :to="docs.examples">Examples</NuxtLink></li>
           </ul>
         </div>
         <div class="footer-col">
           <h2>Docs</h2>
           <ul>
-            <li><a :href="docs.getStarted">Tutorial</a></li>
-            <li><a :href="docs.lumpConfig">Lump config</a></li>
-            <li><a :href="docs.commands">Commands</a></li>
+            <li><NuxtLink :to="docs.overview">Overview</NuxtLink></li>
+            <li><NuxtLink :to="docs.lumpConfig">Lump config</NuxtLink></li>
+            <li><NuxtLink :to="docs.commands">Commands</NuxtLink></li>
           </ul>
         </div>
         <div class="footer-col">
