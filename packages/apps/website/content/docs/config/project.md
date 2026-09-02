@@ -5,7 +5,7 @@ description: .lumpcode/project.json is committed. It names the project and can s
 
 `lumpcode project-setup` writes this file next to `.git`. Commit it.
 
-```json
+```json .lumpcode/project.json
 {
   "projectName": "my-monorepo",
   "primaryBranch": "dev",
@@ -19,11 +19,11 @@ description: .lumpcode/project.json is committed. It names the project and can s
 | Field | Required | Notes |
 | --- | --- | --- |
 | `projectName` | yes | Letters, digits, `_`, `-` only. Daemon filenames and `~/.lumpcode/project-copies/<projectName>/`. |
-| `primaryBranch` or `primaryBranches` | yes after merge with local | Integration line. Either this file or `local.json` may supply it; local wins. |
+| `primaryBranch` or `primaryBranches` | yes after merge with local | Integration line. Either this file or `local.json` may supply it; local wins. Deprecated alias: `projectBaseBranch`. |
 | `command` | no | Lump default. Tag only, not a `.ts` path. |
 | `maximumNumberOfConcurrentBranches` | no | Lump default. |
 | `keepHistory` | no | Lump default. |
-| `refreshCommand` | no | Dedicated worker only, before loading lumps on a scan branch. Local wins. Ignored by `run` and by shared mode. |
+| `refreshCommand` | no | Dedicated worker only. Shell to run after fetch on each scan branch before lumps load (submodules, codegen). Local wins. Ignored by `run` and by shared mode. |
 
 Unknown keys fail. Do not put `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, or `verbose` here. Those are [local](/docs/config/local).
 
@@ -39,4 +39,4 @@ A worker process reads this merge **once** at `start`. Restart the worker after 
 
 ## What to commit
 
-Commit `project.json` and lump folders. Gitignore `local.json`. `project-setup` already appends `local.json`, `history/`, `.cache/`, and `contextStatusRecord.json` to `.gitignore`.
+A project root is a directory that contains both `.git/` and `.lumpcode/`. Commit `project.json` and lump folders with the product code. Gitignore `local.json`. `project-setup` already appends `local.json`, `history/`, `.cache/`, `worktrees/`, and `contextStatusRecord.json` to `.gitignore`.

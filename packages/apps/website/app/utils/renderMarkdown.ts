@@ -37,6 +37,28 @@ function escapeAttr(value: string): string {
     .replaceAll('>', '&gt;')
 }
 
+function parseFenceInfo(info: string): { language: string; title: string } {
+  const trimmed = info.trim()
+  const language = trimmed.split(/\s+/)[0] ?? ''
+  const rest = trimmed.slice(language.length).trim()
+  const titled = /^title=(?:"([^"]+)"|'([^']+)'|(\S+))$/i.exec(rest)
+  const bracketed = /^\[(.+)\]$/.exec(rest)
+  const explicit =
+    titled?.[1] ?? titled?.[2] ?? titled?.[3] ?? bracketed?.[1] ?? (rest === '' ? undefined : rest)
+  const langKey = language.toLowerCase()
+  const fallback =
+    langKey === 'bash' ||
+    langKey === 'sh' ||
+    langKey === 'shell' ||
+    langKey === 'zsh' ||
+    langKey === 'terminal'
+      ? 'terminal'
+      : language === ''
+        ? 'code'
+        : language
+  return { language, title: explicit ?? fallback }
+}
+
 function uniqueSlug(base: string, seen: Map<string, number>): string {
   const n = seen.get(base) ?? 0
   seen.set(base, n + 1)
@@ -78,10 +100,9 @@ export function renderMarkdown(markdown: string): {
         return `<h${depth} id="${id}"><a class="docs-heading-link" href="#${id}">${text}</a></h${depth}>\n`
       },
       code({ text, lang }: Tokens.Code) {
-        const language = (lang ?? '').trim().split(/\s+/)[0] ?? ''
+        const { language, title } = parseFenceInfo(lang ?? '')
         const highlighted = highlightFence(text, language)
-        const label = language === '' ? 'code' : language
-        return `<div class="docs-code"><div class="docs-code-bar"><span>${escapeAttr(label)}</span></div><pre><code>${highlighted}</code></pre></div>\n`
+        return `<div class="code-window docs-code"><div class="code-window-bar docs-code-bar"><span>${escapeAttr(title)}</span></div><pre><code>${highlighted}</code></pre></div>\n`
       },
       codespan({ text }: Tokens.Codespan) {
         return `<code>${escapeAttr(text)}</code>`

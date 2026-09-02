@@ -17,7 +17,7 @@ One context can be one file, a component folder plus its test, or a ticket with 
 
 Each key is a variable. Each value is a path template. Lumpcode scans the repo; every real path that fits the template becomes (or joins) a context.
 
-```json
+```json config.json
 {
   "contextListJson": {
     "COMPONENT": "src/components/{NAME}/index.tsx",
@@ -47,11 +47,17 @@ Write templates without a leading `./`. Prefer `src/{NAME}.ts` over `./src/{NAME
 
 `contextListJson` can be an inline object or a path to a JSON file. It does not set `options`. Attach those with `contextOptionsFn` (JS/TS inline, or a module path from any format).
 
+```ts contextOptions.ts
+export default function contextOptionsFn({ name }) {
+  if (name === 'api') return { priority: 2, dependsOnContexts: ['schema'] }
+}
+```
+
 ### `getContextListFn` — a list you build
 
 Return `{ name, variables, options? }[]`. Use this for tickets, YAML folders, or anything that is not a file glob.
 
-```ts
+```ts tickets.ts
 export default function getContextListFn() {
   return [
     {
@@ -72,11 +78,20 @@ Variable values **must be strings**. They are substituted into prompts and somet
 
 The function receives `codeBasePaths`, `lumpVariables`, and a concrete `discoveryBranch`. Filter per branch here if one lump should do different work on `dev` versus `feature/foo`.
 
+```ts tickets.ts
+export default function getContextListFn({ discoveryBranch }) {
+  if (discoveryBranch === 'dev') {
+    return [{ name: 'smoke', variables: { TASK: 'lint only' } }]
+  }
+  return [{ name: 'full', variables: { TASK: 'implement the feature' } }]
+}
+```
+
 ### `contextMatchFn` — scan and skip
 
 Called once per scanned path. Return `null` to skip, or `{ contextName, filePathVariableName, contextOptions? }` to include. Matches that share a `contextName` **merge** (variables accumulate; later keys win).
 
-```js
+```ts match.ts
 import fs from 'node:fs'
 
 export default function match({ codeBasePath }) {
@@ -103,6 +118,14 @@ Same-lump deps are a context `name`. Cross-lump deps are `<otherLumpName>/<conte
 
 Until `LUMP: otherLump - someContext` is an ancestor of `origin/<baseBranch>`, this context stays ineligible.
 
+```ts tickets.ts
+{
+  name: '02-api',
+  variables: { TICKET: 'GET /me' },
+  options: { priority: 2, dependsOnContexts: ['01-schema'] },
+}
+```
+
 ## Discovery versus execution
 
 On a dedicated worker, a lump can declare `discoveryBranch` / `discoveryBranches` (exact names or git globs such as `feature/*`). That is **where the lump is found and scheduled**. Work still branches off `baseBranch` (or the same concrete discovery branch if you omit `baseBranch`).
@@ -110,5 +133,17 @@ On a dedicated worker, a lump can declare `discoveryBranch` / `discoveryBranches
 Shared mode on a laptop ignores those discovery rules for `run`. Inspect commands (`lump-plan`, `lump-status`) can still honor `--discoveryBranch` to filter contexts without checking out.
 
 Pattern-only discovery (`feature/*` with no exact name) needs `--discoveryBranch <concrete>` on dedicated manual commands.
+
+```ts config.ts
+import { defineConfig } from '@lumpcode/cli-utils'
+
+export default defineConfig({
+  discoveryBranches: ['dev', 'feature/*'],
+  baseBranch: 'dev',
+  command: 'cursor',
+  contextListJson: { FILE: 'src/{NAME}.ts' },
+  prompt: { promptTemplate: 'Improve types in @{FILE}.' },
+})
+```
 
 Full field list: [lump config](/docs/config/lump). Runnable shapes: [examples](/docs/reference/examples).

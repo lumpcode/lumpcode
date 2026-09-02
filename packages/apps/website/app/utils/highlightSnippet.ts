@@ -171,9 +171,21 @@ function highlightCode(code: string): string {
         j += 1
       }
       const word = code.slice(i, j)
-      out += CODE_KEYWORDS.has(word)
-        ? `<span class="tok-cmd">${escapeHtml(word)}</span>`
-        : escapeHtml(word)
+      let look = j
+      while (look < code.length && /[ \t]/.test(code[look] ?? '')) {
+        look += 1
+      }
+      if (code[look] === '?') {
+        look += 1
+      }
+      const isKey = code[look] === ':'
+      if (CODE_KEYWORDS.has(word)) {
+        out += `<span class="tok-cmd">${escapeHtml(word)}</span>`
+      } else if (isKey) {
+        out += `<span class="tok-key">${escapeHtml(word)}</span>`
+      } else {
+        out += escapeHtml(word)
+      }
       i = j
       continue
     }

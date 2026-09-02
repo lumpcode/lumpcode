@@ -29,7 +29,7 @@ Each context is in exactly one of three states, read from **remote** git history
 
 Re-running a lump is **resumable**: finished contexts are skipped. `branchPushed` is not finished. A later context that `dependsOnContexts` the first one waits until you merge.
 
-If you squash and drop the `LUMP: …` line, Lumpcode forgets the work and the context looks `toDo` again. Keep the line in the squash message, or mark it by hand with `lumpcode context-status`.
+If you squash and drop the `LUMP: …` line, Lumpcode forgets the work and the context looks `toDo` again. Keep the line in the squash message, or mark it finished with `lumpcode context-status <lumpName> <contextName> --setToFinished`.
 
 ## Three folders a run can touch
 

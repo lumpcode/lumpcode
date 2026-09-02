@@ -20,7 +20,7 @@ For editor hints:
 npm install --save-dev @lumpcode/cli-utils @lumpcode/recipes
 ```
 
-```ts
+```ts .lumpcode/lumps/myLump/config.ts
 import { defineConfig } from '@lumpcode/cli-utils'
 
 export default defineConfig({
@@ -55,7 +55,7 @@ Both pairs are mutually exclusive. `lump-plan` is the error message if you set t
 
 Minimal JSON:
 
-```json
+```json .lumpcode/lumps/myLump/config.json
 {
   "$schema": "https://lumpcode.com/schemas/lumpConfig.schema.json",
   "contextListJson": {

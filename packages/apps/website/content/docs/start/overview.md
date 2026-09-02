@@ -5,7 +5,7 @@ description: Lumpcode runs your coding agent through a campaign too big for one 
 
 A **lump** is that campaign: a folder in your repo that names the work, the prompt, and the agent. Lumpcode walks the unfinished items, runs the agent, and pushes a `lump/…` branch. You open the pull request, adjust it if needed, and merge. The next run skips what already landed.
 
-You just need git and a CLI agent. There is no account, no dashboard, and no database. Finished work is a commit on your git remote.
+You just need git and a CLI agent. There is no account and no database. Finished work is a commit on your git remote.
 
 <div class="docs-cards">
 <a class="docs-card" href="/docs/start/first-pr"><strong>First PR</strong>Install the CLI and run one campaign by hand on your laptop.</a>
@@ -16,7 +16,7 @@ You just need git and a CLI agent. There is no account, no dashboard, and no dat
 
 ## How to read these pages
 
-Start with [core terms](/docs/start/terms) if the words are new, then [how a run works](/docs/start/run). Authoring lives under **Write a lump**, **Contexts**, and **Prompts**. Config reference is for when you already know the shape and need a field. [Commands](/docs/reference/commands) is the CLI map. [Troubleshooting](/docs/reference/troubleshooting) is for the surprises git status can throw.
+Start with [core terms](/docs/start/terms) if the words are new, then [how a run works](/docs/start/run). Authoring lives under **Write a lump**, **Contexts**, and **Prompts**. Config reference is for when you already know the shape and need a field. [Types](/docs/config/types) is the hook signatures. [Commands](/docs/reference/commands) is the CLI map. [Troubleshooting](/docs/reference/troubleshooting) is for the surprises git status can throw.
 
 The tutorials at [Get started](/docs/start/first-pr) are the shortest path to a real branch. These docs are what you open the week after, when the campaign is real.
 
@@ -35,3 +35,5 @@ The tutorials at [Get started](/docs/start/first-pr) are the shortest path to a 
 | [`@lumpcode/recipes`](https://www.npmjs.com/package/@lumpcode/recipes) | You want retry loops, folder backlogs, or `openPrPostTeardown`. |
 
 Add the last two to the **project** `package.json` (not only a global CLI) so a worker clone gets them from `npm install`.
+
+Hook signatures: [Types](/docs/config/types).

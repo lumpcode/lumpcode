@@ -56,8 +56,9 @@ function fileToSlug(filePath: string): { slug: string; relFile: string } {
 function searchTextFrom(title: string, description: string, body: string, headings: DocsHeading[]): string {
   const headingText = headings.map((heading) => heading.text).join(' ')
   const stripped = body
-    .replace(/^```[\s\S]*?```/gm, ' ')
-    .replace(/`[^`]+`/g, ' ')
+    .replace(/^```[^\n]*\r?\n/gm, ' ')
+    .replace(/```/g, ' ')
+    .replace(/`/g, ' ')
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
     .replace(/[#>*_-]/g, ' ')
   return `${title} ${description} ${headingText} ${stripped}`.toLowerCase()

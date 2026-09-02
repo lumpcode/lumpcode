@@ -3,8 +3,6 @@ title: How a run works
 description: Lumpcode takes the next unfinished context, runs your agent, commits a marker, and pushes a branch. Git is how it remembers.
 ---
 
-If you think of this as **loop engineering**, a lump is the loop: you design the prompt and the list once, then Lumpcode prompts the agent instead of you doing it in chat. Agent work is reviewed through PR merge.
-
 ## One context, end to end
 
 `lumpcode run myLump` (and each worker pass for that lump) does this:
@@ -26,7 +24,7 @@ Lumpcode never merges. You open the pushed branch as a pull request, change it i
 
 There is no Lumpcode database. A context is finished when its marker commit is on `origin/<baseBranch>`. Until you merge (or otherwise put that commit on the integration branch), the next run will not treat it as done.
 
-```text
+```text status
 toDo ──run + push──► branchPushed ──you merge──► finished
 ```
 
@@ -41,7 +39,9 @@ toDo ──run + push──► branchPushed ──you merge──► finished
 
 `start` discovers every loadable lump (unless you pass `--include` / `--exclude`) on a cron, default every five minutes. New lumps appear on the next pass after you merge them to the branch the worker tracks. Nothing to deploy or register.
 
-Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`.
+Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up (`supervise --foreground`); you do not run that yourself.
+
+Worker files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json`, `desired.json` (spawn recipe; `stopping: true` means drain). Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
 
 ## Shared laptop versus dedicated worker
 
@@ -54,12 +54,33 @@ Before the agent runs, Lumpcode **pre-flights** the execution workspace: fetch t
 
 [Get started](/docs/start/first-pr) is shared. [The worker](/docs/start/worker) is dedicated.
 
+**Shared** loads config from your editor clone and pre-flights only the copy. **Dedicated** pre-flights this clone to a concrete discovery branch **before** config load, then pre-flights again at `baseBranch` for the run.
+
+## Branch resolution
+
+```text resolution
+effectivePrimaryBranches = primaryBranches or [primaryBranch]
+primary                  = first exact entry          # all-glob list is invalid
+scanBranches             = expand globs (dedicated)   # shared: exact primary only
+
+effectiveDiscovery       = --discoveryBranch
+                         | first exact lump discovery rule
+                         | fail if pattern-only without the flag
+
+resolvedBaseBranch       = lump baseBranch (string or fn)
+                         | effectiveDiscovery
+```
+
+Discovery is where a dedicated worker **finds** the lump. Base is where work **branches off** and where `finished` is read. Dedicated allowlist: each lump discovery rule must match configured (unexpanded) `primaryBranches`. Shared `run` ignores discovery rules (warns if you pass `--discoveryBranch`). Inspect commands can still filter with the flag.
+
+The open-branch cap is **per lump name**, across every scan line.
+
 ## Checkout or worktree
 
 `workspaceStrategy` in `local.json`:
 
 - **`checkout`** (default) — the execution workspace switches onto the lump branch for the run, then back. One lump at a time in that folder.
-- **`worktree`** — the agent runs in `.lumpcode/worktrees/<branch>/`. The main tree can stay on the base branch. Needed if you want `maxParallelRun` > 1 on a worker.
+- **`worktree`** — the agent runs in `.lumpcode/worktrees/<branch>/` (branch segments become folders: `lump/a/b` → `…/worktrees/lump/a/b`). The main tree can stay on the base branch. Needed if you want `maxParallelRun` > 1 on a worker. Execution-path lock is released after workspace setup; the git-object-db lock still serializes git.
 
 ## If two things try to run at once
 
@@ -71,8 +92,8 @@ Stale locks after a crash or `stop --force` clear themselves when the next acqui
 
 Lumpcode always commits:
 
-```text
+```text commit
 LUMP: <lumpName> - <contextName>
 ```
 
-`lump-status`, `clean`, and `context-status` look for that string **anywhere in the full commit message**. Keep it when you squash. If it is gone, the context looks `toDo` until you restore the line or run `lumpcode context-status <lump> <context> --setToFinished`.
+`lump-status`, `clean`, and `context-status` look for that string **anywhere in the full commit message**. `foo` does not match `foo-bar`. Keep it when you squash. If it is gone, the context looks `toDo` until you restore the line or run `lumpcode context-status <lump> <context> --setToFinished`.

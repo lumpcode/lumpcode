@@ -11,6 +11,7 @@ export const docs = {
   concepts: '/docs/start/run',
   commands: '/docs/reference/commands',
   lumpConfig: '/docs/config/lump',
+  types: '/docs/config/types',
   localConfig: '/docs/config/local',
   examples: '/docs/reference/examples',
 } as const

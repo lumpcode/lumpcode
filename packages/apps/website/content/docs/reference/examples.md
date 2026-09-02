@@ -9,7 +9,7 @@ Each example is a drop-in `.lumpcode/lumps/<name>/` config. After a run, Lumpcod
 
 Confirm remotes, the agent binary, and marker commits before you invest in a real campaign. Uses `README.md` so most repos match immediately.
 
-```json
+```json .lumpcode/lumps/smokeTest/config.json
 {
   "contextListJson": {
     "FILE": "README.md"
@@ -30,7 +30,7 @@ lumpcode lump-status --lumpName smokeTest
 
 Migration campaign. Several files share one context because they share `{COMPONENT_NAME}`.
 
-```json
+```json .lumpcode/lumps/portToVue/config.json
 {
   "command": "cursor",
   "contextListJson": {
@@ -53,12 +53,10 @@ Already-migrated names are skipped once their marker is on the integration branc
 
 Later work waits until earlier tickets are **merged**, not merely pushed.
 
-`config.json`:
-
-```json
+```json .lumpcode/lumps/tickets/config.json
 {
   "command": "cursor",
-  "getContextListFn": "./tickets.js",
+  "getContextListFn": "./tickets.ts",
   "postSetupWorkspaceCommand": "npm ci",
   "prompt": {
     "promptTemplate": "Implement ticket {TICKET_ID}: {TITLE}\n\nAcceptance criteria:\n{ACCEPTANCE}\n\nLikely files:\n{FILE_HINT}"
@@ -66,9 +64,7 @@ Later work waits until earlier tickets are **merged**, not merely pushed.
 }
 ```
 
-`tickets.js`:
-
-```js
+```ts .lumpcode/lumps/tickets/tickets.ts
 export default function getContextListFn() {
   return [
     {
@@ -101,10 +97,10 @@ Pair with a [worker](/docs/start/worker). Each pass picks the next eligible tick
 
 Path patterns are not enough; skip files that already have a test.
 
-```json
+```json .lumpcode/lumps/coverage/config.json
 {
   "command": "cursor",
-  "contextMatchFn": "./match.js",
+  "contextMatchFn": "./match.ts",
   "maximumNumberOfConcurrentBranches": 5,
   "prompt": {
     "promptTemplate": "Write a Vitest suite for @{SOURCE}. Save it next to the module as .test.ts."
@@ -112,7 +108,7 @@ Path patterns are not enough; skip files that already have a test.
 }
 ```
 
-```js
+```ts .lumpcode/lumps/coverage/match.ts
 import fs from 'node:fs'
 
 export default function match({ codeBasePath }) {
@@ -134,10 +130,10 @@ The cap keeps five test PRs in flight until you merge.
 
 Group ten files per branch so review is not a pile of one-line PRs.
 
-```json
+```json .lumpcode/lumps/dropLodash/config.json
 {
   "command": "cursor",
-  "contextMatchFn": "./match.js",
+  "contextMatchFn": "./match.ts",
   "numberOfContextsPerBranch": 10,
   "prompt": {
     "promptTemplate": "Rewrite @{FILE} to remove lodash. Use native ES equivalents. Keep behavior identical."
@@ -145,11 +141,21 @@ Group ten files per branch so review is not a pile of one-line PRs.
 }
 ```
 
-Matcher: skip unless the file imports `lodash`. Context name from the path.
+```ts .lumpcode/lumps/dropLodash/match.ts
+import fs from 'node:fs'
+
+export default function match({ codeBasePath }) {
+  const { isDir, path } = codeBasePath
+  if (isDir || !/\.(ts|tsx|js|jsx)$/.test(path)) return null
+  const src = fs.readFileSync(path, 'utf8')
+  if (!/from ['"]lodash/.test(src)) return null
+  return { contextName: path.replaceAll('/', '_'), filePathVariableName: 'FILE' }
+}
+```
 
 ## Docs per package
 
-```json
+```json .lumpcode/lumps/pkgDocs/config.json
 {
   "command": "cursor",
   "contextListJson": {
@@ -167,8 +173,10 @@ Matcher: skip unless the file imports `lodash`. Context name from the path.
 
 Skip the expensive prompt when the first step says nothing to do. Needs JS/TS.
 
-```js
-export default {
+```ts .lumpcode/lumps/depBump/config.ts
+import { defineConfig } from '@lumpcode/cli-utils'
+
+export default defineConfig({
   command: 'cursor',
   contextListJson: { PKG_JSON: 'packages/{PKG}/package.json' },
   steps: [
@@ -184,14 +192,14 @@ export default {
         ? [{ promptTemplate: 'Bump outdated direct deps in @{PKG_JSON} to latest minor. Run tests.' }]
         : [],
   ],
-}
+})
 ```
 
 ## Cross-lump wait
 
 Downstream lump waits on an upstream context **name** using `otherLump/contextName`. Until that marker is on the integration branch, every downstream context is skipped.
 
-```js
+```ts contextOptions.ts
 export default function contextOptionsFn() {
   return { dependsOnContexts: ['scaffoldApi/README'] }
 }
@@ -201,36 +209,44 @@ Wire that as `contextOptionsFn` on the docs lump. Same-lump queues belong in `ge
 
 ## Retry until green
 
-A step with `commandFn` and no prompt runs `npm test`. Failures return a fix prompt plus the next verify, until the cap. Prefer `retryUntilGreen` from [@lumpcode/recipes](/docs/author/recipes); this is the loop it wraps.
+A step with `commandFn` and no prompt runs `npm test`. Each node is a `StepFn`; `postCommandExecFn` calls the next node with the same `input`. Prefer `retryUntilGreen` from [@lumpcode/recipes](/docs/author/recipes) when you want an attempt cap.
 
-```js
-const MAX = 4
+```ts .lumpcode/lumps/typedExports/config.ts
+import { defineConfig, type StepFn } from '@lumpcode/cli-utils'
 
-function verify(attempt) {
-  return {
-    commandFn: () => ({ executable: 'npm', args: ['test'] }),
-    continueOnError: attempt < MAX,
-    postCommandExecFn({ commandSucceeded, commandResult }) {
-      if (commandSucceeded || attempt >= MAX) return
-      return [
-        {
-          promptFn: () => `The test suite still fails. Fix it.\n\n${commandResult}`,
-        },
-        verify(attempt + 1),
-      ]
-    },
-  }
-}
+const done: StepFn = () => ({
+  commandFn() {
+    return { executable: 'echo', args: ['Tests passed'] }
+  },
+})
 
-export default {
+const fix: StepFn = () => [
+  { promptTemplate: 'The tests failed. Fix them.' },
+  test,
+]
+
+const test: StepFn = () => ({
+  commandFn() {
+    return { executable: 'npm', args: ['test'] }
+  },
+  continueOnError: true,
+  postCommandExecFn(input) {
+    if (input.commandSucceeded) return done(input)
+    return fix(input)
+  },
+})
+
+const edit: StepFn = () => [
+  { promptTemplate: 'Add an explicit return type to every export in @{FILE}.' },
+  test,
+]
+
+export default defineConfig({
   command: 'cursor',
   contextListJson: { FILE: 'src/utils/{NAME}.ts' },
   postSetupWorkspaceCommand: 'npm ci',
-  steps: [
-    { promptTemplate: 'Add an explicit return type to every export in @{FILE}.' },
-    verify(1),
-  ],
-}
+  steps: edit,
+})
 ```
 
-The last attempt leaves `continueOnError` false, so a still-red suite skips commit and push. The context stays `toDo`.
+`test` calls `done(input)` or `fix(input)`. `continueOnError: true` lets a red suite take the `fix` branch. This retries until green. `retryUntilGreen` is the capped form so the last failure stays `toDo`.

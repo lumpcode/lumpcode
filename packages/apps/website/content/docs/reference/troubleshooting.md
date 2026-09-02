@@ -51,6 +51,12 @@ There is no undo inside Lumpcode. Recover from git if the work was committed; if
 5. Dedicated discovery allowlist: the lump’s `discoveryBranch` must match configured `primaryBranches`. Launch fails closed on a mismatch; check the worker log.
 6. TypeScript lumps that import `@lumpcode/recipes` need `npm install` on the worker clone. The global CLI does not provide those packages.
 
+## `lump-plan` printed no contexts
+
+The path templates or matcher did not hit any files in this repo. `contextListJson` only creates a context when every template resolves to a real path. Change the paths to files that exist here, or start from the [README smoke test](/docs/reference/examples#smoke-test).
+
+Captures that include dots or spaces become illegal context names. Slug them in `contextMatchFn` / `getContextListFn`.
+
 ## `lump-plan` succeeded, `run` did not
 
 `lump-plan` does not pre-flight or take the workspace lock. `run` does. Typical deltas: missing `local.json`, git fetch failure, `workspacePathBusy`, agent binary missing from `PATH` on that machine, dedicated allowlist.

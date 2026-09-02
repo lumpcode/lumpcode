@@ -64,13 +64,16 @@ export default defineNuxtConfig({
           href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap',
         },
       ],
-      script: [
-        {
-          src: 'https://static.cloudflareinsights.com/beacon.min.js?token=ac58ed5f0ef24c40a2dfc24e153c64c7',
-          type: 'module',
-          tagPosition: 'bodyClose',
-        },
-      ],
+      script:
+        process.env.NODE_ENV === 'production'
+          ? [
+              {
+                src: 'https://static.cloudflareinsights.com/beacon.min.js?token=ac58ed5f0ef24c40a2dfc24e153c64c7',
+                type: 'module',
+                tagPosition: 'bodyClose',
+              },
+            ]
+          : [],
     },
   },
   nitro: {

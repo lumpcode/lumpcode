@@ -3,7 +3,11 @@ title: Commands
 description: Every lumpcode subcommand, grouped by what you are trying to do. Flags use camelCase. Arguments come before options.
 ---
 
-Run `lumpcode` from the repo root that contains `.lumpcode/` and `.git/`. Global flags: `--json` (one result object), `--verbose` (extra engine logs on `run` / `start`). Boolean flags are presence-only: pass the flag for the non-default, omit it for the default. `--help` works on every command.
+Run `lumpcode` from the repo root that contains `.lumpcode/` and `.git/`. Commands that need a project fail if either folder is missing. Boolean flags are presence-only. `--help` works on every command. PowerShell: quote cron as `--cronSetup '*/10 * * * *'`.
+
+**`--json`** — one envelope: `{ "messages": ["…"], "data": { } }`. Success on stdout, failure on stderr (non-zero exit). Operational `info` / `warn` / `verbose` are suppressed; operational `error` still prints.
+
+**`--verbose`** — extra engine detail on `run` / `start` (OR-merged with lump `verbose`). Tick summaries and lock waits still print at `info` without the flag. Other commands accept the flag and ignore it.
 
 ## Everyday
 
@@ -40,7 +44,7 @@ Recompute `contextStatusRecord.json` from remote git. `--lumpName` optional (all
 
 ### `lumpcode project-setup`
 
-Creates `.lumpcode/`. Fails if it already exists or the path is not a git work tree.
+Creates `.lumpcode/` (`project.json`, `local.json`, empty `lumps/` and `commands/`, gitignore entries). Fails if `.lumpcode/` already exists, the path is not a directory, or it is not a git work tree.
 
 | Option | Default |
 | --- | --- |
@@ -48,8 +52,6 @@ Creates `.lumpcode/`. Fails if it already exists or the path is not a git work t
 | `--projectName` | inferred from origin / basename |
 | `--mode` | `shared` |
 | `--primaryBranch` | `main` |
-
-Writes committed `project.json`, gitignored `local.json`, empty `lumps/` and `commands/`.
 
 ### `lumpcode lump-create <lumpName>`
 
@@ -87,7 +89,7 @@ Idle stop: SIGTERM, wait 5s, remove pid/meta/desired. Mid-run graceful stop **re
 
 ### `lumpcode restart [--daemonId]`
 
-Stop then start from `desired.json`. Mid-run still refuses unless you force-stop first.
+Stop then start from `desired.json`. Mid-run still refuses unless you force-stop first. Missing desired + unreadable meta: live pid fails closed; stale pid is cleaned. Readable desired with bad meta uses `stop --force` then start.
 
 ### `lumpcode daemon-status [--daemonId]`
 
@@ -95,7 +97,7 @@ No flags: list workers plus whether the supervisor is running. With id: one work
 
 ### `lumpcode daemon-log`
 
-Follows the log by default. `--noFollow` prints and exits. `--lines` limits the initial tail. `--daemonId` default `global`.
+Follows the log by default. `--noFollow` prints and exits. `--lines` limits the initial tail. `--daemonId` default `global`. `--json` with `--noFollow` prints `{ logFilePath, lines, … }`. Fails if the log file is missing.
 
 > [!NOTE]
 > Verbose lump logs can grow without bound. `stop --all` deletes them as part of teardown.
@@ -108,7 +110,7 @@ One row after refresh. `--setToFinished` writes an empty marker commit on `baseB
 
 ### `lumpcode clean`
 
-Deletes Lumpcode branches locally and on origin. `--lumpName` scopes to `lump/<name>/*`. `--contextName` requires `--lumpName` and matches branches that contain that marker.
+`git fetch --all`, then deletes matching remote refs and local branches, plus worktrees under `.lumpcode/worktrees/`. `--lumpName` scopes to `lump/<name>/*`. `--contextName` requires `--lumpName` and matches branches that contain that marker.
 
 ### `lumpcode reset-presets`
 

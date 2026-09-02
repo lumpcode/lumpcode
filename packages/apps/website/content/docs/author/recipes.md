@@ -26,6 +26,26 @@ The CLI binary does not bundle this package. A TypeScript lump that imports it w
 
 `retryUntilGreen` is the usual wrapper: iteration 0 runs your steps, retries call `fixSteps` or a default “here is the command output, fix it” prompt, until `validationCommandFn` exits 0 or the cap is hit.
 
+```ts config.ts
+import { defineConfig } from '@lumpcode/cli-utils'
+import { retryUntilGreen, requireArtifactStep, shellCommand } from '@lumpcode/recipes'
+
+export default defineConfig({
+  command: 'cursor',
+  contextListJson: { FILE: 'src/{NAME}.ts', REQ: 'docs/{NAME}.md' },
+  steps: retryUntilGreen({
+    steps: [{ promptTemplate: 'Write @{REQ} for @{FILE}.' }],
+    validationCommandFn: requireArtifactStep('REQ'),
+  }),
+})
+```
+
+`shellCommand` is `{ executable: 'sh', args: ['-c', script] }`:
+
+```ts
+commandFn: () => shellCommand('npm test && npm run lint')
+```
+
 ## Recipe factories
 
 These return a full lump config. They need `configUrl: import.meta.url` so the recipe can find the lump folder (do not `path.join(import.meta.url, …)`).
@@ -39,11 +59,20 @@ These return a full lump config. They need `configUrl: import.meta.url` so the r
 
 `featureBacklog` is opinionated: `workflow` omit means TDD; `directImpl` still writes requirements if they are missing (unless `manualReq`); `manual` items are ignored. Tickets live at `todo/<parent>/tickets/<ticket>/` and do not run on `dev`.
 
+```ts config.ts
+import { featureBacklog } from '@lumpcode/recipes'
+
+export default featureBacklog({
+  configUrl: import.meta.url,
+  command: 'cursor',
+})
+```
+
 ## Opening pull requests
 
 Lumpcode’s engine **pushes a branch**. It does not open a PR. If you want that extra step:
 
-```ts
+```ts config.ts
 import { featureBacklog, openPrPostTeardown } from '@lumpcode/recipes'
 
 export default featureBacklog({

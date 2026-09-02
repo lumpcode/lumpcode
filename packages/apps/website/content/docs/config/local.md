@@ -5,7 +5,7 @@ description: .lumpcode/local.json is per machine and gitignored. run and start r
 
 `project-setup` scaffolds `{ "mode": "shared" }` and gitignores the file. Edit it on this machine; do not commit it.
 
-```json
+```json .lumpcode/local.json
 {
   "mode": "shared"
 }
@@ -13,7 +13,7 @@ description: .lumpcode/local.json is per machine and gitignored. run and start r
 
 Worker clone:
 
-```json
+```json .lumpcode/local.json
 {
   "mode": "dedicated",
   "workspaceStrategy": "worktree",
@@ -42,7 +42,7 @@ Use on a [worker](/docs/start/worker) you do not develop in.
 | Value | Behavior |
 | --- | --- |
 | `checkout` (default) | Switch the execution workspace onto the lump branch, then back. Sequential. |
-| `worktree` | Agent runs in `.lumpcode/worktrees/<branch>/`. Needed for `maxParallelRun` > 1. |
+| `worktree` | Agent runs in `.lumpcode/worktrees/<branch>/` (slash segments become folders). Needed for `maxParallelRun` > 1. |
 
 `maxParallelRun` in this file (or `--maxParallelRun` on `start`) only applies with `worktree`. Passing the flag with `checkout` fails. Checkout always runs one lump at a time.
 
@@ -54,9 +54,9 @@ Use on a [worker](/docs/start/worker) you do not develop in.
 | `verbose` | Lump default for engine logs. Not valid on `project.json`. |
 | `primaryBranch` / `primaryBranches` | Override the committed primary. Local wins. |
 
-`command` and `maximumNumberOfConcurrentBranches` may also live here as lump defaults (tag-shaped `command` only).
+`command`, `maximumNumberOfConcurrentBranches`, and `keepHistory` may also live here as lump defaults (`command` is a tag only, not a `.ts` path). Deprecated `projectBaseBranch` is accepted as a primary alias (warns once). `discoveryBranch` / `discoveryBranches` are rejected here; those belong on the lump.
 
-Misplaced keys such as `projectName` fail the parse.
+Misplaced keys such as `projectName` fail the parse. Unknown keys fail.
 
 ## Several primary branches
 
@@ -68,6 +68,6 @@ Rules, short:
 - Each lump `discoveryBranch` rule must be allowlisted against the configured (unexpanded) list.
 - Same lump name on two different scan branches is fine. Two lumps with the same name on one scan branch fail worker launch.
 
-`refreshCommand` (merged project/local, local wins) runs on each dedicated scan branch after pre-flight, before configs load. Failure skips that branch. Restart the worker after changing it.
+`refreshCommand` (merged project/local, local wins) is a shell string to run on each dedicated scan branch after pre-flight, before configs load: submodules, codegen, anything the tree needs before discovery. Failure skips that branch. Restart the worker after changing it.
 
 More on workspaces and locks: [how a run works](/docs/start/run).

@@ -426,34 +426,12 @@
   border-top: 1px solid var(--border);
 }
 
-.docs-code {
+.docs-prose .code-window {
   margin: 0 0 1.15rem;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: rgb(7 16 28 / 88%);
-  box-shadow: var(--shadow);
 }
 
-.docs-code-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.55rem 0.8rem;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-muted);
-  font-family: var(--mono);
-  font-size: 0.72rem;
-}
-
-.docs-code pre {
-  margin: 0;
-  overflow-x: auto;
-  padding: 0.95rem 1rem 1.1rem;
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  line-height: 1.7;
+.docs-prose .code-window pre {
+  color: var(--text);
 }
 
 .docs-callout {
@@ -745,7 +723,7 @@
     font-size: 1.18rem;
   }
 
-  .docs-code pre {
+  .docs-prose .code-window pre {
     padding: 0.8rem 0.7rem 0.95rem;
     font-size: 0.74rem;
   }

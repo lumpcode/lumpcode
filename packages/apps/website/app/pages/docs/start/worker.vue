@@ -52,7 +52,8 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         <h2>1. First PR already done</h2>
         <p>
           If you have not run a lump by hand yet, do that first:
-          <NuxtLink :to="docs.firstPr">From install to the first PR</NuxtLink>. This page is only the worker.
+          <NuxtLink :to="docs.firstPr">From install to the first PR</NuxtLink>.
+          <code>.lumpcode/</code> must already be committed and pushed. This page is only the worker.
         </p>
       </section>
 
@@ -68,7 +69,7 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         <p>
           <code>.lumpcode/</code> is already in the repo, so do not run <code>project-setup</code> on the worker.
           Put the CLI on this clone, install project deps, write <code>.lumpcode/local.json</code>, then start.
-          The worker also needs Node.js 22+, git <code>origin</code> fetch and push, and a CLI agent on <code>PATH</code> (already logged in).
+          The worker also needs Node.js 22+, git <code>user.name</code> and <code>user.email</code>, git <code>origin</code> fetch and push, and a CLI agent on <code>PATH</code> (already logged in).
         </p>
         <CodeWindow filename=".lumpcode/local.json" :code="workerLocal" />
         <p class="callout-warn">
@@ -82,7 +83,7 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
           Later: <code>lumpcode daemon-status</code>, <code>lumpcode daemon-log</code>, <code>lumpcode stop</code>.
         </p>
         <p>
-          Writing TypeScript lumps? <NuxtLink :to="docs.lumpConfig">Lump config</NuxtLink>.
+          Writing TypeScript lumps? Add <code>@lumpcode/cli-utils</code> and <code>@lumpcode/recipes</code> to this project's <code>package.json</code> on the laptop, then <code>npm install</code> here. The global CLI does not provide those packages.
         </p>
       </section>
 

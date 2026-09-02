@@ -1,9 +1,23 @@
 ---
 title: Agents
-description: Lumpcode invokes the CLI agent you already have. Set command to a shipped preset, or point at a small module.
+description: Lumpcode invokes the CLI agent you already have. Set command to a shipped preset, a small module, or an inline function.
 ---
 
-The lump field `command` is a **tag** (`"cursor"`, `"copilot"`, …) or a lump-relative `.ts` / `.js` file. It is not a shell line. Agent flags belong in the command module (`executable` + `args`), not in the config string.
+The lump field `command` is not a shell line. It is one of:
+
+1. **Tag** — `"cursor"`, `"copilot"`, `"claude-code"`, `"opencode"`, `"codex"`, or your module name.
+2. **Lump-relative file** — no whitespace, ends in `.ts` or `.js`. Loaded as a command module. `commandName` is the literal string.
+3. **Inline `CommandFn`** — JS/TS only. Return `{ executable, args, env? }` to run, or `null` / `undefined` / nothing to skip (no process; `postCommandExecFn` still runs).
+
+Agent flags belong in `executable` + `args`. Resolve order for a tag: project `.lumpcode/commands/<name>.ts` then `.js`, then the same under `~/.lumpcode/commands/`, then shipped presets (`.js` only). `lumpcode reset-presets` restores the shipped files.
+
+```ts config.ts
+command: 'cursor'
+
+command: './runAgent.ts'
+
+command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
+```
 
 ## Shipped presets
 
@@ -17,15 +31,15 @@ The lump field `command` is a **tag** (`"cursor"`, `"copilot"`, …) or a lump-r
 
 Claude Code and ChatGPT Codex reject `auto`. Leave `model` unset for those two unless you have a real model id.
 
-Presets run headless (no approval prompts). Copilot and Claude Code presets deny agent `git commit` / `git push`. Cursor, OpenCode, and Codex do not always; configure those agents so they cannot commit. Lumpcode owns marker commits.
-
-Override a preset by dropping `.lumpcode/commands/<name>.ts` (project) or `~/.lumpcode/commands/<name>.ts` (this machine). Resolution: project `.ts` then `.js`, then the same under `~/.lumpcode/commands/`, then shipped presets (`.js` only). `lumpcode reset-presets` restores the shipped files.
+Presets run headless. Copilot and Claude Code deny agent `git commit` / `git push`. Cursor, OpenCode, and Codex do not always; deny git write in those agents. Lumpcode owns marker commits.
 
 ## `model` and permissions
 
-Presets read `lumpVariables` and `stepVariables`. **Step overrides lump.**
+Presets read `lumpVariables` and `stepVariables`. **Step overrides lump.** Closed types: `CursorPresetLumpVariables`, `CopilotAgentPermissions`, … on `@lumpcode/cli-utils`. Step-only session keys: `newChat`, `chatIdIndex`.
 
-```ts
+```ts config.ts
+import { defineConfig } from '@lumpcode/cli-utils'
+
 export default defineConfig({
   command: 'cursor',
   lumpVariables: { model: 'auto' },
@@ -39,13 +53,35 @@ export default defineConfig({
 })
 ```
 
-`agentPermissions` is preset-specific (Cursor `cursorConfigDir`, Copilot `writablePaths` / `denyShell`, Claude `permissionMode` / `addDirs`, Codex `sandbox` / `addDirs`, OpenCode `auto` / `agent`). Types live on `@lumpcode/cli-utils`.
+| Preset | `agentPermissions` |
+| --- | --- |
+| `cursor` | `cursorConfigDir` → `CURSOR_CONFIG_DIR` |
+| `copilot` | `writablePaths`, `denyShell` (preset already denies `git commit` / `git push`) |
+| `claude-code` | `permissionMode` (default `acceptEdits`), `allowedTools`, `disallowedTools`, `addDirs`, `bare` |
+| `opencode` | `auto` (default on), `agent` |
+| `codex` | `sandbox` (default `workspace-write`), `addDirs`; `dangerouslyBypassApprovalsAndSandbox` only when `true` |
 
-Recommended for unattended Cursor: a dedicated `cli-config.json` that denies `git commit` and `git push`, pointed at with `agentPermissions.cursorConfigDir`.
+Unattended Cursor: a dedicated `cli-config.json` that denies `git commit` / `git push`, pointed at with `agentPermissions.cursorConfigDir`:
+
+```json cli-config.json
+{
+  "version": 1,
+  "permissions": {
+    "allow": ["Write(**)", "Read(**)", "Shell(*)"],
+    "deny": ["Shell(git:commit*)", "Shell(git:push*)"]
+  }
+}
+```
+
+```ts config.ts
+lumpVariables: {
+  agentPermissions: { cursorConfigDir: '/home/worker/.cursor-unattended' },
+}
+```
 
 ## Custom command module
 
-```ts
+```ts .lumpcode/commands/my-agent.ts
 import { defineCommand } from '@lumpcode/cli-utils'
 
 export const command = defineCommand(({ prompt }) => ({
@@ -54,11 +90,22 @@ export const command = defineCommand(({ prompt }) => ({
 }))
 ```
 
-Optional `setup` and `teardown` compose with the lump’s `setupFn` / `teardownFn`. Command setup state is stored under `contextRunState["<commandName>Setup"]`.
+Optional `setup` and `teardown` compose with the lump’s `setupFn` / `teardownFn` (lump setup first; teardown reversed). Command setup state lives at `contextRunState["<commandName>Setup"]`.
 
-The agent process `cwd` is the **branch workspace** (`workspacePath`). `projectRoot` is the source checkout that contains `.lumpcode/`. In `shared` mode those are different folders; do not assume they are the same.
+Same skip contract as inline `command`: return nothing and no process runs.
 
-You can also set `command` to a lump-relative file (`./my-agent.ts`) instead of a tag. `commandName` is the literal string in config.
+```ts .lumpcode/commands/my-agent.ts
+import { defineCommand } from '@lumpcode/cli-utils'
+
+export const command = defineCommand(({ prompt }) => {
+  if (prompt.trim() === '') return
+  return { executable: 'my-agent', args: ['--message', prompt] }
+})
+```
+
+The agent `cwd` is the **branch workspace** (`workspacePath`). `projectRoot` is the source checkout that contains `.lumpcode/`. In `shared` mode those are different folders.
+
+Signatures: [types](/docs/config/types).
 
 ## Skill versus the agent inside a lump
 
