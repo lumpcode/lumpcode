@@ -11,6 +11,7 @@ import {
     supervisorPidPath,
 } from '../../../utils';
 import { command as stopCommand } from '../../stop/main';
+import type { Input } from '../main';
 import {
     localConfigFolderPath,
     makeStartHandler,
@@ -20,6 +21,16 @@ import {
 } from './testHelpers';
 
 const PROJECT_NAME = 'supervise-only-project';
+
+type SuperviseOnlyData = { projectName: string; supervisorPid?: number };
+
+function startHandleOptions(options: Input['options'] & { superviseOnly?: boolean }): Input['options'] {
+    return options;
+}
+
+function isSuperviseOnlyData(data: unknown): data is SuperviseOnlyData {
+    return typeof data === 'object' && data !== null && 'projectName' in data && !('daemonId' in data);
+}
 
 async function stopDaemon(
     deps: { projectRoot: string; globalConfigFolderPath: string },
@@ -74,7 +85,7 @@ describe('start --superviseOnly', () => {
             skipEnsureSupervisor: false,
         });
         return handle({
-            options: { superviseOnly: true },
+            options: startHandleOptions({ superviseOnly: true }),
             arguments: {},
         });
     }
@@ -90,7 +101,7 @@ describe('start --superviseOnly', () => {
     ] as const)('fails when combined with $label', async ({ options, label }) => {
         const handle = makeStartHandler(deps());
         const result = await handle({
-            options: { superviseOnly: true, ...options },
+            options: startHandleOptions({ superviseOnly: true, ...options }),
             arguments: {},
         });
         expect(result.success).toBe(false);
@@ -122,6 +133,7 @@ describe('start --superviseOnly', () => {
         await expect(fs.access(daemonFiles.desiredFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
         await expect(fs.access(daemonFiles.pidFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
 
+        if (!isSuperviseOnlyData(result.data.data)) throw new Error('unreachable');
         const supervisorPid = result.data.data.supervisorPid;
         expect(supervisorPid).toBeTypeOf('number');
         await expect(
@@ -133,6 +145,7 @@ describe('start --superviseOnly', () => {
         const first = await runSuperviseOnly();
         expect(first.success).toBe(true);
         if (!first.success) throw new Error('unreachable');
+        if (!isSuperviseOnlyData(first.data.data)) throw new Error('unreachable');
         const firstPid = first.data.data.supervisorPid;
         expect(firstPid).toBeTypeOf('number');
 
@@ -140,6 +153,7 @@ describe('start --superviseOnly', () => {
         const second = await runSuperviseOnly(spawnSpy);
         expect(second.success).toBe(true);
         if (!second.success) throw new Error('unreachable');
+        if (!isSuperviseOnlyData(second.data.data)) throw new Error('unreachable');
         expect(second.data.data.supervisorPid).toBe(firstPid);
         expect((spawnSpy as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
     });
