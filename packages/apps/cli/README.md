@@ -8,7 +8,7 @@ A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every comp
 
 **Use Lumpcode when** you have many similar edits (migrations, tests, docs), an ordered ticket queue, or a long-running refactor you want to tick forward on a schedule.
 
-**New here?** Read [DOCS/concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md) (two minutes), then [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md).
+**New here?** The manual is [lumpcode.com/docs](https://www.lumpcode.com/docs). Tutorial: [first PR](https://www.lumpcode.com/docs/start/first-pr).
 
 ## Install
 

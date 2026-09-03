@@ -7,7 +7,7 @@ defineProps<{
 <template>
   <nav class="path-nav path-nav-sequence" aria-label="Getting started path">
     <NuxtLink
-      to="/get-started"
+      :to="docs.firstPr"
       class="path-card"
       :class="{ 'is-current': current === 'run' }"
     >
@@ -16,7 +16,7 @@ defineProps<{
     </NuxtLink>
     <span class="path-nav-arrow" aria-hidden="true">→</span>
     <NuxtLink
-      to="/get-started/worker"
+      :to="docs.worker"
       class="path-card"
       :class="{ 'is-current': current === 'worker' }"
     >
