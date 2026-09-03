@@ -21,9 +21,10 @@ ${sitemapPaths.map((path) => `  <url><loc>${siteUrl}${path === '/' ? '' : path}<
 </urlset>
 `,
 )
+// Cloudflare Pages/Workers parse status as a number. Netlify's `301!` is ignored and /docs 404s.
 writeFileSync(
   join(websiteRoot, 'public/_redirects'),
-  `${docsRedirects.map(({ from, to }) => `${from} ${to} 301!`).join('\n')}\n`,
+  `${docsRedirects.map(({ from, to }) => `${from} ${to} 301`).join('\n')}\n`,
 )
 const title = 'Lumpcode — run your coding agent across a whole codebase'
 const description =

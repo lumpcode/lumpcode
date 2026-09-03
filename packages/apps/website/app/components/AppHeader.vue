@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const route = useRoute()
+const path = computed(() => withoutTrailingSlash(route.path))
 </script>
 
 <template>
@@ -19,14 +20,14 @@ const route = useRoute()
           :to="docs.firstPr"
           :class="{
             'router-link-active':
-              route.path === docs.firstPr || route.path === docs.worker,
+              path === docs.firstPr || path === docs.worker,
           }"
         >
           Get started
         </NuxtLink>
         <NuxtLink
           :to="docs.overview"
-          :class="{ 'router-link-active': route.path.startsWith('/docs') }"
+          :class="{ 'router-link-active': path.startsWith('/docs') }"
         >
           Docs
         </NuxtLink>
