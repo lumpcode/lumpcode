@@ -12,6 +12,7 @@ on:
       - 'packages/recipes/**'
       - 'scripts/**'
       - '.github/**'
+      - '.lumpcode/**'
   workflow_dispatch:
 
 jobs:
