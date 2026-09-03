@@ -243,8 +243,18 @@ export async function jsConfigToRunLumpInput({
         globalConfigFolderPath,
     };
 
-    if (registerCommands) {
-        const preRegResult = await preRegisterCommands({ commandNames: registerCommands, commandModules, configPaths });
+    const commandTagsToPreRegister = [...new Set([
+        ...(typeof defaultCommand === 'string' && !isCommandFileRef(defaultCommand)
+            ? [defaultCommand]
+            : []),
+        ...(registerCommands ?? []),
+    ])];
+    if (commandTagsToPreRegister.length > 0) {
+        const preRegResult = await preRegisterCommands({
+            commandNames: commandTagsToPreRegister,
+            commandModules,
+            configPaths,
+        });
         if (!preRegResult.success) return preRegResult;
     }
 

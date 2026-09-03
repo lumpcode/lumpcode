@@ -89,7 +89,7 @@ Two forms appear repeatedly in the field tables below. Each is defined here once
 
 `command` fields (top-level and per-prompt-item) identify which agent module runs the prompt:
 
-- **Registered tag** (e.g. `"cursor"`, `"copilot"`, `"claude-code"`, `"opencode"`, `"codex"`, `"my-agent"`) — resolved against `commands/<name>.ts`, then `commands/<name>.js` under the project (`.lumpcode/commands/`), then the same extensions under the global config folder (`~/.lumpcode/commands/`), then shipped presets (`~/.lumpcode/commands/presets/*.js`). Project-local wins over global override; global wins over preset. **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** are built-in preset names (require `cursor-agent` / `copilot` / `claude` / `opencode` / `codex` on `PATH`).
+- **Registered tag** (e.g. `"cursor"`, `"copilot"`, `"claude-code"`, `"opencode"`, `"codex"`, `"my-agent"`) — resolved against `commands/<name>.ts`, then `commands/<name>.js` under the project (`.lumpcode/commands/`), then the same extensions under the global config folder (`~/.lumpcode/commands/`), then shipped presets (`~/.lumpcode/commands/presets/*.js`). Project-local wins over global override; global wins over preset. **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** are built-in preset names (require `cursor-agent` / `copilot` / `claude` / `opencode` / `codex` on `PATH`). A tag top-level `command` is pre-loaded so dynamic/recursive steps can use that same tag (and inherit it) without `registerCommands`.
 - **Lump-relative file path** — when the entire string has **no whitespace** and ends with **`.ts`** or **`.js`**, resolved from `.lumpcode/lumps/<lumpName>/` and loaded as a `CommandModule` (`command`, optional `setup`/`teardown`). Missing files fail at config load. `commandName` is the literal config string. File-path commands load on demand and do not need `registerCommands`.
 - **Inline function** (`config.js` or `config.ts` only) — a `CommandFn` used directly without registry lookup.
 
@@ -117,7 +117,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `numberOfContextsPerBranch` | number | How many contexts share one branch (default `1`) |
 | `lumpVariables` | object | Arbitrary JSON passed into hooks and prompt functions as `lumpVariables` |
 | `verbose` | boolean | Extra engine operational logging (`verbose` level). Also enabled for an invocation when you pass **`lumpcode run … --verbose`** or **`lumpcode start --verbose`** (OR-merge with this field) |
-| `registerCommands` | string[] | Pre-load command modules (`.lumpcode/commands/<name>.ts` or `.js`) before resolving dynamic `steps` |
+| `registerCommands` | string[] | Pre-load extra command tags before resolving dynamic `steps`. The lump `command` tag is pre-loaded automatically; list other tags that appear only in function returns |
 | `setupFn` / `teardownFn` | [Function reference](#field-forms-conventions) | Per-context lifecycle hooks |
 | `postSetupWorkspaceFn` | [Function reference](#field-forms-conventions) | After generated checkout/worktree setup. Receives the prepared branch `workspacePath`. Return `{ command }` for a shell fragment in that workspace. Mutually exclusive with `postSetupWorkspaceCommand`. |
 | `postSetupWorkspaceCommand` | string | Shell fragment in the branch workspace after generated git setup (e.g. `npm ci`). Mutually exclusive with `postSetupWorkspaceFn`. |

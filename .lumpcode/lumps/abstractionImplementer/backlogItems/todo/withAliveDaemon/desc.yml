@@ -1,8 +1,0 @@
-name: withAliveDaemon
-task: >-
-  Extract repeated detached-daemon start → wait-for-PID → try/assert → finally stop
-  orchestration into shared test helper `withAliveDaemon`; refactor
-  `commands/daemon-status/unit.test.ts` (4 sites) and
-  `commands/start/testing/general.unit.test.ts` (3 sites), optionally lifting
-  `runDetachedStart`/`stopDaemon` internals from `commands/start/testing/testHelpers.ts`.
-priority: 9

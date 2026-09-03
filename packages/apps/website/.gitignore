@@ -1,0 +1,8 @@
+.nuxt
+.output
+dist
+node_modules
+.DS_Store
+public/schemas
+public/sitemap.xml
+public/_redirects

@@ -13,6 +13,18 @@
     Complements `unified-status-command` (one status view) — this idea is naming, not merging commands.
   priority: 2
   tags: [cli]
+- name: first-class-open-pr
+  task: >-
+    Open the pull request from the CLI itself, not only via the `@lumpcode/recipes`
+    `openPrPostTeardown` kit helper. Today `packages/apps/cli` stops at pushing the branch, so plain
+    `config.json` users (the documented starting point) get no PR, and the dedicated-daemon story is
+    "branches arrive" rather than "PRs arrive" — the website copy had to retreat because of this.
+    Proposed: optional lump-config `openPr` (e.g. `{ provider: 'github' }`, plus optional title/body
+    overrides) wired into the generated teardown, so JSON configs get it with no recipes dependency.
+    Decide auth on a worker (`gh` on PATH vs a token + API call) and make the CLI the canonical owner,
+    with the recipes helper delegating to it instead of carrying a second implementation.
+  priority: 3
+  tags: [cli, git, recipes, daemon]
 - name: unified-status-command
   task: >-
     Unified `lumpcode status` command showing daemon state plus per-lump context summaries in one view,
@@ -352,3 +364,13 @@
   blocked: >-
     parked: after the current daemon-lifecycle PR (feat/better-concurrency-error-logs)
   tags: [daemon, cli, hygiene]
+- name: daemon-status-in-flight-lumps
+  task: >-
+    Extend existing `lumpcode daemon-status` so operators see which lump(s) are in flight on a
+    running daemon versus idle (none running). Today the command lists daemons (and supervisor)
+    and meta can expose a mid-run count (`inFlightLumpCount`; `busy` is deprecated), but not the
+    executing lump names. Worktree + `--maxParallelRun` can run more than one lump, so surface a
+    list. Keep it git-first / file-shaped: read live daemon meta under `~/.lumpcode/daemons/`,
+    not a new database. Complements `unified-status-command` (one combined view later); this is
+    the existing command, not a new one.
+  tags: [cli, status, daemon]
