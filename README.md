@@ -78,6 +78,7 @@ This runs your agent on **one** context, commits a `LUMP: myFirstLump - …` mar
 | ----------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `packages/core`               | [`@lumpcode/core`](https://www.npmjs.com/package/@lumpcode/core)           | Engine API (`runLump`): Not intended for direct use; install `@lumpcode/cli` |
 | `packages/apps/cli`           | [`@lumpcode/cli`](https://www.npmjs.com/package/@lumpcode/cli)             | CLI: project setup, run, daemon, status                                      |
+| `packages/apps/website`       | —                                                                          | Public website (Nuxt, not published)                                         |
 | `packages/apps/cli/cli-types` | [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) | Typed `config.js` and command-module helpers                                 |
 
 
