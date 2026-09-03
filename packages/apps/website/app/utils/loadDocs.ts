@@ -1,4 +1,4 @@
-import { docsItemByPath, docsVuePages } from './docsNav'
+import { docsItemByPath, docsVuePages, withoutTrailingSlash } from './docsNav'
 import { renderMarkdown, type DocsHeading } from './renderMarkdown'
 
 export type DocPage = {
@@ -88,8 +88,7 @@ function loadAllDocs(): Map<string, DocPage> {
 const docsByPath = loadAllDocs()
 
 export function getDocPage(path: string): DocPage | undefined {
-  const normalized = path === '/docs/' ? '/docs' : path
-  return docsByPath.get(normalized)
+  return docsByPath.get(withoutTrailingSlash(path))
 }
 
 export function listDocPages(): DocPage[] {
