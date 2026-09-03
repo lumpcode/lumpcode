@@ -1,9 +1,7 @@
-import * as path from 'node:path';
-import * as os from 'node:os';
-import * as fs from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson } from '../../utils';
+import { createDaemonCommandTestProject } from '../../testing';
+import { removeTempTestDirs } from '../../utils';
 import { command as superviseCommand } from './main';
 
 describe('supervise command', () => {
@@ -13,25 +11,11 @@ describe('supervise command', () => {
     const projectName = 'supervise-test-project';
 
     beforeEach(async () => {
-        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-supervise-'));
-        globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-supervise-global-'));
-        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        initLocalGitRepo({ cwd: projectRoot });
-        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
-        await writeJsonFile({
-            filePath: path.join(localConfigFolderPath, 'project.json'),
-            data: { projectName },
-        });
-        await writeJsonFile({
-            filePath: path.join(localConfigFolderPath, 'local.json'),
-            data: { mode: 'dedicated', primaryBranch: 'main' },
-        });
-        await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createDaemonCommandTestProject({ prefix: 'lump-supervise-', projectName, bindDaemonTestEnv: false }));
     });
 
     afterEach(async () => {
-        await fs.rm(projectRoot, { recursive: true, force: true });
-        await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        await removeTempTestDirs({ projectRoot, globalConfigFolderPath });
     });
 
     it('fails without --foreground', async () => {

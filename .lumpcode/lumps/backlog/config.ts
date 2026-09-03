@@ -2,7 +2,7 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { featureBacklog } from '@lumpcode/recipes';
+import { featureBacklog, openPrPostTeardown } from '@lumpcode/recipes';
 
 export default featureBacklog<
     CursorPresetLumpVariables,
@@ -20,4 +20,5 @@ export default featureBacklog<
         'npm run build -w=@lumpcode/cli',
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
+    postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
 });

@@ -1,0 +1,10 @@
+name: createDaemonCommandTestProject
+task: >-
+  Extract repeated daemon-command unit-test project scaffold (createTempTestDirs
+  remote:false → optional setDaemonTestGlobalConfigFolder → initLocalGitRepo →
+  writeLumpConfigJson alpha → writeProjectJson → README → writeLocalJson
+  dedicated/main) into shared test helper `createDaemonCommandTestProject`;
+  refactor beforeEach blocks in stop, restart, daemon-status, daemon-log, and
+  supervise unit tests (supervise also drops hand-rolled mkdtemp/rm).
+priority: 10
+completedAt: '2026-08-25T16:59:25.706Z'

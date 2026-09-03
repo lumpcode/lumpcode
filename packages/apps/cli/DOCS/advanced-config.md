@@ -246,7 +246,7 @@ export default {
 };
 ```
 
-Full runnable variant: [Example 6](./examples.md#6-conditional-follow-up--only-do-step-b-if-step-a-says-so).
+Full runnable variant: [Example 6](./examples.md#6-conditional-follow-up--only-do-step-b-if-step-a-says-so). For a `postCommandExecFn` that returns the *next iteration* of its own steps, giving you a build-or-test loop that retries with the failure output, see [Example 8](./examples.md#8-retry-until-green--gate-every-context-on-your-own-command).
 
 ### `stepIndex` paths
 
@@ -254,13 +254,13 @@ For static items, `stepIndex` is a number (`0`, `1`, …). Inside arrays returne
 
 ### `registerCommands`
 
-If the **only** reference to a custom `command` name appears inside a dynamic function return, register it up front:
+A tag top-level `command` is pre-registered automatically. If the **only** reference to a **different** custom `command` name appears inside a dynamic function return, register it up front:
 
 ```json
 "registerCommands": ["my-agent"]
 ```
 
-Otherwise lazy loading may throw when the nested array resolves.
+Otherwise lazy loading may throw when the nested array resolves. The lump `command` tag does not need this list.
 
 ---
 

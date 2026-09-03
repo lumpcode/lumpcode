@@ -1,5 +1,7 @@
 # Getting started with the Lumpcode CLI
 
+Readable website version: [lumpcode.com/docs/start/first-pr](https://www.lumpcode.com/docs/start/first-pr) · [docs](https://www.lumpcode.com/docs).
+
 Follow this guide in order to get started with your first `lumpcode run`. Links at each step point to more detail if you want it.
 
 ---

@@ -6,8 +6,8 @@ import { spawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     aliveDaemonSpawnFn,
+    createDaemonCommandTestProject,
     removeDaemonMetaUntilGone,
-    setDaemonTestGlobalConfigFolder,
     waitForDaemonPidFile,
     writeDaemonMetaSticky,
 } from '../../testing';
@@ -15,7 +15,7 @@ import { daemonSchedulerFiles } from '../../utils/daemonSchedulerFiles';
 import { pollUntil } from '../../utils/pollUntil';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
-import { initLocalGitRepo, writeJsonFile, writeLumpConfigJson, createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { writeJsonFile, removeTempTestDirs } from '../../utils';
 describe('stop command', () => {
     let projectRoot: string;
     let globalConfigFolderPath: string;
@@ -29,13 +29,7 @@ describe('stop command', () => {
         });
     const pidPath = () => schedulerFiles().pidFilePath;
     beforeEach(async () => {
-        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-stop-', remote: false }));
-        setDaemonTestGlobalConfigFolder(globalConfigFolderPath);
-        initLocalGitRepo({ cwd: projectRoot });
-        await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName } });
-        await fs.writeFile(path.join(projectRoot, 'README.md'), '# test\n', 'utf-8');
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createDaemonCommandTestProject({ prefix: 'lump-stop-', projectName }));
     });
     afterEach(async () => {
         await removeTempTestDirs({ projectRoot, globalConfigFolderPath });
