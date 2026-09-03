@@ -66,7 +66,9 @@ export async function withAliveDaemon(input: {
     });
     expect(startResult.success).toBe(true);
     if (!startResult.success) throw new Error('unreachable');
-    const resolvedId = startResult.data.data?.daemonId ?? 'global';
+    const startData = startResult.data.data;
+    const resolvedId =
+        startData !== undefined && 'daemonId' in startData ? startData.daemonId : 'global';
 
     const pathsResult = await resolveDaemonPaths({
         projectRoot,
