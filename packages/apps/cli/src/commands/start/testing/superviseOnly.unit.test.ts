@@ -10,15 +10,34 @@ import {
     supervisorMetaPath,
     supervisorPidPath,
 } from '../../../utils';
+import { command as stopCommand } from '../../stop/main';
 import {
+    localConfigFolderPath,
     makeStartHandler,
     setupStartTestRepo,
-    stopDaemon,
     teardownStartTestRepo,
     writeDefaultLocalJson,
 } from './testHelpers';
 
 const PROJECT_NAME = 'supervise-only-project';
+
+async function stopDaemon(
+    deps: { projectRoot: string; globalConfigFolderPath: string },
+    options: { daemonId?: string } = {},
+) {
+    const handle = stopCommand.handlerMaker({
+        projectRoot: deps.projectRoot,
+        localConfigFolderPath: localConfigFolderPath(deps.projectRoot),
+        globalConfigFolderPath: deps.globalConfigFolderPath,
+    });
+    await handle({
+        options: {
+            ...(options.daemonId !== undefined ? { daemonId: options.daemonId } : {}),
+            force: true,
+        },
+        arguments: {},
+    });
+}
 
 describe('start --superviseOnly', () => {
     let projectRoot: string;
