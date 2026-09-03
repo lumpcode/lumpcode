@@ -41,5 +41,10 @@
     "@lumpcode/cli-types": "*",
     "@lumpcode/cli-utils": "*",
     "@lumpcode/recipes": "*"
+  },
+  "allowScripts": {
+    "esbuild@0.25.11": true,
+    "esbuild@0.28.2": true,
+    "fsevents@2.3.3": true
   }
 }
