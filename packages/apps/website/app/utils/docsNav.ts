@@ -158,17 +158,26 @@ export const docsRedirects = docsRedirectSources.flatMap((redirect) =>
     : [redirect, { from: `${redirect.from}/`, to: redirect.to }],
 )
 
+export function withoutTrailingSlash(path: string): string {
+  if (path.length > 1 && path.endsWith('/')) {
+    return path.slice(0, -1)
+  }
+  return path
+}
+
 export function docsRedirectTarget(path: string): string | undefined {
-  const from = path !== '/' && path.endsWith('/') ? path.slice(0, -1) : path
+  const from = withoutTrailingSlash(path)
   return docsRedirectSources.find((redirect) => redirect.from === from)?.to
 }
 
 export function docsItemByPath(path: string): DocsNavItem | undefined {
-  return docsPages.find((item) => item.path === path)
+  const normalized = withoutTrailingSlash(path)
+  return docsPages.find((item) => item.path === normalized)
 }
 
 export function docsSectionTitle(path: string): string | undefined {
-  return docsNav.find((section) => section.items.some((item) => item.path === path))?.title
+  const normalized = withoutTrailingSlash(path)
+  return docsNav.find((section) => section.items.some((item) => item.path === normalized))?.title
 }
 
 export function docsKicker(path: string): string {
@@ -180,7 +189,7 @@ export function docsNeighbors(path: string): {
   previous: DocsNavItem | undefined
   next: DocsNavItem | undefined
 } {
-  const index = docsPages.findIndex((item) => item.path === path)
+  const index = docsPages.findIndex((item) => item.path === withoutTrailingSlash(path))
   if (index === -1) {
     return { previous: undefined, next: undefined }
   }
@@ -191,17 +200,18 @@ export function docsNeighbors(path: string): {
 }
 
 export function isDocsNavActive(itemPath: string, routePath: string): boolean {
-  if (routePath === itemPath) {
+  const path = withoutTrailingSlash(routePath)
+  if (path === itemPath) {
     return true
   }
-  if (!routePath.startsWith(`${itemPath}/`)) {
+  if (!path.startsWith(`${itemPath}/`)) {
     return false
   }
   return !docsPages.some(
     (item) =>
       item.path !== itemPath &&
       item.path.startsWith(`${itemPath}/`) &&
-      (routePath === item.path || routePath.startsWith(`${item.path}/`)),
+      (path === item.path || path.startsWith(`${item.path}/`)),
   )
 }
 
