@@ -90,6 +90,35 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
         expect(result.data.map((l) => l.lumpName)).toEqual(['mainLine']);
     });
 
+    it('invokes afterMatched while still checked out to scanBranch', async () => {
+        await seedBranchOnlyFixtures();
+        let branchSeenInHook: string | undefined;
+        let lumpsSeenInHook: string[] = [];
+
+        const result = await discoverDedicatedLumpsForScanBranch({
+            scanBranch: 'ver/0.0.9',
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig: {
+                mode: 'dedicated',
+                primaryBranch: 'main',
+                primaryBranches: ['main', 'ver/0.0.9'],
+                workspaceStrategy: 'checkout',
+            },
+            logger: createLogger(),
+            afterMatched: async ({ matchingLumps, scanBranch }) => {
+                branchSeenInHook = gitCurrentBranch(projectRoot);
+                lumpsSeenInHook = matchingLumps.map((l) => l.lumpName);
+                expect(scanBranch).toBe('ver/0.0.9');
+            },
+        });
+
+        expect(result.success).toBe(true);
+        expect(branchSeenInHook).toBe('ver/0.0.9');
+        expect(lumpsSeenInHook).toEqual(['releaseLine']);
+    });
+
     it('returns releaseLine only when scanBranch is ver/0.0.9', async () => {
         await seedBranchOnlyFixtures();
         expect(gitCurrentBranch(projectRoot)).toBe('main');

@@ -14,11 +14,19 @@ import { filterLumpNames } from '../filterLumpNames';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { installDaemonProcessGuards } from '../installDaemonProcessGuards';
 import { installProcessShutdown } from '../installProcessShutdown';
+import type { LumpLine } from '../lumpLine';
 import type { DaemonMetaWrite } from '../readDaemonMeta';
+import { reorderDedicatedLumpLines } from '../reorderDedicatedLumpLines';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
 import { runLumpFromLumpName } from '../runLumpFromLumpName';
-import { runLumpQueueWithConcurrency, type RunLumpQueueItem } from '../runLumpQueueWithConcurrency';
+import { runLumpLinesWithConcurrency } from '../runLumpLinesWithConcurrency';
+import {
+    scoreDedicatedLumpLineSnapshots,
+    snapshotDedicatedLumpLine,
+    type DedicatedLumpLineSnapshot,
+    type ScoredLumpLine,
+} from '../scoreDedicatedLumpLine';
 import {
     markStartDaemonDesiredStopping,
     readStartDaemonDesired,
@@ -88,23 +96,116 @@ type TickSession = {
     };
 };
 
-type CollectTickLumpsResult =
+type CollectTickLumpLinesResult =
     | { kind: 'noop' }
     | { kind: 'expand-failed' }
-    | { kind: 'run'; items: RunLumpQueueItem[] };
+    | { kind: 'run'; items: LumpLine[] };
 
-async function collectTickLumps(session: TickSession): Promise<CollectTickLumpsResult> {
+async function collectDedicatedTickLumpLines(session: TickSession): Promise<CollectTickLumpLinesResult> {
     const {
         recipe,
         frozenLocalConfig,
         localConfigFolderPath,
         globalConfigFolderPath,
         logger,
+        projectName,
+    } = session;
+    const { projectRoot } = recipe;
+
+    const expandResult = await expandPrimaryBranches({
+        localConfig: frozenLocalConfig,
+        cwd: projectRoot,
+        logger,
+    });
+    if (!expandResult.success) {
+        logger.error(`primaryBranches expand failed: ${expandResult.data}; skipping tick`);
+        return { kind: 'expand-failed' };
+    }
+
+    const eligible: ScoredLumpLine[] = [];
+    const seenOnScan = new Set<string>();
+    for (const scanBranch of expandResult.data) {
+        let dediLumpLineSnapshots: DedicatedLumpLineSnapshot[] = [];
+        const discoverResult = await discoverDedicatedLumpsForScanBranch({
+            scanBranch,
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            localConfig: frozenLocalConfig,
+            logger,
+            refreshCommand: frozenLocalConfig.refreshCommand,
+            afterMatched: async ({ matchingLumps }) => {
+                const matched = new Set(
+                    filterLumpNames({
+                        names: matchingLumps.map((l) => l.lumpName),
+                        include: recipe.include,
+                        exclude: recipe.exclude,
+                    }),
+                );
+                const toCollect: typeof matchingLumps = [];
+                for (const lump of matchingLumps) {
+                    if (!matched.has(lump.lumpName)) continue;
+                    const seenKey = `${lump.lumpName}\0${scanBranch}`;
+                    if (seenOnScan.has(seenKey)) {
+                        logger.warn(
+                            `duplicate lump "${lump.lumpName}" on branch "${scanBranch}"; skipping`,
+                        );
+                        continue;
+                    }
+                    seenOnScan.add(seenKey);
+                    toCollect.push(lump);
+                }
+                dediLumpLineSnapshots = await Promise.all(
+                    toCollect.map(({ lumpName, jsConfig }) =>
+                        snapshotDedicatedLumpLine({
+                            lumpName,
+                            jsConfig,
+                            effectiveDiscoveryBranch: scanBranch,
+                            localConfigFolderPath,
+                            globalConfigFolderPath,
+                            sourceProjectRoot: projectRoot,
+                            localConfig: frozenLocalConfig,
+                            logger,
+                            projectName,
+                        }),
+                    ),
+                );
+            },
+        });
+        if (!discoverResult.success) {
+            logger.error(`discovery branch "${scanBranch}": ${discoverResult.data}; skipping`);
+            continue;
+        }
+        const scoredItems = await scoreDedicatedLumpLineSnapshots({
+            snapshots: dediLumpLineSnapshots,
+            logger,
+            globalConfigFolderPath,
+            projectName,
+            lockMode: 'wait',
+        });
+        for (const item of scoredItems) {
+            if (item.lineScore.kind === 'failed') {
+                logger.warn(
+                    `lump "${item.lumpName}" on "${scanBranch}": line score failed (${item.lineScore.reason}); leaving in collect order`,
+                );
+            }
+            eligible.push(item);
+        }
+    }
+    return { kind: 'run', items: reorderDedicatedLumpLines(eligible) };
+}
+
+async function collectTickLumpLines(session: TickSession): Promise<CollectTickLumpLinesResult> {
+    const {
+        recipe,
+        frozenLocalConfig,
+        localConfigFolderPath,
+        logger,
         projectDisabled,
         configuredMaxParallelRun,
         warnings,
     } = session;
-    const { projectRoot, workspaceStrategy } = recipe;
+    const { workspaceStrategy } = recipe;
 
     if (projectDisabled) {
         logger.info('- project disabled; skipping tick.');
@@ -131,51 +232,7 @@ async function collectTickLumps(session: TickSession): Promise<CollectTickLumpsR
     }
 
     if (frozenLocalConfig.mode === 'dedicated') {
-        const expandResult = await expandPrimaryBranches({
-            localConfig: frozenLocalConfig,
-            cwd: projectRoot,
-            logger,
-        });
-        if (!expandResult.success) {
-            logger.error(`primaryBranches expand failed: ${expandResult.data}; skipping tick`);
-            return { kind: 'expand-failed' };
-        }
-
-        const eligible: RunLumpQueueItem[] = [];
-        const seenOnScan = new Set<string>();
-        for (const scanBranch of expandResult.data) {
-            const discoverResult = await discoverDedicatedLumpsForScanBranch({
-                scanBranch,
-                sourceProjectRoot: projectRoot,
-                localConfigFolderPath,
-                globalConfigFolderPath,
-                localConfig: frozenLocalConfig,
-                logger,
-                refreshCommand: frozenLocalConfig.refreshCommand,
-            });
-            if (!discoverResult.success) {
-                logger.error(`discovery branch "${scanBranch}": ${discoverResult.data}; skipping`);
-                continue;
-            }
-            const matched = new Set(
-                filterLumpNames({
-                    names: discoverResult.data.map((l) => l.lumpName),
-                    include: recipe.include,
-                    exclude: recipe.exclude,
-                }),
-            );
-            for (const { lumpName } of discoverResult.data) {
-                if (!matched.has(lumpName)) continue;
-                const seenKey = `${lumpName}\0${scanBranch}`;
-                if (seenOnScan.has(seenKey)) {
-                    logger.warn(`duplicate lump "${lumpName}" on branch "${scanBranch}"; skipping`);
-                    continue;
-                }
-                seenOnScan.add(seenKey);
-                eligible.push({ lumpName, effectiveDiscoveryBranch: scanBranch });
-            }
-        }
-        return { kind: 'run', items: eligible };
+        return collectDedicatedTickLumpLines(session);
     }
 
     const loadable = await discoverLoadableLumps({ localConfigFolderPath, logger });
@@ -191,11 +248,11 @@ async function collectTickLumps(session: TickSession): Promise<CollectTickLumpsR
     return { kind: 'run', items: names.map((lumpName) => ({ lumpName })) };
 }
 
-async function runOneLump(
+async function runLumpLine(
     session: TickSession,
-    lumpInput: { lumpName: string; effectiveDiscoveryBranch?: string },
+    lumpLine: LumpLine,
 ): Promise<void> {
-    const { lumpName } = lumpInput;
+    const { lumpName } = lumpLine;
     const abortController = new AbortController();
     session.daemonLumpAbortControllers.add(abortController);
     await session.inFlightMeta.adjust(1);
@@ -224,7 +281,7 @@ async function runOneLump(
             projectName: session.projectName,
             localConfig: session.frozenLocalConfig,
             logger: lumpLogger,
-            effectiveDiscoveryBranch: lumpInput.effectiveDiscoveryBranch,
+            effectiveDiscoveryBranch: lumpLine.effectiveDiscoveryBranch,
             signal: abortController.signal,
         });
         if (!runLumpRes.success) {
@@ -387,7 +444,7 @@ export async function runForegroundStartDaemon(
             return;
         }
         try {
-            const collected = await collectTickLumps(session);
+            const collected = await collectTickLumpLines(session);
             switch (collected.kind) {
                 case 'noop':
                     break;
@@ -409,10 +466,10 @@ export async function runForegroundStartDaemon(
                     if (collected.items.length === 0) {
                         break;
                     }
-                    await runLumpQueueWithConcurrency({
+                    await runLumpLinesWithConcurrency({
                         items: collected.items,
                         concurrency: effectiveConcurrency,
-                        runOneLump: (lumpInput) => runOneLump(session, lumpInput),
+                        runLumpLine: (line) => runLumpLine(session, line),
                     });
                     break;
                 }

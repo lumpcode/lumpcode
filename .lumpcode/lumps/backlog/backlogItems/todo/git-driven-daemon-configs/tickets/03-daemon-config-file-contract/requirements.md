@@ -13,6 +13,7 @@ The on-disk recipe and “ours” meta shape exist and are tested. Later tickets
 - Extend `DaemonMeta` / `DaemonMetaWrite` / `readDaemonMeta` Zod with optional `daemonConfigFile: { hash, discoveryBranch, path }`.
 - `toMetaWrite` copies `daemonConfigFile` when present. CLI `start` still **omits** it. `desired.json` unchanged.
 - Barrel-export from `utils/index.ts`.
+- Schema copy: `discoveryBranch` is the dedicated-line bind (`DedicatedLumpLine.effectiveDiscoveryBranch` on `dev`), not a lump name. Description: exact expanded primary; must equal the `origin/<branch>` ref the file was read from.
 
 ## Out of scope
 

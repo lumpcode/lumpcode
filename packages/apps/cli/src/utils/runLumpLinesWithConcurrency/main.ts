@@ -1,26 +1,20 @@
-export type RunLumpQueueItem = {
-    lumpName: string;
-    effectiveDiscoveryBranch?: string;
-};
+import type { LumpLine } from '../lumpLine';
 
-export type RunLumpQueueWithConcurrencyInput = {
-    items: RunLumpQueueItem[];
+export type RunLumpLinesWithConcurrencyInput = {
+    items: LumpLine[];
     concurrency: number;
-    runOneLump: (input: {
-        lumpName: string;
-        effectiveDiscoveryBranch?: string;
-    }) => Promise<unknown>;
+    runLumpLine: (line: LumpLine) => Promise<unknown>;
 };
 
 /**
- * Runs lump queue items through a work-queue pool capped at `concurrency`.
- * Preserves queue-head start order; isolates failures so one lump cannot
+ * Runs lump lines through a work-queue pool capped at `concurrency`.
+ * Preserves queue-head start order; isolates failures so one line cannot
  * cancel siblings or prevent the remaining queue from draining.
  */
-export async function runLumpQueueWithConcurrency(
-    input: RunLumpQueueWithConcurrencyInput,
+export async function runLumpLinesWithConcurrency(
+    input: RunLumpLinesWithConcurrencyInput,
 ): Promise<void> {
-    const { runOneLump, items } = input;
+    const { runLumpLine, items } = input;
 
     if (items.length === 0) {
         return;
@@ -38,10 +32,7 @@ export async function runLumpQueueWithConcurrency(
             }
             const item = items[index]!;
             try {
-                await runOneLump({
-                    lumpName: item.lumpName,
-                    effectiveDiscoveryBranch: item.effectiveDiscoveryBranch,
-                });
+                await runLumpLine(item);
             } catch {
                 // Failure isolation: log/handle at the call site; keep draining.
             }
