@@ -118,7 +118,7 @@ export default featureBacklog<
 });
 ```
 
-`desc.yml` `workflow`: omit ≡ `tdd` (`makeReq` → `makeTestPlan` → `testImpl` → `implementation`); `directImpl` skips the test-plan stages; `manual` is ignored. On `dev` only top-level `directImpl` items run (tickets never run on `dev`, even if `directImpl`); on `feature/<key>` the matching item (or parent, for tickets). Ticket context names are `<parent>-<ticket>`; `manualReq: true` waits for a human requirements file. Status reads use the concrete `discoveryBranch`.
+`desc.yml` `workflow`: omit ≡ `tdd` (`makeReq` → `makeTestPlan` → `testImpl` → `implementation`); `directImpl` skips the test-plan stages; `manual` is ignored. On `dev` only top-level `directImpl` items run (tickets never run on `dev`, even if `directImpl`); on `feature/<key>` the matching item (or parent, for tickets). Ticket context names are `<parent>-<ticket>`; omit `manualReq` ≡ wait for a human `requirements.md`; `manualReq: false` opts into agent `makeReq`. Status reads use the concrete `discoveryBranch`.
 
 ### abstractionFinder + abstractionBacklog
 

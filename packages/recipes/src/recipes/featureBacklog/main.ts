@@ -28,6 +28,7 @@ export type FeatureBacklogWorkflow = 'tdd' | 'directImpl' | 'manual';
 export type FeatureBacklogRunnableWorkflow = Exclude<FeatureBacklogWorkflow, 'manual'>;
 
 export type FeatureBacklogItem = BaseBacklogItem & {
+    /** Omit ≡ true after parse/normalize — wait for human `requirements.md`. */
     manualReq?: boolean;
     workflow?: FeatureBacklogWorkflow;
     completedAt?: string;
@@ -220,7 +221,7 @@ export async function resolveFeatureBacklogItem(input: {
     const hasReq = await pathExists(path.join(projectRoot, reqFilePath));
 
     if (!hasReq) {
-        if (item.manualReq === true) {
+        if (item.manualReq !== false) {
             return { ignored: true };
         }
 
@@ -318,7 +319,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
                 dependsOn: parentName
                     ? baseItem.dependsOn?.map((dep) => `${parentName}-${dep}`)
                     : baseItem.dependsOn,
-                manualReq: record.manualReq === true ? true : undefined,
+                manualReq: record.manualReq !== false,
                 workflow: parseFeatureWorkflow(baseItem.name, raw),
             };
         },

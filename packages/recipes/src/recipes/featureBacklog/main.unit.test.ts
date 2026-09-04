@@ -96,16 +96,10 @@ describe('resolveFeatureBacklogItem', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
-    it('routes to makeReq when no requirements document exists', async () => {
+    it('waits for a human requirements document when manualReq is omitted', async () => {
         const resolution = await resolve();
 
-        expect(resolution).toEqual({
-            stage: 'makeReq',
-            contextName: 'my-feature_req',
-            variables: {
-                REQ_FILE: reqPath,
-            },
-        });
+        expect(resolution).toEqual({ ignored: true });
     });
 
     it('waits for a human requirements document when manualReq is true', async () => {
@@ -114,6 +108,20 @@ describe('resolveFeatureBacklogItem', () => {
         });
 
         expect(resolution).toEqual({ ignored: true });
+    });
+
+    it('routes to makeReq when manualReq is false and no requirements document exists', async () => {
+        const resolution = await resolve({
+            item: { ...item, manualReq: false },
+        });
+
+        expect(resolution).toEqual({
+            stage: 'makeReq',
+            contextName: 'my-feature_req',
+            variables: {
+                REQ_FILE: reqPath,
+            },
+        });
     });
 
     it('routes to makeTestPlan when requirements exist but test plan does not', async () => {
@@ -223,9 +231,9 @@ describe('resolveFeatureBacklogItem', () => {
         });
     });
 
-    it('still writes requirements for directImpl items that lack them', async () => {
+    it('still writes requirements for directImpl items that opt into agent makeReq', async () => {
         const resolution = await resolve({
-            item: { ...item, workflow: 'directImpl' },
+            item: { ...item, workflow: 'directImpl', manualReq: false },
             discoveryBranch: 'dev',
         });
 
@@ -233,6 +241,61 @@ describe('resolveFeatureBacklogItem', () => {
             stage: 'makeReq',
             contextName: 'my-feature_req',
             variables: { REQ_FILE: reqPath },
+        });
+    });
+
+    it('waits for human requirements on directImpl when manualReq is omitted', async () => {
+        const resolution = await resolve({
+            item: { ...item, workflow: 'directImpl' },
+            discoveryBranch: 'dev',
+        });
+
+        expect(resolution).toEqual({ ignored: true });
+    });
+
+    it('waits for human requirements on tickets when manualReq is omitted', async () => {
+        const ticket: FeatureBacklogItem = {
+            name: 't1',
+            task: 'Ticket one',
+            priority: 1,
+            todoRelativeDir: 'umbrella/tickets/t1',
+            parentName: 'umbrella',
+        };
+
+        const resolution = await resolveFeatureBacklogItem({
+            item: ticket,
+            paths,
+            projectRoot,
+            discoveryBranch: 'feature/umbrella',
+        });
+
+        expect(resolution).toEqual({ ignored: true });
+    });
+
+    it('routes tickets to makeReq when manualReq is false', async () => {
+        const ticket: FeatureBacklogItem = {
+            name: 't1',
+            task: 'Ticket one',
+            priority: 1,
+            todoRelativeDir: 'umbrella/tickets/t1',
+            parentName: 'umbrella',
+            manualReq: false,
+        };
+
+        const resolution = await resolveFeatureBacklogItem({
+            item: ticket,
+            paths,
+            projectRoot,
+            discoveryBranch: 'feature/umbrella',
+        });
+
+        expect(resolution).toEqual({
+            stage: 'makeReq',
+            contextName: 'umbrella-t1_req',
+            variables: {
+                REQ_FILE:
+                    '.lumpcode/lumps/backlog/backlogItems/todo/umbrella/tickets/t1/requirements.md',
+            },
         });
     });
 
@@ -374,6 +437,60 @@ describe('featureBacklog parseItem', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
+    it('rejects non-boolean manualReq values', async () => {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-manualreq-'));
+        const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
+        await mkdir(path.join(lumpPath, 'backlogItems', 'todo', 'alpha'), { recursive: true });
+        const configPath = path.join(lumpPath, 'config.ts');
+        await writeFile(configPath, 'export default {};\n');
+        await writeFile(
+            path.join(lumpPath, 'backlogItems', 'todo', 'alpha', 'desc.yml'),
+            'name: alpha\ntask: x\npriority: 1\nmanualReq: yes\n',
+        );
+
+        const config = featureBacklog({
+            configUrl: pathToFileURL(configPath),
+            implValidateCommand: 'npm test',
+        });
+
+        await expect(
+            asGetContextListFn(config.getContextListFn)({
+                codeBasePaths: [],
+                lumpVariables: {},
+                discoveryBranch: 'feature/alpha',
+            }),
+        ).rejects.toThrow(/manualReq" must be a boolean/);
+
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    it('ignores items that omit manualReq until requirements.md exists', async () => {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-omit-manualreq-'));
+        const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
+        await mkdir(path.join(lumpPath, 'backlogItems', 'todo', 'alpha'), { recursive: true });
+        const configPath = path.join(lumpPath, 'config.ts');
+        await writeFile(configPath, 'export default {};\n');
+        await writeFile(
+            path.join(lumpPath, 'backlogItems', 'todo', 'alpha', 'desc.yml'),
+            'name: alpha\ntask: x\npriority: 1\n',
+        );
+
+        const config = featureBacklog({
+            configUrl: pathToFileURL(configPath),
+            implValidateCommand: 'npm test',
+        });
+
+        const contexts = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/alpha',
+        });
+
+        expect(contexts).toEqual([]);
+
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
     it('discovers tickets with prefixed dependsOn and nested BACKLOG_ITEM_DIR', async () => {
         const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-tickets-'));
         const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
@@ -383,7 +500,7 @@ describe('featureBacklog parseItem', () => {
         await writeFile(configPath, 'export default {};\n');
         await writeFile(
             path.join(ticketDir, 'desc.yml'),
-            'name: t1\ntask: Ticket one\npriority: 1\ndependsOn:\n  - other\n',
+            'name: t1\ntask: Ticket one\npriority: 1\nmanualReq: false\ndependsOn:\n  - other\n',
         );
 
         const config = featureBacklog({

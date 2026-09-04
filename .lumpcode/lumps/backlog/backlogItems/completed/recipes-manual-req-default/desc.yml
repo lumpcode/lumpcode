@@ -4,3 +4,4 @@ task: >-
   In recipes (e.g. featureBacklog / backlog), default manualReq to true so
   requirements are authored by a human unless explicitly opted out.
 priority: 11
+completedAt: '2026-09-04T16:59:04.077Z'
