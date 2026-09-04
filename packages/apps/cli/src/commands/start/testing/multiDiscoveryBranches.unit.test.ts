@@ -372,6 +372,86 @@ describe('start command — multi discovery branches', () => {
             runLumpSpy.mockRestore();
         }
     });
+
+    it('runs same lump on two lines in best todo-priority order, not primary first', async () => {        await writeLocalJson(localConfigFolderPath(projectRoot), {
+            mode: 'dedicated',
+            primaryBranch: 'main',
+            primaryBranches: ['main', 'feature/*'],
+        });
+        await writeMinimalLump(projectRoot, 'multiLine', {
+            discoveryBranches: ['main', 'feature/*'],
+        });
+        await writeMinimalLump(projectRoot, 'mainLine', { discoveryBranch: 'main' });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "multiLine on main"', projectRoot);
+        execGit('push origin main', projectRoot);
+        await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'feature/a' });
+
+        const snapshotSpy = vi
+            .spyOn(await import('../../../utils/scoreDedicatedLumpLine'), 'snapshotDedicatedLumpLine')
+            .mockImplementation(async (input) => ({
+                kind: 'ready' as const,
+                lumpName: input.lumpName,
+                effectiveDiscoveryBranch: input.effectiveDiscoveryBranch,
+                projectRoot,
+                baseBranch: input.effectiveDiscoveryBranch,
+                lumpVariables: {},
+                gitCommitMessageFn: () => 'm',
+                contextList: [],
+            }));
+        const scoreSpy = vi
+            .spyOn(
+                await import('../../../utils/scoreDedicatedLumpLine'),
+                'scoreDedicatedLumpLineSnapshots',
+            )
+            .mockImplementation(async ({ snapshots }) =>
+                snapshots.map((snapshot) => ({
+                    lumpName: snapshot.lumpName,
+                    effectiveDiscoveryBranch: snapshot.effectiveDiscoveryBranch,
+                    lineScore:
+                        snapshot.effectiveDiscoveryBranch === 'main'
+                            ? { kind: 'scored' as const, value: 10 }
+                            : { kind: 'scored' as const, value: 3 },
+                })),
+            );
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockResolvedValue(
+                success({
+                    skipped: false,
+                    result: {
+                        branchName: '',
+                        contextNames: [],
+                        contextRunStateList: [],
+                    },
+                }),
+            );
+        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+        try {
+            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+
+            const multiRuns = runLumpSpy.mock.calls.filter((c) => c[0].lumpName === 'multiLine');
+            expect(multiRuns.map((c) => c[0].effectiveDiscoveryBranch)).toEqual([
+                'feature/a',
+                'main',
+            ]);
+            expect(snapshotSpy.mock.calls.filter((c) => c[0].lumpName === 'mainLine')).toHaveLength(1);
+            expect(snapshotSpy.mock.calls.filter((c) => c[0].lumpName === 'multiLine')).toHaveLength(2);
+            const logged = logSpy.mock.calls.map((c) => String(c[0])).join('\n');
+            expect(logged).toMatch(/multiLine@feature\/a.*multiLine@main|running .*lump/);
+            expect(logged).toMatch(/multiLine@feature\/a/);
+        } finally {
+            snapshotSpy.mockRestore();
+            scoreSpy.mockRestore();
+            runLumpSpy.mockRestore();
+            logSpy.mockRestore();
+        }
+    });
 });
 
 /**
@@ -581,6 +661,18 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
             await import('../../../utils/discoverDedicatedLumpsForScanBranch'),
             'discoverDedicatedLumpsForScanBranch',
         );
+        const snapshotSpy = vi.spyOn(
+            await import('../../../utils/scoreDedicatedLumpLine'),
+            'snapshotDedicatedLumpLine',
+        );
+        const scoreSpy = vi.spyOn(
+            await import('../../../utils/scoreDedicatedLumpLine'),
+            'scoreDedicatedLumpLineSnapshots',
+        );
+        const reorderSpy = vi.spyOn(
+            await import('../../../utils/reorderRunLumpQueueByLineScore'),
+            'reorderRunLumpQueueByLineScore',
+        );
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -595,10 +687,16 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
                 .map((c) => c[0].scanBranch)
                 .filter((b) => b.startsWith('feature/'));
             expect(featureScans).toHaveLength(0);
+            expect(snapshotSpy).not.toHaveBeenCalled();
+            expect(scoreSpy).not.toHaveBeenCalled();
+            expect(reorderSpy).not.toHaveBeenCalled();
             const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
             expect(logged).toMatch(/multi.*discovery|dedicated/i);
         } finally {
             discoverSpy.mockRestore();
+            snapshotSpy.mockRestore();
+            scoreSpy.mockRestore();
+            reorderSpy.mockRestore();
             logSpy.mockRestore();
             warnSpy.mockRestore();
         }
