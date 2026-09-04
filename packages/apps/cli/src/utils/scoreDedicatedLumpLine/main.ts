@@ -19,19 +19,19 @@ import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { getProjectName } from '../getProjectName';
 import type { GitCommonDirLockContext } from '../gitCommonDirLock';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
+import type { DedicatedLumpLine } from '../lumpLine';
 import { makeGitCommitMessageFnFromLumpName } from '../makeGitCommitMessageFnFromLumpName';
 import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
-import type { LumpLine } from '../runLumpQueueWithConcurrency';
 
 export type LineScore =
     | { kind: 'scored'; value: number }
     | { kind: 'empty' }
     | { kind: 'failed'; reason: string };
 
-export type ScoredLumpLine = LumpLine & { lineScore: LineScore };
+export type ScoredLumpLine = DedicatedLumpLine & { lineScore: LineScore };
 
-export type SnapshotDedicatedLumpLineInput = LumpLine & {
+export type SnapshotDedicatedLumpLineInput = DedicatedLumpLine & {
     jsConfig: LumpJsConfig;
     localConfigFolderPath: string;
     globalConfigFolderPath: string;
@@ -41,7 +41,7 @@ export type SnapshotDedicatedLumpLineInput = LumpLine & {
     projectName?: string;
 };
 
-type ReadyDedicatedLumpLineSnapshot = LumpLine & {
+type ReadyDedicatedLumpLineSnapshot = DedicatedLumpLine & {
     kind: 'ready';
     projectRoot: string;
     baseBranch: string;
@@ -50,7 +50,7 @@ type ReadyDedicatedLumpLineSnapshot = LumpLine & {
     contextList: Context[];
 };
 
-type FailedDedicatedLumpLineSnapshot = LumpLine & {
+type FailedDedicatedLumpLineSnapshot = DedicatedLumpLine & {
     kind: 'failed';
     reason: string;
 };
@@ -59,7 +59,7 @@ export type DedicatedLumpLineSnapshot =
     | ReadyDedicatedLumpLineSnapshot
     | FailedDedicatedLumpLineSnapshot;
 
-function failedSnapshot(line: LumpLine, reason: string): FailedDedicatedLumpLineSnapshot {
+function failedSnapshot(line: DedicatedLumpLine, reason: string): FailedDedicatedLumpLineSnapshot {
     return {
         kind: 'failed',
         lumpName: line.lumpName,

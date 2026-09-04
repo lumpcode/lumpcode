@@ -670,8 +670,8 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
             'scoreDedicatedLumpLineSnapshots',
         );
         const reorderSpy = vi.spyOn(
-            await import('../../../utils/reorderRunLumpQueueByLineScore'),
-            'reorderRunLumpQueueByLineScore',
+            await import('../../../utils/reorderDedicatedLumpLines'),
+            'reorderDedicatedLumpLines',
         );
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});

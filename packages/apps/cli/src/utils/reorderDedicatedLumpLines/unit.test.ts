@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { reorderRunLumpQueueByLineScore, type ScoredLumpLine } from './main';
+import { reorderDedicatedLumpLines, type ScoredLumpLine } from './main';
 
 function scored(
     lumpName: string,
@@ -10,14 +10,14 @@ function scored(
     return { lumpName, effectiveDiscoveryBranch: branch, lineScore };
 }
 
-describe('reorderRunLumpQueueByLineScore', () => {
+describe('reorderDedicatedLumpLines', () => {
     it('slot-stable: better priority of same lump swaps into earlier slot; other lump stays', () => {
         const items: ScoredLumpLine[] = [
             scored('backlog', 'dev', { kind: 'scored', value: 10 }),
             scored('other', 'dev', { kind: 'scored', value: 1 }),
             scored('backlog', 'feature', { kind: 'scored', value: 3 }),
         ];
-        expect(reorderRunLumpQueueByLineScore(items)).toEqual([
+        expect(reorderDedicatedLumpLines(items)).toEqual([
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature' },
             { lumpName: 'other', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' },
@@ -30,7 +30,7 @@ describe('reorderRunLumpQueueByLineScore', () => {
             scored('backlog', 'feature/a', { kind: 'scored', value: 5 }),
             scored('backlog', 'feature/b', { kind: 'scored', value: 5 }),
         ];
-        expect(reorderRunLumpQueueByLineScore(items)).toEqual([
+        expect(reorderDedicatedLumpLines(items)).toEqual([
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature/a' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature/b' },
@@ -43,7 +43,7 @@ describe('reorderRunLumpQueueByLineScore', () => {
             scored('backlog', 'feature', { kind: 'scored', value: 3 }),
             scored('backlog', 'release', { kind: 'empty' }),
         ];
-        expect(reorderRunLumpQueueByLineScore(items)).toEqual([
+        expect(reorderDedicatedLumpLines(items)).toEqual([
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'release' },
@@ -56,7 +56,7 @@ describe('reorderRunLumpQueueByLineScore', () => {
             scored('backlog', 'mid', { kind: 'failed', reason: 'boom' }),
             scored('backlog', 'feature', { kind: 'scored', value: 3 }),
         ];
-        expect(reorderRunLumpQueueByLineScore(items)).toEqual([
+        expect(reorderDedicatedLumpLines(items)).toEqual([
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'mid' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' },
@@ -70,7 +70,7 @@ describe('reorderRunLumpQueueByLineScore', () => {
             scored('a', 'feature', { kind: 'scored', value: 2 }),
             scored('b', 'feature', { kind: 'scored', value: 8 }),
         ];
-        expect(reorderRunLumpQueueByLineScore(items)).toEqual([
+        expect(reorderDedicatedLumpLines(items)).toEqual([
             { lumpName: 'a', effectiveDiscoveryBranch: 'feature' },
             { lumpName: 'b', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'a', effectiveDiscoveryBranch: 'dev' },
@@ -84,7 +84,7 @@ describe('reorderRunLumpQueueByLineScore', () => {
             scored('other', 'dev', { kind: 'empty' }),
             scored('backlog', 'feature', { kind: 'empty' }),
         ];
-        expect(reorderRunLumpQueueByLineScore(items)).toEqual([
+        expect(reorderDedicatedLumpLines(items)).toEqual([
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'other', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature' },
@@ -97,7 +97,7 @@ describe('reorderRunLumpQueueByLineScore', () => {
             scored('other', 'dev', { kind: 'failed', reason: 'b' }),
             scored('backlog', 'feature', { kind: 'failed', reason: 'c' }),
         ];
-        expect(reorderRunLumpQueueByLineScore(items)).toEqual([
+        expect(reorderDedicatedLumpLines(items)).toEqual([
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'other', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature' },
@@ -105,6 +105,6 @@ describe('reorderRunLumpQueueByLineScore', () => {
     });
 
     it('returns empty array for empty input', () => {
-        expect(reorderRunLumpQueueByLineScore([])).toEqual([]);
+        expect(reorderDedicatedLumpLines([])).toEqual([]);
     });
 });

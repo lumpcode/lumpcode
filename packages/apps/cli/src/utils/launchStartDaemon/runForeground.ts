@@ -14,12 +14,13 @@ import { filterLumpNames } from '../filterLumpNames';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { installDaemonProcessGuards } from '../installDaemonProcessGuards';
 import { installProcessShutdown } from '../installProcessShutdown';
+import type { LumpLine } from '../lumpLine';
 import type { DaemonMetaWrite } from '../readDaemonMeta';
+import { reorderDedicatedLumpLines } from '../reorderDedicatedLumpLines';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
 import { runLumpFromLumpName } from '../runLumpFromLumpName';
-import { reorderRunLumpQueueByLineScore } from '../reorderRunLumpQueueByLineScore';
-import { runLumpQueueWithConcurrency, type RunLumpQueueItem } from '../runLumpQueueWithConcurrency';
+import { runLumpLinesWithConcurrency } from '../runLumpLinesWithConcurrency';
 import {
     scoreDedicatedLumpLineSnapshots,
     snapshotDedicatedLumpLine,
@@ -95,12 +96,12 @@ type TickSession = {
     };
 };
 
-type CollectTickLumpsResult =
+type CollectTickLumpLinesResult =
     | { kind: 'noop' }
     | { kind: 'expand-failed' }
-    | { kind: 'run'; items: RunLumpQueueItem[] };
+    | { kind: 'run'; items: LumpLine[] };
 
-async function collectDedicatedTickLumps(session: TickSession): Promise<CollectTickLumpsResult> {
+async function collectDedicatedTickLumpLines(session: TickSession): Promise<CollectTickLumpLinesResult> {
     const {
         recipe,
         frozenLocalConfig,
@@ -191,10 +192,10 @@ async function collectDedicatedTickLumps(session: TickSession): Promise<CollectT
             eligible.push(item);
         }
     }
-    return { kind: 'run', items: reorderRunLumpQueueByLineScore(eligible) };
+    return { kind: 'run', items: reorderDedicatedLumpLines(eligible) };
 }
 
-async function collectTickLumps(session: TickSession): Promise<CollectTickLumpsResult> {
+async function collectTickLumpLines(session: TickSession): Promise<CollectTickLumpLinesResult> {
     const {
         recipe,
         frozenLocalConfig,
@@ -231,7 +232,7 @@ async function collectTickLumps(session: TickSession): Promise<CollectTickLumpsR
     }
 
     if (frozenLocalConfig.mode === 'dedicated') {
-        return collectDedicatedTickLumps(session);
+        return collectDedicatedTickLumpLines(session);
     }
 
     const loadable = await discoverLoadableLumps({ localConfigFolderPath, logger });
@@ -247,11 +248,11 @@ async function collectTickLumps(session: TickSession): Promise<CollectTickLumpsR
     return { kind: 'run', items: names.map((lumpName) => ({ lumpName })) };
 }
 
-async function runOneLump(
+async function runLumpLine(
     session: TickSession,
-    lumpInput: RunLumpQueueItem,
+    lumpLine: LumpLine,
 ): Promise<void> {
-    const { lumpName } = lumpInput;
+    const { lumpName } = lumpLine;
     const abortController = new AbortController();
     session.daemonLumpAbortControllers.add(abortController);
     await session.inFlightMeta.adjust(1);
@@ -280,7 +281,7 @@ async function runOneLump(
             projectName: session.projectName,
             localConfig: session.frozenLocalConfig,
             logger: lumpLogger,
-            effectiveDiscoveryBranch: lumpInput.effectiveDiscoveryBranch,
+            effectiveDiscoveryBranch: lumpLine.effectiveDiscoveryBranch,
             signal: abortController.signal,
         });
         if (!runLumpRes.success) {
@@ -443,7 +444,7 @@ export async function runForegroundStartDaemon(
             return;
         }
         try {
-            const collected = await collectTickLumps(session);
+            const collected = await collectTickLumpLines(session);
             switch (collected.kind) {
                 case 'noop':
                     break;
@@ -465,10 +466,10 @@ export async function runForegroundStartDaemon(
                     if (collected.items.length === 0) {
                         break;
                     }
-                    await runLumpQueueWithConcurrency({
+                    await runLumpLinesWithConcurrency({
                         items: collected.items,
                         concurrency: effectiveConcurrency,
-                        runOneLump: (lumpInput) => runOneLump(session, lumpInput),
+                        runLumpLine: (line) => runLumpLine(session, line),
                     });
                     break;
                 }
