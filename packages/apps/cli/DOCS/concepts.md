@@ -186,7 +186,20 @@ On a **dedicated** machine, supervise can start schedulers from committed recipe
 
 Each file must set an exact **`discoveryBranch`**. Supervise considers a file only when it was read from `origin/<effectiveDiscoveryBranch>` and `discoveryBranch` equals that branch. Dedicated ticks use the same expand list (`expandPrimaryBranches`); each entry is the dedicated-line bind passed as `scanBranch` / `effectiveDiscoveryBranch` into lump discovery. Push a recipe on `feat/team-a` with `discoveryBranch: "feat/team-a"` when `primaryBranches` expands that line. You do not need to merge to the resolved primary first.
 
-Reconcile runs on the supervisor keep-alive cadence (about every 30s while due, then every 5 minutes after a successful snapshot). It fetches `origin`, discovers considered recipes, then starts enabled winners that are not already running. Meta for a file-launched daemon includes **`daemonConfigFile`** (`hash`, `discoveryBranch`, `path`). If a CLI-started process already owns that `daemonId` (no `daemonConfigFile` in meta), supervise logs and skips. Checkout strategy plus a file `maxParallelRun` is rejected (not started). `disabled: true` recipes are not started. Stop and hash-restart of file-launched daemons are follow-up behavior.
+Reconcile runs on the supervisor keep-alive cadence (about every 30s while due, then every 5 minutes after a successful snapshot). It fetches `origin`, discovers considered recipes, then applies start / stop / hash-restart. Meta for a file-launched daemon includes **`daemonConfigFile`** (`hash`, `discoveryBranch`, `path`).
+
+| Situation | Action |
+| --- | --- |
+| Enabled considered recipe, id not running | Start with `daemonConfigFile` in meta |
+| Running with `daemonConfigFile`, same normalized hash | No-op (ours; not a collision) |
+| Running with `daemonConfigFile`, normalized hash changed | Graceful stop, then start the new recipe |
+| Running with `daemonConfigFile`, `disabled: true` or no longer considered | Graceful stop |
+| Running without `daemonConfigFile`, a considered file wants that id | Log and skip (do not steal a CLI-started process) |
+| Checkout strategy plus file `maxParallelRun` | Do not start. A hash change into this combo still stops the old process; the illegal recipe is not started |
+
+**no longer considered** means the file was deleted, its `effectiveDiscoveryBranch` left the expand list, `discoveryBranch` no longer matches, the file failed parse/schema, or it lost a same-id contest on another expanded primary.
+
+Hashing uses the normalized parsed config (not file bytes): JSON vs YAML, key order, and omit vs empty `include`/`exclude` do not restart. Mid-run graceful stop (`daemonBusy`) leaves the reconcile due so the next 30s keep-alive retries; other successful snapshots wait 5 minutes.
 
 Spawned daemons are ordinary `lumpcode start` schedulers: ticks collect **`LumpLine`** rows (dedicated: `collectDedicatedTickLumpLines` on each scan branch), not a lump-name-only queue.
 

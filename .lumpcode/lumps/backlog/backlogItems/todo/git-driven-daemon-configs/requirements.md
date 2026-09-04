@@ -227,7 +227,7 @@ Owner: `reconcileDaemonConfigFiles`. Uses `launchStartDaemon` / `stopOneDaemon`.
 
 **noLongerConsidered** (file-launched only): deleted; `effectiveDiscoveryBranch` gone from expand; `discoveryBranch` mismatch; invalid file dropped; lost same-id contest.
 
-Checkout + file `maxParallelRun` set: treat as invalid start (log, do not start). If already running from an older valid recipe, hash change into this illegal combo: log, do not restart into a failing start (leave running until the file is fixed or no longer considered → stop).
+Checkout + file `maxParallelRun` set: treat as invalid start (log, do not start). A hash change into this combo is a normal hash-change stop; the start pass then refuses. The running process does not outlive an illegal considered file.
 
 ### Desired.json respawn (existing keep-alive)
 

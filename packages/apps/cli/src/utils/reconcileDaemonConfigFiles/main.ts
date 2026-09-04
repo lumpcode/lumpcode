@@ -11,6 +11,7 @@ import {
 
 import {
     DAEMON_CONFIG_RECONCILE_LOCK_HOLDER,
+    DAEMON_IDLE_STOP_WAIT_MS,
     DEFAULT_DAEMON_CRON_SETUP,
     DISCOVERY_GIT_TIMEOUT_MS,
 } from '../../consts';
@@ -30,7 +31,11 @@ import {
     type RunningDaemonInfo,
     type RunningProjectDaemons,
 } from '../listRunningProjectDaemons';
+import type { DaemonMeta } from '../readDaemonMeta';
 import type { StartDaemonRecipe } from '../startDaemonDesired';
+import { stopOneDaemon } from '../stopDaemon';
+import type { DaemonConfigFileMeta } from '../daemonConfigFile';
+import type { DaemonSchedulerFiles } from '../daemonSchedulerFiles';
 
 export type ReconcileDaemonConfigFilesOutput = {
     /**
@@ -85,8 +90,164 @@ function recipeFromConsidered(input: {
     };
 }
 
-function isFileLaunched(info: RunningDaemonInfo): boolean {
+type FileLaunchedDaemon = DaemonSchedulerFiles & {
+    pid: number;
+    meta: DaemonMeta & { daemonConfigFile: DaemonConfigFileMeta };
+};
+
+function isFileLaunched(info: RunningDaemonInfo): info is FileLaunchedDaemon {
     return hasRunningDaemonMeta(info) && info.meta.daemonConfigFile !== undefined;
+}
+
+function isCheckoutMaxParallelIllegal(input: {
+    workspaceStrategy: ResolvedProjectLocalConfig['workspaceStrategy'];
+    entry: ConsideredDaemonConfig;
+}): boolean {
+    return (
+        input.workspaceStrategy === 'checkout' && input.entry.parsed.maxParallelRun !== undefined
+    );
+}
+
+async function tryLaunchFileDaemon(input: {
+    entry: ConsideredDaemonConfig;
+    running: RunningProjectDaemons;
+    projectRoot: string;
+    projectName: string;
+    frozenLocalConfig: ResolvedProjectLocalConfig;
+    localConfigFolderPath: string;
+    globalConfigFolderPath: string;
+    logger: Logger;
+    json: boolean;
+    cliVerbose: boolean;
+    spawnFn?: typeof nodeSpawn;
+}): Promise<boolean> {
+    const {
+        entry,
+        running,
+        projectRoot,
+        projectName,
+        frozenLocalConfig,
+        localConfigFolderPath,
+        globalConfigFolderPath,
+        logger,
+        json,
+        cliVerbose,
+        spawnFn,
+    } = input;
+
+    if (isCheckoutMaxParallelIllegal({
+        workspaceStrategy: frozenLocalConfig.workspaceStrategy,
+        entry,
+    })) {
+        logger.error(
+            `reconcileDaemonConfigFiles: daemonId "${entry.daemonId}" sets maxParallelRun ` +
+                `but workspaceStrategy is "checkout"; not starting (${entry.path})`,
+        );
+        return false;
+    }
+
+    const recipe = recipeFromConsidered({
+        considered: entry,
+        projectRoot,
+        workspaceStrategy: frozenLocalConfig.workspaceStrategy,
+        localMaxParallelRun: frozenLocalConfig.maxParallelRun,
+    });
+    const launchResult = await launchStartDaemon({
+        recipe,
+        frozenLocalConfig,
+        localConfigFolderPath,
+        globalConfigFolderPath,
+        projectName,
+        json,
+        cliVerbose,
+        foreground: false,
+        logger,
+        spawnFn,
+        skipEnsureSupervisor: true,
+        running,
+    });
+    if (!launchResult.success) {
+        logger.error(
+            `reconcileDaemonConfigFiles: failed to start "${entry.daemonId}": ${launchResult.data.messages.join(' ')}`,
+        );
+        return false;
+    }
+    logger.info(
+        `reconcileDaemonConfigFiles: started file daemon "${entry.daemonId}" from ${entry.path} ` +
+            `(${entry.effectiveDiscoveryBranch})`,
+    );
+    return true;
+}
+
+/**
+ * Graceful-stop file-launched daemons that are disabled / no longer considered,
+ * or whose normalized hash changed (stop only; start is a later pass).
+ * Returns whether apply must stay due (`daemonBusy` / failed graceful stop).
+ */
+async function applyStopsForFileLaunched(input: {
+    consideredById: Map<string, ConsideredDaemonConfig>;
+    running: RunningProjectDaemons;
+    logger: Logger;
+}): Promise<{ stayDue: boolean }> {
+    const { consideredById, running, logger } = input;
+    let stayDue = false;
+
+    for (const [daemonId, live] of Object.entries(running)) {
+        if (!isFileLaunched(live)) {
+            continue;
+        }
+        const fileMeta = live.meta.daemonConfigFile;
+        const entry = consideredById.get(daemonId);
+        const stillExistsAndEnabled = entry !== undefined && entry.parsed.disabled !== true;
+
+        if (stillExistsAndEnabled && entry.hash === fileMeta.hash) {
+            continue;
+        }
+
+        const stopped = await stopOneDaemon({
+            pidFilePath: live.pidFilePath,
+            metaFilePath: live.metaFilePath,
+            desiredFilePath: live.desiredFilePath,
+            force: false,
+            waitMs: DAEMON_IDLE_STOP_WAIT_MS,
+            logger,
+        });
+
+        if (stopped.status === 'busy') {
+            logger.info(
+                `reconcileDaemonConfigFiles: daemonId "${daemonId}" is mid-run; staying due for next keep-alive`,
+            );
+            stayDue = true;
+            continue;
+        }
+
+        if (stopped.status === 'failed' || stopped.status === 'metaCorrupt') {
+            const detail =
+                stopped.status === 'failed'
+                    ? stopped.message
+                    : `metaCorrupt (${stopped.reason})`;
+            logger.error(
+                `reconcileDaemonConfigFiles: failed to stop file daemon "${daemonId}": ${detail}; staying due`,
+            );
+            stayDue = true;
+            continue;
+        }
+
+        delete running[daemonId];
+        if (stillExistsAndEnabled) {
+            logger.info(
+                `reconcileDaemonConfigFiles: stopped file daemon "${daemonId}" ` +
+                    `(recipe hash changed; ${entry.path})`,
+            );
+        } else {
+            logger.info(
+                `reconcileDaemonConfigFiles: stopped file daemon "${daemonId}" ` +
+                    `(disabled or no longer considered; was ${fileMeta.path})`,
+            );
+        }
+    }
+
+    return { stayDue };
 }
 
 async function applyStarts(input: {
@@ -115,7 +276,6 @@ async function applyStarts(input: {
         cliVerbose,
         spawnFn,
     } = input;
-    const workspaceStrategy = frozenLocalConfig.workspaceStrategy;
     const startedThisPass = new Set<string>();
 
     for (const entry of considered) {
@@ -130,7 +290,7 @@ async function applyStarts(input: {
         const live = running[entry.daemonId];
         if (live !== undefined) {
             if (isFileLaunched(live)) {
-                // Ticket 06: hash-restart / stop. Same-hash no-op for now.
+                // Same-hash ours: no-op, no collision log.
                 continue;
             }
             logger.error(
@@ -141,52 +301,29 @@ async function applyStarts(input: {
             continue;
         }
 
-        if (workspaceStrategy === 'checkout' && entry.parsed.maxParallelRun !== undefined) {
-            logger.error(
-                `reconcileDaemonConfigFiles: daemonId "${entry.daemonId}" sets maxParallelRun ` +
-                    `but workspaceStrategy is "checkout"; not starting (${entry.path})`,
-            );
-            continue;
-        }
-
-        const recipe = recipeFromConsidered({
-            considered: entry,
+        const launched = await tryLaunchFileDaemon({
+            entry,
+            running,
             projectRoot,
-            workspaceStrategy,
-            localMaxParallelRun: frozenLocalConfig.maxParallelRun,
-        });
-        const launchResult = await launchStartDaemon({
-            recipe,
+            projectName,
             frozenLocalConfig,
             localConfigFolderPath,
             globalConfigFolderPath,
-            projectName,
+            logger,
             json,
             cliVerbose,
-            foreground: false,
-            logger,
             spawnFn,
-            skipEnsureSupervisor: true,
-            running,
         });
-        if (!launchResult.success) {
-            logger.error(
-                `reconcileDaemonConfigFiles: failed to start "${entry.daemonId}": ${launchResult.data.messages.join(' ')}`,
-            );
-            continue;
+        if (launched) {
+            startedThisPass.add(entry.daemonId);
         }
-        logger.info(
-            `reconcileDaemonConfigFiles: started file daemon "${entry.daemonId}" from ${entry.path} ` +
-                `(${entry.effectiveDiscoveryBranch})`,
-        );
-        startedThisPass.add(entry.daemonId);
     }
 }
 
 /**
  * Dedicated supervise pass: fetch origin, discover considered repo daemon recipes,
- * then start enabled winners that are not already running.
- * Holds `gitCommonDirLock` only for fetch + discover; releases before spawn.
+ * then stop/restart/start file-launched daemons as needed.
+ * Holds `gitCommonDirLock` only for fetch + discover; releases before spawn/stop.
  */
 export async function reconcileDaemonConfigFiles(
     input: ReconcileDaemonConfigFilesInput,
@@ -275,9 +412,18 @@ export async function reconcileDaemonConfigFiles(
         return success({ advanced: false });
     }
 
+    const running: RunningProjectDaemons = { ...runningResult.data };
+    const consideredById = new Map(considered.map((entry) => [entry.daemonId, entry]));
+
+    const { stayDue } = await applyStopsForFileLaunched({
+        consideredById,
+        running,
+        logger,
+    });
+
     await applyStarts({
         considered,
-        running: runningResult.data,
+        running,
         projectRoot,
         projectName,
         frozenLocalConfig,
@@ -289,6 +435,7 @@ export async function reconcileDaemonConfigFiles(
         spawnFn,
     });
 
-    // Snapshot taken: collisions / skip-start do not stay due (ticket 06 adds daemonBusy stay-due).
-    return success({ advanced: true });
+    // Snapshot taken: collisions / skip-start do not stay due.
+    // daemonBusy (or failed graceful stop) on stop/restart stays due.
+    return success({ advanced: !stayDue });
 }

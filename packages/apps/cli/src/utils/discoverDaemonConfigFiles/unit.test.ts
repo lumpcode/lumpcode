@@ -5,10 +5,10 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
 
-import { createIntegrationBranch, initBareRemoteAndCheckout } from '../../testing';
+import { createIntegrationBranch, daemonConfigFileJson, initBareRemoteAndCheckout } from '../../testing';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { execGit } from '../execGit';
-import { hashDaemonConfigFile } from '../daemonConfigFile';
+import { DaemonConfigFile, hashDaemonConfigFile } from '../daemonConfigFile';
 import { discoverDaemonConfigFiles } from './main';
 
 function createLogger(): Logger {
@@ -19,10 +19,6 @@ function createLogger(): Logger {
         verbose: vi.fn(),
         child: () => createLogger(),
     };
-}
-
-function daemonJson(discoveryBranch: string, extra: Record<string, unknown> = {}): string {
-    return `${JSON.stringify({ discoveryBranch, ...extra }, null, 2)}\n`;
 }
 
 describe('discoverDaemonConfigFiles', () => {
@@ -49,7 +45,7 @@ describe('discoverDaemonConfigFiles', () => {
             remoteDir,
             branchName: 'feat/a',
             extraFiles: {
-                '.lumpcode/daemons/agents.json': daemonJson('feat/a', { include: ['agents'] }),
+                '.lumpcode/daemons/agents.json': daemonConfigFileJson('feat/a', { include: ['agents'] }),
             },
         });
         await createIntegrationBranch({
@@ -57,7 +53,7 @@ describe('discoverDaemonConfigFiles', () => {
             remoteDir,
             branchName: 'feat/b',
             extraFiles: {
-                '.lumpcode/daemons/agents.json': daemonJson('dev', { include: ['agents'] }),
+                '.lumpcode/daemons/agents.json': daemonConfigFileJson('dev', { include: ['agents'] }),
             },
         });
         execGit('fetch origin', projectRoot);
@@ -96,7 +92,7 @@ describe('discoverDaemonConfigFiles', () => {
             remoteDir,
             branchName: 'dev',
             extraFiles: {
-                '.lumpcode/daemons/nightly.json': daemonJson('dev'),
+                '.lumpcode/daemons/nightly.json': daemonConfigFileJson('dev'),
                 '.lumpcode/daemons/nightly.yml': 'discoveryBranch: dev\n',
             },
         });
@@ -124,7 +120,7 @@ describe('discoverDaemonConfigFiles', () => {
             remoteDir,
             branchName: 'dev',
             extraFiles: {
-                '.lumpcode/daemons/shared.json': daemonJson('dev', { include: ['from-dev'] }),
+                '.lumpcode/daemons/shared.json': daemonConfigFileJson('dev', { include: ['from-dev'] }),
             },
         });
         await createIntegrationBranch({
@@ -132,7 +128,7 @@ describe('discoverDaemonConfigFiles', () => {
             remoteDir,
             branchName: 'feat/a',
             extraFiles: {
-                '.lumpcode/daemons/shared.json': daemonJson('feat/a', { include: ['from-feat'] }),
+                '.lumpcode/daemons/shared.json': daemonConfigFileJson('feat/a', { include: ['from-feat'] }),
             },
         });
         execGit('fetch origin', projectRoot);
@@ -159,10 +155,10 @@ describe('discoverDaemonConfigFiles', () => {
         const daemonsDir = path.join(projectRoot, '.lumpcode', 'daemons');
         await fs.mkdir(path.join(daemonsDir, 'nested'), { recursive: true });
         await fs.writeFile(path.join(daemonsDir, 'README.md'), '# ignore\n', 'utf-8');
-        await fs.writeFile(path.join(daemonsDir, 'bad name.json'), daemonJson('main'), 'utf-8');
-        await fs.writeFile(path.join(daemonsDir, 'ok.bak'), daemonJson('main'), 'utf-8');
-        await fs.writeFile(path.join(daemonsDir, 'nested', 'deep.json'), daemonJson('main'), 'utf-8');
-        await fs.writeFile(path.join(daemonsDir, 'ok.json'), daemonJson('main'), 'utf-8');
+        await fs.writeFile(path.join(daemonsDir, 'bad name.json'), daemonConfigFileJson('main'), 'utf-8');
+        await fs.writeFile(path.join(daemonsDir, 'ok.bak'), daemonConfigFileJson('main'), 'utf-8');
+        await fs.writeFile(path.join(daemonsDir, 'nested', 'deep.json'), daemonConfigFileJson('main'), 'utf-8');
+        await fs.writeFile(path.join(daemonsDir, 'ok.json'), daemonConfigFileJson('main'), 'utf-8');
         execGit('add .lumpcode/daemons', projectRoot);
         execGit('commit -m "daemon files on main"', projectRoot);
         execGit('push origin main', projectRoot);
@@ -200,7 +196,7 @@ describe('discoverDaemonConfigFiles', () => {
             branchName: 'dev',
             extraFiles: {
                 '.lumpcode/daemons/broken.json': '{not-json',
-                '.lumpcode/daemons/extra-key.json': daemonJson('dev', { daemonId: 'nope' }),
+                '.lumpcode/daemons/extra-key.json': daemonConfigFileJson('dev', { daemonId: 'nope' } as unknown as DaemonConfigFile),
                 '.lumpcode/daemons/good.yml': 'discoveryBranch: dev\ncronSetup: "*/10 * * * *"\n',
             },
         });
@@ -209,7 +205,7 @@ describe('discoverDaemonConfigFiles', () => {
         // Working-tree-only file must not be considered.
         const daemonsDir = path.join(projectRoot, '.lumpcode', 'daemons');
         await fs.mkdir(daemonsDir, { recursive: true });
-        await fs.writeFile(path.join(daemonsDir, 'cwd-only.json'), daemonJson('main'), 'utf-8');
+        await fs.writeFile(path.join(daemonsDir, 'cwd-only.json'), daemonConfigFileJson('main'), 'utf-8');
 
         const result = await discoverDaemonConfigFiles({
             cwd: projectRoot,
