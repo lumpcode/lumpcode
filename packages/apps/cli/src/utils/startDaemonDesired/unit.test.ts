@@ -118,8 +118,16 @@ describe('startDaemonDesired', () => {
         });
     });
 
-    it('toDesired drops workspaceStrategy and toMetaWrite copies recipe fields', () => {
-        expect(toDesired(recipe)).toEqual({
+    it('toDesired drops workspaceStrategy and daemonConfigFile; toMetaWrite copies recipe fields', () => {
+        const withFile = {
+            ...recipe,
+            daemonConfigFile: {
+                hash: 'abc123',
+                discoveryBranch: 'dev',
+                path: '.lumpcode/daemons/agents.json',
+            },
+        };
+        expect(toDesired(withFile)).toEqual({
             projectRoot: '/tmp/proj',
             daemonId: 'agents',
             cronSetup: '*/7 * * * *',
@@ -132,6 +140,18 @@ describe('startDaemonDesired', () => {
             workspaceStrategy: 'worktree',
             include: ['backlog'],
             maxParallelRun: 2,
+        });
+        expect(toMetaWrite(withFile)).toEqual({
+            daemonId: 'agents',
+            cronSetup: '*/7 * * * *',
+            workspaceStrategy: 'worktree',
+            include: ['backlog'],
+            maxParallelRun: 2,
+            daemonConfigFile: {
+                hash: 'abc123',
+                discoveryBranch: 'dev',
+                path: '.lumpcode/daemons/agents.json',
+            },
         });
     });
 
