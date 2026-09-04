@@ -20,7 +20,7 @@ Push an enabled recipe to an expanded primary, wait for a successful reconcile: 
 - Not running + missing/`disabled`: no-op.
 - Running, **no** `daemonConfigFile`, considered file wants that id: log, skip.
 - Checkout + file `maxParallelRun` set: do not start, log.
-- Docs: concepts section for repo files (start/collision/bootstrap/`discoveryBranch`). `get-started` optional dedicated push. Link from `commands.md`.
+- Docs: concepts section for repo files (start/collision/bootstrap/`discoveryBranch` as dedicated-line bind). `get-started` optional dedicated push. Link from `commands.md`. Do not document a lump-name-only queue; spawned daemon ticks use `LumpLine` / `collectDedicatedTickLumpLines` on `dev`.
 
 Ticket 01 is recommended for operators but is not a `dependsOn`.
 
@@ -32,7 +32,7 @@ Ticket 01 is recommended for operators but is not a `dependsOn`.
 
 ## Acceptance
 
-- [ ] Dedicated: considered enabled file on any expanded `origin/<scan>` starts that daemon; not on cwd/`HEAD`.
+- [ ] Dedicated: considered enabled file on any expanded `origin/<effectiveDiscoveryBranch>` starts that daemon; not on cwd/`HEAD`.
 - [ ] Shared supervise does not start from files.
 - [ ] CLI-owned id: log, skip; lock busy stays due; 30s keep-alive still runs.
 - [ ] `disabled: true` file is not started (running leftover is ticket 06).

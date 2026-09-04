@@ -4,14 +4,14 @@ Global contract: [`../../requirements.md`](../../requirements.md) (Apply ours/ha
 
 ## Standalone value
 
-The fleet follows git after start: disable or delete a recipe (or drop its scan branch) and the file-launched process stops; change include/cron (normalized) and it graceful-restarts.
+The fleet follows git after start: disable or delete a recipe (or drop its `effectiveDiscoveryBranch` from expand) and the file-launched process stops; change include/cron (normalized) and it graceful-restarts.
 
 ## In scope
 
 - Running + `daemonConfigFile` + same hash: no-op, no collision log.
 - Running + `daemonConfigFile` + hash changed: graceful `stopOneDaemon` (not `--force`), then start new recipe. `daemonBusy` → stay due.
 - Running + `daemonConfigFile` + `disabled` or no longer considered: graceful stop. `daemonBusy` → stay due.
-- **noLongerConsidered**: deleted; scan branch gone; `discoveryBranch` mismatch; invalid file dropped; lost same-id contest.
+- **noLongerConsidered**: deleted; `effectiveDiscoveryBranch` gone from expand; `discoveryBranch` mismatch; invalid file dropped; lost same-id contest.
 - Never stop a process that lacks `daemonConfigFile`.
 - Hash change into checkout + `maxParallelRun` set: log, do not restart into a failing start; leave running until file is valid or no longer considered (then stop).
 - Docs: hash-restart, disable/stop, collision-vs-ours. E2E: `--superviseOnly` + push recipe + `daemon-status` shows path; stop `--all` still stops supervise.

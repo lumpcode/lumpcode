@@ -8,6 +8,19 @@
 | **Depends on** | `daemon-id-and-filters` (landed). Complements `daemon-primary-branch-refresh-command` (tree ready after checkout); this item owns **daemon lifecycle from repo files**, not `refreshCommand`. |
 | **Packages** | Primary: `packages/apps/cli` (supervise, start, meta, utils, schema, DOCS, e2e). `@lumpcode/core` **unchanged**. `cli-types` / `cli-utils` unchanged unless they re-export daemon meta types. |
 
+### Vocabulary (LumpLine on `dev`)
+
+A file-launched daemon is the same scheduler as `lumpcode start`. Dedicated ticks collect **`LumpLine[]`** via `collectDedicatedTickLumpLines` in `runForeground.ts` (not a lump-name-only queue, `RunLumpQueueItem`, or `collectTickLumps`). The pool is `runLumpLinesWithConcurrency`.
+
+| Type | Contract |
+| --- | --- |
+| `LumpLine` | `{ lumpName; effectiveDiscoveryBranch? }` — optional branch = shared collect (no discovery bind). Owner: `utils/lumpLine/`. |
+| `DedicatedLumpLine` | `LumpLine` with required `effectiveDiscoveryBranch`. Dedicated scoring/reorder use this. |
+
+Repo file field **`discoveryBranch`** is the operator-facing name for the dedicated-line bind. It must equal the **`effectiveDiscoveryBranch`** of the `origin/<branch>` ref the file was read from (same string passed as `scanBranch` to `discoverDedicatedLumpsForScanBranch`). Do not invent a second branch type.
+
+File `include` / `exclude` are lump-name filters (`filterLumpNames`). The running daemon then snapshots matched names into `DedicatedLumpLine`s per tick. Supervise file reconcile must not reimplement lump collect.
+
 ## Problem statement and motivation
 
 Daemon fleet membership is machine-local: `lumpcode start` writes `~/.lumpcode/daemons/<project>.<id>.daemon.desired.json` and supervise only respawns those files. Teams on different dedicated primary lines cannot add or remove a scheduler by pushing git. There is no JSON/YAML daemon recipe in the repo, and no way to start supervise without also launching a daemon (`global` or a dummy `--exclude=*`, which still discovers every tick).
@@ -22,7 +35,7 @@ Pain points:
 ## Goals
 
 1. **Repo recipes** — JSON/YAML files under `.lumpcode/daemons/` declare daemons (`cronSetup`, include/exclude, `disabled`, optional `maxParallelRun`, exact `discoveryBranch`). No TS/JS.
-2. **All expanded primaries** — dedicated supervise reads recipes from every `expandPrimaryBranches` scan branch (remote-tracking refs), so a team can push a file on `feat/team-a` without merging to the resolved primary.
+2. **All expanded primaries** — dedicated supervise reads recipes from every `expandPrimaryBranches` entry (each is a dedicated line’s `effectiveDiscoveryBranch`; remote-tracking refs), so a team can push a file on `feat/team-a` without merging to the resolved primary.
 3. **Supervise reconcile** — existing `supervise` (not a second process) starts considered, non-disabled recipes; graceful-stops file-launched daemons that are `disabled` or no longer considered; hash-restarts when the normalized file changes.
 4. **`--superviseOnly`** — start supervise without a daemon (not equivalent to `--exclude=*`).
 5. **Safe respawn strategy** — desired.json respawn uses **that daemon’s meta** `workspaceStrategy`, not a live `local.json` read.
@@ -42,7 +55,7 @@ Pain points:
 ## User stories / use cases
 
 1. **Operator (bootstrap)** — `lumpcode start --superviseOnly` on a dedicated clone. Supervise stays up. Push `.lumpcode/daemons/nightly.json` with `discoveryBranch: "dev"` → within a successful reconcile, daemon `nightly` is running.
-2. **Team (feature line)** — `primaryBranches: ["dev", "feat/*"]`. Team pushes `feat/team-a:.lumpcode/daemons/agents.json` with `discoveryBranch: "feat/team-a"`. Supervise considers it when `feat/team-a` is an expanded scan branch. No merge to `dev`.
+2. **Team (feature line)** — `primaryBranches: ["dev", "feat/*"]`. Team pushes `feat/team-a:.lumpcode/daemons/agents.json` with `discoveryBranch: "feat/team-a"`. Supervise considers it when `feat/team-a` is an expanded `effectiveDiscoveryBranch`. No merge to `dev`.
 3. **Operator (disable)** — set `disabled: true` on that file, push. Next successful reconcile graceful-stops the file-launched daemon. CLI `start` of the same id is untouched if it was never file-launched.
 4. **Operator (edit)** — change `include` (not merely JSON key order or YAML vs JSON). Next successful reconcile graceful-restarts that id with the new recipe.
 5. **Operator (collision)** — `lumpcode start --daemonId=nightly` already running. A repo `nightly.json` is considered: log error, do nothing. If the running process has `daemonConfigFile` in meta, that is “ours” (hash compare / already running), not a collision.
@@ -62,7 +75,7 @@ Pain points:
 | Directory | Top-level only. Nested paths ignored (no error). |
 | Stem | `daemonId`; charset `DAEMON_ID_CHARSET` (`/^[a-zA-Z0-9_-]+$/`). `global` allowed. |
 | Other names | `README.md`, `.bak`, invalid stems: ignore, no error. |
-| Two extensions, same stem, same scan branch | Invalid for that id **on that branch**: log error, consider **neither** file there. |
+| Two extensions, same stem, same `effectiveDiscoveryBranch` | Invalid for that id **on that branch**: log error, consider **neither** file there. |
 | In-file `daemonId` | Forbidden (`.strict()` schema). Id is the stem only. |
 | Identity | **Project-global** (same as `~/.lumpcode/daemons/<projectName>.<daemonId>.*`). Not per-machine, not per-branch. |
 
@@ -82,15 +95,15 @@ Owner: `packages/apps/cli/src/utils/daemonConfigFile/` (schema, normalize, hash)
 }
 ```
 
-Omit/empty `include` / `exclude` ≡ unfiltered (same as `filterLumpNames`: omit/`[]` include = all). Ship `packages/apps/cli/src/schemas/daemonConfig.schema.json` aligned with this schema (user-facing `$schema`, same bar as `lumpConfig.schema.json`).
+Omit/empty `include` / `exclude` ≡ unfiltered lump-name filters (same as `filterLumpNames`: omit/`[]` include = all loadable lumps). The spawned daemon tick then collects `DedicatedLumpLine`s for those names. Ship `packages/apps/cli/src/schemas/daemonConfig.schema.json` aligned with this schema (user-facing `$schema`, same bar as `lumpConfig.schema.json`).
 
 `maxParallelRun` in the file ≡ `start --maxParallelRun`. If supervise freeze `workspaceStrategy === 'checkout'` and the field is set: log error, **do not start** that id. Omit → local.json default from the supervise-start snapshot.
 
 ### `discoveryBranch`
 
-Exactly one exact branch name. Consider the file **iff** it was read from scan branch `S` and `discoveryBranch === S`. File on `feat/a` with `discoveryBranch: "dev"` is dead.
+Exactly one exact branch name (the dedicated-line bind). Consider the file **iff** it was read from `refs/remotes/origin/<B>` and `discoveryBranch === B`, where `B` is that line’s `effectiveDiscoveryBranch`. File on `feat/a` with `discoveryBranch: "dev"` is dead.
 
-Scan list = `expandPrimaryBranches` (unchanged order: resolved primary at index 0, rest configured-entry expand order).
+Scan list = `expandPrimaryBranches` (unchanged order: resolved primary at index 0, rest configured-entry expand order). Same list `collectDedicatedTickLumpLines` uses; each entry is the `scanBranch` / `effectiveDiscoveryBranch` passed to `discoverDedicatedLumpsForScanBranch`. Do not rename that helper.
 
 ### Normalize + hash
 
@@ -159,9 +172,9 @@ Owner: `discoverDaemonConfigFiles`. No `fs.readFile` of cwd, no `HEAD`, no local
 After lock + fetch:
 
 1. `git fetch --prune --no-write-fetch-head origin` (timeout `DISCOVERY_GIT_TIMEOUT_MS`).
-2. For each scan branch: `git ls-tree --name-only refs/remotes/origin/<scanBranch> .lumpcode/daemons` then `git show refs/remotes/origin/<scanBranch>:<posixPath>`.
+2. For each `effectiveDiscoveryBranch` in expand order: `git ls-tree --name-only refs/remotes/origin/<effectiveDiscoveryBranch> .lumpcode/daemons` then `git show refs/remotes/origin/<effectiveDiscoveryBranch>:<posixPath>`.
 
-Missing `origin/<scanBranch>`: skip that scan branch, warn once per pass, do **not** fail the whole snapshot.
+Missing `origin/<effectiveDiscoveryBranch>`: skip that branch, warn once per pass, do **not** fail the whole snapshot.
 
 Do **not** run `refreshCommand`. File must be committed on that branch.
 
@@ -195,7 +208,7 @@ Merged `local.json`/`project.json` for file reconcile: **one read at supervise s
 
 Owner: `discoverDaemonConfigFiles`.
 
-For each scan branch, each valid top-level file: parse + schema; consider iff `discoveryBranch === scanBranch`. Group by `daemonId` in expand order. Winner = first. Extra matching files: log error (id + branches), drop extras (do not fail the snapshot).
+For each `effectiveDiscoveryBranch`, each valid top-level file: parse + schema; consider iff `discoveryBranch === effectiveDiscoveryBranch`. Group by `daemonId` in expand order. Winner = first. Extra matching files: log error (id + branches), drop extras (do not fail the snapshot).
 
 Invalid parse/schema: log, drop that file (if it was the only source for a running file-daemon, that id is no longer considered).
 
@@ -212,7 +225,7 @@ Owner: `reconcileDaemonConfigFiles`. Uses `launchStartDaemon` / `stopOneDaemon`.
 | Yes | `daemonConfigFile` set | `disabled` or not considered | graceful stop; busy → stay due |
 | Yes | no `daemonConfigFile` | any file wants that id | log error, skip id (do not steal CLI/unknown process) |
 
-**noLongerConsidered** (file-launched only): deleted; scan branch gone from expand; `discoveryBranch` mismatch; invalid file dropped; lost same-id contest.
+**noLongerConsidered** (file-launched only): deleted; `effectiveDiscoveryBranch` gone from expand; `discoveryBranch` mismatch; invalid file dropped; lost same-id contest.
 
 Checkout + file `maxParallelRun` set: treat as invalid start (log, do not start). If already running from an older valid recipe, hash change into this illegal combo: log, do not restart into a failing start (leave running until the file is fixed or no longer considered → stop).
 
@@ -245,7 +258,7 @@ Index and slices: [`tickets/README.md`](./tickets/README.md).
 | Level | Coverage |
 | --- | --- |
 | **Unit** `daemonConfigFile` | Default vs explicit `cronSetup`/`disabled` same hash; JSON vs YAML same hash; key order; empty include ≡ omit; sorted include; glob `discoveryBranch` fails schema; extra key fails. |
-| **Unit** `discoverDaemonConfigFiles` | Consider only `discoveryBranch === scanBranch`; two extensions one stem → neither; first expand-order id wins; ignore README/nested; skip missing origin ref. |
+| **Unit** `discoverDaemonConfigFiles` | Consider only `discoveryBranch === effectiveDiscoveryBranch`; two extensions one stem → neither; first expand-order id wins; ignore README/nested; skip missing origin ref. |
 | **Unit** `reconcileDaemonConfigFiles` | Start enabled; skip `disabled`; ours same hash no-op; hash change restart; CLI id collision log+skip; file-launched + gone → stop; lock busy → stay due; collision after snapshot does not stay due; `daemonBusy` stays due. |
 | **Unit** `start --superviseOnly` | Exclusive flags fail; no desired/pid daemon files; `ensureProjectSupervisor` called; already-alive supervise success. |
 | **Unit** `spawnDesiredDaemon` | Uses meta `workspaceStrategy`; does not use live local.json strategy; skip on bad meta. |
@@ -259,7 +272,7 @@ Prefer extending existing supervise / start / `readDaemonMeta` suites over wholl
 | Document | Change |
 | --- | --- |
 | `DOCS/commands.md` | `start --superviseOnly`; exclusive flags; envelope. File recipes: not a second supervise command. |
-| `DOCS/concepts.md` | One section: repo daemon files, dedicated-only, `discoveryBranch`, hash-restart, collision, bootstrap. Link from start; do not duplicate git fetch flags on other pages. |
+| `DOCS/concepts.md` | One section: repo daemon files, dedicated-only, `discoveryBranch` as the dedicated-line bind (`effectiveDiscoveryBranch`), hash-restart, collision, bootstrap. Link from start; do not duplicate git fetch flags on other pages. |
 | `DOCS/get-started.md` | Optional dedicated “push a daemon file” after `--superviseOnly`. |
 | `schemas/daemonConfig.schema.json` | New (editors). |
 | CLI `start` description | Mention `--superviseOnly`. |
@@ -268,9 +281,9 @@ Document **current** spelling only.
 
 ## Acceptance criteria
 
-- [ ] Dedicated supervise, after `--superviseOnly` or any `start`, considers top-level `.lumpcode/daemons/<id>.{json,yml,yaml}` on every expanded primary via `origin/<scanBranch>` (not cwd/`HEAD`).
-- [ ] A file is considered only when `discoveryBranch` is exact and equals that scan branch.
-- [ ] Same `daemonId` on two scan branches: first `expandPrimaryBranches` entry wins; later sources log and are ignored.
+- [ ] Dedicated supervise, after `--superviseOnly` or any `start`, considers top-level `.lumpcode/daemons/<id>.{json,yml,yaml}` on every expanded primary via `origin/<effectiveDiscoveryBranch>` (not cwd/`HEAD`).
+- [ ] A file is considered only when `discoveryBranch` is exact and equals that line’s `effectiveDiscoveryBranch`.
+- [ ] Same `daemonId` on two expanded primaries: first `expandPrimaryBranches` entry wins; later sources log and are ignored.
 - [ ] Same stem, two extensions on one branch: neither considered; error logged.
 - [ ] Normalized hash change → graceful restart; JSON/YAML/key-order/empty-include do not; `daemonBusy` retries next 30s until success, then 5 min.
 - [ ] File-launched + `disabled` or no longer considered → graceful stop. CLI-started processes never stopped for these reasons.
@@ -290,7 +303,7 @@ const DAEMON_CONFIG_RECONCILE_LOCK_HOLDER = '__daemon-config__';
 
 type ConsideredDaemonConfig = {
   daemonId: string;
-  scanBranch: string;
+  effectiveDiscoveryBranch: string; // expandPrimaryBranches entry; DedicatedLumpLine bind
   path: string;
   parsed: z.infer<typeof daemonConfigFileSchema>;
   hash: string;
