@@ -5,7 +5,8 @@ import { command as startCommand } from '../commands/start/main';
 import { command as stopCommand } from '../commands/stop/main';
 import { resolveDaemonPaths } from '../utils';
 import { aliveDaemonSpawnFn } from './aliveDaemonSpawn';
-import { waitForDaemonPidFile } from './waitForDaemonPidFile';
+import { waitForAliveDaemonChildMeta, waitForDaemonPidFile } from './waitForDaemonPidFile';
+
 
 export type AliveDaemonTestPaths = {
     pidFilePath: string;
@@ -80,6 +81,7 @@ export async function withAliveDaemon(input: {
     const { pidFilePath, metaFilePath, logFilePath, projectName, daemonId: pathsDaemonId } =
         pathsResult.data;
     await waitForDaemonPidFile(pidFilePath);
+    await waitForAliveDaemonChildMeta(metaFilePath);
 
     const stopHandle = stopCommand.handlerMaker({
         projectRoot,

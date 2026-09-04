@@ -23,6 +23,12 @@ export const REFRESH_COMMAND_TIMEOUT_MS = 900_000;
 /** Local reconcile interval for `lumpcode supervise`. */
 export const SUPERVISE_LOCAL_PASS_INTERVAL_MS = 30_000;
 
+/** How long after a successful repo-daemon-file reconcile before the next attempt. */
+export const SUPERVISE_DAEMON_CONFIG_RECONCILE_INTERVAL_MS = 5 * 60_000;
+
+/** Lock-holder label for supervise file-daemon reconcile (not a real lump name). */
+export const DAEMON_CONFIG_RECONCILE_LOCK_HOLDER = '__daemon-config__';
+
 /** How long graceful `stop --all` waits for lump daemons to drain. */
 export const STOP_ALL_DRAIN_TIMEOUT_MS = 15 * 60 * 1000;
 

@@ -79,6 +79,7 @@ export * from './readProjectJson';
 export * from './readProjectLocalConfig';
 export * from './readJsonFile';
 export * from './readYamlList';
+export * from './reconcileDaemonConfigFiles';
 export * from './reorderDedicatedLumpLines';
 export * from './resolveDaemonCommandScope';
 export * from './resolveDaemonId';
