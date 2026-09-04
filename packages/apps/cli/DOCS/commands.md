@@ -262,7 +262,7 @@ Plus global [`--json`](#ref-json-output).
 | `--superviseOnly`   | flag    | No       | Start or adopt the project supervisor only (no daemon spawn)           |
 | `--lumpName`        | string  | No       | **Deprecated.** Equivalent to `--include=<name>`                         |
 
-**`--superviseOnly`:** starts (or adopts) the per-project supervisor under `~/.lumpcode/supervisor/` and exits. Does not write `desired.json`, spawn a scheduler, or resolve a `daemonId`. Idempotent when the supervisor is already alive. Cannot be combined with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. Success envelope: `{ projectName, supervisorPid? }` (not the ticks payload). This is not the same as `--exclude=*`, which still starts a real daemon that discovers every tick.
+**`--superviseOnly`:** starts (or adopts) the per-project supervisor under `~/.lumpcode/supervisor/` and exits. Does not write `desired.json`, spawn a scheduler, or resolve a `daemonId`. Idempotent when the supervisor is already alive. Cannot be combined with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. Success envelope: `{ projectName, supervisorPid? }` (not the ticks payload). This is not the same as `--exclude=*`, which still starts a real daemon that discovers every tick. On a dedicated clone, the supervisor also reconciles committed recipes under `.lumpcode/daemons/` (see [concepts.md § Repo daemon config files](./concepts.md#repo-daemon-config-files)); that path is not a second operator command.
 
 With **`--json`**, all the logs even the ones of the deamon will be with json output.
 

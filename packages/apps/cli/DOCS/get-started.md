@@ -167,6 +167,17 @@ lumpcode start
 
 Details — cron flags, caps, trade-offs: [concepts.md § When to use run vs start](./concepts.md#when-to-use-run-vs-start-daemon).
 
+### Optional (dedicated): push a daemon file
+
+On a **dedicated** worker you can keep only the supervisor up and let git start schedulers:
+
+1. Set `local.json.mode` to `"dedicated"` on that machine.
+2. Run `lumpcode start --superviseOnly` (no daemon yet).
+3. Commit a recipe at `.lumpcode/daemons/<daemonId>.json` with an exact `discoveryBranch` that matches an expanded primary (for example `"dev"`), then push that branch to your git remote.
+4. After the next successful supervise reconcile, `lumpcode daemon-status` shows that `daemonId` with `daemonConfigFile` in meta.
+
+Recipe format and collision rules: [concepts.md § Repo daemon config files](./concepts.md#repo-daemon-config-files). Shared mode does not start daemons from repo files.
+
 ---
 
 ## Where your work lives
