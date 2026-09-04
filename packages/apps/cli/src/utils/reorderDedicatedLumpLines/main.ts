@@ -1,9 +1,9 @@
+import type { DedicatedLumpLine } from '../lumpLine';
 import type { LineScore, ScoredLumpLine } from '../scoreDedicatedLumpLine';
-import type { LumpLine } from '../runLumpQueueWithConcurrency';
 
 export type { ScoredLumpLine };
 
-function stripScore(item: ScoredLumpLine): LumpLine {
+function stripScore(item: ScoredLumpLine): DedicatedLumpLine {
     return {
         lumpName: item.lumpName,
         effectiveDiscoveryBranch: item.effectiveDiscoveryBranch,
@@ -29,9 +29,9 @@ type ScoredPriorityItem = ScoredLumpLine & {
  * //   other@dev          (same index)
  * //   backlog@dev
  */
-export function reorderRunLumpQueueByLineScore(
+export function reorderDedicatedLumpLines(
     items: readonly ScoredLumpLine[],
-): LumpLine[] {
+): DedicatedLumpLine[] {
     if (items.length === 0) {
         return [];
     }
