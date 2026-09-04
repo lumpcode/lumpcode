@@ -23,6 +23,7 @@ export * from './daemonSchedulerFiles';
 export * from './daemonsDirPath';
 export * from './defineConfig';
 export * from './decision';
+export * from './discoverDaemonConfigFiles';
 export * from './discoverDedicatedLumpsForScanBranch';
 export * from './discoverLoadableLumpNames';
 export * from './ensurePresetCommandsInstalled';

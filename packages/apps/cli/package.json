@@ -58,7 +58,7 @@
     "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build:bundle",
     "check-types": "tsc --noEmit",
-    "pretest": "npm run build -w=@lumpcode/core",
+    "pretest": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:node": "node scripts/run-e2e.mjs --node",

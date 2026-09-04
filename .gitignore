@@ -22,6 +22,9 @@ generated-env.ts
 .lumpcode/.cache/
 ._gitmodules
 packages/core/._git
+# Accidental `git init --bare` in a package cwd (lump `git add .`)
+packages/**/hooks/*.sample
+packages/**/info/exclude
 *.tgz
 __TODOS__/**
 .lumpcode/.cache/

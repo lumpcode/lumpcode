@@ -374,3 +374,27 @@
     not a new database. Complements `unified-status-command` (one combined view later); this is
     the existing command, not a new one.
   tags: [cli, status, daemon]
+- name: worker-orchestration
+  task: >-
+    Give operators a clean way to say how a dedicated worker should spend concurrency —
+    across lumps versus remaining contexts inside one lump — rather than a narrow engine
+    patch. Today `maxParallelRun` (local.json or `start --maxParallelRun`, worktree only)
+    is in-tick lump-line concurrency via `runLumpLinesWithConcurrency`; Croner `{ protect:
+    true }` plus `await runTick()` forbids overlapping ticks; `runLump` slices todos to
+    `numberOfContextsPerBranch` (default 1) and `executeStepsForContextList` walks that
+    batch sequentially on one branch. So one daemon, one lump, one discoveryBranch, one
+    context per branch stays sequential even at `maxParallelRun: 3` — unused slots do
+    nothing because collect produces a single LumpLine, and an operator who wants three
+    agents on one campaign cannot get that from `maxParallelRun: 3` alone. This is a
+    product-level orchestration surface (operator mental model + knobs), not a one-line
+    Croner or cap-number change. Do not prescribe overlapping ticks, intra-lump context
+    pools, fake multi-lines, or multiple `--include` daemons. Distinct from
+    `memory-pressure-run-gate` (RAM refuse-to-start), `daemon-status-in-flight-lumps` /
+    `unified-status-command` (observability), and `webhooks-imperative-started-lumps`
+    (external triggers). Complementary to backlog `git-driven-daemon-configs` (git-declared
+    fleet membership); those files may later express orchestration, but that item is
+    lifecycle-from-repo, not this gap.
+  blocked: >-
+    parked: finish git-driven-daemon-configs first, then polish while thinking about
+    orchestration — do not start now
+  tags: [daemon, config, workspace]
