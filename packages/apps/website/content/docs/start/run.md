@@ -45,28 +45,7 @@ Worker files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, 
 
 ## Worker recipes in git
 
-On a **dedicated** clone you can commit a recipe and let the worker start from git. Shared mode ignores these files.
-
-```json .lumpcode/daemons/backlog.json
-{
-  "$schema": "https://lumpcode.com/schemas/daemonConfig.schema.json",
-  "discoveryBranch": "dev",
-  "include": ["backlog"]
-}
-```
-
-The file stem is the worker id (`backlog` here). `discoveryBranch` must be an exact expanded primary this clone scans, and it must match the `origin/<branch>` the file was read from. Push the file on that branch. YAML (`.yml` / `.yaml`) is fine. Editors: same `$schema`.
-
-`lumpcode start` still works. Use `lumpcode start --superviseOnly` when you want the supervisor up and **only** these files to start workers.
-
-| Situation | What happens |
-| --- | --- |
-| Enabled file, that id not running | Starts |
-| File contents changed | Stops, then starts the new recipe |
-| File `disabled: true` or gone | Stops |
-| A `lumpcode start` worker already has that id | Leaves it alone |
-
-A file `maxParallelRun` with checkout strategy is not started. Setup: [the worker](/docs/start/worker). Flags: [commands](/docs/reference/commands#lumpcode-start).
+On a dedicated clone, commit `.lumpcode/daemons/<name>.json` and the worker can start from git. Shared mode ignores these files. File shape and fields: [Start named workers from git](/docs/start/worker#start-named-workers-from-git).
 
 ## Shared laptop versus dedicated worker
 

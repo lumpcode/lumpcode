@@ -77,7 +77,7 @@ The cap is **per lump name**, across every discovery line. A dedicated worker no
 
 ## Committed worker recipe never starts
 
-`.lumpcode/daemons/<id>.json` only starts workers on a **dedicated** clone. Shared mode ignores the files.
+`.lumpcode/daemons/<id>.json` only starts workers on a **dedicated** clone. Shared mode ignores the files. File shape: [Worker → File shape](/docs/start/worker#file-shape).
 
 1. `discoveryBranch` must be exact (no globs) and equal the expanded primary the file was read from. Push the file on that branch.
 2. A `lumpcode start` worker already using that id is left alone. Stop it, or pick another file stem.

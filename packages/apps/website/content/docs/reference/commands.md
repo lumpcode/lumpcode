@@ -72,7 +72,7 @@ Detach a worker (omit `--foreground` to background). Discovers loadable lumps ea
 | `--include` / `--exclude` | Comma-separated names or `*` globs. |
 | `--daemonId` | `[a-zA-Z0-9_-]+`. Unfiltered default `global`. `--daemonId=global` with any filter fails. |
 | `--maxParallelRun` | Worktree only. Overrides `local.json`. |
-| `--superviseOnly` | Start or adopt the project supervisor and exit. No worker spawn, no `desired.json`. On a dedicated clone, committed [`.lumpcode/daemons/`](/docs/start/run#worker-recipes-in-git) files can then start workers. Cannot combine with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. |
+| `--superviseOnly` | Start or adopt the project supervisor and exit. No worker spawn, no `desired.json`. On a dedicated clone, committed [`.lumpcode/daemons/`](/docs/start/worker#file-shape) files can then start workers. Cannot combine with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. |
 
 Project and local config are frozen at start; restart to pick up edits. Empty include match still stays up. Overlapping filtered workers are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
 

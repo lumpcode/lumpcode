@@ -70,6 +70,6 @@ Rules, short:
 
 `refreshCommand` (merged project/local, local wins) is a shell string to run on each dedicated scan branch after pre-flight, before configs load: submodules, codegen, anything the tree needs before discovery. Failure skips that branch. Restart the worker after changing it.
 
-Committed [worker recipes](/docs/start/run#worker-recipes-in-git) under `.lumpcode/daemons/` are dedicated-only. Each file’s `discoveryBranch` must be an exact expanded primary.
+Committed [worker recipes](/docs/start/worker#file-shape) under `.lumpcode/daemons/` are dedicated-only. Each file’s `discoveryBranch` must be an exact expanded primary.
 
 More on workspaces and locks: [how a run works](/docs/start/run).

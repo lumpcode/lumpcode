@@ -244,8 +244,11 @@ export const docsVuePages: {
       { id: 'a-second-clone', text: '2. A second clone', depth: 2 },
       { id: 'start-it', text: '3. Start it', depth: 2 },
       { id: 'back-to-the-laptop', text: '4. Back to the laptop', depth: 2 },
+      { id: 'start-named-workers-from-git', text: 'Start named workers from git', depth: 2 },
+      { id: 'file-shape', text: 'File shape', depth: 3 },
+      { id: 'after-you-push', text: 'After you push', depth: 3 },
     ],
     searchText:
-      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe superviseOnly .lumpcode/daemons discoveryBranch worker recipe',
+      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe superviseOnly .lumpcode/daemons discoveryBranch cronSetup include exclude disabled maxParallelRun daemonConfig.schema.json worker recipe file shape',
   },
 ]
