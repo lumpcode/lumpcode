@@ -164,6 +164,140 @@ describe('folderBacklogContexts', () => {
         expect(contexts.find((ctx) => ctx.name === 't2')?.options?.dependsOnContexts).toEqual(['t1']);
     });
 
+    it('skips the parent when tickets/ is empty leftover', async () => {
+        await writeTodoItem(backlogItemsDir, 'umbrella', { task: 'Parent', priority: 1 });
+        await mkdir(path.join(backlogItemsDir, 'todo', 'umbrella', 'tickets'), { recursive: true });
+
+        const getContextListFn = folderBacklogContexts({ backlogItemsDir });
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts).toEqual([]);
+    });
+
+    it('skips the parent when all tickets have moved to completed/', async () => {
+        await writeTodoItem(backlogItemsDir, 'umbrella', { task: 'Parent', priority: 1 });
+        await writeTodoItem(backlogItemsDir, 'standalone', { task: 'Solo', priority: 2 });
+        const completedTicketDir = path.join(
+            backlogItemsDir,
+            'completed',
+            'umbrella',
+            'tickets',
+            't1',
+        );
+        await mkdir(completedTicketDir, { recursive: true });
+        await writeFile(
+            path.join(completedTicketDir, 'desc.yml'),
+            'name: t1\ntask: Done ticket\npriority: 1\ncompletedAt: 2026-01-01T00:00:00.000Z\n',
+        );
+
+        const getContextListFn = folderBacklogContexts({ backlogItemsDir });
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts.map((ctx) => ctx.name)).toEqual(['standalone']);
+        expect(contexts.find((ctx) => ctx.name === 'umbrella')).toBeUndefined();
+    });
+
+    it('emits remaining live tickets and still skips the parent', async () => {
+        await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t2', {
+            task: 'Still open',
+            priority: 1,
+        });
+        const completedTicketDir = path.join(
+            backlogItemsDir,
+            'completed',
+            'umbrella',
+            'tickets',
+            't1',
+        );
+        await mkdir(completedTicketDir, { recursive: true });
+        await writeFile(
+            path.join(completedTicketDir, 'desc.yml'),
+            'name: t1\ntask: Done ticket\npriority: 1\ncompletedAt: 2026-01-01T00:00:00.000Z\n',
+        );
+
+        const getContextListFn = folderBacklogContexts({ backlogItemsDir });
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts.map((ctx) => ctx.name)).toEqual(['t2']);
+    });
+
+    it('emits the parent when includeUmbrellaParents is true and tickets exist', async () => {
+        await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t1', {
+            task: 'First',
+            priority: 1,
+        });
+        await writeTodoItem(backlogItemsDir, 'umbrella', { task: 'Parent', priority: 2 });
+
+        const getContextListFn = folderBacklogContexts({
+            backlogItemsDir,
+            includeUmbrellaParents: true,
+        });
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts.map((ctx) => ctx.name)).toEqual(['t1', 'umbrella']);
+    });
+
+    it('emits only the parent when includeUmbrellaParents is true and tickets are completed', async () => {
+        await writeTodoItem(backlogItemsDir, 'umbrella', { task: 'Parent', priority: 1 });
+        const completedTicketDir = path.join(
+            backlogItemsDir,
+            'completed',
+            'umbrella',
+            'tickets',
+            't1',
+        );
+        await mkdir(completedTicketDir, { recursive: true });
+        await writeFile(
+            path.join(completedTicketDir, 'desc.yml'),
+            'name: t1\ntask: Done ticket\npriority: 1\ncompletedAt: 2026-01-01T00:00:00.000Z\n',
+        );
+
+        const getContextListFn = folderBacklogContexts({
+            backlogItemsDir,
+            includeUmbrellaParents: true,
+        });
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts.map((ctx) => ctx.name)).toEqual(['umbrella']);
+    });
+
+    it('does not emit the parent with includeUmbrellaParents when tickets/ was never used', async () => {
+        await writeTodoItem(backlogItemsDir, 'umbrella', { task: 'Parent', priority: 1 });
+        await mkdir(path.join(backlogItemsDir, 'todo', 'umbrella', 'tickets'), { recursive: true });
+
+        const getContextListFn = folderBacklogContexts({
+            backlogItemsDir,
+            includeUmbrellaParents: true,
+        });
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts).toEqual([]);
+    });
+
     it('passes the todo-relative ticket path to parseItem and parseContext', async () => {
         await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t1', {
             task: 'First',

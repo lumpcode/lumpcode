@@ -7,15 +7,19 @@ import type {
     LumpVariables,
     MaybePromise,
 } from '@lumpcode/cli-utils';
+import { pathExists } from '@lumpcode/core';
 
 import type { BaseBacklogItem } from '../../types';
 import { validateBaseBacklogItem } from '../validateBaseBacklogItem';
 
 export type FolderBacklogContextsOptions<Item extends BaseBacklogItem = BaseBacklogItem> = {
     backlogItemsDir: string;
+    /** When true, umbrella parents with tickets are emitted for wrap-up (featureBacklog). */
+    includeUmbrellaParents?: boolean;
     /**
      * `folderName` is the path relative to `todo/`: the item folder, or
-     * `<parent>/tickets/<ticket>` when the parent has a `tickets/` directory.
+     * `<parent>/tickets/<ticket>` when the parent is an umbrella
+     * (`tickets/` exists or completed tickets exist).
      */
     parseItem?: (item: BaseBacklogItem, folderName: string, raw: unknown) => Item;
     parseContext?: (
@@ -25,6 +29,10 @@ export type FolderBacklogContextsOptions<Item extends BaseBacklogItem = BaseBack
         parsed?: Partial<Context>;
         ignored?: boolean;
     }>;
+};
+
+export type ListTodoRelativeDirsOptions = {
+    includeUmbrellaParents?: boolean;
 };
 
 async function listTodoFolderNames(todoDir: string): Promise<string[]> {
@@ -40,19 +48,61 @@ async function listTodoFolderNames(todoDir: string): Promise<string[]> {
     }
 }
 
-/** Path relative to `todo/`, using `/` so it is stable in context variables. */
-export async function listTodoRelativeDirs(todoDir: string): Promise<string[]> {
+/** Live and completed ticket folder names for an umbrella parent, sorted uniquely. */
+export async function listUmbrellaTicketNames(input: {
+    todoDir: string;
+    parentName: string;
+}): Promise<string[]> {
+    const { todoDir, parentName } = input;
+    const completedDir = path.join(path.dirname(todoDir), 'completed');
+    const liveTicketNames = await listTodoFolderNames(path.join(todoDir, parentName, 'tickets'));
+    const completedTicketNames = await listTodoFolderNames(
+        path.join(completedDir, parentName, 'tickets'),
+    );
+    return [...new Set([...liveTicketNames, ...completedTicketNames])].sort();
+}
+
+/**
+ * Path relative to `todo/`, using `/` so it is stable in context variables.
+ * A top-level folder is an umbrella (never itself an item) when it has live
+ * tickets, a leftover `tickets/` directory, or tickets already under
+ * sibling `completed/<name>/tickets/`.
+ */
+export async function listTodoRelativeDirs(
+    todoDir: string,
+    options?: ListTodoRelativeDirsOptions,
+): Promise<string[]> {
+    const includeUmbrellaParents = options?.includeUmbrellaParents ?? false;
     const topNames = await listTodoFolderNames(todoDir);
+    const completedDir = path.join(path.dirname(todoDir), 'completed');
     const relativeDirs: string[] = [];
     for (const name of topNames) {
-        const ticketNames = await listTodoFolderNames(path.join(todoDir, name, 'tickets'));
-        if (ticketNames.length === 0) {
-            relativeDirs.push(name);
+        const liveTicketsDir = path.join(todoDir, name, 'tickets');
+        const liveTicketNames = await listTodoFolderNames(liveTicketsDir);
+        const completedTicketNames = await listTodoFolderNames(
+            path.join(completedDir, name, 'tickets'),
+        );
+        const hasAnyTicket = liveTicketNames.length > 0 || completedTicketNames.length > 0;
+
+        if (liveTicketNames.length > 0) {
+            for (const ticketName of liveTicketNames) {
+                relativeDirs.push(`${name}/tickets/${ticketName}`);
+            }
+            if (includeUmbrellaParents && hasAnyTicket) {
+                relativeDirs.push(name);
+            }
             continue;
         }
-        for (const ticketName of ticketNames) {
-            relativeDirs.push(`${name}/tickets/${ticketName}`);
+
+        const isUmbrella =
+            (await pathExists(liveTicketsDir)) || completedTicketNames.length > 0;
+        if (isUmbrella) {
+            if (includeUmbrellaParents && hasAnyTicket) {
+                relativeDirs.push(name);
+            }
+            continue;
         }
+        relativeDirs.push(name);
     }
     return relativeDirs;
 }
@@ -62,12 +112,13 @@ export function folderBacklogContexts<
     V extends LumpVariables = LumpVariables,
 >({
     backlogItemsDir,
+    includeUmbrellaParents,
     parseItem,
     parseContext,
 }: FolderBacklogContextsOptions<Item>): GetContextListFn<V> {
     return async () => {
         const todoDir = path.join(backlogItemsDir, 'todo');
-        const folderNames = await listTodoRelativeDirs(todoDir);
+        const folderNames = await listTodoRelativeDirs(todoDir, { includeUmbrellaParents });
 
         const discovered = await Promise.all(
             folderNames.map(async (folderName) => {

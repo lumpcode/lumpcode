@@ -317,6 +317,70 @@ describe('resolveFeatureBacklogItem', () => {
 
         expect(resolution).toEqual({ ignored: true });
     });
+
+    it('routes umbrella parent to completeFeature with ticket dependsOn', async () => {
+        const parent: FeatureBacklogItem = {
+            name: 'umbrella',
+            task: 'Parent feature',
+            priority: 1,
+            todoRelativeDir: 'umbrella',
+            workflow: 'manual',
+        };
+        await writeTodoDesc(
+            lumpPath,
+            'umbrella',
+            'name: umbrella\ntask: Parent feature\npriority: 1\nworkflow: manual\n',
+        );
+        await mkdir(path.join(lumpPath, 'backlogItems', 'todo', 'umbrella', 'tickets'), {
+            recursive: true,
+        });
+        const completedTicketDir = path.join(
+            lumpPath,
+            'backlogItems',
+            'completed',
+            'umbrella',
+            'tickets',
+            't1',
+        );
+        await mkdir(completedTicketDir, { recursive: true });
+        await writeFile(
+            path.join(completedTicketDir, 'desc.yml'),
+            'name: t1\ntask: Done ticket\npriority: 1\ncompletedAt: 2026-01-01T00:00:00.000Z\n',
+        );
+
+        const resolution = await resolveFeatureBacklogItem({
+            item: parent,
+            paths,
+            projectRoot,
+            discoveryBranch: 'feature/umbrella',
+        });
+
+        expect(resolution).toEqual({
+            stage: 'completeFeature',
+            contextName: 'umbrella',
+            additionalDependsOnContexts: ['umbrella-t1'],
+        });
+    });
+
+    it('ignores umbrella parent completeFeature on dev', async () => {
+        const parent: FeatureBacklogItem = {
+            name: 'umbrella',
+            task: 'Parent feature',
+            priority: 1,
+            todoRelativeDir: 'umbrella',
+        };
+        await writeTodoDesc(lumpPath, 'umbrella', 'name: umbrella\ntask: Parent\npriority: 1\n');
+        await writeTodoDesc(lumpPath, 'umbrella/tickets/t1', 'name: t1\ntask: Ticket\npriority: 1\n');
+
+        const resolution = await resolveFeatureBacklogItem({
+            item: parent,
+            paths,
+            projectRoot,
+            discoveryBranch: 'dev',
+        });
+
+        expect(resolution).toEqual({ ignored: true });
+    });
 });
 
 describe('featureBacklog parseItem', () => {
@@ -381,6 +445,7 @@ describe('featureBacklog parseItem', () => {
         await mkdir(ticketDir, { recursive: true });
         const configPath = path.join(lumpPath, 'config.ts');
         await writeFile(configPath, 'export default {};\n');
+        await writeTodoDesc(lumpPath, 'umbrella', 'name: umbrella\ntask: Parent\npriority: 2\n');
         await writeFile(
             path.join(ticketDir, 'desc.yml'),
             'name: t1\ntask: Ticket one\npriority: 1\ndependsOn:\n  - other\n',
@@ -397,9 +462,8 @@ describe('featureBacklog parseItem', () => {
             discoveryBranch: 'feature/umbrella',
         });
 
-        expect(contexts).toHaveLength(1);
-        expect(contexts[0]).toMatchObject({
-            name: 'umbrella-t1_req',
+        expect(contexts).toHaveLength(2);
+        expect(contexts.find((ctx) => ctx.name === 'umbrella-t1_req')).toMatchObject({
             variables: {
                 TASK_NAME: 't1',
                 BACKLOG_ITEM_DIR:
@@ -411,6 +475,71 @@ describe('featureBacklog parseItem', () => {
             options: {
                 priority: 1,
                 dependsOnContexts: ['umbrella-other'],
+            },
+        });
+        expect(contexts.find((ctx) => ctx.name === 'umbrella')).toMatchObject({
+            variables: {
+                BACKLOG_STAGE: 'completeFeature',
+            },
+            options: {
+                priority: 2,
+                dependsOnContexts: ['umbrella-t1'],
+            },
+        });
+
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    it('emits parent completeFeature after all tickets have completed', async () => {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-parent-done-'));
+        const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
+        const configPath = path.join(lumpPath, 'config.ts');
+        await writeTodoDesc(
+            lumpPath,
+            'umbrella',
+            'name: umbrella\ntask: Parent\npriority: 1\nworkflow: manual\n',
+        );
+        await writeFeatureArtifact(lumpPath, 'umbrella', { requirements: true });
+        await mkdir(path.join(lumpPath, 'backlogItems', 'todo', 'umbrella', 'tickets'), {
+            recursive: true,
+        });
+        const completedTicketDir = path.join(
+            lumpPath,
+            'backlogItems',
+            'completed',
+            'umbrella',
+            'tickets',
+            't1',
+        );
+        await mkdir(completedTicketDir, { recursive: true });
+        await writeFile(
+            path.join(completedTicketDir, 'desc.yml'),
+            'name: t1\ntask: Done ticket\npriority: 1\ncompletedAt: 2026-01-01T00:00:00.000Z\n',
+        );
+        await writeFile(configPath, 'export default {};\n');
+
+        const config = featureBacklog({
+            configUrl: pathToFileURL(configPath),
+            implValidateCommand: 'npm test',
+        });
+
+        const contexts = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/umbrella',
+        });
+
+        expect(contexts).toHaveLength(1);
+        expect(contexts[0]).toMatchObject({
+            name: 'umbrella',
+            variables: {
+                TASK_NAME: 'umbrella',
+                BACKLOG_STAGE: 'completeFeature',
+                BACKLOG_ITEM_DIR: '.lumpcode/lumps/backlog/backlogItems/todo/umbrella',
+            },
+            options: {
+                priority: 1,
+                dependsOnContexts: ['umbrella-t1'],
             },
         });
 

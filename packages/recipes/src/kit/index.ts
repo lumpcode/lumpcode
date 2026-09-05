@@ -29,7 +29,9 @@ export { resolveBacklogPaths, type BacklogPaths } from './resolveBacklogPaths';
 export {
     folderBacklogContexts,
     listTodoRelativeDirs,
+    listUmbrellaTicketNames,
     type FolderBacklogContextsOptions,
+    type ListTodoRelativeDirsOptions,
 } from './folderBacklogContexts';
 export { folderSetTaskDoneStep } from './folderSetTaskDoneStep';
 export { setTaskDoneStep } from './setTaskDoneStep';

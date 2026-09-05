@@ -147,6 +147,55 @@ describe('folderSetTaskDoneStep', () => {
         expect(completed).toContain('completedAt:');
     });
 
+    it('merges umbrella parent into completed when tickets already exist there', async () => {
+        const itemsDir = path.join(workspacePath, itemsDirRelative);
+        const parentRelative = path.join(itemsDirRelative, 'todo', 'umbrella');
+        await writeTodoItem(itemsDir, 'umbrella', { task: 'Parent feature' });
+        await writeFile(
+            path.join(itemsDir, 'todo', 'umbrella', 'requirements.md'),
+            '# Requirements\n',
+        );
+        await mkdir(path.join(itemsDir, 'todo', 'umbrella', 'tickets'), { recursive: true });
+        await mkdir(path.join(itemsDir, 'completed', 'umbrella', 'tickets', 't1'), {
+            recursive: true,
+        });
+        await writeFile(
+            path.join(itemsDir, 'completed', 'umbrella', 'tickets', 't1', 'desc.yml'),
+            'name: t1\ntask: Done\npriority: 1\ncompletedAt: 2026-01-01T00:00:00.000Z\n',
+        );
+
+        const step = folderSetTaskDoneStep({ itemsDirVarName: 'BACKLOG_ITEMS_DIR' });
+        const descriptor = await step.commandFn!({
+            context: {
+                name: 'umbrella',
+                variables: {
+                    BACKLOG_ITEMS_DIR: itemsDirRelative,
+                    TASK_NAME: 'umbrella',
+                    BACKLOG_ITEM_DIR: parentRelative,
+                },
+            },
+            workspacePath,
+        } as never);
+
+        expect(descriptor).toMatchObject({
+            executable: 'cat',
+            args: [path.join(itemsDir, 'completed', 'umbrella', 'desc.yml')],
+        });
+
+        await expect(access(path.join(itemsDir, 'todo', 'umbrella'))).rejects.toThrow();
+        const completedDesc = await readFile(
+            path.join(itemsDir, 'completed', 'umbrella', 'desc.yml'),
+            'utf-8',
+        );
+        expect(completedDesc).toContain('completedAt:');
+        await expect(
+            access(path.join(itemsDir, 'completed', 'umbrella', 'requirements.md')),
+        ).resolves.toBeUndefined();
+        await expect(
+            access(path.join(itemsDir, 'completed', 'umbrella', 'tickets', 't1', 'desc.yml')),
+        ).resolves.toBeUndefined();
+    });
+
     it('sets continueOnError true', () => {
         const step = folderSetTaskDoneStep({ itemsDirVarName: 'BACKLOG_ITEMS_DIR' });
         expect(step.continueOnError).toBe(true);

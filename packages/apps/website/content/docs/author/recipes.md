@@ -57,7 +57,7 @@ These return a full lump config. They need `configUrl: import.meta.url` so the r
 | `abstractionFinder` | One ephemeral context per pass that files a backlog item while `todo/` is under a cap. |
 | `abstractionBacklog` | Implement those items with verify-until-green, then move to completed. |
 
-`featureBacklog` is opinionated: `workflow` omit means TDD; `directImpl` still writes requirements if they are missing (unless `manualReq`); `manual` items are ignored. Tickets live at `todo/<parent>/tickets/<ticket>/` and do not run on `dev`.
+`featureBacklog` is opinionated: `workflow` omit means TDD; `directImpl` still writes requirements if they are missing (unless `manualReq`); `manual` items are ignored. Tickets live at `todo/<parent>/tickets/<ticket>/` and do not run on `dev`. After every ticket finishes, one parent `completeFeature` context (no agent) depends on all ticket impl names and moves the parent folder into `completed/`.
 
 ```ts config.ts
 import { featureBacklog } from '@lumpcode/recipes'

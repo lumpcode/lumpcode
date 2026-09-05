@@ -1,0 +1,51 @@
+packages/apps/cli/src/utils/scoreDedicatedLumpLine/main.ts:
+  change: >-
+    Replace LineScore.value with values[]. Score remaining eligible todos as
+    every numberOfContextsPerBranch-th sorted priority. Carry that count on
+    the ready snapshot from RunLumpInput.
+  "-": 22
+  "+": 40
+packages/apps/cli/src/utils/scoreDedicatedLumpLine/unit.test.ts:
+  change: >-
+    Existing min-priority cases become single-element values[]. Add n=2
+    batching and n<1-as-1. Ready-snapshot fixtures include
+    numberOfContextsPerBranch.
+  "-": 12
+  "+": 45
+packages/apps/cli/src/utils/reorderDedicatedLumpLines/main.ts:
+  change: >-
+    Fill each lump's non-failed collect rows from the merged batch stream
+    (score, then collect index, then batch index). Same line may repeat.
+    Leftover rows are unused lines, scored before empty.
+  "-": 28
+  "+": 75
+packages/apps/cli/src/utils/reorderDedicatedLumpLines/unit.test.ts:
+  change: >-
+    Fixtures use values: [n]. Add [B, B], packed A/B, leftover [B, A, A] vs
+    [B, A, C], and per-batch collect-order ties.
+  "-": 20
+  "+": 90
+packages/apps/cli/src/utils/runLumpLinesWithConcurrency/main.ts:
+  change: >-
+    Do not start a line while the same lumpName + effectiveDiscoveryBranch
+    is in flight. Unique-key queues keep today's start order.
+  "-": 12
+  "+": 55
+packages/apps/cli/src/utils/runLumpLinesWithConcurrency/unit.test.ts:
+  change: >-
+    Add concurrency-2 [B, B] sequential-start case and a different-line-can-
+    overlap-while-B-is-in-flight case.
+  "-": 0
+  "+": 70
+packages/apps/cli/src/commands/start/testing/multiDiscoveryBranches.unit.test.ts:
+  change: >-
+    Score spies use values: [10] / values: [3]. Ready-snapshot mocks may add
+    numberOfContextsPerBranch.
+  "-": 8
+  "+": 10
+packages/apps/cli/DOCS/concepts.md:
+  change: >-
+    Rewrite the dedicated line-order sentence: batch scores, possible repeat
+    rows, same line sequential in the pool.
+  "-": 2
+  "+": 4

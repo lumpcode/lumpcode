@@ -418,3 +418,33 @@
     parked: lock-API hygiene; complements lock-holder-daemon-id, not blocked on
     current daemon-config reconcile
   tags: [cli, hygiene, daemon]
+- name: tick-line-slot-count
+  task: >-
+    Make dedicated-tick slot count a first-class parameter (lump-config and/or
+    daemon/`local.json`) so an operator can give a lump more or fewer tick
+    invokes than the number of matching discovery lines. A slot is an index in
+    the dedicated tick line list — one invoke opportunity after
+    `reorderDedicatedLumpLines`. Not `numberOfContextsPerBranch` (that only
+    chunks remaining eligible todos into batch scores). Not
+    `maximumNumberOfConcurrentBranches` (open-branch cap). Not `maxParallelRun`
+    (pool concurrency). Today collect emits one row per matching
+    `(lumpName, scanBranch)` (lump `discoveryBranch`/`discoveryBranches` ∩
+    expanded `primaryBranch`/`primaryBranches`, minus include/exclude), and
+    reorder is slot-stable: it only permutes that lump's existing indices, so
+    output length equals collect length. The in-progress batch-list score keeps
+    that contract (line score `values: number[]` chunks remaining
+    `getToDoContextList` todos by `numberOfContextsPerBranch`; reorder fills
+    that lump's existing collect slots from the merged batch stream, lower
+    sooner — e.g. B `[1, 3]`, A `[10, 12]`, two collect rows → this tick
+    `[B, B]`; expanding to `[B, B, A, A]` was rejected). Current work stays
+    "slots = collect rows." Later, slot count should not stay implicit in
+    discovery-line cardinality. Exploratory only — not a decided API. Distinct
+    from `worker-orchestration` (how a worker spends concurrency); this is the
+    knob that would decouple invoke count from how many discovery lines
+    matched. Touch: primarily `packages/apps/cli` (dedicated collect,
+    `scoreDedicatedLumpLine`, `reorderDedicatedLumpLines`, schema, DOCS).
+  blocked: >-
+    parked: land batch-list score + same-length slot fill first
+    (`scoreDedicatedLumpLine` + `reorderDedicatedLumpLines` only); this is a
+    later decoupling of slot count from discovery-line cardinality
+  tags: [daemon, config, cli]
