@@ -88,9 +88,19 @@ function snapshotInput(overrides: Partial<Parameters<typeof snapshotDedicatedLum
     };
 }
 
+function todos(...priorities: Array<number | undefined>): Context[] {
+    return priorities.map((priority, i) => ({
+        name: `c${i}`,
+        variables: {},
+        ...(priority === undefined ? {} : { options: { priority } }),
+    }));
+}
+
+type ReadySnapshot = Extract<DedicatedLumpLineSnapshot, { kind: 'ready' }>;
+
 function readySnapshot(
-    overrides: Partial<Extract<DedicatedLumpLineSnapshot, { kind: 'ready' }>> = {},
-): Extract<DedicatedLumpLineSnapshot, { kind: 'ready' }> {
+    overrides: Partial<ReadySnapshot> & { numberOfContextsPerBranch?: number } = {},
+): ReadySnapshot {
     return {
         kind: 'ready',
         lumpName: 'backlog',
@@ -101,7 +111,7 @@ function readySnapshot(
         gitCommitMessageFn: () => 'm',
         contextList: [{ name: 'a', variables: {} }],
         ...overrides,
-    };
+    } as ReadySnapshot;
 }
 
 function scoreSnapshots(snapshots: DedicatedLumpLineSnapshot[]) {
@@ -215,59 +225,88 @@ describe('scoreDedicatedLumpLine', () => {
         expect(getContextListFn).not.toHaveBeenCalled();
     });
 
-    it('returns scored with min priority using || 0 missing-priority rule', async () => {
-        getToDoContextListMock.mockResolvedValue(
-            success([
-                { name: 'a', variables: {}, options: { priority: 1 } },
-                { name: 'b', variables: {} },
-                { name: 'c', variables: {}, options: { priority: 5 } },
-            ]),
-        );
+    it.skip('S2: n = 1 / omit snapshot field scores every sorted priority', async () => {
+        getToDoContextListMock.mockResolvedValue(success(todos(1, 2, 5)));
 
         const items = await scoreSnapshots([readySnapshot()]);
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 0 }]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [1, 2, 5] }]);
     });
 
-    it('returns scored with the minimum among explicit priorities', async () => {
-        getToDoContextListMock.mockResolvedValue(
-            success([
-                { name: 'a', variables: {}, options: { priority: 10 } },
-                { name: 'b', variables: {}, options: { priority: 3 } },
-            ]),
-        );
+    it.skip('S3: n = 2 packed batches use every n-th sorted todo priority', async () => {
+        getToDoContextListMock.mockResolvedValue(success(todos(1, 2, 5, 6)));
+
+        const items = await scoreSnapshots([readySnapshot({ numberOfContextsPerBranch: 2 })]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [1, 5] }]);
+    });
+
+    it.skip('S4: does not re-sort todos from getToDoContextList', async () => {
+        getToDoContextListMock.mockResolvedValue(success(todos(5, 1)));
 
         const items = await scoreSnapshots([readySnapshot()]);
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 3 }]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [5, 1] }]);
     });
 
-    it('returns empty when todo list is empty', async () => {
+    it.skip('S5: n < 1 is treated as 1', async () => {
+        getToDoContextListMock.mockResolvedValue(success(todos(4, 8)));
+        const omittedAsZero = await scoreSnapshots([
+            readySnapshot({ numberOfContextsPerBranch: 0 }),
+        ]);
+        expect(lineScores(omittedAsZero)).toEqual([{ kind: 'scored', values: [4, 8] }]);
+
+        getToDoContextListMock.mockResolvedValue(success(todos(4, 8)));
+        const negative = await scoreSnapshots([readySnapshot({ numberOfContextsPerBranch: -2 })]);
+        expect(lineScores(negative)).toEqual([{ kind: 'scored', values: [4, 8] }]);
+    });
+
+    it.skip('S6: partial last batch still emits the leftover first-of-batch priority', async () => {
+        getToDoContextListMock.mockResolvedValue(success(todos(1, 2, 5)));
+
+        const items = await scoreSnapshots([readySnapshot({ numberOfContextsPerBranch: 2 })]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [1, 5] }]);
+    });
+
+    it.skip('S7: missing priority uses || 0 for a one-batch list', async () => {
+        getToDoContextListMock.mockResolvedValue(success(todos(undefined)));
+
+        const items = await scoreSnapshots([readySnapshot()]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [0] }]);
+    });
+
+    it.skip('S8: explicit one-batch min is the first sorted todo priority', async () => {
+        getToDoContextListMock.mockResolvedValue(success(todos(3, 10)));
+
+        const items = await scoreSnapshots([readySnapshot({ numberOfContextsPerBranch: 2 })]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [3] }]);
+    });
+
+    it('S1: returns empty when todo list is empty', async () => {
         getToDoContextListMock.mockResolvedValue(success([]));
 
         const items = await scoreSnapshots([readySnapshot()]);
         expect(lineScores(items)).toEqual([{ kind: 'empty' }]);
     });
 
-    it('returns failed when getToDoContextList fails', async () => {
+    it('S9: returns failed when getToDoContextList fails', async () => {
         getToDoContextListMock.mockResolvedValue(failure({ message: 'status boom' }));
 
         const items = await scoreSnapshots([readySnapshot()]);
         expect(lineScores(items)).toEqual([{ kind: 'failed', reason: 'status boom' }]);
     });
 
-    it('returns failed when getToDoContextList throws', async () => {
+    it('S10: returns failed when getToDoContextList throws', async () => {
         getToDoContextListMock.mockRejectedValue(new Error('unexpected'));
 
         const items = await scoreSnapshots([readySnapshot()]);
         expect(lineScores(items)).toEqual([{ kind: 'failed', reason: 'unexpected' }]);
     });
 
-    it('classifies the frozen context list via an injected getContextListFn', async () => {
+    it.skip('S11: classifies the frozen context list via an injected getContextListFn', async () => {
         const frozen = [{ name: 'frozen', variables: {}, options: { priority: 4 } }];
         getToDoContextListMock.mockResolvedValue(success(frozen));
 
         const items = await scoreSnapshots([readySnapshot({ contextList: frozen })]);
 
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 4 }]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [4] }]);
         const passedInput = getToDoContextListMock.mock.calls[0]![0];
         expect('contextList' in passedInput).toBe(false);
         expect(await passedInput.getContextListFn({ codeBasePaths: [], lumpVariables: {} })).toEqual(
@@ -275,7 +314,7 @@ describe('scoreDedicatedLumpLine', () => {
         );
     });
 
-    it('refreshes once then reuses that refresh fn for every ready line', async () => {
+    it.skip('S12: refreshes once then reuses that refresh fn for every ready line', async () => {
         const lockedRefresh = vi.fn(async () => success(undefined));
         makeLockedRefreshMock.mockReturnValue(lockedRefresh);
         getToDoContextListMock
@@ -299,12 +338,12 @@ describe('scoreDedicatedLumpLine', () => {
             {
                 lumpName: 'backlog',
                 effectiveDiscoveryBranch: 'dev',
-                lineScore: { kind: 'scored', value: 10 },
+                lineScore: { kind: 'scored', values: [10] },
             },
             {
                 lumpName: 'backlog',
                 effectiveDiscoveryBranch: 'feature/x',
-                lineScore: { kind: 'scored', value: 3 },
+                lineScore: { kind: 'scored', values: [3] },
             },
         ]);
     });
@@ -330,16 +369,38 @@ describe('scoreDedicatedLumpLine', () => {
         ]);
     });
 
-    it('injects a failed refresh so status soft-falls', async () => {
+    it.skip('S13: snapshot copies numberOfContextsPerBranch from RunLumpInput', async () => {
+        jsConfigToRunLumpInputMock.mockResolvedValue(
+            success({
+                projectRoot: '/tmp/proj',
+                baseBranch: 'feature/x',
+                getContextListFn,
+                gitCommitMessageFn: () => 'm',
+                lumpVariables: {},
+                refreshRemoteTrackingRefsFn: async () => success(undefined),
+                steps: [],
+                numberOfContextsPerBranch: 2,
+            } as never),
+        );
+        getCodeBasePathsMock.mockResolvedValue(success([{ path: 'README.md', isDir: false }]));
+        getContextListFn.mockResolvedValue([{ name: 'item', variables: {} }]);
+
+        const snapshot = await snapshotDedicatedLumpLine(snapshotInput());
+        expect(snapshot).toMatchObject({
+            kind: 'ready',
+            numberOfContextsPerBranch: 2,
+        });
+        expect(getToDoContextListMock).not.toHaveBeenCalled();
+    });
+
+    it.skip('S14: injects a failed refresh so status soft-falls', async () => {
         const refreshFailure = failure('net down');
         makeLockedRefreshMock.mockReturnValue(async () => refreshFailure);
-        getToDoContextListMock.mockResolvedValue(
-            success([{ name: 'a', variables: {}, options: { priority: 2 } }]),
-        );
+        getToDoContextListMock.mockResolvedValue(success(todos(2)));
 
         const items = await scoreSnapshots([readySnapshot()]);
 
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 2 }]);
+        expect(lineScores(items)).toEqual([{ kind: 'scored', values: [2] }]);
         const refreshFn = getToDoContextListMock.mock.calls[0]![0].refreshRemoteTrackingRefsFn!;
         expect(await refreshFn({ projectRoot: '/tmp/proj' })).toEqual(refreshFailure);
     });

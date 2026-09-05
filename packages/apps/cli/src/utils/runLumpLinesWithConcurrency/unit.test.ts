@@ -15,6 +15,10 @@ function makeGate(): Gate {
 
 describe('runLumpLinesWithConcurrency (parallel-global-daemon-worktree)', () => {
     const items = (...lumpNames: string[]) => lumpNames.map((lumpName) => ({ lumpName }));
+    const line = (lumpName: string, effectiveDiscoveryBranch?: string) =>
+        effectiveDiscoveryBranch === undefined
+            ? { lumpName }
+            : { lumpName, effectiveDiscoveryBranch };
 
     it('P1: caps concurrency and drains the queue', async () => {
         const gates = new Map<string, Gate>();
@@ -207,6 +211,175 @@ describe('runLumpLinesWithConcurrency (parallel-global-daemon-worktree)', () => 
         gates.get('b')!.resolve();
         gates.get('c')!.resolve();
         await poolPromise;
+    });
+
+    it.skip('K1: duplicate same branch serializes so peak in-flight for that key is 1', async () => {
+        const gates: Gate[] = [];
+        let inFlight = 0;
+        let peak = 0;
+        const started: number[] = [];
+        let call = 0;
+
+        const poolPromise = runLumpLinesWithConcurrency({
+            items: [line('B', 'dev'), line('B', 'dev')],
+            concurrency: 2,
+            runLumpLine: async () => {
+                const index = call;
+                call += 1;
+                started.push(index);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makeGate();
+                gates[index] = gate;
+                await gate.promise;
+                inFlight -= 1;
+            },
+        });
+
+        await viWaitFor(() => started.length === 1);
+        expect(inFlight).toBe(1);
+        expect(peak).toBe(1);
+        expect(started).toEqual([0]);
+
+        gates[0]!.resolve();
+        await viWaitFor(() => started.length === 2);
+        expect(started).toEqual([0, 1]);
+
+        gates[1]!.resolve();
+        await poolPromise;
+        expect(peak).toBe(1);
+        expect(inFlight).toBe(0);
+    });
+
+    it.skip('K2: different discovery lines may overlap', async () => {
+        const gates: Gate[] = [];
+        let inFlight = 0;
+        let peak = 0;
+        const started: string[] = [];
+        let call = 0;
+
+        const poolPromise = runLumpLinesWithConcurrency({
+            items: [line('B', 'dev'), line('A', 'feature')],
+            concurrency: 2,
+            runLumpLine: async ({ lumpName, effectiveDiscoveryBranch }) => {
+                const index = call;
+                call += 1;
+                started.push(`${lumpName}@${effectiveDiscoveryBranch}`);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makeGate();
+                gates[index] = gate;
+                await gate.promise;
+                inFlight -= 1;
+            },
+        });
+
+        await viWaitFor(() => started.length === 2);
+        expect(peak).toBe(2);
+        expect(started).toEqual(['B@dev', 'A@feature']);
+
+        gates[0]!.resolve();
+        gates[1]!.resolve();
+        await poolPromise;
+    });
+
+    it.skip('K3: same lumpName on different branches may overlap', async () => {
+        const gates: Gate[] = [];
+        let inFlight = 0;
+        let peak = 0;
+        const started: string[] = [];
+        let call = 0;
+
+        const poolPromise = runLumpLinesWithConcurrency({
+            items: [line('B', 'dev'), line('B', 'feature')],
+            concurrency: 2,
+            runLumpLine: async ({ lumpName, effectiveDiscoveryBranch }) => {
+                const index = call;
+                call += 1;
+                started.push(`${lumpName}@${effectiveDiscoveryBranch}`);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makeGate();
+                gates[index] = gate;
+                await gate.promise;
+                inFlight -= 1;
+            },
+        });
+
+        await viWaitFor(() => started.length === 2);
+        expect(peak).toBe(2);
+        expect(started).toEqual(['B@dev', 'B@feature']);
+
+        gates[0]!.resolve();
+        gates[1]!.resolve();
+        await poolPromise;
+    });
+
+    it.skip('K4: omitted branch keys as empty string and serializes like K1', async () => {
+        const gates: Gate[] = [];
+        let inFlight = 0;
+        let peak = 0;
+        const started: number[] = [];
+        let call = 0;
+
+        const poolPromise = runLumpLinesWithConcurrency({
+            items: [line('B'), line('B')],
+            concurrency: 2,
+            runLumpLine: async () => {
+                const index = call;
+                call += 1;
+                started.push(index);
+                inFlight += 1;
+                peak = Math.max(peak, inFlight);
+                const gate = makeGate();
+                gates[index] = gate;
+                await gate.promise;
+                inFlight -= 1;
+            },
+        });
+
+        await viWaitFor(() => started.length === 1);
+        expect(inFlight).toBe(1);
+        expect(peak).toBe(1);
+        expect(started).toEqual([0]);
+
+        gates[0]!.resolve();
+        await viWaitFor(() => started.length === 2);
+        expect(started).toEqual([0, 1]);
+
+        gates[1]!.resolve();
+        await poolPromise;
+        expect(peak).toBe(1);
+        expect(inFlight).toBe(0);
+    });
+
+    it.skip('K5: failure of the first same-key row still starts the sibling after it settles', async () => {
+        const started: number[] = [];
+        let call = 0;
+        let firstSettled = false;
+        let secondStartedAfterFirstSettled = false;
+
+        const poolPromise = runLumpLinesWithConcurrency({
+            items: [line('B', 'dev'), line('B', 'dev')],
+            concurrency: 2,
+            runLumpLine: async () => {
+                const index = call;
+                call += 1;
+                started.push(index);
+                if (index === 0) {
+                    try {
+                        throw new Error('boom');
+                    } finally {
+                        firstSettled = true;
+                    }
+                }
+                secondStartedAfterFirstSettled = firstSettled;
+            },
+        });
+
+        await expect(poolPromise).resolves.toBeUndefined();
+        expect(started).toEqual([0, 1]);
+        expect(secondStartedAfterFirstSettled).toBe(true);
     });
 });
 
