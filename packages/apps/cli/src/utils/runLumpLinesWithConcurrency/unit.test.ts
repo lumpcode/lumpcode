@@ -208,6 +208,108 @@ describe('runLumpLinesWithConcurrency (parallel-global-daemon-worktree)', () => 
         gates.get('c')!.resolve();
         await poolPromise;
     });
+
+    describe('same-line serialize (dedicated-tick-line-batch-order)', () => {
+        it('concurrency 2 does not start a second same-line invoke until the first finishes', async () => {
+            const lineB = { lumpName: 'B', effectiveDiscoveryBranch: 'dev' };
+            const started: number[] = [];
+            const gates: Gate[] = [];
+            let inFlight = 0;
+            let peak = 0;
+
+            const poolPromise = runLumpLinesWithConcurrency({
+                items: [lineB, lineB],
+                concurrency: 2,
+                runLumpLine: async () => {
+                    const idx = started.length;
+                    started.push(idx);
+                    inFlight += 1;
+                    peak = Math.max(peak, inFlight);
+                    const gate = makeGate();
+                    gates[idx] = gate;
+                    await gate.promise;
+                    inFlight -= 1;
+                },
+            });
+
+            await viWaitFor(() => started.length === 1);
+            expect(inFlight).toBe(1);
+            expect(peak).toBe(1);
+            expect(gates[1]).toBeUndefined();
+
+            gates[0]!.resolve();
+            await viWaitFor(() => started.length === 2);
+            expect(started).toEqual([0, 1]);
+
+            gates[1]!.resolve();
+            await poolPromise;
+            expect(peak).toBe(1);
+            expect(inFlight).toBe(0);
+        });
+
+        it('a different line can start while B is in flight', async () => {
+            const lineB = { lumpName: 'B', effectiveDiscoveryBranch: 'dev' };
+            const lineA = { lumpName: 'A', effectiveDiscoveryBranch: 'dev' };
+            const started: string[] = [];
+            const gates = new Map<string, Gate>();
+            let inFlight = 0;
+            let peak = 0;
+
+            const poolPromise = runLumpLinesWithConcurrency({
+                items: [lineB, lineB, lineA],
+                concurrency: 2,
+                runLumpLine: async ({ lumpName, effectiveDiscoveryBranch }) => {
+                    const key = `${lumpName}@${effectiveDiscoveryBranch}`;
+                    const occurrence = started.filter((name) => name.startsWith(`${lumpName}@`)).length;
+                    const id = `${key}#${occurrence}`;
+                    started.push(id);
+                    inFlight += 1;
+                    peak = Math.max(peak, inFlight);
+                    const gate = makeGate();
+                    gates.set(id, gate);
+                    await gate.promise;
+                    inFlight -= 1;
+                },
+            });
+
+            await viWaitFor(() => started.includes('A@dev#0') && started.includes('B@dev#0'));
+            expect(started).toHaveLength(2);
+            expect(started).not.toContain('B@dev#1');
+            expect(peak).toBe(2);
+
+            gates.get('B@dev#0')!.resolve();
+            await viWaitFor(() => started.includes('B@dev#1'));
+            gates.get('A@dev#0')!.resolve();
+            gates.get('B@dev#1')!.resolve();
+            await poolPromise;
+        });
+
+        it('same lumpName on a different discovery branch can overlap B', async () => {
+            const started: string[] = [];
+            const gates = new Map<string, Gate>();
+
+            const poolPromise = runLumpLinesWithConcurrency({
+                items: [
+                    { lumpName: 'B', effectiveDiscoveryBranch: 'dev' },
+                    { lumpName: 'B', effectiveDiscoveryBranch: 'feature' },
+                ],
+                concurrency: 2,
+                runLumpLine: async ({ effectiveDiscoveryBranch }) => {
+                    started.push(effectiveDiscoveryBranch ?? '');
+                    const gate = makeGate();
+                    gates.set(effectiveDiscoveryBranch ?? '', gate);
+                    await gate.promise;
+                },
+            });
+
+            await viWaitFor(() => started.length === 2);
+            expect(started.sort()).toEqual(['dev', 'feature']);
+            for (const gate of gates.values()) {
+                gate.resolve();
+            }
+            await poolPromise;
+        });
+    });
 });
 
 /** Local wait helper so this file does not depend on vitest fake timers. */

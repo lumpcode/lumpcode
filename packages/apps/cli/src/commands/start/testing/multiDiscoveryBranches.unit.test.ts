@@ -398,6 +398,7 @@ describe('start command — multi discovery branches', () => {
                 lumpVariables: {},
                 gitCommitMessageFn: () => 'm',
                 contextList: [],
+                numberOfContextsPerBranch: 1,
             }));
         const scoreSpy = vi
             .spyOn(
@@ -408,10 +409,10 @@ describe('start command — multi discovery branches', () => {
                 snapshots.map((snapshot) => ({
                     lumpName: snapshot.lumpName,
                     effectiveDiscoveryBranch: snapshot.effectiveDiscoveryBranch,
-                    lineScore:
-                        snapshot.effectiveDiscoveryBranch === 'main'
-                            ? { kind: 'scored' as const, value: 10 }
-                            : { kind: 'scored' as const, value: 3 },
+                    lineScore: {
+                        kind: 'scored' as const,
+                        values: snapshot.effectiveDiscoveryBranch === 'main' ? [10] : [3],
+                    },
                 })),
             );
         const runLumpSpy = vi

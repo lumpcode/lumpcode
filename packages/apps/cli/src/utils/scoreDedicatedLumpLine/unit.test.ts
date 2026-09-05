@@ -89,7 +89,9 @@ function snapshotInput(overrides: Partial<Parameters<typeof snapshotDedicatedLum
 }
 
 function readySnapshot(
-    overrides: Partial<Extract<DedicatedLumpLineSnapshot, { kind: 'ready' }>> = {},
+    overrides: Partial<Extract<DedicatedLumpLineSnapshot, { kind: 'ready' }>> & {
+        numberOfContextsPerBranch?: number;
+    } = {},
 ): Extract<DedicatedLumpLineSnapshot, { kind: 'ready' }> {
     return {
         kind: 'ready',
@@ -215,7 +217,7 @@ describe('scoreDedicatedLumpLine', () => {
         expect(getContextListFn).not.toHaveBeenCalled();
     });
 
-    it('returns scored with min priority using || 0 missing-priority rule', async () => {
+    it('returns scored values[] using || 0 missing-priority rule (n = 1 / omit)', async () => {
         getToDoContextListMock.mockResolvedValue(
             success([
                 { name: 'a', variables: {}, options: { priority: 1 } },
@@ -225,10 +227,10 @@ describe('scoreDedicatedLumpLine', () => {
         );
 
         const items = await scoreSnapshots([readySnapshot()]);
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 0 }]);
+        expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [1, 0, 5] }]);
     });
 
-    it('returns scored with the minimum among explicit priorities', async () => {
+    it('returns scored values[] as every todo priority when n is 1', async () => {
         getToDoContextListMock.mockResolvedValue(
             success([
                 { name: 'a', variables: {}, options: { priority: 10 } },
@@ -237,7 +239,7 @@ describe('scoreDedicatedLumpLine', () => {
         );
 
         const items = await scoreSnapshots([readySnapshot()]);
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 3 }]);
+        expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [10, 3] }]);
     });
 
     it('returns empty when todo list is empty', async () => {
@@ -267,7 +269,7 @@ describe('scoreDedicatedLumpLine', () => {
 
         const items = await scoreSnapshots([readySnapshot({ contextList: frozen })]);
 
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 4 }]);
+        expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [4] }]);
         const passedInput = getToDoContextListMock.mock.calls[0]![0];
         expect('contextList' in passedInput).toBe(false);
         expect(await passedInput.getContextListFn({ codeBasePaths: [], lumpVariables: {} })).toEqual(
@@ -295,16 +297,16 @@ describe('scoreDedicatedLumpLine', () => {
             expect(refreshResult).toEqual(success(undefined));
         }
         expect(lockedRefresh).toHaveBeenCalledTimes(1);
-        expect(items).toEqual([
+        expect(items as unknown).toEqual([
             {
                 lumpName: 'backlog',
                 effectiveDiscoveryBranch: 'dev',
-                lineScore: { kind: 'scored', value: 10 },
+                lineScore: { kind: 'scored', values: [10] },
             },
             {
                 lumpName: 'backlog',
                 effectiveDiscoveryBranch: 'feature/x',
-                lineScore: { kind: 'scored', value: 3 },
+                lineScore: { kind: 'scored', values: [3] },
             },
         ]);
     });
@@ -339,8 +341,63 @@ describe('scoreDedicatedLumpLine', () => {
 
         const items = await scoreSnapshots([readySnapshot()]);
 
-        expect(lineScores(items)).toEqual([{ kind: 'scored', value: 2 }]);
+        expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [2] }]);
         const refreshFn = getToDoContextListMock.mock.calls[0]![0].refreshRemoteTrackingRefsFn!;
         expect(await refreshFn({ projectRoot: '/tmp/proj' })).toEqual(refreshFailure);
+    });
+
+    describe('batch scores (dedicated-tick-line-batch-order)', () => {
+        function todos(
+            ...priorities: Array<number | undefined>
+        ): Context[] {
+            return priorities.map((priority, i) => ({
+                name: `t${i}`,
+                variables: {},
+                ...(priority === undefined ? {} : { options: { priority } }),
+            }));
+        }
+
+        it('n = 2 scores every numberOfContextsPerBranch-th priority', async () => {
+            getToDoContextListMock.mockResolvedValue(success(todos(1, 2, 5, 6)));
+
+            const items = await scoreSnapshots([readySnapshot({ numberOfContextsPerBranch: 2 })]);
+            expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [1, 5] }]);
+        });
+
+        it('n = 2 leftover last batch uses that todo priority', async () => {
+            getToDoContextListMock.mockResolvedValue(success(todos(1, 2, 3)));
+
+            const items = await scoreSnapshots([readySnapshot({ numberOfContextsPerBranch: 2 })]);
+            expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [1, 3] }]);
+        });
+
+        it('n < 1 is treated as 1', async () => {
+            getToDoContextListMock.mockResolvedValue(success(todos(4, 8)));
+
+            const items = await scoreSnapshots([readySnapshot({ numberOfContextsPerBranch: 0 })]);
+            expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [4, 8] }]);
+        });
+
+        it('snapshot carries numberOfContextsPerBranch from RunLumpInput', async () => {
+            jsConfigToRunLumpInputMock.mockResolvedValue(
+                success({
+                    projectRoot: '/tmp/proj',
+                    baseBranch: 'feature/x',
+                    getContextListFn,
+                    gitCommitMessageFn: () => 'm',
+                    lumpVariables: {},
+                    refreshRemoteTrackingRefsFn: async () => success(undefined),
+                    steps: [],
+                    numberOfContextsPerBranch: 2,
+                } as never),
+            );
+            getContextListFn.mockResolvedValue([{ name: 'item', variables: {} }]);
+
+            const snapshot = await snapshotDedicatedLumpLine(snapshotInput());
+            expect(snapshot).toMatchObject({
+                kind: 'ready',
+                numberOfContextsPerBranch: 2,
+            });
+        });
     });
 });

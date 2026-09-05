@@ -1,5 +1,5 @@
 import type { DedicatedLumpLine } from '../lumpLine';
-import type { LineScore, ScoredLumpLine } from '../scoreDedicatedLumpLine';
+import type { ScoredLumpLine } from '../scoreDedicatedLumpLine';
 
 export type { ScoredLumpLine };
 
@@ -10,24 +10,37 @@ function stripScore(item: ScoredLumpLine): DedicatedLumpLine {
     };
 }
 
-type ScoredPriorityItem = ScoredLumpLine & {
-    lineScore: Extract<LineScore, { kind: 'scored' }>;
+function lineIdentity(line: DedicatedLumpLine): string {
+    return `${line.lumpName}\0${line.effectiveDiscoveryBranch}`;
+}
+
+type BatchStreamEntry = {
+    line: DedicatedLumpLine;
+    collectIndex: number;
+    batchIndex: number;
+    score: number;
+};
+
+type UnusedLeftover = {
+    line: DedicatedLumpLine;
+    collectIndex: number;
+    kind: 'scored' | 'empty';
 };
 
 /**
  * Slot-stable reorder: for each `lumpName`, fill that lump's non-failed slots
- * with its scored lines (best priority first), then empty lines (collect order).
- * Failed lines stay frozen in their collect indices. Other lumps' slots are untouched.
+ * from the merged batch stream (score, then collect index, then batch index).
+ * The same line may repeat. Unused leftover rows are lines that appear zero
+ * times in the taken prefix, scored before empty, collect order inside each
+ * group. Failed lines stay frozen. Other lumps' slots are untouched.
  *
  * @example
  * // input (collect / scan order)
- * //   backlog@dev        scored 10
- * //   other@dev          scored 1
- * //   backlog@feature    scored 3
+ * //   L@A   scored [10, 12]
+ * //   L@B   scored [1, 3]
  * // output
- * //   backlog@feature    (3 beats 10; takes backlog's first slot)
- * //   other@dev          (same index)
- * //   backlog@dev
+ * //   L@B
+ * //   L@B
  */
 export function reorderDedicatedLumpLines(
     items: readonly ScoredLumpLine[],
@@ -50,8 +63,8 @@ export function reorderDedicatedLumpLines(
     }
 
     for (const indices of indicesByLump.values()) {
-        const scored: ScoredPriorityItem[] = [];
-        const empty: ScoredLumpLine[] = [];
+        const stream: BatchStreamEntry[] = [];
+        const unusedCandidates: UnusedLeftover[] = [];
         const movableSlots: number[] = [];
 
         for (const i of indices) {
@@ -59,13 +72,27 @@ export function reorderDedicatedLumpLines(
             switch (item.lineScore.kind) {
                 case 'failed':
                     break;
-                case 'scored':
+                case 'scored': {
                     movableSlots.push(i);
-                    scored.push({ ...item, lineScore: item.lineScore });
+                    const line = stripScore(item);
+                    unusedCandidates.push({ line, collectIndex: i, kind: 'scored' });
+                    for (let batchIndex = 0; batchIndex < item.lineScore.values.length; batchIndex++) {
+                        stream.push({
+                            line,
+                            collectIndex: i,
+                            batchIndex,
+                            score: item.lineScore.values[batchIndex]!,
+                        });
+                    }
                     break;
+                }
                 case 'empty':
                     movableSlots.push(i);
-                    empty.push(item);
+                    unusedCandidates.push({
+                        line: stripScore(item),
+                        collectIndex: i,
+                        kind: 'empty',
+                    });
                     break;
                 default: {
                     const _exhaustive: never = item.lineScore;
@@ -74,10 +101,40 @@ export function reorderDedicatedLumpLines(
             }
         }
 
-        scored.sort((a, b) => a.lineScore.value - b.lineScore.value);
-        const fillers = [...scored, ...empty];
+        stream.sort((a, b) => {
+            if (a.score !== b.score) {
+                return a.score - b.score;
+            }
+            if (a.collectIndex !== b.collectIndex) {
+                return a.collectIndex - b.collectIndex;
+            }
+            return a.batchIndex - b.batchIndex;
+        });
+
+        const takenCount = Math.min(stream.length, movableSlots.length);
+        const taken = stream.slice(0, takenCount);
+        const fillers: DedicatedLumpLine[] = taken.map((entry) => entry.line);
+
+        if (fillers.length < movableSlots.length) {
+            const used = new Set(taken.map((entry) => lineIdentity(entry.line)));
+            const unused = unusedCandidates
+                .filter((candidate) => !used.has(lineIdentity(candidate.line)))
+                .sort((a, b) => {
+                    if (a.kind !== b.kind) {
+                        return a.kind === 'scored' ? -1 : 1;
+                    }
+                    return a.collectIndex - b.collectIndex;
+                });
+            for (const candidate of unused) {
+                if (fillers.length >= movableSlots.length) {
+                    break;
+                }
+                fillers.push(candidate.line);
+            }
+        }
+
         for (let f = 0; f < movableSlots.length; f++) {
-            result[movableSlots[f]!] = stripScore(fillers[f]!);
+            result[movableSlots[f]!] = fillers[f]!;
         }
     }
 
