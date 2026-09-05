@@ -23,12 +23,6 @@ npm install
 lumpcode start
 lumpcode daemon-status`
 
-const workerRecipe = `{
-  "$schema": "https://lumpcode.com/schemas/daemonConfig.schema.json",
-  "discoveryBranch": "dev",
-  "include": ["backlog"]
-}`
-
 const page = docsVuePages.find((item) => item.path === docs.worker)
 </script>
 
@@ -41,9 +35,6 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
     :source-path="page?.sourcePath"
   >
     <template #intro>
-      <p class="page-intro-skip">
-        <a href="#start-named-workers-from-git">Looking for the committed worker file shape?</a>
-      </p>
       <GuidePathNav current="worker" />
     </template>
 
@@ -117,101 +108,13 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         <p>
           Depth: <NuxtLink :to="docs.localConfig">local.json</NuxtLink>,
           <NuxtLink :to="docs.concepts">run vs start</NuxtLink>.
-          Named workers as a committed file:
-          <a href="#start-named-workers-from-git">shape below</a>.
         </p>
       </section>
     </div>
 
-    <section id="start-named-workers-from-git" class="guide-step docs-prose">
-      <h2>Start named workers from git</h2>
-      <p>
-        On a <strong>dedicated</strong> clone you can commit a recipe and let the worker start from git.
-        Shared mode ignores these files. A plain <code>lumpcode start</code> still works; this is optional.
-      </p>
-
-      <h3 id="file-shape">File shape</h3>
-      <p>
-        Path is <code>.lumpcode/daemons/&lt;name&gt;.{json,yml,yaml}</code> (top-level only).
-        The stem is the worker id. Do not put <code>daemonId</code> in the file.
-        Required field is <code>discoveryBranch</code> only.
-      </p>
-      <CodeWindow filename=".lumpcode/daemons/backlog.json" :code="workerRecipe" />
-      <div class="docs-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Field</th>
-              <th>Role</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><code>discoveryBranch</code></td>
-              <td>Required. Exact expanded primary this file applies to (no <code>*</code> / <code>?</code>). Must equal the <code>origin/&lt;branch&gt;</code> the file was read from. Push the file on that branch.</td>
-            </tr>
-            <tr>
-              <td><code>cronSetup</code></td>
-              <td>Cron for that worker. Omit for <code>*/5 * * * *</code>.</td>
-            </tr>
-            <tr>
-              <td><code>include</code> / <code>exclude</code></td>
-              <td>Lump-name filters (<code>*</code> globs allowed). Omit or <code>[]</code> for all / none.</td>
-            </tr>
-            <tr>
-              <td><code>disabled</code></td>
-              <td>When <code>true</code>, stop or do not start this id.</td>
-            </tr>
-            <tr>
-              <td><code>maxParallelRun</code></td>
-              <td>Worktree only. Same meaning as <code>lumpcode start --maxParallelRun</code>. Checkout plus this field is not started.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p>
-        Editors: <code>$schema</code> <code>https://lumpcode.com/schemas/daemonConfig.schema.json</code>.
-        Extra keys fail the schema.
-      </p>
-
-      <h3 id="after-you-push">After you push</h3>
-      <p>
-        Use <code>lumpcode start --superviseOnly</code> on the dedicated clone when you want the supervisor up and
-        <em>only</em> these files to start workers. Cannot combine with <code>--include</code>, <code>--exclude</code>,
-        <code>--daemonId</code>, <code>--cronSetup</code>, <code>--maxParallelRun</code>, <code>--lumpName</code>, or <code>--foreground</code>.
-      </p>
-      <div class="docs-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Situation</th>
-              <th>What happens</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Enabled file, that id not running</td>
-              <td>Starts</td>
-            </tr>
-            <tr>
-              <td>File contents changed</td>
-              <td>Stops, then starts the new recipe</td>
-            </tr>
-            <tr>
-              <td>File <code>disabled: true</code> or gone</td>
-              <td>Stops</td>
-            </tr>
-            <tr>
-              <td>A <code>lumpcode start</code> worker already has that id</td>
-              <td>Leaves it alone</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p>
-        Flags: <NuxtLink :to="`${docs.commands}#lumpcode-start`">commands</NuxtLink>.
-        If a file never starts: <NuxtLink to="/docs/reference/troubleshooting#committed-worker-recipe-never-starts">troubleshooting</NuxtLink>.
-      </p>
-    </section>
+    <p class="guide-payoff">
+      To start a daemon from a committed file, see
+      <NuxtLink :to="docs.daemons">Start daemons from git</NuxtLink>.
+    </p>
   </DocsPageShell>
 </template>

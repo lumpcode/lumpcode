@@ -59,11 +59,11 @@ Scaffolds `config.json` / `--config js` / `--config ts`. Fails if a config alrea
 
 ## Worker
 
-These operate on `~/.lumpcode/daemons/<project>.<id>.*`. The default id is `global` (unfiltered). User-facing name is [worker](/docs/start/worker); the CLI still says daemon.
+These start and inspect **daemons** on a [worker](/docs/start/worker) (the dedicated clone). Process files live under `~/.lumpcode/daemons/<project>.<id>.*`. The default id is `global` (unfiltered). Committed recipes: [daemon files](/docs/config/daemons).
 
 ### `lumpcode start`
 
-Detach a worker (omit `--foreground` to background). Discovers loadable lumps each cron fire.
+Detach a daemon (omit `--foreground` to background). Discovers loadable lumps each cron fire.
 
 | Option | Role |
 | --- | --- |
@@ -72,9 +72,9 @@ Detach a worker (omit `--foreground` to background). Discovers loadable lumps ea
 | `--include` / `--exclude` | Comma-separated names or `*` globs. |
 | `--daemonId` | `[a-zA-Z0-9_-]+`. Unfiltered default `global`. `--daemonId=global` with any filter fails. |
 | `--maxParallelRun` | Worktree only. Overrides `local.json`. |
-| `--superviseOnly` | Start or adopt the project supervisor and exit. No worker spawn, no `desired.json`. On a dedicated clone, committed [`.lumpcode/daemons/`](/docs/start/worker#file-shape) files can then start workers. Cannot combine with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. |
+| `--superviseOnly` | Start or adopt the project supervisor and exit. No daemon spawn, no `desired.json`. On a dedicated worker, committed [`.lumpcode/daemons/`](/docs/config/daemons) files can then start those daemons. Cannot combine with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. |
 
-Project and local config are frozen at start; restart to pick up edits. Empty include match still stays up. Overlapping filtered workers are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
+Project and local config are frozen at start; restart to pick up edits. Empty include match still stays up. Overlapping filtered daemons are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
 
 A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). Several names or globs get `d-` plus 6 hex.
 
@@ -83,7 +83,7 @@ A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). S
 | Option | Role |
 | --- | --- |
 | `--daemonId` | Default `global`. |
-| `--all` | Every worker for this project, then the supervisor. |
+| `--all` | Every daemon for this project, then the supervisor. |
 | `--force` | Tree-kill immediately. Does not need readable meta. |
 
 Idle stop: SIGTERM, wait 5s, remove pid/meta/desired. Mid-run graceful stop **refuses** (`daemonBusy`). Corrupt meta without `--force` also refuses. `--all` is the only way to stop the supervisor `start` launched; you do not run that process yourself.
@@ -94,7 +94,7 @@ Stop then start from `desired.json`. Mid-run still refuses unless you force-stop
 
 ### `lumpcode daemon-status [--daemonId]`
 
-No flags: list workers plus whether the supervisor is running. With id: one worker’s cron, filters, in-flight count.
+No flags: list daemons plus whether the supervisor is running. With id: one daemon’s cron, filters, in-flight count.
 
 ### `lumpcode daemon-log`
 
@@ -123,6 +123,6 @@ Do not mix these up with the three **context** states (`toDo`, `branchPushed`, `
 
 | Command | Answers |
 | --- | --- |
-| `daemon-status` | Is the worker process up? |
+| `daemon-status` | Is that daemon up? |
 | `lump-status` | Per-context git status for a lump. |
 | `context-status` | One context row; optional force-finished. |

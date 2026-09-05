@@ -41,11 +41,11 @@ toDo ──run + push──► branchPushed ──you merge──► finished
 
 Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up; you do not run that yourself.
 
-Worker files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json`, `desired.json` (spawn recipe; `stopping: true` means drain). Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
+Daemon process files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json`, `desired.json` (spawn recipe; `stopping: true` means drain). Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
 
-## Worker recipes in git
+## Daemon files from git
 
-On a dedicated clone, commit `.lumpcode/daemons/<name>.json` and the worker can start from git. Shared mode ignores these files. File shape and fields: [Start named workers from git](/docs/start/worker#start-named-workers-from-git).
+On a dedicated **worker**, commit `.lumpcode/daemons/<id>.json` so that **daemon** can start from git. Shared mode ignores these files. File shape: [Start daemons from git](/docs/config/daemons).
 
 ## Shared laptop versus dedicated worker
 

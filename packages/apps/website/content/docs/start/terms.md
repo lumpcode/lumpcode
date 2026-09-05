@@ -13,7 +13,7 @@ Lumpcode has a small vocabulary. If a later page feels dense, it is usually beca
 | **Lump** | One campaign, at `.lumpcode/lumps/<lumpName>/`. Config, prompts, and hooks live here. |
 | **Context** | One unit of work inside a lump: a file, a group of files, a ticket, a package. It has a `name` and string `variables` that fill `{VAR}` in prompts. |
 | **Marker commit** | The commit Lumpcode writes for a finished context. The subject is `LUMP: <lumpName> - <contextName>`. Status is that string on your git remote, nothing else. |
-| **Worker** | `lumpcode start` on a clone you do not edit. It discovers lumps on a schedule and pushes branches. You merge from wherever you are. |
+| **Worker** | The dedicated clone you do not edit (`mode: dedicated`). You leave it running. **Daemons** on that machine do the scheduled work. |
 
 A context is **not** “one file” by definition. One context can hold a component plus its test. Several contexts can share one branch when you set `numberOfContextsPerBranch`.
 
@@ -51,6 +51,6 @@ Dedicated workers can scan several primary lines (`dev` plus `feature/*`). Share
 
 ## Words you will see in the CLI
 
-`lumpcode start` still talks about a **daemon** in flags and filenames (`daemon-status`, `daemon-log`, `--daemonId`). On this site the product name for that process is **worker**. Same command.
+The **worker** is the machine (the dedicated clone). A **daemon** is one scheduler on that machine (`--daemonId`, `daemon-status`, `daemon-log`). Commit files under `.lumpcode/daemons/` to start them from git: [Start daemons from git](/docs/config/daemons).
 
 A **tick** is one scheduler pass: discover lumps, run the ones that match. `lumpcode run <lumpName>` is one tick for one lump, then exit.

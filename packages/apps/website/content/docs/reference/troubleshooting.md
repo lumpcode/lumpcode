@@ -21,7 +21,7 @@ That pushes an empty marker commit on the base branch. Use sparingly.
 
 | Command | Question |
 | --- | --- |
-| `daemon-status` | Is the worker process running? |
+| `daemon-status` | Is that daemon running? |
 | `lump-status` | What is each context’s git state? |
 
 They do not answer each other. [Commands](/docs/reference/commands#three-commands-named-status).
@@ -75,12 +75,12 @@ Names must match `^[a-zA-Z0-9_-]+$` and be unique. No `/` in a context `name`. U
 
 The cap is **per lump name**, across every discovery line. A dedicated worker now picks the strongest remaining batch first (context `priority`), so a hotter `feature/*` line is not stuck behind the primary. You can still skip when the cap is already full of open `lump/<name>/*` branches. Merge, raise the cap, or split lumps.
 
-## Committed worker recipe never starts
+## Committed daemon file never starts
 
-`.lumpcode/daemons/<id>.json` only starts workers on a **dedicated** clone. Shared mode ignores the files. File shape: [Worker → File shape](/docs/start/worker#file-shape).
+`.lumpcode/daemons/<id>.json` only starts daemons on a **dedicated worker**. Shared mode ignores the files. File shape: [Start daemons from git](/docs/config/daemons#file-shape).
 
 1. `discoveryBranch` must be exact (no globs) and equal the expanded primary the file was read from. Push the file on that branch.
-2. A `lumpcode start` worker already using that id is left alone. Stop it, or pick another file stem.
+2. A `lumpcode start` daemon already using that id is left alone. Stop it, or pick another file stem.
 3. `maxParallelRun` in the file plus `workspaceStrategy: checkout` is refused.
 4. Wait for the next supervisor pass (about 30s, then every 5 minutes after a successful snapshot), or `lumpcode restart`.
 5. `lumpcode daemon-status` should show that id. The log names parse and allowlist failures.
