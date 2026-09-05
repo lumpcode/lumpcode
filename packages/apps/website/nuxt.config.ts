@@ -7,10 +7,12 @@ const websiteRoot = dirname(fileURLToPath(import.meta.url))
 const siteUrl = 'https://www.lumpcode.com'
 const publicSchemaDir = join(websiteRoot, 'public/schemas')
 mkdirSync(publicSchemaDir, { recursive: true })
-copyFileSync(
-  join(websiteRoot, '../cli/src/schemas/lumpConfig.schema.json'),
-  join(publicSchemaDir, 'lumpConfig.schema.json'),
-)
+for (const schemaName of ['lumpConfig.schema.json', 'daemonConfig.schema.json']) {
+  copyFileSync(
+    join(websiteRoot, '../cli/src/schemas', schemaName),
+    join(publicSchemaDir, schemaName),
+  )
+}
 
 const sitemapPaths = ['/', ...docsPrerenderRoutes]
 writeFileSync(

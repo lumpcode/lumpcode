@@ -39,9 +39,34 @@ toDo ──run + push──► branchPushed ──you merge──► finished
 
 `start` discovers every loadable lump (unless you pass `--include` / `--exclude`) on a cron, default every five minutes. New lumps appear on the next pass after you merge them to the branch the worker tracks. Nothing to deploy or register.
 
-Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up (`supervise --foreground`); you do not run that yourself.
+Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up; you do not run that yourself.
 
 Worker files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json`, `desired.json` (spawn recipe; `stopping: true` means drain). Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
+
+## Worker recipes in git
+
+On a **dedicated** clone you can commit a recipe and let the worker start from git. Shared mode ignores these files.
+
+```json .lumpcode/daemons/backlog.json
+{
+  "$schema": "https://lumpcode.com/schemas/daemonConfig.schema.json",
+  "discoveryBranch": "dev",
+  "include": ["backlog"]
+}
+```
+
+The file stem is the worker id (`backlog` here). `discoveryBranch` must be an exact expanded primary this clone scans, and it must match the `origin/<branch>` the file was read from. Push the file on that branch. YAML (`.yml` / `.yaml`) is fine. Editors: same `$schema`.
+
+`lumpcode start` still works. Use `lumpcode start --superviseOnly` when you want the supervisor up and **only** these files to start workers.
+
+| Situation | What happens |
+| --- | --- |
+| Enabled file, that id not running | Starts |
+| File contents changed | Stops, then starts the new recipe |
+| File `disabled: true` or gone | Stops |
+| A `lumpcode start` worker already has that id | Leaves it alone |
+
+A file `maxParallelRun` with checkout strategy is not started. Setup: [the worker](/docs/start/worker). Flags: [commands](/docs/reference/commands#lumpcode-start).
 
 ## Shared laptop versus dedicated worker
 
@@ -73,7 +98,7 @@ resolvedBaseBranch       = lump baseBranch (string or fn)
 
 Discovery is where a dedicated worker **finds** the lump. Base is where work **branches off** and where `finished` is read. Dedicated allowlist: each lump discovery rule must match configured (unexpanded) `primaryBranches`. Shared `run` ignores discovery rules (warns if you pass `--discoveryBranch`). Inspect commands can still filter with the flag.
 
-The open-branch cap is **per lump name**, across every scan line.
+The open-branch cap is **per lump name**, across every scan line. On a dedicated worker, those lines run in remaining-batch order: each batch score is every `numberOfContextsPerBranch`-th sorted eligible-todo `options.priority` (lower first). A hotter `feature/*` line is not stuck behind the primary. The same lump + discovery branch stays sequential. `lumpcode run` is still one line.
 
 ## Checkout or worktree
 

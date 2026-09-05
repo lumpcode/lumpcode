@@ -23,6 +23,12 @@ npm install
 lumpcode start
 lumpcode daemon-status`
 
+const workerRecipe = `{
+  "$schema": "https://lumpcode.com/schemas/daemonConfig.schema.json",
+  "discoveryBranch": "dev",
+  "include": ["backlog"]
+}`
+
 const page = docsVuePages.find((item) => item.path === docs.worker)
 </script>
 
@@ -106,8 +112,14 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
           </li>
         </ul>
         <p>
+          Named workers can live in git the same way. Commit a recipe under <code>.lumpcode/daemons/</code>, push, and merge. A dedicated worker starts that process; a laptop in shared mode does not.
+          If you want <em>only</em> those files to start workers, use <code>lumpcode start --superviseOnly</code> on the clone instead of a plain <code>start</code>.
+        </p>
+        <CodeWindow filename=".lumpcode/daemons/backlog.json" :code="workerRecipe" />
+        <p>
           Depth: <NuxtLink :to="docs.localConfig">local.json</NuxtLink>,
-          <NuxtLink :to="docs.concepts">run vs start</NuxtLink>.
+          <NuxtLink :to="docs.concepts">run vs start</NuxtLink>
+          (including <NuxtLink :to="`${docs.concepts}#worker-recipes-in-git`">worker recipes in git</NuxtLink>).
         </p>
       </section>
     </div>

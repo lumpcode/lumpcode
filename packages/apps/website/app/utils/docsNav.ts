@@ -246,6 +246,6 @@ export const docsVuePages: {
       { id: 'back-to-the-laptop', text: '4. Back to the laptop', depth: 2 },
     ],
     searchText:
-      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe',
+      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe superviseOnly .lumpcode/daemons discoveryBranch worker recipe',
   },
 ]

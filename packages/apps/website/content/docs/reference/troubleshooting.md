@@ -71,9 +71,19 @@ The preset needs `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` on 
 
 Names must match `^[a-zA-Z0-9_-]+$` and be unique. No `/` in a context `name`. Use `/` only in `dependsOnContexts` as `otherLump/contextName`. Captures from path templates that include dots or spaces will fail; slug them in `contextMatchFn` / `getContextListFn`.
 
-## Too many open branches, later scan lines starve
+## Too many open branches
 
-The cap is **per lump name**, across every discovery line. A dedicated worker that scans `dev` then `feature/*` can skip later lines while `dev` still has open `lump/<name>/*` branches. Merge, raise the cap, or split lumps.
+The cap is **per lump name**, across every discovery line. A dedicated worker now picks the strongest remaining batch first (context `priority`), so a hotter `feature/*` line is not stuck behind the primary. You can still skip when the cap is already full of open `lump/<name>/*` branches. Merge, raise the cap, or split lumps.
+
+## Committed worker recipe never starts
+
+`.lumpcode/daemons/<id>.json` only starts workers on a **dedicated** clone. Shared mode ignores the files.
+
+1. `discoveryBranch` must be exact (no globs) and equal the expanded primary the file was read from. Push the file on that branch.
+2. A `lumpcode start` worker already using that id is left alone. Stop it, or pick another file stem.
+3. `maxParallelRun` in the file plus `workspaceStrategy: checkout` is refused.
+4. Wait for the next supervisor pass (about 30s, then every 5 minutes after a successful snapshot), or `lumpcode restart`.
+5. `lumpcode daemon-status` should show that id. The log names parse and allowlist failures.
 
 ## JSON config cannot see my function
 
