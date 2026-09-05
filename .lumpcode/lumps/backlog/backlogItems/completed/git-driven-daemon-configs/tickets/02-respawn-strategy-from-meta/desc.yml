@@ -1,6 +1,6 @@
 name: 02-respawn-strategy-from-meta
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 priority: 3
 task: >-
   spawnDesiredDaemon must take workspaceStrategy from that daemon's meta, not a

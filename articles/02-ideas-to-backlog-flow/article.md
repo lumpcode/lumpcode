@@ -48,17 +48,17 @@ Discovery: `dev` + `feature/*`.
 
 | Branch | What runs |
 | --- | --- |
-| `dev` | Only items with `workflow: directImpl` |
-| `feature/<itemName>` | That item’s TDD stages |
+| `dev` | Top-level items whose `workflow` has no `testPlan`/`testImpl` |
+| `feature/<itemName>` | That item’s campaign stages |
 
-Default TDD stages (each is a context → branch → agent → push):
+Default stages (omit `workflow`, each is a context → branch → agent → push):
 
-1. `makeReq` → write `requirements.md`
-2. `makeTestPlan` → write `testPlan.md`
+1. `req` → write `requirements.md`
+2. `testPlan` → write `testPlan.md`
 3. `testImpl` → add skipped tests
-4. `implementation` → implement, unskip, build+test until green → move to `completed/`
+4. `impl` → implement, unskip, build+test until green → move to `completed/`
 
-Or set `workflow: directImpl` in `desc.yml` for req → implement on `dev`.
+Or set `workflow: [req]` in `desc.yml` for req → implement on `dev`.
 
 ## 5. Human side
 

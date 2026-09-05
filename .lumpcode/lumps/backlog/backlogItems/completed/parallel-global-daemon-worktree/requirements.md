@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `parallel-global-daemon-worktree` · priority **1** · `manualReq` |
+| **Backlog** | `parallel-global-daemon-worktree` · priority **1** · workflow **[testPlan, testImpl]** |
 | **Type** | feature |
 | **Packages** | `packages/apps/cli` only; `packages/core` unchanged |
 

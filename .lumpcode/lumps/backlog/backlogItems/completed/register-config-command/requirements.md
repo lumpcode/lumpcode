@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `register-config-command` · priority **10** · type **fix** · workflow **directImpl** |
+| **Backlog** | `register-config-command` · priority **10** · type **fix** · workflow **[req]** |
 | **Status** | Pending implementation |
 | **Depends on** | — |
 | **Packages** | Primary: `packages/apps/cli` (`jsConfigToRunLumpInput`, schema description, DOCS). `@lumpcode/core`, recipes runtime, and cli-types APIs unchanged (docs/examples may drop mandatory `registerCommands` where it is no longer required). |

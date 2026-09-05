@@ -1,5 +1,5 @@
 name: backlog-recipe-tutorial
-workflow: directImpl
+workflow: [impl]
 manualReq: true
 task: >-
   Add one DOCS page that is a concise tutorial for the backlog recipe (scaffold →

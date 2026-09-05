@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `dedicated-tick-line-batch-order` · priority **5** · type **feature** · workflow **directImpl** |
+| **Backlog** | `dedicated-tick-line-batch-order` · priority **5** · type **feature** · workflow **[testPlan, testImpl]** |
 | **Status** | Pending implementation |
 | **Depends on** | `dedicated-tick-line-priority` (shipped) |
 | **Packages** | Primary: `packages/apps/cli` (score, reorder, run pool, one `concepts.md` sentence). `@lumpcode/core` `getToDoContextList` / `runLump` unchanged. Recipes unchanged. |

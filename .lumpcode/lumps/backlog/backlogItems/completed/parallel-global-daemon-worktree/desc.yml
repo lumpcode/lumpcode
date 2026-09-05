@@ -1,4 +1,5 @@
 name: parallel-global-daemon-worktree
+workflow: [testPlan, testImpl]
 manualReq: true
 task: >-
   Enable parallel lump runs in the global daemon when workspaceStrategy is

@@ -1,6 +1,6 @@
 name: 03-daemon-config-file-contract
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 priority: 3
 task: >-
   Add daemonConfigFile util (schema, normalize, SHA-256 hash), editor

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `clean-local-project-json-config` · priority **5** · `manualReq` |
+| **Backlog** | `clean-local-project-json-config` · priority **5** · workflow **[testPlan, testImpl]** |
 | **Type** | feature |
 | **Status** | Pending implementation |
 | **Depends on** | — |

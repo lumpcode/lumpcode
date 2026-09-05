@@ -1,6 +1,6 @@
 name: command-as-shell-string
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 task: >-
   Allow command / commandFn to be (or return) a plain shell string such as
   "npm run …", not only a CommandDescriptor object or registered tag /

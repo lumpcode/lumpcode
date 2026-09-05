@@ -15,7 +15,6 @@ export default featureBacklog<
     verbose: true,
     keepHistory: true,
     lumpVariables: { model: 'cursor-grok-4.6-high-fast' },
-    discoveryBranches: ['dev', 'feature/*'],
     implValidateCommand: [
         'npm run build -w=@lumpcode/cli',
         'npm run test -w=@lumpcode/cli',

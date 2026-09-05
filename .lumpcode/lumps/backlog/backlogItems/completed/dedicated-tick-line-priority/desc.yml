@@ -1,6 +1,6 @@
 name: dedicated-tick-line-priority
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 priority: 4
 task: >-
   Dedicated daemon ticks reorder each lump's scan-branch lines by best eligible

@@ -1,4 +1,5 @@
 name: daemon-id-and-filters
+workflow: [testPlan, testImpl]
 manualReq: true
 task: >-
   Unify daemons: every daemon is a global-style scheduler with optional

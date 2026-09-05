@@ -1,5 +1,5 @@
 name: history-and-transcripts
-workflow: tdd
+workflow: [testPlan, testImpl]
 manualReq: true
 task: >-
   Two artifacts from the same step walk. keepHistory: replace the gitignored
