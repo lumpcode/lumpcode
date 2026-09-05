@@ -217,7 +217,7 @@ describe('scoreDedicatedLumpLine', () => {
         expect(getContextListFn).not.toHaveBeenCalled();
     });
 
-    it.skip('returns scored values[] using || 0 missing-priority rule (n = 1 / omit)', async () => {
+    it('returns scored values[] using || 0 missing-priority rule (n = 1 / omit)', async () => {
         getToDoContextListMock.mockResolvedValue(
             success([
                 { name: 'a', variables: {}, options: { priority: 1 } },
@@ -230,7 +230,7 @@ describe('scoreDedicatedLumpLine', () => {
         expect(lineScores(items) as unknown).toEqual([{ kind: 'scored', values: [1, 0, 5] }]);
     });
 
-    it.skip('returns scored values[] as every todo priority when n is 1', async () => {
+    it('returns scored values[] as every todo priority when n is 1', async () => {
         getToDoContextListMock.mockResolvedValue(
             success([
                 { name: 'a', variables: {}, options: { priority: 10 } },
@@ -263,7 +263,7 @@ describe('scoreDedicatedLumpLine', () => {
         expect(lineScores(items)).toEqual([{ kind: 'failed', reason: 'unexpected' }]);
     });
 
-    it.skip('classifies the frozen context list via an injected getContextListFn', async () => {
+    it('classifies the frozen context list via an injected getContextListFn', async () => {
         const frozen = [{ name: 'frozen', variables: {}, options: { priority: 4 } }];
         getToDoContextListMock.mockResolvedValue(success(frozen));
 
@@ -277,7 +277,7 @@ describe('scoreDedicatedLumpLine', () => {
         );
     });
 
-    it.skip('refreshes once then reuses that refresh fn for every ready line', async () => {
+    it('refreshes once then reuses that refresh fn for every ready line', async () => {
         const lockedRefresh = vi.fn(async () => success(undefined));
         makeLockedRefreshMock.mockReturnValue(lockedRefresh);
         getToDoContextListMock
@@ -332,7 +332,7 @@ describe('scoreDedicatedLumpLine', () => {
         ]);
     });
 
-    it.skip('injects a failed refresh so status soft-falls', async () => {
+    it('injects a failed refresh so status soft-falls', async () => {
         const refreshFailure = failure('net down');
         makeLockedRefreshMock.mockReturnValue(async () => refreshFailure);
         getToDoContextListMock.mockResolvedValue(
@@ -346,7 +346,7 @@ describe('scoreDedicatedLumpLine', () => {
         expect(await refreshFn({ projectRoot: '/tmp/proj' })).toEqual(refreshFailure);
     });
 
-    describe.skip('batch scores (dedicated-tick-line-batch-order)', () => {
+    describe('batch scores (dedicated-tick-line-batch-order)', () => {
         function todos(
             ...priorities: Array<number | undefined>
         ): Context[] {

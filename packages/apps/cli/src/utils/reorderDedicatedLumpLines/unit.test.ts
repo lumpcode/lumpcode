@@ -12,7 +12,7 @@ function scored(lumpName: string, branch: string, lineScore: FutureLineScore): S
 }
 
 describe('reorderDedicatedLumpLines', () => {
-    it.skip('slot-stable: better one-batch score of same lump swaps; other lump stays', () => {
+    it('slot-stable: better one-batch score of same lump swaps; other lump stays', () => {
         const items: ScoredLumpLine[] = [
             scored('backlog', 'dev', { kind: 'scored', values: [10] }),
             scored('other', 'dev', { kind: 'scored', values: [1] }),
@@ -25,7 +25,7 @@ describe('reorderDedicatedLumpLines', () => {
         ]);
     });
 
-    it.skip('ties keep collect/scan order', () => {
+    it('ties keep collect/scan order', () => {
         const items: ScoredLumpLine[] = [
             scored('backlog', 'dev', { kind: 'scored', values: [5] }),
             scored('backlog', 'feature/a', { kind: 'scored', values: [5] }),
@@ -38,7 +38,7 @@ describe('reorderDedicatedLumpLines', () => {
         ]);
     });
 
-    it.skip('empty lines sort after scored lines of the same lump', () => {
+    it('empty lines sort after scored lines of the same lump', () => {
         const items: ScoredLumpLine[] = [
             scored('backlog', 'dev', { kind: 'empty' }),
             scored('backlog', 'feature', { kind: 'scored', values: [3] }),
@@ -51,7 +51,7 @@ describe('reorderDedicatedLumpLines', () => {
         ]);
     });
 
-    it.skip('failed lines stay frozen in their collect slots', () => {
+    it('failed lines stay frozen in their collect slots', () => {
         const items: ScoredLumpLine[] = [
             scored('backlog', 'dev', { kind: 'scored', values: [10] }),
             scored('backlog', 'mid', { kind: 'failed', reason: 'boom' }),
@@ -64,7 +64,7 @@ describe('reorderDedicatedLumpLines', () => {
         ]);
     });
 
-    it.skip('mixed lumpNames only reorder within each lumpName', () => {
+    it('mixed lumpNames only reorder within each lumpName', () => {
         const items: ScoredLumpLine[] = [
             scored('a', 'dev', { kind: 'scored', values: [9] }),
             scored('b', 'dev', { kind: 'scored', values: [1] }),
@@ -109,7 +109,7 @@ describe('reorderDedicatedLumpLines', () => {
         expect(reorderDedicatedLumpLines([])).toEqual([]);
     });
 
-    describe.skip('batch stream fill (dedicated-tick-line-batch-order)', () => {
+    describe('batch stream fill (dedicated-tick-line-batch-order)', () => {
         it('stronger line can occupy more than one row: [B, B]', () => {
             const items = [
                 scored('L', 'A', { kind: 'scored', values: [10, 12] }),

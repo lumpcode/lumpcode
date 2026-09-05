@@ -209,7 +209,7 @@ describe('runLumpLinesWithConcurrency (parallel-global-daemon-worktree)', () => 
         await poolPromise;
     });
 
-    describe.skip('same-line serialize (dedicated-tick-line-batch-order)', () => {
+    describe('same-line serialize (dedicated-tick-line-batch-order)', () => {
         it('concurrency 2 does not start a second same-line invoke until the first finishes', async () => {
             const lineB = { lumpName: 'B', effectiveDiscoveryBranch: 'dev' };
             const started: number[] = [];

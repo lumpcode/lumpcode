@@ -25,7 +25,7 @@ import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemot
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 
 export type LineScore =
-    | { kind: 'scored'; value: number }
+    | { kind: 'scored'; values: number[] }
     | { kind: 'empty' }
     | { kind: 'failed'; reason: string };
 
@@ -48,6 +48,8 @@ type ReadyDedicatedLumpLineSnapshot = DedicatedLumpLine & {
     lumpVariables: LumpVariables;
     gitCommitMessageFn: GitCommitMessageFn;
     contextList: Context[];
+    /** From that line's `RunLumpInput`. Omit (spies) → treat as `1`. */
+    numberOfContextsPerBranch?: number;
 };
 
 type FailedDedicatedLumpLineSnapshot = DedicatedLumpLine & {
@@ -72,19 +74,25 @@ function errorReason(err: unknown): string {
     return err instanceof Error ? err.message : String(err);
 }
 
-function lineScoreFromTodos(todos: Context[]): LineScore {
+/**
+ * Remaining eligible todos as one score per leftover `runLump` batch.
+ * `values[i]` is `options.priority || 0` of `todos[i * n]`
+ * (`n = max(1, numberOfContextsPerBranch)`). Does not re-sort.
+ */
+export function batchScores(
+    todos: Context[],
+    numberOfContextsPerBranch: number,
+): LineScore {
     if (todos.length === 0) {
         return { kind: 'empty' };
     }
 
-    let minPriority = todos[0]!.options?.priority || 0;
-    for (let i = 1; i < todos.length; i++) {
-        const p = todos[i]!.options?.priority || 0;
-        if (p < minPriority) {
-            minPriority = p;
-        }
+    const n = Math.max(1, numberOfContextsPerBranch);
+    const values: number[] = [];
+    for (let i = 0; i < todos.length; i += n) {
+        values.push(todos[i]!.options?.priority || 0);
     }
-    return { kind: 'scored', value: minPriority };
+    return { kind: 'scored', values };
 }
 
 function toScoredLumpLine(
@@ -197,6 +205,9 @@ export async function snapshotDedicatedLumpLine(
             lumpVariables,
             gitCommitMessageFn: makeGitCommitMessageFnFromLumpName(lumpName),
             contextList,
+            ...(runInput.numberOfContextsPerBranch !== undefined
+                ? { numberOfContextsPerBranch: runInput.numberOfContextsPerBranch }
+                : {}),
         };
     } catch (err) {
         return failedSnapshot(input, errorReason(err));
@@ -231,7 +242,10 @@ export async function scoreDedicatedLumpLine(input: {
         if (!todoResult.success) {
             return toScoredLumpLine(snapshot, { kind: 'failed', reason: todoResult.data.message });
         }
-        return toScoredLumpLine(snapshot, lineScoreFromTodos(todoResult.data));
+        return toScoredLumpLine(
+            snapshot,
+            batchScores(todoResult.data, snapshot.numberOfContextsPerBranch ?? 1),
+        );
     } catch (err) {
         return toScoredLumpLine(snapshot, { kind: 'failed', reason: errorReason(err) });
     }

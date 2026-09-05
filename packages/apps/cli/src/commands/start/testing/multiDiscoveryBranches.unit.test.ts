@@ -373,7 +373,7 @@ describe('start command — multi discovery branches', () => {
         }
     });
 
-    it.skip('runs same lump on two lines in best todo-priority order, not primary first', async () => {        await writeLocalJson(localConfigFolderPath(projectRoot), {
+    it('runs same lump on two lines in best todo-priority order, not primary first', async () => {        await writeLocalJson(localConfigFolderPath(projectRoot), {
             mode: 'dedicated',
             primaryBranch: 'main',
             primaryBranches: ['main', 'feature/*'],
@@ -412,7 +412,7 @@ describe('start command — multi discovery branches', () => {
                     lineScore: {
                         kind: 'scored' as const,
                         values: snapshot.effectiveDiscoveryBranch === 'main' ? [10] : [3],
-                    } as unknown as { kind: 'scored'; value: number },
+                    },
                 })),
             );
         const runLumpSpy = vi
