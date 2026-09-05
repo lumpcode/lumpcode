@@ -5,11 +5,12 @@ import { failure, success, type Failure, type Success } from '@lumpcode/core';
 import { DEFAULT_DAEMON_CRON_SETUP } from '../../consts';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { DAEMON_ID_CHARSET } from '../daemonFileBaseName';
+import type { DaemonConfigFileMeta } from '../daemonConfigFile';
 import { daemonMetaInclude, type DaemonMeta, type DaemonMetaWrite } from '../readDaemonMeta';
 import { readJsonFile } from '../readJsonFile';
 import { writeJsonFile } from '../writeJsonFile';
 
-/** In-memory launch spec. desired.json is this minus workspaceStrategy. */
+/** In-memory launch spec. desired.json is this minus workspaceStrategy and daemonConfigFile. */
 export type StartDaemonRecipe = {
     projectRoot: string;
     daemonId: string;
@@ -18,9 +19,11 @@ export type StartDaemonRecipe = {
     include?: string[];
     exclude?: string[];
     maxParallelRun?: number;
+    /** File-launch marker for meta only; never written to desired.json. */
+    daemonConfigFile?: DaemonConfigFileMeta;
 };
 
-export type StartDaemonDesired = Omit<StartDaemonRecipe, 'workspaceStrategy'> & {
+export type StartDaemonDesired = Omit<StartDaemonRecipe, 'workspaceStrategy' | 'daemonConfigFile'> & {
     stopping?: true;
 };
 
@@ -35,7 +38,11 @@ const startDaemonDesiredSchema = z.object({
 });
 
 export function toDesired(recipe: StartDaemonRecipe): StartDaemonDesired {
-    const { workspaceStrategy: _workspaceStrategy, ...desired } = recipe;
+    const {
+        workspaceStrategy: _workspaceStrategy,
+        daemonConfigFile: _daemonConfigFile,
+        ...desired
+    } = recipe;
     return desired;
 }
 
@@ -56,6 +63,9 @@ export function toMetaWrite(recipe: StartDaemonRecipe): DaemonMetaWrite {
         include: recipe.include,
         exclude: recipe.exclude,
         maxParallelRun: recipe.maxParallelRun,
+        ...(recipe.daemonConfigFile !== undefined
+            ? { daemonConfigFile: recipe.daemonConfigFile }
+            : {}),
     };
 }
 

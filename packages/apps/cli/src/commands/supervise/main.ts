@@ -5,7 +5,10 @@ import * as z from 'zod';
 
 import { failure, success } from '@lumpcode/core';
 
-import { SUPERVISE_LOCAL_PASS_INTERVAL_MS } from '../../consts';
+import {
+    SUPERVISE_DAEMON_CONFIG_RECONCILE_INTERVAL_MS,
+    SUPERVISE_LOCAL_PASS_INTERVAL_MS,
+} from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
@@ -16,6 +19,8 @@ import {
     getProjectName,
     installDaemonProcessGuards,
     installProcessShutdown,
+    readProjectLocalConfig,
+    reconcileDaemonConfigFiles,
     removeOwnPidArtifacts,
     runSuperviseLocalPass,
     supervisorDirPath,
@@ -57,6 +62,10 @@ export interface Injections {
     waitForShutdownOverride?: () => Promise<void>;
     spawnFn?: typeof nodeSpawn;
     localPassIntervalMs?: number;
+    /** Test override for daemon-config reconcile due checks (defaults to Date.now). */
+    nowMs?: () => number;
+    /** Test override; defaults to SUPERVISE_DAEMON_CONFIG_RECONCILE_INTERVAL_MS. */
+    daemonConfigReconcileIntervalMs?: number;
 }
 
 async function abortableSleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -76,6 +85,8 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         waitForShutdownOverride,
         spawnFn,
         localPassIntervalMs = SUPERVISE_LOCAL_PASS_INTERVAL_MS,
+        nowMs = Date.now,
+        daemonConfigReconcileIntervalMs = SUPERVISE_DAEMON_CONFIG_RECONCILE_INTERVAL_MS,
     } = injections;
     const foreground = input.options.foreground === true;
     const json = input.options.json === true;
@@ -103,6 +114,10 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
 
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
+
+    const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+    const frozenLocalConfig = localConfigResult.data;
 
     const nameResult = await getProjectName({ localConfigFolderPath, projectRoot });
     if (!nameResult.success) return commandFailure(nameResult.data);
@@ -140,6 +155,11 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         `Supervisor for "${projectName}" (pid ${process.pid}). Local pass every ${localPassIntervalMs / 1000}s. Log: ${logFilePath}.`,
     );
 
+    const fileReconcileEnabled =
+        frozenLocalConfig.mode === 'dedicated' && frozenLocalConfig.disabled !== true;
+    /** First 30s tick tries file reconcile immediately. */
+    let nextDaemonConfigReconcileAtMs = 0;
+
     const disposeGuards = installDaemonProcessGuards({ logger });
     try {
         while (!abortController.signal.aborted) {
@@ -153,6 +173,26 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             if (!localResult.success) {
                 logger.error(`local pass failed: ${localResult.data}`);
             }
+
+            if (fileReconcileEnabled && nowMs() >= nextDaemonConfigReconcileAtMs) {
+                const reconcileResult = await reconcileDaemonConfigFiles({
+                    projectRoot,
+                    projectName,
+                    frozenLocalConfig,
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                    logger,
+                    json,
+                    cliVerbose: !!input.options.verbose,
+                    spawnFn,
+                });
+                if (!reconcileResult.success) {
+                    logger.error(`daemon config reconcile failed: ${reconcileResult.data}`);
+                } else if (reconcileResult.data.advanced) {
+                    nextDaemonConfigReconcileAtMs = nowMs() + daemonConfigReconcileIntervalMs;
+                }
+            }
+
             await abortableSleep(localPassIntervalMs, abortController.signal);
         }
 

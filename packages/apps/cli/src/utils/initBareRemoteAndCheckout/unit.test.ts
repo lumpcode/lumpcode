@@ -1,3 +1,6 @@
+import * as os from 'node:os';
+import * as path from 'node:path';
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { execGit } from '../execGit';
@@ -8,9 +11,18 @@ vi.mock('../execGit', () => ({
     execGit: vi.fn(),
 }));
 
-vi.mock('../initLocalGitRepo', () => ({
-    initLocalGitRepo: vi.fn(),
-}));
+vi.mock('../initLocalGitRepo', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('../initLocalGitRepo')>();
+    return {
+        ...actual,
+        initLocalGitRepo: vi.fn(),
+    };
+});
+
+const tmpProject = path.join(os.tmpdir(), 'lump-init-bare-project');
+const tmpRemote = path.join(os.tmpdir(), 'lump-init-bare-remote');
+const tmpCustom = path.join(os.tmpdir(), 'lump-init-bare-custom');
+const tmpBare = path.join(os.tmpdir(), 'lump-init-bare-origin');
 
 describe('initBareRemoteAndCheckout', () => {
     afterEach(() => {
@@ -20,18 +32,18 @@ describe('initBareRemoteAndCheckout', () => {
 
     it('with defaults invokes bare init, initLocalGitRepo, remote add, and push -u origin main', () => {
         initBareRemoteAndCheckout({
-            projectRoot: '/tmp/project',
-            remoteDir: '/tmp/remote',
+            projectRoot: tmpProject,
+            remoteDir: tmpRemote,
         });
 
         expect(vi.mocked(execGit).mock.calls).toEqual([
-            ['init --bare', '/tmp/remote'],
-            ['remote add origin /tmp/remote', '/tmp/project'],
-            ['push -u origin main', '/tmp/project'],
+            ['init --bare', tmpRemote],
+            [`remote add origin ${tmpRemote}`, tmpProject],
+            ['push -u origin main', tmpProject],
         ]);
         expect(vi.mocked(initLocalGitRepo)).toHaveBeenCalledTimes(1);
         expect(vi.mocked(initLocalGitRepo)).toHaveBeenCalledWith({
-            cwd: '/tmp/project',
+            cwd: tmpProject,
             branch: 'main',
             userEmail: undefined,
             userName: undefined,
@@ -48,8 +60,8 @@ describe('initBareRemoteAndCheckout', () => {
 
     it('honors branch, userEmail, userName, and initialCommitMessage', () => {
         initBareRemoteAndCheckout({
-            projectRoot: '/tmp/custom',
-            remoteDir: '/tmp/bare',
+            projectRoot: tmpCustom,
+            remoteDir: tmpBare,
             branch: 'dev',
             userEmail: 'e2e@t.com',
             userName: 'E2E',
@@ -57,26 +69,50 @@ describe('initBareRemoteAndCheckout', () => {
         });
 
         expect(vi.mocked(initLocalGitRepo)).toHaveBeenCalledWith({
-            cwd: '/tmp/custom',
+            cwd: tmpCustom,
             branch: 'dev',
             userEmail: 'e2e@t.com',
             userName: 'E2E',
             initialCommitMessage: 'bootstrap',
         });
         expect(vi.mocked(execGit).mock.calls).toEqual([
-            ['init --bare', '/tmp/bare'],
-            ['remote add origin /tmp/bare', '/tmp/custom'],
-            ['push -u origin dev', '/tmp/custom'],
+            ['init --bare', tmpBare],
+            [`remote add origin ${tmpBare}`, tmpCustom],
+            ['push -u origin dev', tmpCustom],
         ]);
     });
 
     it('only calls execGit and initLocalGitRepo (no config file writes)', () => {
         initBareRemoteAndCheckout({
-            projectRoot: '/tmp/project',
-            remoteDir: '/tmp/remote',
+            projectRoot: tmpProject,
+            remoteDir: tmpRemote,
         });
 
         expect(vi.mocked(execGit)).toHaveBeenCalledTimes(3);
         expect(vi.mocked(initLocalGitRepo)).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws and does not init when remoteDir is not under os.tmpdir()', () => {
+        const leaked = path.join(process.cwd(), 'leaked-bare-remote');
+        expect(() =>
+            initBareRemoteAndCheckout({
+                projectRoot: tmpProject,
+                remoteDir: leaked,
+            }),
+        ).toThrow(/os\.tmpdir/);
+        expect(vi.mocked(execGit)).not.toHaveBeenCalled();
+        expect(vi.mocked(initLocalGitRepo)).not.toHaveBeenCalled();
+    });
+
+    it('throws and does not init when projectRoot is not under os.tmpdir()', () => {
+        const leaked = path.join(process.cwd(), 'leaked-bare-project');
+        expect(() =>
+            initBareRemoteAndCheckout({
+                projectRoot: leaked,
+                remoteDir: tmpRemote,
+            }),
+        ).toThrow(/os\.tmpdir/);
+        expect(vi.mocked(execGit)).not.toHaveBeenCalled();
+        expect(vi.mocked(initLocalGitRepo)).not.toHaveBeenCalled();
     });
 });

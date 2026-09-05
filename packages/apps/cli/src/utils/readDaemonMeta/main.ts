@@ -2,9 +2,16 @@ import * as z from 'zod';
 
 import { failure, success, type Failure, type Success } from '@lumpcode/core';
 
+import type { DaemonConfigFileMeta } from '../daemonConfigFile';
 import { readJsonFile } from '../readJsonFile';
 
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
+
+const daemonConfigFileMetaSchema = z.object({
+    hash: z.string().min(1),
+    discoveryBranch: z.string().min(1),
+    path: z.string().min(1),
+});
 
 const daemonMetaSchema = z.object({
     daemonId: z.string().optional(),
@@ -16,6 +23,7 @@ const daemonMetaSchema = z.object({
     workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
     busy: z.boolean().optional(),
     inFlightLumpCount: z.number().int().nonnegative().optional(),
+    daemonConfigFile: daemonConfigFileMetaSchema.optional(),
 });
 
 export type DaemonMeta = {
@@ -31,6 +39,8 @@ export type DaemonMeta = {
     busy?: boolean;
     /** Number of lump runs currently in flight; `0` when idle. */
     inFlightLumpCount?: number;
+    /** Present when this process was launched from a repo daemon config file. */
+    daemonConfigFile?: DaemonConfigFileMeta;
 };
 
 export type DaemonMetaReadErrorReason = 'missing' | 'invalid' | 'io';
@@ -64,6 +74,8 @@ export type DaemonMetaWrite = {
     maxParallelRun?: number;
     include?: string[];
     exclude?: string[];
+    /** Set only for file-launched daemons; CLI `start` omits it. */
+    daemonConfigFile?: DaemonConfigFileMeta;
 };
 
 /**

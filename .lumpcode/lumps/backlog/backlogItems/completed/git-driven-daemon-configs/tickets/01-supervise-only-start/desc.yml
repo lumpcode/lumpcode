@@ -1,0 +1,9 @@
+name: 01-supervise-only-start
+manualReq: true
+workflow: directImpl
+priority: 3
+task: >-
+  Add lumpcode start --superviseOnly: ensureProjectSupervisor only, no daemon
+  spawn or desired.json. Fail if combined with daemon-launch flags. Document the
+  flag; do not document the supervise command.
+completedAt: '2026-08-25T09:13:52.200Z'

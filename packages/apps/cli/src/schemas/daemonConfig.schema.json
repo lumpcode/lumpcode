@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "daemonConfig.schema.json",
+  "title": "Lumpcode daemon config file",
+  "description": "Schema for committed `.lumpcode/daemons/<daemonId>.{json,yml,yaml}` recipes. The daemon id is the file stem only — do not put `daemonId` in the file. Dedicated supervise considers a file when its `discoveryBranch` equals the dedicated line's `effectiveDiscoveryBranch` (the `origin/<branch>` ref the file was read from). See DOCS/concepts.md.",
+  "type": "object",
+  "required": ["discoveryBranch"],
+  "additionalProperties": false,
+  "properties": {
+    "discoveryBranch": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[^*?]+$",
+      "description": "Exact expanded primary this recipe applies to. Must equal the dedicated line's effectiveDiscoveryBranch (the origin ref the file was read from). Globs (* or ?) are not allowed.",
+      "examples": ["dev", "feat/team-a"]
+    },
+    "cronSetup": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Cron expression for daemon ticks. Omit to use the CLI default (*/5 * * * *).",
+      "examples": ["*/5 * * * *", "0 * * * *"]
+    },
+    "include": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lump-name include filter (* globs allowed). Omit or [] for all loadable lumps (same as unfiltered start)."
+    },
+    "exclude": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Lump-name exclude filter (* globs allowed). Omit or [] for no excludes."
+    },
+    "disabled": {
+      "type": "boolean",
+      "description": "When true, supervise stops (or does not start) this file-launched daemon. Default false."
+    },
+    "maxParallelRun": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum concurrent lump runs per tick when workspaceStrategy is worktree. Same meaning as `lumpcode start --maxParallelRun`. Omit to use the supervise-start local.json default. Invalid with checkout strategy (supervise will not start that id).",
+      "examples": [1, 2, 3]
+    }
+  }
+}

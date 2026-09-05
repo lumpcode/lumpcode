@@ -25,10 +25,11 @@ export type EnsureProjectSupervisorInput = {
 
 /**
  * Starts `lumpcode supervise --foreground` for this project when the supervisor PID is dead.
+ * Returns the live supervisor pid (adopted or newly spawned).
  */
 export async function ensureProjectSupervisor(
     input: EnsureProjectSupervisorInput,
-): Promise<Success<void> | Failure<string>> {
+): Promise<Success<{ pid: number }> | Failure<string>> {
     const { projectName, globalConfigFolderPath, spawnFn, logger } = input;
     const projectRoot = path.resolve(input.projectRoot);
     const pidFilePath = supervisorPidPath({ globalConfigFolderPath, projectName });
@@ -43,7 +44,7 @@ export async function ensureProjectSupervisor(
     }
     const alive = aliveResult.data;
     if (alive.status === 'alive') {
-        return success(undefined);
+        return success({ pid: alive.pid });
     }
     if (alive.status === 'stale') {
         await unlinkBestEffort([pidFilePath, metaFilePath]);
@@ -68,5 +69,5 @@ export async function ensureProjectSupervisor(
     if (!spawnResult.success) {
         return spawnResult;
     }
-    return success(undefined);
+    return success({ pid: spawnResult.data.pid });
 }

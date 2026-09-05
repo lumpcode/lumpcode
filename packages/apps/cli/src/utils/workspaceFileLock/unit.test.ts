@@ -179,12 +179,21 @@ describe('workspaceFileLock', () => {
             workspacePath,
             lumpName: 'waiter',
             mode: 'wait',
-            waitTimeoutMs: 800,
+            waitTimeoutMs: 10_000,
             waitLogIntervalMs: 30,
             logger,
         });
 
-        await new Promise((resolve) => setTimeout(resolve, 550));
+        // Wait for the re-log before releasing — a fixed sleep can race the 500ms poll
+        // and acquire without ever emitting "still waiting" under suite load.
+        await vi.waitFor(
+            () => {
+                const lines = vi.mocked(console.log).mock.calls.map((call) => String(call[0]));
+                expect(lines.some((line) => line.includes('still waiting'))).toBe(true);
+            },
+            { timeout: 8_000, interval: 25 },
+        );
+
         await first.data();
         await waiterPromise;
 

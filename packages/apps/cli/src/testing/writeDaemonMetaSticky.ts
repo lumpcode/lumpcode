@@ -2,25 +2,7 @@ import * as fs from 'node:fs/promises';
 
 import { pollUntil } from '../utils/pollUntil';
 import { writeJsonFile } from '../utils/writeJsonFile';
-
-async function waitForAliveDaemonChildMeta(filePath: string, timeoutMs: number): Promise<void> {
-    await pollUntil({
-        timeoutMs,
-        intervalMs: 25,
-        timeoutError: `Timed out waiting for alive-daemon child meta at ${filePath}`,
-        poll: async () => {
-            try {
-                const parsed = JSON.parse(await fs.readFile(filePath, 'utf8')) as {
-                    inFlightLumpCount?: number;
-                };
-                // Parent stub omits inFlightLumpCount; daemonForegroundChild.cjs writes 0 when idle.
-                return parsed.inFlightLumpCount === 0 ? true : undefined;
-            } catch {
-                return undefined;
-            }
-        },
-    });
-}
+import { waitForAliveDaemonChildMeta } from './waitForDaemonPidFile';
 
 function metaMatches(fileContents: string, data: Record<string, unknown>): boolean {
     const parsed = JSON.parse(fileContents) as Record<string, unknown>;

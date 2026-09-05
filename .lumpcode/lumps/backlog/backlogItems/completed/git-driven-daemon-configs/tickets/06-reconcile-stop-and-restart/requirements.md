@@ -13,7 +13,7 @@ The fleet follows git after start: disable or delete a recipe (or drop its `effe
 - Running + `daemonConfigFile` + `disabled` or no longer considered: graceful stop. `daemonBusy` → stay due.
 - **noLongerConsidered**: deleted; `effectiveDiscoveryBranch` gone from expand; `discoveryBranch` mismatch; invalid file dropped; lost same-id contest.
 - Never stop a process that lacks `daemonConfigFile`.
-- Hash change into checkout + `maxParallelRun` set: log, do not restart into a failing start; leave running until file is valid or no longer considered (then stop).
+- Hash change into checkout + `maxParallelRun` set: graceful stop (same as any hash change); start pass refuses. File-launched process does not outlive an illegal considered file.
 - Docs: hash-restart, disable/stop, collision-vs-ours. E2E: `--superviseOnly` + push recipe + `daemon-status` shows path; stop `--all` still stops supervise.
 
 ## Out of scope

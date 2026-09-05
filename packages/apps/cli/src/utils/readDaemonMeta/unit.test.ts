@@ -164,4 +164,59 @@ describe('readDaemonMeta', () => {
             expect(result.data.inFlightLumpCount).toBeUndefined();
         });
     });
+
+    it('round-trips optional daemonConfigFile meta', async () => {
+        const metaPath = path.join(dir, 'file-launched.meta.json');
+        const daemonConfigFile = {
+            hash: 'deadbeef'.repeat(8),
+            discoveryBranch: 'feat/team-a',
+            path: '.lumpcode/daemons/nightly.json',
+        };
+        await writeJsonFile({
+            filePath: metaPath,
+            data: {
+                daemonId: 'nightly',
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'worktree',
+                daemonConfigFile,
+            },
+        });
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.daemonConfigFile).toEqual(daemonConfigFile);
+        expect(result.data.daemonId).toBe('nightly');
+    });
+
+    it('omits daemonConfigFile when absent (CLI start metas)', async () => {
+        const metaPath = path.join(dir, 'cli-start.meta.json');
+        await writeJsonFile({
+            filePath: metaPath,
+            data: {
+                daemonId: 'global',
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+            },
+        });
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.daemonConfigFile).toBeUndefined();
+    });
+
+    it('fails invalid when daemonConfigFile is present but incomplete', async () => {
+        const metaPath = path.join(dir, 'bad-file-meta.meta.json');
+        await writeJsonFile({
+            filePath: metaPath,
+            data: {
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+                daemonConfigFile: { hash: 'abc' },
+            },
+        });
+        const result = await readDaemonMeta(metaPath);
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.reason).toBe('invalid');
+    });
 });
