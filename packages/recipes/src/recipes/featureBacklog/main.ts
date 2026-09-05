@@ -11,6 +11,7 @@ import { pathExists } from '@lumpcode/core';
 import { load as loadYaml } from 'js-yaml';
 
 import {
+    listUmbrellaTicketNames,
     projectRootFromConfigUrl,
     requireArtifactStep,
     resolveImplValidateCommand,
@@ -42,7 +43,8 @@ export type FeatureBacklogStage =
     | 'makeTestPlan'
     | 'testImpl'
     | 'implementation'
-    | 'directImpl';
+    | 'directImpl'
+    | 'completeFeature';
 
 export type FeatureBacklogContextVariables = {
     TASK_NAME: string;
@@ -96,6 +98,8 @@ function featureContextName(itemName: string, stage: FeatureBacklogStage): strin
             return `${itemName}_tests_impl`;
         case 'implementation':
         case 'directImpl':
+            return itemName;
+        case 'completeFeature':
             return itemName;
         default: {
             const _exhaustive: never = stage;
@@ -194,6 +198,33 @@ export async function resolveFeatureBacklogItem(input: {
     discoveryBranch: string;
 }): Promise<BacklogItemResolution<FeatureBacklogStage>> {
     const { item, paths, projectRoot, discoveryBranch } = input;
+
+    if (item.parentName === undefined) {
+        const todoDir = path.join(projectRoot, paths.backlogItemsDir, 'todo');
+        const ticketNames = await listUmbrellaTicketNames({
+            todoDir,
+            parentName: item.name,
+        });
+        if (ticketNames.length > 0) {
+            if (item.completedAt) {
+                return { ignored: true };
+            }
+            if (
+                !discoveryBranch.startsWith('feature/') ||
+                discoveryBranch.slice('feature/'.length) !== item.name
+            ) {
+                return { ignored: true };
+            }
+            return {
+                stage: 'completeFeature',
+                contextName: item.name,
+                additionalDependsOnContexts: ticketNames.map(
+                    (ticketName) => `${item.name}-${ticketName}`,
+                ),
+            };
+        }
+    }
+
     const contextBaseName = featureItemContextBaseName(item);
     const workflow = await resolveItemWorkflow({ item, paths, projectRoot });
 
@@ -304,6 +335,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
     return backlog<FeatureBacklogItem, V, SV>({
         configUrl,
         backlogItemsDir,
+        includeUmbrellaParents: true,
         parseItem(baseItem, folderName, raw) {
             assertValidFeatureItemName(baseItem.name);
             const record = raw as Record<string, unknown>;
@@ -502,6 +534,10 @@ Do not edit @${REQ_FILE} unless absolutely necessary.
                     ],
                     validationCommandFn: runImplValidation,
                 }),
+            },
+            completeFeature: {
+                completion: 'moveToDone',
+                steps: [],
             },
         },
         ...rest,

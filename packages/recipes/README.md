@@ -30,7 +30,7 @@ The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a fo
   todo/<name>/desc.yml
   todo/<name>/requirements.md # optional until makeReq / finder writes it
   todo/<name>/testPlan.md     # featureBacklog TDD; optional until makeTestPlan
-  todo/<parent>/tickets/<ticket>/desc.yml  # featureBacklog: parent skipped when tickets/ is non-empty
+  todo/<parent>/tickets/<ticket>/desc.yml  # featureBacklog tickets; parent runs completeFeature after all tickets
   completed/<name>/desc.yml   # includes completedAt after move-to-done
   completed/<name>/requirements.md # moves with the folder
   completed/<name>/testPlan.md
@@ -118,7 +118,7 @@ export default featureBacklog<
 });
 ```
 
-`desc.yml` `workflow`: omit ≡ `tdd` (`makeReq` → `makeTestPlan` → `testImpl` → `implementation`); `directImpl` skips the test-plan stages; `manual` is ignored. On `dev` only top-level `directImpl` items run (tickets never run on `dev`, even if `directImpl`); on `feature/<key>` the matching item (or parent, for tickets). Ticket context names are `<parent>-<ticket>`; `manualReq: true` waits for a human requirements file. Status reads use the concrete `discoveryBranch`.
+`desc.yml` `workflow`: omit ≡ `tdd` (`makeReq` → `makeTestPlan` → `testImpl` → `implementation`); `directImpl` skips the test-plan stages; `manual` is ignored for ticket/standalone items. On `dev` only top-level `directImpl` items run (tickets never run on `dev`, even if `directImpl`); on `feature/<key>` the matching item (or parent, for tickets). Ticket context names are `<parent>-<ticket>`. After every ticket finishes, one parent `completeFeature` context (no agent) depends on all ticket impl names and merges the parent folder into `completed/`; parent `workflow` does not apply to that stage. `manualReq: true` waits for a human requirements file. Status reads use the concrete `discoveryBranch`.
 
 ### abstractionFinder + abstractionBacklog
 
