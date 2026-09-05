@@ -14,7 +14,7 @@ export default featureBacklog<
     maximumNumberOfConcurrentBranches: 2,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
+    lumpVariables: { model: 'cursor-grok-4.6-high-fast' },
     discoveryBranches: ['dev', 'feature/*'],
     implValidateCommand: [
         'npm run build -w=@lumpcode/cli',
