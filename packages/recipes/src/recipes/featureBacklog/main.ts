@@ -48,6 +48,15 @@ export {
     type FeatureBacklogWorkflowStage,
 } from './types';
 export { parseFeatureWorkflow } from './workflow';
+export {
+    defaultDirectImplPrompt,
+    defaultImplPrompt,
+    defaultReqFixPrompt,
+    defaultReqPrompt,
+    defaultTestImplPrompt,
+    defaultTestPlanFixPrompt,
+    defaultTestPlanPrompt,
+} from './defaultPrompts';
 
 export const featureBacklog = defineRecipe(function featureBacklog<
     V extends LumpVariables = LumpVariables,
