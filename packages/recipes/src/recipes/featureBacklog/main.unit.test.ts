@@ -689,7 +689,12 @@ describe('featureBacklog promptFns', () => {
             }),
         });
         const first = resolvedSteps[0];
-        if (!first || typeof first === 'function' || typeof first === 'string' || !first.promptFn) {
+        if (
+            !first ||
+            typeof first === 'function' ||
+            typeof first === 'string' ||
+            typeof first.promptFn !== 'function'
+        ) {
             throw new Error('Expected a step with promptFn');
         }
         expect(
