@@ -1,6 +1,6 @@
 name: project-local-config-field-layers
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 task: >-
   Single source of truth for .lumpcode/project.json vs local.json field
   membership (project-only, local-only, shared with local wins). Derive Zod

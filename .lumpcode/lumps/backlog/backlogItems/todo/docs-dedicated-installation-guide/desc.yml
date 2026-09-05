@@ -1,5 +1,5 @@
 name: docs-dedicated-installation-guide
-workflow: directImpl
+workflow: [impl]
 manualReq: true
 task: >-
   Quick-start DOCS guide for dedicated mode (the most powerful / production-intended

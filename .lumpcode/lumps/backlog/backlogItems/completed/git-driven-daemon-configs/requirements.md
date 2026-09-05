@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `git-driven-daemon-configs` · priority **3** · `manualReq` |
+| **Backlog** | `git-driven-daemon-configs` · priority **3** · workflow **[testPlan, testImpl]** |
 | **Type** | feature |
 | **Status** | Pending implementation |
 | **Depends on** | `daemon-id-and-filters` (landed). Complements `daemon-primary-branch-refresh-command` (tree ready after checkout); this item owns **daemon lifecycle from repo files**, not `refreshCommand`. |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `dedicated-tick-line-priority` · priority **4** · type **feature** · workflow **directImpl** |
+| **Backlog** | `dedicated-tick-line-priority` · priority **4** · type **feature** · workflow **[impl]** |
 | **Status** | Pending implementation |
 | **Depends on** | — |
 | **Packages** | Primary: `packages/apps/cli` (daemon collect + two utils). `@lumpcode/core` `getToDoContextList` / `runLump` unchanged. Recipes unchanged. |
@@ -13,7 +13,7 @@ A dedicated tick expands scan branches (resolved primary first), then enqueues e
 
 Concrete pain:
 
-1. `featureBacklog` tickets only match `feature/<parent>`; top-level `directImpl` matches `dev`. With cap `1`, `dev` work (even priority 10) blocks tickets (priority 3).
+1. `featureBacklog` tickets only match `feature/<parent>`; top-level items without `testPlan`/`testImpl` match `dev`. With cap `1`, `dev` work (even priority 10) blocks tickets (priority 3).
 2. Each tick repeats the same primary-first spend. Merging the `dev` PR just frees the slot for the next `dev` context.
 3. `maxParallelRun` and path/git lock waits are not this starvation; the shared per-lump cap plus scan-major **run** order is.
 

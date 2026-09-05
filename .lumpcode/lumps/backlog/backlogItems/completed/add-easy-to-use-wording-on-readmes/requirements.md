@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `add-easy-to-use-wording-on-readmes` · priority **14** · workflow **directImpl** |
+| **Backlog** | `add-easy-to-use-wording-on-readmes` · priority **14** · workflow **[req]** |
 | **Type** | docs |
 | **Status** | Pending implementation |
 | **Depends on** | — |

@@ -1,6 +1,6 @@
 name: command-descriptor-or-string-returns
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 dependsOn:
   - cleaner-core-git-fns
 task: >-

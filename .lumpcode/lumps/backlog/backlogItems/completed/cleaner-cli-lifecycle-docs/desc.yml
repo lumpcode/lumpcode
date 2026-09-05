@@ -1,5 +1,5 @@
 name: cleaner-cli-lifecycle-docs
-workflow: directImpl
+workflow: [req]
 task: >-
   Cleaner CLI DOCS with multiple lifecycle schemas — at least one for shared
   mode and one for dedicated mode. Each schema must show when every lump-config

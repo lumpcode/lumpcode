@@ -1,4 +1,5 @@
 name: clean-local-project-json-config
+workflow: [testPlan, testImpl]
 manualReq: true
 task: >-
   Clean up local.json / project.json ownership and merge. local-only: mode,

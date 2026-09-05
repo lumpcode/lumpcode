@@ -1,6 +1,6 @@
 name: 06-reconcile-stop-and-restart
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 priority: 3
 dependsOn:
   - 05-reconcile-start

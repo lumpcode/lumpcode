@@ -38,7 +38,7 @@ Ignore unknown keys if present. Non-empty `blocked` means parked — skip for pr
 
 | Action | `IDEAS.yaml` | Backlog |
 | --- | --- | --- |
-| **Promote** | Remove the idea entry | Create `.lumpcode/lumps/backlog/backlogItems/todo/<finalName>/desc.yml` with at least `name` and `task`. Carry over IDEA `priority` when set (same meaning: lower = sooner). Optional: `workflow` (`tdd` | `directImpl` | `manual`; omit ≡ `tdd`; `manual` = do it outside Lumpcode, always ignored), `dependsOn`, `manualReq`, `requirements.md`. Final `name` may differ from the IDEAS id (prefer kebab-case). |
+| **Promote** | Remove the idea entry | Create `.lumpcode/lumps/backlog/backlogItems/todo/<finalName>/desc.yml` with at least `name` and `task`. Carry over IDEA `priority` when set (same meaning: lower = sooner). Optional: `workflow` array (`req` | `testPlan` | `testImpl` | `impl` | `directImpl`; omit ≡ `[req, testPlan, testImpl]`), `manual: true` to skip the item, `dependsOn`, `requirements.md`. Final `name` may differ from the IDEAS id (prefer kebab-case). |
 | **Reject** | Remove the idea entry | No backlog changes |
 | **Park** | Keep entry; set `blocked` to a short explanation (preserve `priority` if set) | No backlog changes |
 | **Spawn** | Append new `{ name, task }` (optional `priority`; kebab-case when clear, else ephemeral id; unique in file) | — |

@@ -1,6 +1,6 @@
 name: dedicated-tick-line-batch-order
 manualReq: true
-workflow: tdd
+workflow: [testPlan, testImpl]
 priority: 5
 task: >-
   Dedicated tick line scores become one value per remaining runLump batch

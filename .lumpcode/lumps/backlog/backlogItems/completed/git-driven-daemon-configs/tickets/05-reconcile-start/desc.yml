@@ -1,6 +1,6 @@
 name: 05-reconcile-start
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 priority: 3
 dependsOn:
   - 04-discover-daemon-config-files

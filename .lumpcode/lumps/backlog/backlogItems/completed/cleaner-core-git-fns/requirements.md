@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `cleaner-core-git-fns` · priority **6** · type **fix** · workflow **directImpl** |
+| **Backlog** | `cleaner-core-git-fns` · priority **6** · type **fix** · workflow **[impl]** |
 | **Status** | Pending implementation |
 | **Depends on** | — |
 | **Packages** | Primary: `packages/core`. Also: `packages/apps/cli` (gated git factory, plan envelope, wiring). Recipes / author-facing `LumpJsConfig` unchanged. |

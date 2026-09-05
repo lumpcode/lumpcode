@@ -1,5 +1,5 @@
 name: docs-shared-installation-guide
-workflow: directImpl
+workflow: [impl]
 manualReq: true
 task: >-
   Quick-start DOCS guide for shared mode, parallel to the dedicated guide. Stress
