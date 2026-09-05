@@ -16,6 +16,7 @@ import { installDaemonProcessGuards } from '../installDaemonProcessGuards';
 import { installProcessShutdown } from '../installProcessShutdown';
 import type { LumpLine } from '../lumpLine';
 import type { DaemonMetaWrite } from '../readDaemonMeta';
+import { readDaemonMeta } from '../readDaemonMeta';
 import { reorderDedicatedLumpLines } from '../reorderDedicatedLumpLines';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
@@ -371,8 +372,21 @@ export async function runForegroundStartDaemon(
         }
     };
 
+    // Detached parent writes stub meta with daemonConfigFile; desired.json omits it.
+    // Adopt the stub marker so file-launched processes keep "ours" after claim.
+    let recipeForMeta = recipe;
+    if (recipe.daemonConfigFile === undefined) {
+        const existingMeta = await readDaemonMeta(metaFilePath);
+        if (existingMeta.success && existingMeta.data.daemonConfigFile !== undefined) {
+            recipeForMeta = {
+                ...recipe,
+                daemonConfigFile: existingMeta.data.daemonConfigFile,
+            };
+        }
+    }
+
     const foregroundMeta: DaemonMetaWrite = {
-        ...toMetaWrite(recipe),
+        ...toMetaWrite(recipeForMeta),
         ...(effectiveConcurrency > 1 || recipe.maxParallelRun !== undefined
             ? { maxParallelRun: effectiveConcurrency }
             : {}),

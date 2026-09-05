@@ -1,3 +1,4 @@
+export { daemonConfigFileJson } from './daemonConfigFileJson';
 export { aliveDaemonSpawnFn } from './aliveDaemonSpawn';
 export { createDaemonCommandTestProject, type DaemonCommandTestProject } from './createDaemonCommandTestProject';
 export { setDaemonTestGlobalConfigFolder } from './daemonTestEnv';
