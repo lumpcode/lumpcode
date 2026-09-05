@@ -89,7 +89,7 @@ export const defaultTestImplPrompt: PromptFn = ({ context }) => {
     const { BACKLOG_ITEM_DIR, TASK_NAME, TASK, REQ_FILE, TEST_PLAN_FILE } = featureContextVars(context);
     const planLine = TEST_PLAN_FILE
         ? `Follow the test plan in @${TEST_PLAN_FILE}.`
-        : 'Write skipped tests from the requirements and your judgement.';
+        : 'Write skipped tests from the requirements and your judgement. Do not create a testPlan.md.';
     return `
 Write a test implementation for the following backlog item from @${BACKLOG_ITEM_DIR}/desc.yml.
 
