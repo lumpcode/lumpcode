@@ -101,7 +101,7 @@ export default backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetS
     disabled: true,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
+    lumpVariables: { model: 'cursor-grok-4.6-high-fast' },
     async resolveItem() {
         const lastFeatureDep = await highestPriorityFeatureBacklogDep(projectRoot);
         return {

@@ -13,7 +13,7 @@ export default abstractionFinder<CursorPresetLumpVariables, CursorPresetStepVari
     scanDirectories,
     backlogItemsDir,
     command: 'cursor',
-    lumpVariables: { model: 'cursor-grok-4.5-high-fast' },
+    lumpVariables: { model: 'cursor-grok-4.6-high-fast' },
     discoveryBranch: 'dev',
     maximumNumberOfConcurrentBranches: 1,
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
