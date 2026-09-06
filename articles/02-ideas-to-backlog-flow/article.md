@@ -27,13 +27,16 @@ lumpcode start \
   --cronSetup '0 9 * * *'
 ```
 
-When unblocked ideas exist (and backlog todos aren’t over the soft cap), the lump launches a Cursor cloud agent on `lump/ideasToBacklog/YYYY-MM-DD`. Continue in Cursor Agents: promote / reject / park / spawn. Promotes create:
+When unblocked ideas exist (and not every lane is over the soft cap of 3 todos), the lump launches a Cursor cloud agent on `lump/ideasToBacklog/YYYY-MM-DD`. Continue in Cursor Agents: promote / reject / park / spawn. Promotes create a `desc.yml` in one of:
 
 ```text
-.lumpcode/lumps/backlog/backlogItems/todo/<name>/desc.yml
+.lumpcode/lumps/backlog/backlogItems/todo/<name>/   # big features
+.lumpcode/lumps/docs/backlogItems/todo/<name>/      # docs, naming, SEO
+.lumpcode/lumps/qol/backlogItems/todo/<name>/       # small quality-of-life
+.lumpcode/lumps/bugfixes/backlogItems/todo/<name>/  # bugs
 ```
 
-## 3. Worker: main backlog daemon
+## 3. Worker: delivery daemons
 
 ```bash
 lumpcode start \
@@ -42,9 +45,11 @@ lumpcode start \
   --maxParallelRun 2
 ```
 
-## 4. What the `backlog` lump does each tick
+Four independent lumps: `backlog` (features), `docs`, `qol`, `bugfixes`. Global picks them all up.
 
-Discovery: `dev` + `feature/*`.
+## 4. What a `featureBacklog` lump does each tick
+
+`backlog`, `qol`, and `bugfixes` share this shape. Discovery: `dev` + `feature/*`.
 
 | Branch | What runs |
 | --- | --- |
@@ -66,6 +71,7 @@ Or set `workflow: [req]` in `desc.yml` for req → implement on `dev`.
 # From your workstation (shared mode)
 git fetch
 lumpcode lump-status --lumpName backlog
+lumpcode lump-status --lumpName docs
 # Review PR → merge
 ```
 

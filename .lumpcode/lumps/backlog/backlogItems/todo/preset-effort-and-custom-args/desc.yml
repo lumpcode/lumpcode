@@ -1,7 +1,0 @@
-name: preset-effort-and-custom-args
-manualReq: true
-workflow: [impl]
-task: >-
-  Add effort (and similar) options to agent presets, plus a custom args list
-  so operators can pass extra CLI flags through lumpVariables/stepVariables.
-priority: 8

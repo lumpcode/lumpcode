@@ -1,0 +1,13 @@
+{
+  "yaml.schemas": {
+    "packages/recipes/schemas/featureBacklogDesc.schema.json": [
+      ".lumpcode/lumps/backlog/backlogItems/**/desc.yml",
+      ".lumpcode/lumps/qol/backlogItems/**/desc.yml",
+      ".lumpcode/lumps/bugfixes/backlogItems/**/desc.yml"
+    ],
+    "packages/recipes/schemas/backlogDesc.schema.json": [
+      ".lumpcode/lumps/docs/backlogItems/**/desc.yml",
+      ".lumpcode/lumps/abstractionImplementer/backlogItems/**/desc.yml"
+    ]
+  }
+}

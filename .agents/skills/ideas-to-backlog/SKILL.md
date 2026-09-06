@@ -23,7 +23,20 @@ type IdeaEntry = {
 };
 ```
 
-Ignore unknown keys if present. Non-empty `blocked` means parked — skip for promotion unless I explicitly unpark in this session (clear `blocked`).
+Ignore unknown keys if present. Non-empty `blocked` means parked — skip for promotion unless I explicitly unpark in this session (clear `blocked`). There is no required lane field; pick a lane when promoting.
+
+## Lanes
+
+Promote into exactly one of these lumps (ask if unclear):
+
+| Lane | Lump | For |
+| --- | --- | --- |
+| **backlog** | `.lumpcode/lumps/backlog/` | Big features |
+| **docs** | `.lumpcode/lumps/docs/` | Docs, naming, SEO, website copy |
+| **qol** | `.lumpcode/lumps/qol/` | Small quality-of-life |
+| **bugfixes** | `.lumpcode/lumps/bugfixes/` | Bugs |
+
+`backlog`, `qol`, and `bugfixes` use `featureBacklog` (`workflow` / `requirements.md` apply). `docs` is implementation-only (`name`, `task`, `priority`).
 
 ## How to run it
 
@@ -38,7 +51,7 @@ Ignore unknown keys if present. Non-empty `blocked` means parked — skip for pr
 
 | Action | `IDEAS.yaml` | Backlog |
 | --- | --- | --- |
-| **Promote** | Remove the idea entry | Create `.lumpcode/lumps/backlog/backlogItems/todo/<finalName>/desc.yml` with at least `name` and `task`. Carry over IDEA `priority` when set (same meaning: lower = sooner). Optional: `workflow` array (`req` | `testPlan` | `testImpl` | `impl` | `directImpl`; omit ≡ `[req, testPlan, testImpl]`), `manual: true` to skip the item, `dependsOn`, `requirements.md`. Final `name` may differ from the IDEAS id (prefer kebab-case). |
+| **Promote** | Remove the idea entry | Create `.lumpcode/lumps/<lane>/backlogItems/todo/<finalName>/desc.yml` with at least `name` and `task`. `<lane>` is `backlog` \| `docs` \| `qol` \| `bugfixes`. Carry over IDEA `priority` when set (same meaning: lower = sooner, **per lane**). Optional on featureBacklog lanes: `workflow` array (`req` \| `manualReq` \| `testPlan` \| `testImpl` \| `impl` \| `directImpl`; omit ≡ `[req, testPlan, testImpl]`; `manualReq` waits for a human `requirements.md`; if both `req` and `manualReq` are listed, `manualReq` wins`), `manual: true` to skip the item, `dependsOn`, `requirements.md`. Final `name` may differ from the IDEAS id (prefer kebab-case). |
 | **Reject** | Remove the idea entry | No backlog changes |
 | **Park** | Keep entry; set `blocked` to a short explanation (preserve `priority` if set) | No backlog changes |
 | **Spawn** | Append new `{ name, task }` (optional `priority`; kebab-case when clear, else ephemeral id; unique in file) | — |
@@ -51,7 +64,7 @@ To refine a parked idea again later: clear `blocked` in `IDEAS.yaml` **and** del
 
 ## Ground rules
 
-- One batch session may mix promote / reject / park / spawn.
+- One batch session may mix promote / reject / park / spawn and may write to more than one lane.
 - Ask one focused question at a time when clarifying.
 - Explore the codebase when a question can be answered that way.
 - Do not implement product features in this session — only triage into backlog / IDEAS.
