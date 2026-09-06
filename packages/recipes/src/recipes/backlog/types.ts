@@ -32,6 +32,8 @@ export type BacklogOptions<
 > = {
     configUrl: string | URL;
     backlogItemsDir?: string;
+    /** When true, umbrella parents with tickets are emitted for wrap-up (featureBacklog). */
+    includeUmbrellaParents?: boolean;
     stages: Stages;
     parseItem?: (item: BaseBacklogItem, folderName: string, raw: unknown) => Item;
     resolveItem(input: {

@@ -1,0 +1,9 @@
+name: 03-daemon-config-file-contract
+manualReq: true
+workflow: [impl]
+priority: 3
+task: >-
+  Add daemonConfigFile util (schema, normalize, SHA-256 hash), editor
+  daemonConfig.schema.json, and optional daemonConfigFile on daemon meta /
+  toMetaWrite. CLI start still omits it.
+completedAt: '2026-08-25T17:26:35.650Z'

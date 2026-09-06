@@ -16,7 +16,7 @@ You just need git and a CLI agent. There is no account and no database. Finished
 
 ## How to read these pages
 
-Start with [core terms](/docs/start/terms) if the words are new, then [how a run works](/docs/start/run). Authoring lives under **Write a lump**, **Contexts**, and **Prompts**. Config reference is for when you already know the shape and need a field. [Types](/docs/config/types) is the hook signatures. [Commands](/docs/reference/commands) is the CLI map. [Troubleshooting](/docs/reference/troubleshooting) is for the surprises git status can throw.
+Start with [core terms](/docs/start/terms) if the words are new, then [how a run works](/docs/start/run). Authoring lives under **Write a lump**, **Contexts**, and **Prompts**. Config reference is for when you already know the shape and need a field. [Daemon files](/docs/config/daemons) is the committed `.lumpcode/daemons/` recipe. [Types](/docs/config/types) is the hook signatures. [Commands](/docs/reference/commands) is the CLI map. [Troubleshooting](/docs/reference/troubleshooting) is for the surprises git status can throw.
 
 The tutorials at [Get started](/docs/start/first-pr) are the shortest path to a real branch. These docs are what you open the week after, when the campaign is real.
 

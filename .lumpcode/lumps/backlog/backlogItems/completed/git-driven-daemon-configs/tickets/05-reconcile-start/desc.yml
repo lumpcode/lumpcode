@@ -1,0 +1,11 @@
+name: 05-reconcile-start
+manualReq: true
+workflow: [impl]
+priority: 3
+dependsOn:
+  - 04-discover-daemon-config-files
+task: >-
+  Dedicated supervise starts considered enabled repo daemon files: due/retry
+  timing, gitCommonDirLock fail, fetch then discover, launchStartDaemon with
+  daemonConfigFile meta, CLI id collision skip. No stop or hash-restart.
+completedAt: '2026-09-04T15:44:34.691Z'

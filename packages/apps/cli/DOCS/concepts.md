@@ -92,7 +92,7 @@ The **primary branch** is the first **exact** entry of `primaryBranches` when se
 
 Per-lump **`discoveryBranch`** or **`discoveryBranches`** (mutually exclusive) accept exact names and/or git refname globs. Dedicated allowlist checks each rule against **configured** (unexpanded) `primaryBranches` (exact match, pattern-entry equality, or concrete via a primary glob). Shared mode ignores lump discovery rules for scheduling and execution. Inspect commands (`lump-plan`, `lump-status`) honor a concrete `--discoveryBranch` in shared mode for context filtering (no checkout; files still come from the source tree). `run` still ignores `--discoveryBranch` in shared. Without `--discoveryBranch`, dedicated manual commands use the first exact discovery rule; pattern-only lumps require a concrete `--discoveryBranch`. Author `getContextListFn` / `contextMatchFn` receive that concrete `discoveryBranch`.
 
-`maximumNumberOfConcurrentBranches` remains a single cap per `lumpName` across all discovery lines. Multiple primary branches / globs: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
+`maximumNumberOfConcurrentBranches` remains a single cap per `lumpName` across all discovery lines. On a dedicated tick, that lump’s scan lines are run in best next-batch order (each batch score is every `numberOfContextsPerBranch`-th sorted eligible-todo `options.priority`; lower first; equal scores keep collect/scan order). A line may occupy more than one of that lump’s collect rows; the same line stays sequential in the run pool. The cap is still lump-wide. `lumpcode run` is still one concrete discovery line. Multiple primary branches / globs: [local-config.md § Multiple primary branches](./local-config.md#multiple-primary-branches-dedicated-daemons).
 
 ## One run, end to end
 
@@ -172,13 +172,38 @@ Useful pairings on a server:
 | ------------------------------------ | -------------------------------------------------- |
 | `<projectName>.<daemonId>.daemon.pid` | PID of the foreground scheduler child             |
 | `<projectName>.<daemonId>.daemon.log` | Child stdout/stderr                               |
-| `<projectName>.<daemonId>.daemon.meta.json` | `daemonId`, `cronSetup`, filters, `workspaceStrategy`, `inFlightLumpCount` |
+| `<projectName>.<daemonId>.daemon.meta.json` | `daemonId`, `cronSetup`, filters, `workspaceStrategy`, `inFlightLumpCount`, optional `daemonConfigFile` when started from a repo recipe |
 | `<projectName>.<daemonId>.daemon.desired.json` | Spawn recipe for the supervisor (`projectRoot`, `cronSetup`, filters). `stopping: true` means drain, not respawn. |
 
 
-Supervisor files live under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.log`, `.meta.json`), not under `daemons/` and not as a daemon id. `lumpcode start` starts `lumpcode supervise --foreground` if that PID is dead.
+Supervisor files live under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.log`, `.meta.json`), not under `daemons/` and not as a daemon id. `lumpcode start` starts `lumpcode supervise --foreground` if that PID is dead. On a dedicated clone you can also use **`lumpcode start --superviseOnly`** so only the supervisor stays up and repo recipes under `.lumpcode/daemons/` can start schedulers (see [Repo daemon config files](#repo-daemon-config-files)).
 
-**Common flags:** `lumpcode start --foreground`, `lumpcode start --include=backlog,refacto-* --daemonId=agents`. Inspect: `lumpcode daemon-status` (lists daemons plus supervisor). Stop: `lumpcode stop --daemonId <id>`. Stop the fleet: `lumpcode stop --all`. Restart: `lumpcode restart --daemonId <id>`.
+**Common flags:** `lumpcode start --foreground`, `lumpcode start --include=backlog,refacto-* --daemonId=agents`, `lumpcode start --superviseOnly`. Inspect: `lumpcode daemon-status` (lists daemons plus supervisor). Stop: `lumpcode stop --daemonId <id>`. Stop the fleet: `lumpcode stop --all`. Restart: `lumpcode restart --daemonId <id>`.
+
+### Repo daemon config files
+
+On a **dedicated** machine, supervise can start schedulers from committed recipes under `.lumpcode/daemons/<daemonId>.{json,yml,yaml}` (top-level only; the stem is the `daemonId`). Shared-mode supervise does not start from these files. Schema: `packages/apps/cli/src/schemas/daemonConfig.schema.json` (editors via `$schema`).
+
+Each file must set an exact **`discoveryBranch`**. Supervise considers a file only when it was read from `origin/<effectiveDiscoveryBranch>` and `discoveryBranch` equals that branch. Dedicated ticks use the same expand list (`expandPrimaryBranches`); each entry is the dedicated-line bind passed as `scanBranch` / `effectiveDiscoveryBranch` into lump discovery. Push a recipe on `feat/team-a` with `discoveryBranch: "feat/team-a"` when `primaryBranches` expands that line. You do not need to merge to the resolved primary first.
+
+Reconcile runs on the supervisor keep-alive cadence (about every 30s while due, then every 5 minutes after a successful snapshot). It fetches `origin`, discovers considered recipes, then applies start / stop / hash-restart. Meta for a file-launched daemon includes **`daemonConfigFile`** (`hash`, `discoveryBranch`, `path`).
+
+| Situation | Action |
+| --- | --- |
+| Enabled considered recipe, id not running | Start with `daemonConfigFile` in meta |
+| Running with `daemonConfigFile`, same normalized hash | No-op (ours; not a collision) |
+| Running with `daemonConfigFile`, normalized hash changed | Graceful stop, then start the new recipe |
+| Running with `daemonConfigFile`, `disabled: true` or no longer considered | Graceful stop |
+| Running without `daemonConfigFile`, a considered file wants that id | Log and skip (do not steal a CLI-started process) |
+| Checkout strategy plus file `maxParallelRun` | Do not start. A hash change into this combo still stops the old process; the illegal recipe is not started |
+
+**no longer considered** means the file was deleted, its `effectiveDiscoveryBranch` left the expand list, `discoveryBranch` no longer matches, the file failed parse/schema, or it lost a same-id contest on another expanded primary.
+
+Hashing uses the normalized parsed config (not file bytes): JSON vs YAML, key order, and omit vs empty `include`/`exclude` do not restart. Mid-run graceful stop (`daemonBusy`) leaves the reconcile due so the next 30s keep-alive retries; other successful snapshots wait 5 minutes.
+
+Spawned daemons are ordinary `lumpcode start` schedulers: ticks collect **`LumpLine`** rows (dedicated: `collectDedicatedTickLumpLines` on each scan branch), not a lump-name-only queue.
+
+Bootstrap: [get-started.md](./get-started.md#optional-dedicated-push-a-daemon-file). Flag reference: [commands.md](./commands.md#ref-cmd-start).
 
 **Tick behavior:** discover loadable configs (dedicated: one locked discover per primary-branch scan), apply include/exclude, soft-skip disabled lumps at run time, then run the same per-lump path as `lumpcode run <lumpName>` for each match (optionally in parallel under worktree + `maxParallelRun`). Shared vs dedicated tick wrappers and hook order: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
 

@@ -1,5 +1,6 @@
 name: recipes-manual-req-default
-workflow: directImpl
+workflow: [impl]
+manualReq: true
 task: >-
   In recipes (e.g. featureBacklog / backlog), default manualReq to true so
   requirements are authored by a human unless explicitly opted out.

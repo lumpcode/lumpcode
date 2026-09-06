@@ -451,8 +451,9 @@ describe('runLumpFromJsConfig', () => {
         });
 
         const waiterPromise = callRunLumpFromJsConfig(makeJsConfig({}), { lockMode: 'wait' });
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        expect(setupEntered).toBe(true);
+        await vi.waitFor(() => {
+            expect(setupEntered).toBe(true);
+        });
         await held.data();
         const waiter = await waiterPromise;
 

@@ -13,6 +13,7 @@ export const docs = {
   lumpConfig: '/docs/config/lump',
   types: '/docs/config/types',
   localConfig: '/docs/config/local',
+  daemons: '/docs/config/daemons',
   examples: '/docs/reference/examples',
 } as const
 

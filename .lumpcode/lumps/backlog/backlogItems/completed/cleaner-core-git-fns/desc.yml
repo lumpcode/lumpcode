@@ -1,6 +1,6 @@
 name: cleaner-core-git-fns
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 task: >-
   Replace core git injectors on RunLump / executeStepsForContextList with
   gitAddCommitFn (add + commit), gitPushFn, and existing gitCommitMessageFn

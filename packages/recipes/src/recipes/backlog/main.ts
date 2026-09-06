@@ -88,6 +88,7 @@ export function backlog<
     const {
         configUrl,
         backlogItemsDir: backlogItemsDirOverride,
+        includeUmbrellaParents,
         stages,
         parseItem,
         resolveItem,
@@ -105,6 +106,7 @@ export function backlog<
         getContextListFn: async (input) => {
             const listFn = folderBacklogContexts<Item, V>({
                 backlogItemsDir: absoluteBacklogItemsDir,
+                includeUmbrellaParents,
                 parseItem,
                 async parseContext(item, folderName) {
                     const resolution = await resolveItem({

@@ -111,5 +111,10 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         </p>
       </section>
     </div>
+
+    <p class="guide-payoff">
+      To start a daemon from a committed file, see
+      <NuxtLink :to="docs.daemons">Start daemons from git</NuxtLink>.
+    </p>
   </DocsPageShell>
 </template>

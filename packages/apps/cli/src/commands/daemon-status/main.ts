@@ -17,6 +17,7 @@ import {
     resolveDaemonPaths,
     supervisorLogPath,
     supervisorPidPath,
+    type DaemonConfigFileMeta,
     type DaemonMeta,
     type DaemonMetaReadErrorReason,
     type DaemonPidReadResult,
@@ -54,6 +55,8 @@ export type StatusData = {
     lumpName?: string;
     workspaceStrategy?: string;
     inFlightLumpCount?: number;
+    /** Present when this process was launched from a repo `.lumpcode/daemons/` recipe. */
+    daemonConfigFile?: DaemonConfigFileMeta;
     stalePidFile?: boolean;
     metaStatus?: DaemonMetaReadErrorReason;
 };
@@ -164,6 +167,11 @@ function toStatusData(input: {
         messages.push(`Exclude: ${meta.exclude.join(', ')}`);
     }
     messages.push(`In-flight lump runs: ${meta.inFlightLumpCount ?? 0}`);
+    if (meta.daemonConfigFile !== undefined) {
+        messages.push(
+            `Repo recipe: ${meta.daemonConfigFile.path} (${meta.daemonConfigFile.discoveryBranch})`,
+        );
+    }
 
     return {
         messages,
@@ -178,6 +186,9 @@ function toStatusData(input: {
             workspaceStrategy: meta.workspaceStrategy,
             inFlightLumpCount: meta.inFlightLumpCount ?? 0,
             lumpName: meta.lumpName ?? lumpNameDeprecated,
+            ...(meta.daemonConfigFile !== undefined
+                ? { daemonConfigFile: meta.daemonConfigFile }
+                : {}),
         },
     };
 }

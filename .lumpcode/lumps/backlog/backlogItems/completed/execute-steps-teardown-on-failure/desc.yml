@@ -1,4 +1,5 @@
 name: execute-steps-teardown-on-failure
+workflow: [testPlan, testImpl]
 task: >-
   On stepWalkFailure (including abort) in executeStepsForContextList, still run
   per-context teardownFn and teardownWorkspaceFn via try/finally so workspace

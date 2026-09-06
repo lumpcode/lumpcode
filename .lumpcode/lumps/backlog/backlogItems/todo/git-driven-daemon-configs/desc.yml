@@ -1,8 +1,0 @@
-name: git-driven-daemon-configs
-manualReq: true
-workflow: tdd
-task: >-
-  Umbrella spec for git-driven daemon configs. Global contract is requirements.md.
-  Implement tickets under tickets/<name>/ (each ticket is a task with desc.yml).
-  Do not implement this folder as one context.
-priority: 3

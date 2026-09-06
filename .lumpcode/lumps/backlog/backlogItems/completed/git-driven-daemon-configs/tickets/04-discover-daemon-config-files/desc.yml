@@ -1,0 +1,11 @@
+name: 04-discover-daemon-config-files
+manualReq: true
+workflow: [impl]
+priority: 3
+dependsOn:
+  - 03-daemon-config-file-contract
+task: >-
+  Add discoverDaemonConfigFiles: read origin/<effectiveDiscoveryBranch> trees
+  only, consider iff discoveryBranch equals that dedicated-line bind, stem/ext
+  rules, first-wins same id. No fetch or gitCommonDirLock in this util.
+completedAt: '2026-09-04T14:44:50.228Z'

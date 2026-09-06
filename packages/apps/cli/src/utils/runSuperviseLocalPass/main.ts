@@ -7,7 +7,6 @@ import { daemonSchedulerFiles, listDaemonIds, unlinkSchedulerFiles } from '../da
 import { getProjectName } from '../getProjectName';
 import { listRunningProjectDaemons, hasRunningDaemonMeta } from '../listRunningProjectDaemons';
 import { readDaemonMeta } from '../readDaemonMeta';
-import { readProjectLocalConfig } from '../readProjectLocalConfig';
 import { spawnDetachedLumpcodeWithPidFile } from '../spawnDetachedLumpcodeWithPidFile';
 import {
     fromMeta,
@@ -91,18 +90,20 @@ async function spawnDesiredDaemon(input: {
         return;
     }
 
-    const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath });
-    if (!localConfigResult.success) {
-        logger.warn(`skip spawn for "${desired.daemonId}": ${localConfigResult.data}`);
-        return;
-    }
-
-    const recipe = recipeFromDesired(desired, localConfigResult.data.workspaceStrategy);
     const { pidFilePath, logFilePath, metaFilePath } = daemonSchedulerFiles({
         daemonsDir,
         projectName,
         daemonId: desired.daemonId,
     });
+    const metaResult = await readDaemonMeta(metaFilePath);
+    if (!metaResult.success) {
+        logger.warn(
+            `skip spawn for "${desired.daemonId}": meta ${metaResult.data.reason} (${metaResult.data.message})`,
+        );
+        return;
+    }
+
+    const recipe = recipeFromDesired(desired, metaResult.data.workspaceStrategy);
     const spawnResult = await spawnDetachedLumpcodeWithPidFile({
         extraArgs: toForegroundArgs(recipe),
         cwd: desired.projectRoot,

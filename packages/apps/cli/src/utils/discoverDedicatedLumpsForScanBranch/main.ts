@@ -20,6 +20,14 @@ export async function discoverDedicatedLumpsForScanBranch(input: {
     localConfig: LocalConfig;
     logger: Logger;
     refreshCommand?: string;
+    /**
+     * Runs inside the discovery path lock after matching, before lock release.
+     * Use for in-lock context-list snapshot so the checkout is still `scanBranch`.
+     */
+    afterMatched?: (input: {
+        matchingLumps: LoadableLump[];
+        scanBranch: string;
+    }) => Promise<void>;
 }): Promise<Success<LoadableLump[]> | Failure<string>> {
     const {
         scanBranch,
@@ -29,6 +37,7 @@ export async function discoverDedicatedLumpsForScanBranch(input: {
         localConfig,
         logger,
         refreshCommand,
+        afterMatched,
     } = input;
 
     const discoveryResult = await preflightDiscoveryBranchWithLock({
@@ -87,6 +96,10 @@ export async function discoverDedicatedLumpsForScanBranch(input: {
                 ) {
                     matchingLumps.push(lump);
                 }
+            }
+
+            if (afterMatched) {
+                await afterMatched({ matchingLumps, scanBranch });
             }
 
             return success(matchingLumps);

@@ -1,0 +1,8 @@
+name: 02-respawn-strategy-from-meta
+manualReq: true
+workflow: [impl]
+priority: 3
+task: >-
+  spawnDesiredDaemon must take workspaceStrategy from that daemon's meta, not a
+  live local.json read. Missing/invalid meta skips spawn.
+completedAt: '2026-08-25T16:54:51.215Z'

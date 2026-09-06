@@ -1,0 +1,12 @@
+name: dedicated-tick-line-batch-order
+manualReq: true
+workflow:
+  - testImpl
+priority: 5
+task: >-
+  Dedicated tick line scores become one value per remaining runLump batch (every
+  numberOfContextsPerBranch-th sorted todo priority). Reorder fills that lump's
+  collect rows from the merged batch stream so a stronger line can occupy more
+  than one row. Serialize the same lumpName+discoveryBranch in the run pool so
+  those repeats cannot start together.
+completedAt: '2026-09-05T17:13:39.972Z'

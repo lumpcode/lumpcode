@@ -39,9 +39,13 @@ toDo ──run + push──► branchPushed ──you merge──► finished
 
 `start` discovers every loadable lump (unless you pass `--include` / `--exclude`) on a cron, default every five minutes. New lumps appear on the next pass after you merge them to the branch the worker tracks. Nothing to deploy or register.
 
-Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up (`supervise --foreground`); you do not run that yourself.
+Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up; you do not run that yourself.
 
-Worker files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json`, `desired.json` (spawn recipe; `stopping: true` means drain). Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
+Daemon process files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json`, `desired.json` (spawn recipe; `stopping: true` means drain). Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
+
+## Daemon files from git
+
+On a dedicated **worker**, commit `.lumpcode/daemons/<id>.json` so that **daemon** can start from git. Shared mode ignores these files. File shape: [Start daemons from git](/docs/config/daemons).
 
 ## Shared laptop versus dedicated worker
 
@@ -73,7 +77,7 @@ resolvedBaseBranch       = lump baseBranch (string or fn)
 
 Discovery is where a dedicated worker **finds** the lump. Base is where work **branches off** and where `finished` is read. Dedicated allowlist: each lump discovery rule must match configured (unexpanded) `primaryBranches`. Shared `run` ignores discovery rules (warns if you pass `--discoveryBranch`). Inspect commands can still filter with the flag.
 
-The open-branch cap is **per lump name**, across every scan line.
+The open-branch cap is **per lump name**, across every scan line. On a dedicated worker, those lines run in remaining-batch order: each batch score is every `numberOfContextsPerBranch`-th sorted eligible-todo `options.priority` (lower first). A hotter `feature/*` line is not stuck behind the primary. The same lump + discovery branch stays sequential. `lumpcode run` is still one line.
 
 ## Checkout or worktree
 

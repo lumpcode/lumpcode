@@ -1,0 +1,9 @@
+name: dedicated-tick-line-priority
+manualReq: true
+workflow: [impl]
+priority: 4
+task: >-
+  Dedicated daemon ticks reorder each lump's scan-branch lines by best eligible
+  todo priority (slot-stable) so the per-lumpName branch cap does not starve
+  higher-priority feature lines behind primary-first order.
+completedAt: '2026-08-25T17:31:24.823Z'

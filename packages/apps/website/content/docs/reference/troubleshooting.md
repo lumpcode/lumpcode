@@ -21,7 +21,7 @@ That pushes an empty marker commit on the base branch. Use sparingly.
 
 | Command | Question |
 | --- | --- |
-| `daemon-status` | Is the worker process running? |
+| `daemon-status` | Is that daemon running? |
 | `lump-status` | What is each context’s git state? |
 
 They do not answer each other. [Commands](/docs/reference/commands#three-commands-named-status).
@@ -71,9 +71,19 @@ The preset needs `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` on 
 
 Names must match `^[a-zA-Z0-9_-]+$` and be unique. No `/` in a context `name`. Use `/` only in `dependsOnContexts` as `otherLump/contextName`. Captures from path templates that include dots or spaces will fail; slug them in `contextMatchFn` / `getContextListFn`.
 
-## Too many open branches, later scan lines starve
+## Too many open branches
 
-The cap is **per lump name**, across every discovery line. A dedicated worker that scans `dev` then `feature/*` can skip later lines while `dev` still has open `lump/<name>/*` branches. Merge, raise the cap, or split lumps.
+The cap is **per lump name**, across every discovery line. A dedicated worker now picks the strongest remaining batch first (context `priority`), so a hotter `feature/*` line is not stuck behind the primary. You can still skip when the cap is already full of open `lump/<name>/*` branches. Merge, raise the cap, or split lumps.
+
+## Committed daemon file never starts
+
+`.lumpcode/daemons/<id>.json` only starts daemons on a **dedicated worker**. Shared mode ignores the files. File shape: [Start daemons from git](/docs/config/daemons#file-shape).
+
+1. `discoveryBranch` must be exact (no globs) and equal the expanded primary the file was read from. Push the file on that branch.
+2. A `lumpcode start` daemon already using that id is left alone. Stop it, or pick another file stem.
+3. `maxParallelRun` in the file plus `workspaceStrategy: checkout` is refused.
+4. Wait for the next supervisor pass (about 30s, then every 5 minutes after a successful snapshot), or `lumpcode restart`.
+5. `lumpcode daemon-status` should show that id. The log names parse and allowlist failures.
 
 ## JSON config cannot see my function
 

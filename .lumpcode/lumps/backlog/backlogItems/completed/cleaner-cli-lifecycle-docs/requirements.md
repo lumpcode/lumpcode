@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `cleaner-cli-lifecycle-docs` · priority **15** · type **docs** · workflow **directImpl** |
+| **Backlog** | `cleaner-cli-lifecycle-docs` · priority **15** · type **docs** · workflow **[req]** |
 | **Status** | Pending implementation |
 | **Depends on** | — |
 | **Packages** | Primary: `packages/apps/cli/DOCS/` (markdown only). Runtime packages (`@lumpcode/cli`, `@lumpcode/core`, recipes, cli-types, cli-utils) unchanged. |

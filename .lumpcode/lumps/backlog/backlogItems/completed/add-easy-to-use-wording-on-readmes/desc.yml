@@ -1,5 +1,5 @@
 name: add-easy-to-use-wording-on-readmes
-workflow: directImpl
+workflow: [req]
 task: >-
   Add easy-to-use wording on root and/or CLI READMEs (and optionally DOCS
   landing) that Lumpcode needs only a machine with your repo, git access, and a

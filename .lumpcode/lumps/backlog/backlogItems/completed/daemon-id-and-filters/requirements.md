@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `daemon-id-and-filters` · priority **3** · `manualReq` |
+| **Backlog** | `daemon-id-and-filters` · priority **3** · workflow **[testPlan, testImpl]** |
 | **Type** | feature |
 | **Status** | Pending implementation |
 | **Depends on** | — |

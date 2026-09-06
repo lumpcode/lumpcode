@@ -402,6 +402,11 @@
   font-size: 0.9rem;
 }
 
+.docs-table code {
+  overflow-wrap: normal;
+  white-space: nowrap;
+}
+
 .docs-prose th,
 .docs-prose td {
   padding: 0.55rem 0.7rem;

@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "CLI for running agent loops over your codebase. Run agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
   "keywords": [
     "lumpcode",
@@ -58,7 +58,7 @@
     "postinstall": "node scripts/postinstall.mjs",
     "prepublishOnly": "npm run build:bundle",
     "check-types": "tsc --noEmit",
-    "pretest": "npm run build -w=@lumpcode/core",
+    "pretest": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "node scripts/run-e2e.mjs",
     "test:e2e:node": "node scripts/run-e2e.mjs --node",
@@ -67,7 +67,7 @@
     "install-bin:local:beta": "sh scripts/install-local.sh"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.3.1",
+    "@lumpcode/core": "^0.4.0",
     "ajv": "^8.20.0",
     "esbuild": "^0.25.5",
     "commander": "^9.5.0",

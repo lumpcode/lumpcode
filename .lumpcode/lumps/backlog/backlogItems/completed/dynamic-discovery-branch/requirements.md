@@ -2,7 +2,7 @@
 
 | Field | Value |
 | --- | --- |
-| **Backlog** | `dynamic-discovery-branch` · priority **4** · `manualReq` |
+| **Backlog** | `dynamic-discovery-branch` · priority **4** · workflow **[testPlan, testImpl]** |
 | **Type** | feature |
 | **Packages** | Primary: `packages/apps/cli` (+ `cli-types` / `cli-utils` author types). `@lumpcode/core` **unchanged** (`GetContextListFnInput`, `RunLumpInput.baseBranch: string`). Recipes/tests that invoke author-facing list fns may need call-site updates for the new required `discoveryBranch` param. |
 

@@ -1,4 +1,5 @@
 name: dynamic-discovery-branch
+workflow: [testPlan, testImpl]
 manualReq: true
 task: >-
   Support a dynamic discoveryBranch (e.g. a pattern like feature/*) so the same

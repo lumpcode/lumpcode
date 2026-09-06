@@ -2,7 +2,7 @@ import { spawn as nodeSpawn } from 'node:child_process';
 import * as z from 'zod';
 import { CronPattern } from 'croner';
 
-import { failure } from '@lumpcode/core';
+import { failure, success } from '@lumpcode/core';
 
 import { DEFAULT_DAEMON_CRON_SETUP } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
@@ -12,12 +12,14 @@ import {
     commandFailure,
     createCliLogger,
     daemonsDirPath,
+    ensureProjectSupervisor,
     getProjectName,
     launchStartDaemon,
     listRunningProjectDaemons,
     parseLumpNameFilterPatterns,
     readProjectLocalConfig,
     resolveDaemonId,
+    supervisorPidPath,
     type LumpNameFilter,
 } from '../../utils';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
@@ -27,6 +29,16 @@ export const defaultCronPattern = DEFAULT_DAEMON_CRON_SETUP;
 
 const LUMP_NAME_START_DEPRECATION =
     '--lumpName is deprecated on start; use --include=<name> (and optional --daemonId) instead.';
+
+const SUPERVISE_ONLY_EXCLUSIVE_FLAGS = [
+    'include',
+    'exclude',
+    'daemonId',
+    'cronSetup',
+    'maxParallelRun',
+    'lumpName',
+    'foreground',
+] as const;
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -55,11 +67,22 @@ const inputSchema = z.object({
             .string()
             .optional()
             .describe('Deprecated: equivalent to --include=<name>'),
+        superviseOnly: z
+            .boolean()
+            .optional()
+            .describe(
+                'Start or adopt the project supervisor only (no daemon spawn or desired.json)',
+            ),
     }),
     arguments: z.object({}),
 });
 
 export type Input = z.infer<typeof inputSchema>;
+
+export type SuperviseOnlyStartOutput = {
+    messages: string[];
+    data: { projectName: string; supervisorPid?: number };
+};
 
 export type Output = {
     messages: string[];
@@ -72,7 +95,7 @@ export type Output = {
         exclude?: string[];
         maxParallelRun?: number;
     };
-};
+} | SuperviseOnlyStartOutput;
 
 export interface Injections {
     projectRoot: string;
@@ -86,10 +109,28 @@ export interface Injections {
     skipEnsureSupervisor?: boolean;
 }
 
+function superviseOnlyExclusiveConflicts(options: Input['options']): string[] {
+    const conflicts: string[] = [];
+    for (const key of SUPERVISE_ONLY_EXCLUSIVE_FLAGS) {
+        const value = options[key];
+        if (key === 'foreground') {
+            if (value === true) {
+                conflicts.push('--foreground');
+            }
+            continue;
+        }
+        if (value !== undefined) {
+            conflicts.push(`--${key}`);
+        }
+    }
+    return conflicts;
+}
+
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath, waitForShutdownOverride, spawnFn, skipEnsureSupervisor } =
         injections;
     const { json, verbose: cliVerbose } = input.options;
+    const superviseOnly = input.options.superviseOnly === true;
     const foreground = input.options.foreground === true;
     const cronSetup = input.options.cronSetup?.trim() || defaultCronPattern;
     const lumpNameOpt = input.options.lumpName?.trim() ? input.options.lumpName.trim() : undefined;
@@ -100,6 +141,56 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         json: !!json,
         prefix: '[lumpcode start]',
     });
+
+    if (superviseOnly) {
+        const conflicts = superviseOnlyExclusiveConflicts(input.options);
+        if (conflicts.length > 0) {
+            return failure({
+                messages: [
+                    `--superviseOnly cannot be combined with ${conflicts.join(', ')}.`,
+                ],
+            });
+        }
+
+        const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
+        if (!validationResult.success) return commandFailure(validationResult.data);
+
+        const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath });
+        if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+
+        const nameResult = await getProjectName({ localConfigFolderPath, projectRoot });
+        if (!nameResult.success) return commandFailure(nameResult.data);
+        const projectName = nameResult.data;
+
+        let supervisorPid: number | undefined;
+        if (!skipEnsureSupervisor) {
+            const supervisorResult = await ensureProjectSupervisor({
+                projectRoot,
+                projectName,
+                globalConfigFolderPath,
+                spawnFn,
+                logger,
+            });
+            if (!supervisorResult.success) {
+                return failure({ messages: [supervisorResult.data] });
+            }
+            supervisorPid = supervisorResult.data.pid;
+        }
+
+        const pidHint =
+            supervisorPid !== undefined
+                ? `pid ${supervisorPid}`
+                : `PID file: ${supervisorPidPath({ globalConfigFolderPath, projectName })}`;
+        return success({
+            messages: [
+                `Project supervisor ready for "${projectName}" (${pidHint}). No daemon started.`,
+            ],
+            data: {
+                projectName,
+                ...(supervisorPid !== undefined ? { supervisorPid } : {}),
+            },
+        });
+    }
 
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
@@ -206,6 +297,6 @@ export const command = {
     handlerMaker,
     name: 'start',
     description:
-        'Detach a background scheduler that re-runs lumps on a cron schedule (PID under ~/.lumpcode/daemons/). Pass `--foreground` to run blocking in this terminal. Pass `--include` / `--exclude` to filter lumps and `--daemonId` to name the daemon.',
+        'Detach a background scheduler that re-runs lumps on a cron schedule (PID under ~/.lumpcode/daemons/). Pass `--foreground` to run blocking in this terminal. Pass `--include` / `--exclude` to filter lumps and `--daemonId` to name the daemon. Pass `--superviseOnly` to start the project supervisor without launching a daemon.',
     inputSchema,
 } satisfies Command;

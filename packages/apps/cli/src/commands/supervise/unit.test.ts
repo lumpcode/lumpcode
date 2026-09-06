@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createDaemonCommandTestProject } from '../../testing';
+import { writeLocalJson } from '../../testing/multiBranchFixtures';
 import { removeTempTestDirs } from '../../utils';
 import { command as superviseCommand } from './main';
 
@@ -11,7 +12,13 @@ describe('supervise command', () => {
     const projectName = 'supervise-test-project';
 
     beforeEach(async () => {
-        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createDaemonCommandTestProject({ prefix: 'lump-supervise-', projectName, bindDaemonTestEnv: false }));
+        ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createDaemonCommandTestProject({
+            prefix: 'lump-supervise-',
+            projectName,
+            bindDaemonTestEnv: false,
+        }));
+        // Shared: skip repo-daemon-file reconcile (no origin on this fixture).
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
     });
 
     afterEach(async () => {
@@ -36,6 +43,7 @@ describe('supervise command', () => {
             localConfigFolderPath,
             globalConfigFolderPath,
             waitForShutdownOverride: async () => {},
+            localPassIntervalMs: 50,
         });
         const result = await handle({ options: { foreground: true }, arguments: {} });
         expect(result.success).toBe(true);

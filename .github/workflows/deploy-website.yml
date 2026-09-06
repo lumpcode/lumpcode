@@ -6,6 +6,7 @@ on:
     paths:
       - 'packages/apps/website/**'
       - 'packages/apps/cli/src/schemas/lumpConfig.schema.json'
+      - 'packages/apps/cli/src/schemas/daemonConfig.schema.json'
       - '.github/workflows/deploy-website.yml'
   workflow_dispatch:
 

@@ -1,6 +1,6 @@
 name: continue-on-error-default
 manualReq: true
-workflow: directImpl
+workflow: [impl]
 task: >-
   Consider defaulting Step.continueOnError to true (today false). Decide the
   product default and update engine, types, schema, and docs accordingly.

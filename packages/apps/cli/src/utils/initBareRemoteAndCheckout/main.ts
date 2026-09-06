@@ -1,5 +1,5 @@
 import { execGit } from '../execGit';
-import { initLocalGitRepo } from '../initLocalGitRepo';
+import { assertPathIsUnderOsTmpdir, initLocalGitRepo } from '../initLocalGitRepo';
 
 /** Bare `origin` + local checkout with initial empty commit pushed to `origin/<branch>`. */
 export function initBareRemoteAndCheckout(input: {
@@ -16,6 +16,8 @@ export function initBareRemoteAndCheckout(input: {
 }): void {
     const { projectRoot, remoteDir } = input;
     const branch = input.branch ?? 'main';
+    assertPathIsUnderOsTmpdir(remoteDir);
+    assertPathIsUnderOsTmpdir(projectRoot);
     execGit('init --bare', remoteDir);
     initLocalGitRepo({
         cwd: projectRoot,

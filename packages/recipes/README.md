@@ -15,7 +15,7 @@ npm install @lumpcode/recipes
 | Recipe | Export | Use when |
 |--------|--------|----------|
 | **backlog** | `backlog` | Generic folder backlog with a typed stage map and per-item stage resolution |
-| **featureBacklog** | `featureBacklog` | Folder feature campaign: TDD stages, optional `directImpl`, tickets, and `dev` / `feature/*` discovery |
+| **featureBacklog** | `featureBacklog` | Folder feature campaign: optional `workflow` stages, tickets, and primary / per-item campaign discovery |
 | **abstractionFinder** | `abstractionFinder` | One ephemeral context per tick that appends a backlog item + requirements doc while `todo/` is under `maxPendingAbstractions` |
 | **abstractionBacklog** | `abstractionBacklog` | Folder backlog items with requirements — implement abstraction with verify-until-green, then move item to completed/ |
 
@@ -28,15 +28,15 @@ The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a fo
 ```
 .lumpcode/lumps/<lump>/backlogItems/
   todo/<name>/desc.yml
-  todo/<name>/requirements.md # optional until makeReq / finder writes it
-  todo/<name>/testPlan.md     # featureBacklog TDD; optional until makeTestPlan
-  todo/<parent>/tickets/<ticket>/desc.yml  # featureBacklog: parent skipped when tickets/ is non-empty
+  todo/<name>/requirements.md # optional until the `req` stage / finder writes it
+  todo/<name>/testPlan.md     # featureBacklog; optional until the `testPlan` stage
+  todo/<parent>/tickets/<ticket>/desc.yml  # featureBacklog tickets; parent runs `completion` after all tickets
   completed/<name>/desc.yml   # includes completedAt after move-to-done
   completed/<name>/requirements.md # moves with the folder
   completed/<name>/testPlan.md
 ```
 
-`desc.yml` is a single YAML object with `name`, `task`, `priority`, optional `dependsOn`, and recipe-specific fields (`manualReq`, `workflow` for featureBacklog).
+`desc.yml` is a single YAML object with `name`, `task`, `priority`, optional `dependsOn`, and recipe-specific fields (`workflow`, `manual` for featureBacklog).
 
 ## Kit
 
@@ -110,7 +110,6 @@ export default featureBacklog<
     verbose: true,
     keepHistory: true,
     lumpVariables: { model: 'composer-2.5' },
-    discoveryBranches: ['dev', 'feature/*'],
     implValidateCommand: [
         'npm run build -w=@lumpcode/cli',
         'npm run test -w=@lumpcode/cli',
@@ -118,7 +117,7 @@ export default featureBacklog<
 });
 ```
 
-`desc.yml` `workflow`: omit ≡ `tdd` (`makeReq` → `makeTestPlan` → `testImpl` → `implementation`); `directImpl` skips the test-plan stages; `manual` is ignored. On `dev` only top-level `directImpl` items run (tickets never run on `dev`, even if `directImpl`); on `feature/<key>` the matching item (or parent, for tickets). Ticket context names are `<parent>-<ticket>`; `manualReq: true` waits for a human requirements file. Status reads use the concrete `discoveryBranch`.
+`desc.yml` `workflow` is an array of `req`, `testPlan`, `testImpl`, `impl`, and/or `directImpl`. Omit ≡ `[req, testPlan, testImpl]` (terminal defaults to `impl`). `directImpl` in the array wins over `impl` and may implement without `requirements.md`; default `impl` waits for that file unless `req` is in the array. `manual: true` skips standalone items and tickets (umbrella `completion` still runs). On the primary discovery branch (default `dev`) only top-level items without `testPlan`/`testImpl` run; tickets never run there. On `<itemDiscoveryBranchPrefix>/<key>` (default `feature/<key>`) the matching item or parent runs. Ticket context names are `<parent>-<ticket>`. After every ticket finishes, one parent `completion` context (no agent) depends on all ticket impl names and merges the parent folder into `completed/`. Status reads use the concrete `discoveryBranch`. Optional `primaryDiscoveryBranch` / `itemDiscoveryBranchPrefix` replace hardcoded `dev` / `feature`; the recipe emits `discoveryBranches` from those values. Optional `promptFns` replaces the main `promptFn` per stage (`req`, `testPlan`, `testImpl`, `impl`, `directImpl`); artifact validation and fix prompts stay the defaults.
 
 ### abstractionFinder + abstractionBacklog
 
