@@ -4,15 +4,6 @@
 #   daemon | git | status | hooks | history | config | engine | cli | recipes |
 #   workspace | presets | hygiene | skills | cloud | auth | agents | sandbox | meta
 # Ephemeral names (1, A) are OK.
-- name: cli-command-names-by-group
-  task: >-
-    Clean CLI command names by group. Canonical name is `<group>-<verb>` (e.g. `daemon-start`,
-    `daemon-stop`, `daemon-restart`); today's short names stay as shorthands (`start` → `daemon-start`).
-    Apply the same pattern across groups (`lump-plan` / `lump-status` / `lump-create`, `project-setup`)
-    so mixed prefixes like `start` vs `daemon-status` go away. Document only the current spelling.
-    Complements `unified-status-command` (one status view) — this idea is naming, not merging commands.
-  priority: 2
-  tags: [cli]
 - name: first-class-open-pr
   task: >-
     Open the pull request from the CLI itself, not only via the `@lumpcode/recipes`
@@ -23,51 +14,32 @@
     overrides) wired into the generated teardown, so JSON configs get it with no recipes dependency.
     Decide auth on a worker (`gh` on PATH vs a token + API call) and make the CLI the canonical owner,
     with the recipes helper delegating to it instead of carrying a second implementation.
-  priority: 3
+  priority: 12
   tags: [cli, git, recipes, daemon]
 - name: unified-status-command
   task: >-
     Unified `lumpcode status` command showing daemon state plus per-lump context summaries in one view,
     replacing the daemon-status / lump-status / context-status confusion (docs currently need a comparison
     table).
-  priority: 10
+  priority: 15
   tags: [cli, status, daemon]
 - name: ignore-lump-branches-if-their-commits-are-merged-to-base-branch
   task: Ignore lump branches if their commits are merged to the base branch (i.e finished)
-  priority: 11
+  priority: 16
   tags: [git, status]
 - name: lump-plan-remote-todo-status
   task: >-
     Verify/ensure `lump-plan` reports which contexts are todo from the remote (source of truth).
-  priority: 12
+  priority: 17
   tags: [cli, git, status]
 - name: see-lump-context-run-time
   task: See the lump context run time (in seconds)
-  priority: 13
+  priority: 18
   tags: [status]
 - name: git-access-heartbeat
   task: Lumpcode heartbeat validation that git access (remote) is ok.
-  priority: 14
+  priority: 19
   tags: [git, daemon]
-- name: compose-post-setup-workspace-hooks
-  task: >-
-    Allow custom per-lump workspace prep by composing on top of CLI-generated `workspaceStrategy` (`checkout`
-    | `worktree` from `.lumpcode/local.json` via `makeLumpWorkspaceFns`), not by re-exposing raw core
-    `setupWorkspaceFn` / `teardownWorkspaceFn` on `LumpJsConfig`. Operators need install deps, copy env
-    files, codegen, etc. inside the branch workspace after git setup while keeping correct strategy-owned
-    `workspacePath` (locks + agent cwd) and dedicated worktree `afterExec` lock release via `withSetupWorkspaceAfterExec`.
-    Preferred: optional lump-config `postSetupWorkspaceFn` (FilePath or fn) receiving `{ baseBranch, branchName,
-    contextList, workspacePath, executionWorkspacePath, workspaceStrategy }`, returning optional `{ command?,
-    afterExec? }` chained after built-in setup — user must not override `workspacePath`; chain `afterExec`
-    so lock-layer release still works. Optional twin `postTeardownWorkspaceFn`. Smaller JSON-only alternative:
-    `postSetupWorkspaceCommand` string append (`builtIn && userCommand`). Non-goals: raw setup/teardown
-    knobs on lump config; full replace of generated fns unless a later `"custom"` strategy defines a path
-    contract for locks. Touch: primarily `packages/apps/cli` (`jsConfigToRunLumpInput`, `makeLumpWorkspaceFns`,
-    `LumpJsConfig`, schema, DOCS); core likely unchanged; `withWorkspaceLockHooks` stays outermost if
-    path remains strategy-owned. Note: existing `setupFn` is the wrong layer (per-context, after workspace
-    setup, no `workspacePath`).
-  priority: 20
-  tags: [workspace, hooks, config]
 - name: verification-commands
   task: >-
     Add verification commands to the config (A final to check a file has been created per example, restart
@@ -80,6 +52,15 @@
     the remote branch. It will be called with the commit message and the branch name.
   priority: 24
   tags: [hooks, git, config]
+- name: cli-command-names-by-group
+  task: >-
+    Clean CLI command names by group. Canonical name is `<group>-<verb>` (e.g. `daemon-start`,
+    `daemon-stop`, `daemon-restart`); today's short names stay as shorthands (`start` → `daemon-start`).
+    Apply the same pattern across groups (`lump-plan` / `lump-status` / `lump-create`, `project-setup`)
+    so mixed prefixes like `start` vs `daemon-status` go away. Document only the current spelling.
+    Complements `unified-status-command` (one status view) — this idea is naming, not merging commands.
+  priority: 25
+  tags: [cli]
 - name: lump-create-from-recipe
   task: >-
     `lumpcode lump-create --from-recipe <name>` scaffolds a working lump from a published recipe (config.ts,

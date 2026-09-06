@@ -11,4 +11,4 @@ task: >-
   No thinking capture, no stream-json parse, no engine auto-inject. Merges
   former IDEAS rethink-lump-history-storage and option-for-light-history;
   supersedes keep-transcripts and history-yaml-string-escaping.
-priority: 18
+priority: 11

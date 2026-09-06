@@ -4,4 +4,4 @@ manualReq: true
 task: >-
   In recipes (e.g. featureBacklog / backlog), default manualReq to true so
   requirements are authored by a human unless explicitly opted out.
-priority: 11
+priority: 8

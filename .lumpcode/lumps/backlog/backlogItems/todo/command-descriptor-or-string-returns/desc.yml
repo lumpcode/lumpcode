@@ -11,4 +11,4 @@ task: >-
   done" semantics in that design. Likely surfaces include git command-return
   payloads, setupWorkspace/teardownWorkspace command fields, and similar
   command-string injectors — without prescribing every call site in this item.
-priority: 7
+priority: 2

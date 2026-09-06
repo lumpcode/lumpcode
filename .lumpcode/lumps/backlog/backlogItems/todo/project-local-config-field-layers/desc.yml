@@ -8,4 +8,4 @@ task: >-
   from that table so they cannot drift. Parameterize merge tests from the table
   instead of adding per-key cases (e.g. refreshCommand M13–M16). Does not change
   merge semantics.
-priority: 12
+priority: 10
