@@ -1,0 +1,12 @@
+name: seo-ai-loops-sdlc
+workflow: [impl]
+manualReq: true
+task: >-
+  Website, docs, and meta pass so Lumpcode is findable as the easy-to-set-up
+  (yet powerful), clean way to start AI loops for the software development life
+  cycle on an existing git repo. Search phrases to be present: AI loops SDLC,
+  AI loops development life cycle, AI coding refactoring. Titles, descriptions,
+  and a bit of on-page copy (landing, overview, First PR); optional short
+  article if a page is needed for those phrases. Not a hero keyword dump and
+  no engine work.
+priority: 1

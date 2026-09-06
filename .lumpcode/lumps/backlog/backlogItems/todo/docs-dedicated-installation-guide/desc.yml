@@ -9,4 +9,4 @@ task: >-
   can use it, and explain maxParallelRun with worktree; (4) launch the global daemon;
   (5) day-to-day on the work repo you only add/update lumps and the global daemon
   picks them up. Rename from the old "distant" idea name as needed.
-priority: 17
+priority: 5

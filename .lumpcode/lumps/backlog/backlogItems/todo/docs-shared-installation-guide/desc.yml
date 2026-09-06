@@ -8,4 +8,4 @@ task: >-
   branch (e.g. backlog requirements.md), that file will not be on the current
   checkout unless merged/present there. Position shared as best for testing a lump
   before pushing; dedicated remains the intended production usage.
-priority: 18
+priority: 7
