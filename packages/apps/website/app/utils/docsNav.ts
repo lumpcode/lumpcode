@@ -89,6 +89,11 @@ export const docsNav: DocsNavSection[] = [
         description: 'Per-machine mode, workspace strategy, and primary branch.',
       },
       {
+        title: 'Daemon files',
+        path: '/docs/config/daemons',
+        description: 'Commit .lumpcode/daemons/ files so a dedicated worker starts those daemons from git.',
+      },
+      {
         title: 'Advanced',
         path: '/docs/config/advanced',
         description: 'Hooks, dynamic steps, and custom agent modules.',
@@ -246,6 +251,6 @@ export const docsVuePages: {
       { id: 'back-to-the-laptop', text: '4. Back to the laptop', depth: 2 },
     ],
     searchText:
-      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe',
+      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe daemon files start daemons from git',
   },
 ]
