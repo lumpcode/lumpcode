@@ -13,7 +13,13 @@ Turn the **full context of the current conversation** into one precise, concise 
 2. **Resolve unknowns cheaply.** Read the files/code referenced in the conversation to state real contracts (types, schemas, paths, function names). Do not invent APIs.
 3. **Settle placement, not only behavior.** For cross-cutting concerns (compat shims, shared filters, path helpers, start gates, list/scan helpers), decide *which one module owns them* before writing. If that ownership is still fuzzy, ask the user — staged backlog agents will otherwise reimplement the same logic in each call site that needs it.
 4. **Ask when unclear.** This skill normally runs once the feature is fully decided, but you never know — if anything material is still ambiguous, contradictory, or missing after synthesizing, ask the user to clarify before writing. The requirements document must read as fully decided: never leave open questions in it. Resolve every gap with the user first so everything is entirely clear.
-5. **Confirm the output path.** Repo convention: `.lumpcode/lumps/<lumpName>/backlogItems/todo/<kebab-name>/requirements.md`. Infer `<lumpName>` and `<kebab-name>` from context; if the target lump/item is ambiguous, ask once, otherwise proceed with the matching backlog item folder (create it with `desc.yml` if missing).
+5. **Decide whether this is one ticket or many.** `requirements.md` is for a single, fully-decided feature that one backlog item can implement. If the work breaks into multiple vertical slices, gated hand-offs, or cross-cutting prefactors, use `write-tickets` to create the per-ticket `desc.yml` files **and** still produce a general `requirements.md` that describes the global shape, important decisions, interfaces, and ticket map. Signals that you should ticket first:
+   - The feature naturally splits into more than one demonstrable milestone.
+   - Multiple public contracts or ownership boundaries need separate decisions.
+   - A wide refactor (rename, retype, migrate thousands of call sites) should be sequenced expand–contract across several items.
+   - The user asked for a "plan," "roadmap," or "breakdown" rather than one spec.
+   In those cases, write the general `requirements.md` for the whole feature, then call `write-tickets` for the individual backlog items. Complex tickets may get their own `requirements.md` as well.
+6. **Confirm the output path.** Repo convention: `.lumpcode/lumps/<lumpName>/backlogItems/todo/<kebab-name>/requirements.md`. Infer `<lumpName>` and `<kebab-name>` from context; if the target lump/item is ambiguous, ask once, otherwise proceed with the matching backlog item folder (create it with `desc.yml` if missing).
 
 
 
@@ -23,7 +29,7 @@ Turn the **full context of the current conversation** into one precise, concise 
 - **Ownership and placement.** When a concern is shared (legacy path fallback, glob match, id resolution, corrupt-meta gate), name the **canonical owner** (one util or one command boundary) and state that callers must not reimplement it. Prefer "compat only in `resolveX` / `listY`" over leaving "at the resolve layer" vague enough that every companion re-adds the same FS dance.
 - **Pin product shape; leave harmless impl freer.** Specify operator-visible behavior, failure codes, path layouts, and public signatures that matter. Do **not** over-constrain incidental types or algorithms agents will follow literally — e.g. prefer "keyed by `daemonId`" over prescribing `ReadonlyMap` vs `Record` unless Map semantics are required; prefer "full-string `*` only (no regex dialect)" over mandating `RegExp` vs a manual matcher.
 - **Name new utils when reuse is intended.** If the technical approach adds a util directory, give the preferred name (and one-line contract) so testImpl/impl do not invent a parallel helper for the same job.
-- **Most concise possible.** Straight to the point, easy to understand. Every line earns its place. Prefer tables over prose. Cut restating the obvious.
+- **One feature per file, but multi-ticket features still get a general doc.** A single-ticket feature gets one `requirements.md`. A multi-ticket feature gets a general `requirements.md` for global shape plus individual `desc.yml` files under `backlogItems/todo/<ticket-name>/`; complex tickets may also get their own ticket-scoped `requirements.md`.
 - **Match the repo.** Reuse the section set, the metadata table, and the tone of existing requirements documents (e.g. `.lumpcode/lumps/**/backlogItems/**/requirements.md`). Periods/commas over em dashes. Reference real files with relative links where helpful.
 
 

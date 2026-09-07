@@ -97,6 +97,7 @@ export async function jsConfigToRunLumpInput({
     const {
         baseBranch: lumpBaseBranchOverride,
         command: defaultCommand,
+        timeoutMillis: configTimeoutMillis,
         contextListJson,
         contextMatchFn,
         contextOptionsFn,
@@ -282,7 +283,13 @@ export async function jsConfigToRunLumpInput({
     }
 
     const stepsResult = await resolveSteps({
-        prompt, jsSteps, defaultCommand, commandModules, configPaths, fnImportOptions,
+        prompt,
+        jsSteps,
+        defaultCommand,
+        configTimeoutMillis,
+        commandModules,
+        configPaths,
+        fnImportOptions,
     });
     if (!stepsResult.success) return stepsResult;
 
@@ -594,6 +601,7 @@ async function resolveSteps({
     prompt,
     jsSteps,
     defaultCommand,
+    configTimeoutMillis,
     commandModules,
     configPaths,
     fnImportOptions,
@@ -602,6 +610,7 @@ async function resolveSteps({
     prompt: LumpJsConfig['prompt'];
     jsSteps: LumpJsConfig['steps'];
     defaultCommand: LumpJsConfig['command'];
+    configTimeoutMillis: LumpJsConfig['timeoutMillis'];
     commandModules: Map<string, CommandModule>;
     configPaths: CommandConfigPaths;
     fnImportOptions: { importBasePath: string };
@@ -623,6 +632,7 @@ async function resolveSteps({
                     prompt: undefined,
                     jsSteps: resolved,
                     defaultCommand,
+                    configTimeoutMillis,
                     commandModules,
                     configPaths,
                     fnImportOptions,
@@ -640,6 +650,7 @@ async function resolveSteps({
             const resolved = await jsConfigStepToStep({
                 item: normalizedItem,
                 defaultCommand,
+                configTimeoutMillis,
                 commandModules,
                 configPaths,
                 fnImportOptions,
@@ -660,6 +671,7 @@ async function resolveSteps({
 async function jsConfigStepToStep({
     item,
     defaultCommand,
+    configTimeoutMillis,
     commandModules,
     configPaths,
     fnImportOptions,
@@ -667,12 +679,22 @@ async function jsConfigStepToStep({
 }: {
     item: LumpJsConfigStep;
     defaultCommand: LumpJsConfig['command'];
+    configTimeoutMillis: LumpJsConfig['timeoutMillis'];
     commandModules: Map<string, CommandModule>;
     configPaths: CommandConfigPaths;
     fnImportOptions: { importBasePath: string };
     inRecursiveCall?: boolean;
 }): Promise<Success<Step> | Failure<string>> {
-    const { promptTemplate, promptFn, command, postCommandExecFn, ...rest } = item;
+    const {
+        promptTemplate,
+        promptFn,
+        command,
+        postCommandExecFn,
+        timeoutMillis: stepTimeoutMillis,
+        ...rest
+    } = item;
+
+    const resolvedTimeoutMillis = stepTimeoutMillis ?? configTimeoutMillis;
 
     const promptFnResult = await resolvePromptFn({ promptFn, promptTemplate, fnImportOptions });
     if (!promptFnResult.success) return promptFnResult;
@@ -710,6 +732,7 @@ async function jsConfigStepToStep({
                 prompt: undefined,
                 jsSteps: returned,
                 defaultCommand,
+                configTimeoutMillis,
                 commandModules,
                 configPaths,
                 fnImportOptions,
@@ -725,6 +748,7 @@ async function jsConfigStepToStep({
         ...(promptFnResult.data !== undefined && { promptFn: promptFnResult.data }),
         commandFn: commandFnResult.data,
         ...(resolvedPostCommandExecFn !== undefined && { postCommandExecFn: resolvedPostCommandExecFn }),
+        ...(resolvedTimeoutMillis !== undefined && { timeoutMillis: resolvedTimeoutMillis }),
     });
 }
 

@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: exact-path-context-list-json
+workflow: [manualReq, testImpl, impl]
+task: >-
+  A JSON `contextListJson` value with no placeholder matches that relative path
+  exactly, so a README.md smoke lump plans to one context named README.
+priority: 0

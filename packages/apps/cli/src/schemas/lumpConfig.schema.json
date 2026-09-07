@@ -71,6 +71,12 @@
       "description": "Default command for all prompt items (inherited when a step omits 'command'). Either a registered command tag (e.g. 'copilot', 'cursor', 'claude-code', 'opencode', 'codex') resolved via '.lumpcode/commands/<name>.ts|.js', global commands, then presets — or a lump-relative file path ending in '.ts' or '.js' with no whitespace that exports a CommandModule ('command', optional 'setup'/'teardown'). Missing file-path modules fail at config load. Agent flags belong in the module's CommandFn, not in this string.",
       "examples": ["copilot", "cursor", "claude-code", "opencode", "codex", "./agents/custom.ts"]
     },
+    "timeoutMillis": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Default maximum time in milliseconds for agent/command steps that omit their own timeoutMillis. On expiry, Lumpcode terminates the command process tree (SIGTERM, then SIGKILL after a grace period) and the step fails. Per-step timeoutMillis overrides this value. When both are omitted, the engine default is 30 minutes (1800000).",
+      "examples": [600000, 1800000]
+    },
     "contextListJson": {
       "oneOf": [
         {
