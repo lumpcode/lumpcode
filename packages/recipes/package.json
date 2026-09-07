@@ -23,6 +23,7 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
+    "schemas",
     "README.md",
     "LICENSE"
   ],
@@ -34,7 +35,9 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    }
+    },
+    "./schemas/backlogDesc.schema.json": "./schemas/backlogDesc.schema.json",
+    "./schemas/featureBacklogDesc.schema.json": "./schemas/featureBacklogDesc.schema.json"
   },
   "scripts": {
     "prepublishOnly": "npm run build",

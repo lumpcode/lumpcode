@@ -8,6 +8,7 @@ import {
 } from './types';
 
 let warnedManualReq = false;
+let warnedReqAndManualReq = false;
 
 function warnManualReqDeprecated(): void {
     if (warnedManualReq) {
@@ -16,7 +17,19 @@ function warnManualReqDeprecated(): void {
     warnedManualReq = true;
     console.warn(
         '[lumpcode/recipes] featureBacklog: desc.yml field "manualReq" is deprecated and ignored. ' +
-            'Omit "req" from workflow to wait for a human requirements file, or set manual: true to skip the item.',
+            'Put "manualReq" in workflow to wait for a human requirements file, ' +
+            'or set manual: true to skip the item.',
+    );
+}
+
+function warnReqAndManualReq(itemName: string): void {
+    if (warnedReqAndManualReq) {
+        return;
+    }
+    warnedReqAndManualReq = true;
+    console.warn(
+        `[lumpcode/recipes] featureBacklog: backlog item "${itemName}" field "workflow" contains both ` +
+            '"req" and "manualReq"; using "manualReq".',
     );
 }
 
@@ -37,7 +50,7 @@ function isWorkflowStage(value: unknown): value is FeatureBacklogWorkflowStage {
 
 function normalizeWorkflow(stages: FeatureBacklogWorkflowStage[]): FeatureBacklogWorkflow {
     const unique = new Set(stages);
-    const normalized: FeatureBacklogWorkflowStage[] = [];
+    let normalized: FeatureBacklogWorkflowStage[] = [];
     for (const stage of WORKFLOW_PREFIX_ORDER) {
         if (unique.has(stage)) {
             normalized.push(stage);
@@ -47,6 +60,9 @@ function normalizeWorkflow(stages: FeatureBacklogWorkflowStage[]): FeatureBacklo
         normalized.push('directImpl');
     } else if (unique.has('impl')) {
         normalized.push('impl');
+    }
+    if (normalized.includes('req') && normalized.includes('manualReq')) {
+        normalized = normalized.filter((stage) => stage !== 'req');
     }
     return normalized;
 }
@@ -78,6 +94,9 @@ export function parseFeatureWorkflow(itemName: string, raw: unknown): FeatureBac
             );
         }
         stages.push(entry);
+    }
+    if (stages.includes('req') && stages.includes('manualReq')) {
+        warnReqAndManualReq(itemName);
     }
     return normalizeWorkflow(stages);
 }

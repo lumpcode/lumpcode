@@ -77,6 +77,25 @@ describe('parseFeatureWorkflow', () => {
         })).toEqual(['req', 'testImpl', 'directImpl']);
     });
 
+    it('normalizes manualReq before later stages', () => {
+        expect(parseFeatureWorkflow('alpha', {
+            workflow: ['testImpl', 'manualReq'],
+        })).toEqual(['manualReq', 'testImpl']);
+    });
+
+    it('keeps manualReq and warns once when req is also present', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        expect(parseFeatureWorkflow('alpha', {
+            workflow: ['req', 'manualReq', 'testImpl'],
+        })).toEqual(['manualReq', 'testImpl']);
+        expect(parseFeatureWorkflow('beta', {
+            workflow: ['req', 'manualReq'],
+        })).toEqual(['manualReq']);
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        expect(warnSpy.mock.calls[0]?.[0]).toMatch(/both "req" and "manualReq".*using "manualReq"/);
+        warnSpy.mockRestore();
+    });
+
     it('rejects a string workflow', () => {
         expect(() => parseFeatureWorkflow('alpha', { workflow: 'tdd' })).toThrow(
             /workflow" must be an array of stages/,
@@ -92,7 +111,7 @@ describe('parseFeatureWorkflow', () => {
         );
     });
 
-    it('warns once when manualReq is present', () => {
+    it('warns once when the desc.yml field manualReq is present', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         parseFeatureWorkflow('alpha', { manualReq: true });
         parseFeatureWorkflow('beta', { manualReq: false });
@@ -186,6 +205,76 @@ describe('resolveFeatureBacklogItem', () => {
         });
 
         expect(resolution).toEqual({ ignored: true });
+    });
+
+    it('waits when manualReq is in the workflow and requirements are missing', async () => {
+        const resolution = await resolve({
+            item: { ...item, workflow: ['manualReq', 'testImpl'] },
+        });
+
+        expect(resolution).toEqual({ ignored: true });
+    });
+
+    it('waits when both req and manualReq are present and requirements are missing', async () => {
+        const resolution = await resolve({
+            item: { ...item, workflow: ['req', 'manualReq', 'testImpl'] },
+        });
+
+        expect(resolution).toEqual({ ignored: true });
+    });
+
+    it('routes past req when both req and manualReq are present and requirements exist', async () => {
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
+        mockedGetContextStatus.mockResolvedValue('toDo');
+
+        const resolution = await resolve({
+            item: { ...item, workflow: ['req', 'manualReq', 'testImpl'] },
+        });
+
+        expect(resolution).toEqual({
+            stage: 'testImpl',
+            contextName: 'my-feature_testImpl',
+            variables: {
+                WORKFLOW: 'req,manualReq,testImpl',
+                REQ_FILE: reqPath,
+            },
+        });
+    });
+
+    it('routes to testImpl after a human requirements file when workflow is manualReq then testImpl', async () => {
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
+        mockedGetContextStatus.mockResolvedValue('toDo');
+
+        const resolution = await resolve({
+            item: { ...item, workflow: ['manualReq', 'testImpl'] },
+        });
+
+        expect(resolution).toEqual({
+            stage: 'testImpl',
+            contextName: 'my-feature_testImpl',
+            variables: {
+                WORKFLOW: 'manualReq,testImpl',
+                REQ_FILE: reqPath,
+            },
+        });
+    });
+
+    it('routes to impl on the primary branch after manualReq once requirements exist', async () => {
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
+
+        const resolution = await resolve({
+            item: { ...item, workflow: ['manualReq', 'impl'] },
+            discoveryBranch: 'dev',
+        });
+
+        expect(resolution).toEqual({
+            stage: 'impl',
+            contextName: 'my-feature',
+            variables: {
+                WORKFLOW: 'manualReq,impl',
+                REQ_FILE: reqPath,
+            },
+        });
     });
 
     it('waits for requirements before default impl when the array is empty', async () => {

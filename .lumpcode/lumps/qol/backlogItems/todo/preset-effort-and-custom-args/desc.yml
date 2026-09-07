@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: preset-effort-and-custom-args
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Add effort (and similar) options to agent presets, plus a custom args list
+  so operators can pass extra CLI flags through lumpVariables/stepVariables.
+priority: 2

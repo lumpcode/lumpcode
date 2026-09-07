@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: continue-on-error-default
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Consider defaulting Step.continueOnError to true (today false). Decide the
+  product default and update engine, types, schema, and docs accordingly.
+priority: 5

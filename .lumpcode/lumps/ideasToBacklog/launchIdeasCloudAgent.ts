@@ -98,11 +98,15 @@ You are running as the ideasToBacklog cloud agent for context ${contextName}.
 Use the project skill **ideas-to-backlog** (see .agents/skills/ideas-to-backlog/SKILL.md).
 
 Intake file: @${ideasFile}
-Backlog todos: @.lumpcode/lumps/backlog/backlogItems/todo/
+Promote into one of four lanes (ask if unclear):
+- backlog (big features): @.lumpcode/lumps/backlog/backlogItems/todo/
+- docs (docs, naming, SEO): @.lumpcode/lumps/docs/backlogItems/todo/
+- qol (small quality-of-life): @.lumpcode/lumps/qol/backlogItems/todo/
+- bugfixes: @.lumpcode/lumps/bugfixes/backlogItems/todo/
 
-Your job is an interactive batch triage session: choose which ideas to promote / reject / park / spawn, clarify with me, and when I say we are done for today, update ${ideasFile} and backlog files on this branch.
+Your job is an interactive batch triage session: choose which ideas to promote / reject / park / spawn, pick a lane per promote, clarify with me, and when I say we are done for today, update ${ideasFile} and the matching lane files on this branch.
 
-IDEAS entries may include optional priority (number; lower = more important). Prefer those when proposing today's batch; when promoting, carry priority into backlog desc.yml.
+IDEAS entries may include optional priority (number; lower = more important). Prefer those when proposing today's batch; when promoting, carry priority into that lane's desc.yml. No required lane field on IDEAS.yaml.
 
 Start by reading ${ideasFile} and proposing today's batch.
     `.trim();
