@@ -9,7 +9,7 @@
  *   - regenerate scripts/azure-daemon-vm/connect.sh with the current public IP
  *   - print how to SSH in
  *
- * Secrets stay off the repo under ~/.lumpcode/azure-daemon-vm/.
+ * Secrets stay off the repo under ~/.config/azure-daemon-vm/ (not ~/.lumpcode).
  *
  * Prerequisites:
  *   - `az` CLI installed and logged in (`az login`)
@@ -22,7 +22,7 @@
  *   npm run azure-daemon-vm -- --regen-ssh-keys
  *   node scripts/azure-daemon-vm/deploy.mjs --help
  *
- * Non-secret config (env overrides ~/.lumpcode/azure-daemon-vm/config.json):
+ * Non-secret config (env overrides ~/.config/azure-daemon-vm/config.json):
  *   LUMPCODE_AZURE_RESOURCE_GROUP   (default: lumpcode-daemon)
  *   LUMPCODE_AZURE_LOCATION         (default: westeurope)
  *   LUMPCODE_AZURE_VM_NAME          (default: lumpcode-daemon)
@@ -45,7 +45,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const STATE_DIR = resolve(homedir(), ".lumpcode", "azure-daemon-vm");
+const STATE_DIR_NAME = "azure-daemon-vm";
+const LEGACY_STATE_DIR = resolve(homedir(), ".lumpcode", STATE_DIR_NAME);
+const STATE_DIR = resolve(xdgConfigHome(), STATE_DIR_NAME);
 const SSH_DIR = join(STATE_DIR, "ssh");
 const PRIVATE_KEY_PATH = join(SSH_DIR, "id_ed25519");
 const PUBLIC_KEY_PATH = join(SSH_DIR, "id_ed25519.pub");
@@ -65,6 +67,7 @@ const DEFAULTS = {
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  migrateLegacyStateDir();
   ensureDir(STATE_DIR);
   ensureDir(SSH_DIR);
 
@@ -171,7 +174,7 @@ Config (non-secret; first run writes a starter file)
     LUMPCODE_AZURE_VM_SIZE          (default: ${DEFAULTS.vmSize})
     LUMPCODE_AZURE_SUBSCRIPTION_ID  (optional; else current az account)
 
-Secrets / state (never commit; outside the repo)
+Secrets / state (never commit; outside the repo and outside ~/.lumpcode)
   ${STATE_DIR}
     ssh/id_ed25519      private key
     ssh/id_ed25519.pub  public key
@@ -580,6 +583,25 @@ function ensureDir(path) {
 function fail(message) {
   console.error(`[azure-daemon-vm] ${message}`);
   process.exit(1);
+}
+
+function xdgConfigHome() {
+  const fromEnv = process.env.XDG_CONFIG_HOME?.trim();
+  if (fromEnv) return fromEnv;
+  return join(homedir(), ".config");
+}
+
+function migrateLegacyStateDir() {
+  if (!existsSync(LEGACY_STATE_DIR)) return;
+  if (existsSync(STATE_DIR)) {
+    console.log(
+      `[azure-daemon-vm] using ${STATE_DIR}; leftover ${LEGACY_STATE_DIR} not moved`,
+    );
+    return;
+  }
+  ensureDir(dirname(STATE_DIR));
+  renameSync(LEGACY_STATE_DIR, STATE_DIR);
+  console.log(`[azure-daemon-vm] moved ${LEGACY_STATE_DIR} -> ${STATE_DIR}`);
 }
 
 main();
