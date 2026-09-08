@@ -571,3 +571,75 @@ describe('start command', () => {
         });
     });
 });
+
+describe.skip('start command — shared-in-place-run', () => {
+    const sharedModeNoDaemonMessage =
+        'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.';
+
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+
+    beforeEach(async () => {
+        const project = await setupStartTestRepo({ tmpPrefix: 'lump-start-shared-in-place' });
+        projectRoot = project.projectRoot;
+        remoteDir = project.remoteDir;
+        globalConfigFolderPath = project.globalConfigFolderPath;
+        await writeJsonFile({
+            filePath: path.join(projectRoot, '.lumpcode', 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
+        await writeDefaultProjectJson(projectRoot, 'shared-in-place-start');
+        await writeMinimalLump(projectRoot, 'alpha');
+    });
+
+    afterEach(async () => {
+        await teardownStartTestRepo({ projectRoot, remoteDir, globalConfigFolderPath });
+    });
+
+    const deps = () => ({ projectRoot, remoteDir, globalConfigFolderPath });
+
+    it('fails sharedModeNoDaemon and does not discover or refresh', async () => {
+        const discoverSpy = vi.spyOn(
+            await import('../../../utils/discoverDedicatedLumpsForScanBranch'),
+            'discoverDedicatedLumpsForScanBranch',
+        );
+        const loadableSpy = vi.spyOn(
+            await import('../../../utils/discoverLoadableLumpNames'),
+            'discoverLoadableLumps',
+        );
+        const spawnFn = vi.fn();
+        try {
+            const result = await makeStartHandler(deps(), {
+                spawnFn: spawnFn as never,
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages[0]).toBe(sharedModeNoDaemonMessage);
+            expect(result.data.data?.code).toBe('sharedModeNoDaemon');
+            expect(discoverSpy).not.toHaveBeenCalled();
+            expect(loadableSpy).not.toHaveBeenCalled();
+            expect(spawnFn).not.toHaveBeenCalled();
+        } finally {
+            discoverSpy.mockRestore();
+            loadableSpy.mockRestore();
+        }
+    });
+
+    it('fails sharedModeNoDaemon for detached start', async () => {
+        const spawnFn = vi.fn();
+        const result = await makeStartHandler(deps(), { spawnFn: spawnFn as never })({
+            options: {},
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toBe(sharedModeNoDaemonMessage);
+        expect(result.data.data?.code).toBe('sharedModeNoDaemon');
+        expect(spawnFn).not.toHaveBeenCalled();
+    });
+});

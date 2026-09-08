@@ -16,7 +16,7 @@ import { gitCommitAllAndPush } from '../../utils/gitCommitAllAndPush';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import * as runLumpFromLumpNameModule from '../../utils/runLumpFromLumpName';
 import { command } from './main';
-import { createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { createTempTestDirs, execGit, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 vi.mock('@lumpcode/core', async () => {
@@ -437,5 +437,95 @@ describe('run command abort signal wiring (W2)', () => {
         const callArg = spy.mock.calls[0]?.[0] as { signal?: AbortSignal };
         expect(callArg.signal).toBeInstanceOf(AbortSignal);
         expect(callArg.signal?.aborted).toBe(false);
+    });
+});
+
+describe.skip('run command — shared-in-place-run', () => {
+    const dirtyMessage =
+        'Working tree is dirty. Commit or stash before lumpcode run in shared mode.';
+    const detachedMessage =
+        'Not on a branch. Shared run needs a named branch to commit and push.';
+
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({
+            prefix: 'lump-run-shared-in-place-',
+        }));
+        initBareRemoteAndCheckout(projectRoot, remoteDir);
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'run-shared-in-place' },
+        });
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        await writeMinimalLump(projectRoot, 'rehearsal');
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.success({
+                result: {
+                    branchName: 'main',
+                    contextNames: ['README'],
+                    contextRunStateList: [],
+                },
+            } as unknown as core.RunLumpOutput),
+        );
+    });
+
+    afterEach(async () => {
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
+        vi.restoreAllMocks();
+    });
+
+    function makeHandler() {
+        return command.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+    }
+
+    it('fails dirtyWorkTree with the exact CLI envelope and does not commit', async () => {
+        await fs.writeFile(path.join(projectRoot, 'DIRTY.txt'), 'x\n', 'utf-8');
+        const headBefore = execGit('rev-parse HEAD', projectRoot);
+
+        const result = await makeHandler()({
+            options: { json: true },
+            arguments: { lumpName: 'rehearsal' },
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toBe(dirtyMessage);
+        expect(result.data.data?.code).toBe('dirtyWorkTree');
+        expect(execGit('rev-parse HEAD', projectRoot)).toBe(headBefore);
+        expect(core.runLump).not.toHaveBeenCalled();
+    });
+
+    it('fails detachedHead with the exact CLI envelope', async () => {
+        execGit('checkout --detach HEAD', projectRoot);
+
+        const result = await makeHandler()({
+            options: { json: true },
+            arguments: { lumpName: 'rehearsal' },
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toBe(detachedMessage);
+        expect(result.data.data?.code).toBe('detachedHead');
+        expect(core.runLump).not.toHaveBeenCalled();
+    });
+
+    it('does not restore a dedicated branch in finally', async () => {
+        execGit('checkout -b make-my-new-lump', projectRoot);
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'rehearsal' },
+        });
+        expect(result.success).toBe(true);
+        expect(gitCurrentBranch(projectRoot)).toBe('make-my-new-lump');
     });
 });

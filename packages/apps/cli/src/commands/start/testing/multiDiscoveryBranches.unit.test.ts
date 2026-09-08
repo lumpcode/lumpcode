@@ -8,7 +8,6 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../../testing';
-import * as runProjectPreflightModule from '../../../utils/runProjectPreflight';
 import { execGit } from '../../../utils/execGit';
 import { writeJsonFile } from '../../../utils/writeJsonFile';
 import {
@@ -206,33 +205,6 @@ describe('start command — multi discovery branches', () => {
             arguments: {},
         });
         expect(result.success).toBe(true);
-    });
-
-    it('shared mode launch succeeds without multi-discovery branch loop', async () => {
-        await writeLocalJson(localConfigFolderPath(projectRoot), {
-            mode: 'shared',
-            primaryBranch: 'main',
-            primaryBranches: ['main', 'ver/0.0.9'],
-        });
-        await writeMinimalLump(projectRoot, 'mainLine');
-        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-        try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-            expect(result.success).toBe(true);
-            const targetBranches = preflightSpy.mock.calls.map((c) => c[0].targetBranch);
-            expect(targetBranches.filter((b) => b === 'ver/0.0.9')).toHaveLength(0);
-            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
-            expect(logged).toMatch(/multi.*discovery|dedicated/i);
-        } finally {
-            logSpy.mockRestore();
-            warnSpy.mockRestore();
-        }
     });
 
     it('runs branch-only releaseLine when daemon starts on main checkout', async () => {
@@ -649,63 +621,9 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         }
     });
 
-    it('S1: shared mode does not fan-out scan across feature/* primaryBranches', async () => {
-        await writeLocalJson(localConfigFolderPath(projectRoot), {
-            mode: 'shared',
-            primaryBranch: 'main',
-            primaryBranches: ['main', 'feature/*'],
-        });
-        await writeMinimalLump(projectRoot, 'mainLine');
-        await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'feature/a' });
-
-        const discoverSpy = vi.spyOn(
-            await import('../../../utils/discoverDedicatedLumpsForScanBranch'),
-            'discoverDedicatedLumpsForScanBranch',
-        );
-        const snapshotSpy = vi.spyOn(
-            await import('../../../utils/scoreDedicatedLumpLine'),
-            'snapshotDedicatedLumpLine',
-        );
-        const scoreSpy = vi.spyOn(
-            await import('../../../utils/scoreDedicatedLumpLine'),
-            'scoreDedicatedLumpLineSnapshots',
-        );
-        const reorderSpy = vi.spyOn(
-            await import('../../../utils/reorderDedicatedLumpLines'),
-            'reorderDedicatedLumpLines',
-        );
-        const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-        try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-
-            expect(result.success).toBe(true);
-            const featureScans = discoverSpy.mock.calls
-                .map((c) => c[0].scanBranch)
-                .filter((b) => b.startsWith('feature/'));
-            expect(featureScans).toHaveLength(0);
-            expect(snapshotSpy).not.toHaveBeenCalled();
-            expect(scoreSpy).not.toHaveBeenCalled();
-            expect(reorderSpy).not.toHaveBeenCalled();
-            const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
-            expect(logged).toMatch(/multi.*discovery|dedicated/i);
-        } finally {
-            discoverSpy.mockRestore();
-            snapshotSpy.mockRestore();
-            scoreSpy.mockRestore();
-            reorderSpy.mockRestore();
-            logSpy.mockRestore();
-            warnSpy.mockRestore();
-        }
-    });
-
     it('S3: deprecated --lumpName on start warns and filters to one lump', async () => {
         await writeLocalJson(localConfigFolderPath(projectRoot), {
-            mode: 'shared',
+            mode: 'dedicated',
             primaryBranch: 'main',
         });
         await writeMinimalLump(projectRoot, 'solo');
@@ -875,7 +793,7 @@ describe('start command — daemon-primary-branch-refresh-command (T5–T7)', ()
         }
     });
 
-    it('T7: shared mode does not run refreshCommand', async () => {
+    it.skip('shared-in-place-run T7: shared start fails sharedModeNoDaemon and does not run refreshCommand', async () => {
         const markerName = 'shared-refresh.marker';
         const script = `require('fs').writeFileSync(${JSON.stringify(markerName)}, 'ran')`;
         const refreshCommand = `node -e ${JSON.stringify(script)}`;
@@ -893,32 +811,18 @@ describe('start command — daemon-primary-branch-refresh-command (T5–T7)', ()
             await import('../../../utils/discoverDedicatedLumpsForScanBranch'),
             'discoverDedicatedLumpsForScanBranch',
         );
-        const runLumpSpy = vi.spyOn(
-            await import('../../../utils/runLumpFromLumpName'),
-            'runLumpFromLumpName',
-        ).mockResolvedValue(
-            success({
-                skipped: false,
-                result: {
-                    branchName: '',
-                    contextNames: [],
-                    contextRunStateList: [],
-                },
-            }),
-        );
-
         try {
             const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
                 options: { foreground: true, cronSetup: '*/5 * * * *' },
                 arguments: {},
             });
-
-            expect(result.success).toBe(true);
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('sharedModeNoDaemon');
             expect(discoverSpy).not.toHaveBeenCalled();
             await expect(fs.access(path.join(projectRoot, markerName))).rejects.toThrow();
         } finally {
             discoverSpy.mockRestore();
-            runLumpSpy.mockRestore();
         }
     });
 });

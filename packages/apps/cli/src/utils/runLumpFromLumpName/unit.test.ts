@@ -232,4 +232,65 @@ describe('runLumpFromLumpName', () => {
             expect(core.runLump).not.toHaveBeenCalled();
         });
     });
+
+    describe.skip('shared-in-place-run', () => {
+        const dirtyMessage =
+            'Working tree is dirty. Commit or stash before lumpcode run in shared mode.';
+
+        async function writeSharedLocal() {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: { mode: 'shared', primaryBranch: 'main' },
+            });
+        }
+
+        it('skips a disabled lump before the dirty-tree gate', async () => {
+            await writeSharedLocal();
+            await writeMinimalLump(projectRoot, 'my-lump', { disabled: true });
+            await fs.writeFile(path.join(projectRoot, 'DIRTY.txt'), 'x\n', 'utf-8');
+
+            const result = await callRunLumpFromLumpName();
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(true);
+            if (!result.data.skipped) throw new Error('unreachable');
+            expect(result.data.reason).toBe('disabled');
+            expect(core.runLump).not.toHaveBeenCalled();
+        });
+
+        it('fails dirtyWorkTree after load when the tree is dirty', async () => {
+            await writeSharedLocal();
+            await writeMinimalLump(projectRoot, 'my-lump');
+            await fs.writeFile(path.join(projectRoot, 'DIRTY.txt'), 'x\n', 'utf-8');
+
+            const result = await callRunLumpFromLumpName();
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.message).toBe(dirtyMessage);
+            expect((result.data as { code?: string }).code).toBe('dirtyWorkTree');
+            expect(core.runLump).not.toHaveBeenCalled();
+        });
+
+        it('does not skip tooManyOpenBranches in shared mode', async () => {
+            await writeSharedLocal();
+            await writeMinimalLump(projectRoot, 'my-lump', { maximumNumberOfConcurrentBranches: 2 });
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromLumpName();
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(false);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
+    });
 });

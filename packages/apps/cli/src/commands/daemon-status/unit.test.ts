@@ -200,4 +200,15 @@ describe('daemon-status command', () => {
             });
         });
     });
+
+    it.skip('shared-in-place-run: daemon-status still lists project daemons in shared mode', async () => {
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
+        const result = await makeDaemonStatusHandler()({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(JSON.stringify(result.data)).not.toMatch(/sharedModeNoDaemon/);
+    });
 });

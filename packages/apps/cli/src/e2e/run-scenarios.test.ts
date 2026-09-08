@@ -6,7 +6,9 @@ import {
     createE2eLoopLumpConfigJs,
     e2eMarkerPath,
     e2ePathAgentPromptReceivedPath,
+    expectCliFailureEnvelope,
     expectCliOk,
+    expectLumpStatus,
     expectRunContextNames,
     expectRunSkippedTooManyOpenBranches,
     git,
@@ -17,7 +19,6 @@ import {
     lumpBranchName,
     markerPathInRepo,
     remoteHasBranch,
-    remoteHasMarkerFile,
     remoteBranchFileContent,
     runE2eCli,
     seedFinishedContextOnMain,
@@ -82,22 +83,6 @@ describe('E2E run scenarios', () => {
         const wt = lumpWorktreePath({ executionWorkspacePath: project.projectRoot, branchName: branch });
         await expect(fs.access(wt)).rejects.toThrow();
         expect(git('rev-parse --abbrev-ref HEAD', project.projectRoot)).toBe('main');
-    });
-
-    it('RUN-S4 shared-mode-run', async () => {
-        const lumpName = 'myLump';
-        const ctx = 'README';
-        const project = await createProject({ localJson: { mode: 'shared' }, lumps: [{ name: lumpName }] });
-        expectCliOk(await runE2eCli({ project, args: ['run', lumpName, '--json'] }), 'run');
-        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName, contextName: ctx });
-        const copy = sharedModeCopyPath(project.globalConfigFolderPath, project.projectName);
-        expect(remoteHasMarkerFile({
-            remoteDir: project.remoteDir,
-            branch: lumpBranchName(lumpName, ctx),
-            markerPath: markerPathInRepo(lumpName, ctx),
-        })).toBe(true);
-        await expect(fs.access(e2eMarkerPath(project.projectRoot, lumpName, ctx))).rejects.toThrow();
-        await expect(fs.access(e2eMarkerPath(copy, lumpName, ctx))).rejects.toThrow();
     });
 
     it('RUN-S6 recursive-prompt-loop-three-failures-then-success', async () => {
@@ -227,5 +212,98 @@ describe('E2E run scenarios', () => {
                 filePath: e2ePathAgentPromptReceivedPath(lumpName),
             }),
         ).toBe(expectedPrompt);
+    });
+});
+
+describe.skip('E2E run scenarios — shared-in-place-run', () => {
+    const { createProject } = useE2eProjects();
+
+    it('RUN-SHARED-IN-PLACE: commits and pushes the current branch, no copy, no lump/…', async () => {
+        const lumpName = 'myLump';
+        const ctx = 'README';
+        const project = await createProject({
+            localJson: { mode: 'shared' },
+            lumps: [{ name: lumpName }],
+        });
+        expect(git('rev-parse --abbrev-ref HEAD', project.projectRoot)).toBe('main');
+
+        const run = await runE2eCli({ project, args: ['run', lumpName, '--json'] });
+        expectCliOk(run, 'shared in-place run');
+
+        expect(remoteHasBranch({ remoteDir: project.remoteDir, branch: lumpBranchName(lumpName, ctx) })).toBe(false);
+        expect(remoteHasBranch({ remoteDir: project.remoteDir, branch: 'main' })).toBe(true);
+        expect(
+            git(`log origin/main --format=%s`, project.projectRoot).includes(
+                `LUMP:${lumpName} - ${ctx}`,
+            ) ||
+                git(`log main --format=%s`, project.remoteDir).includes(`LUMP:${lumpName} - ${ctx}`),
+        ).toBe(true);
+        await expect(fs.access(e2eMarkerPath(project.projectRoot, lumpName, ctx))).resolves.toBeUndefined();
+        await expect(
+            fs.access(sharedModeCopyPath(project.globalConfigFolderPath, project.projectName)),
+        ).rejects.toThrow();
+        expect(git('rev-parse --abbrev-ref HEAD', project.projectRoot)).toBe('main');
+    });
+
+    it('RUN-SHARED-DIRTY: dirty tree fails dirtyWorkTree and does not commit', async () => {
+        const lumpName = 'myLump';
+        const project = await createProject({
+            localJson: { mode: 'shared' },
+            lumps: [{ name: lumpName }],
+        });
+        const headBefore = git('rev-parse HEAD', project.projectRoot);
+        await fs.writeFile(`${project.projectRoot}/DIRTY.txt`, 'x\n', 'utf-8');
+
+        const run = await runE2eCli({ project, args: ['run', lumpName, '--json'] });
+        expect(run.code).not.toBe(0);
+        expect(run.json.messages[0]).toBe(
+            'Working tree is dirty. Commit or stash before lumpcode run in shared mode.',
+        );
+        expect(run.json.data?.code).toBe('dirtyWorkTree');
+        expect(git('rev-parse HEAD', project.projectRoot)).toBe(headBefore);
+    });
+
+    it('RUN-SHARED-DETACHED: detached HEAD fails detachedHead', async () => {
+        const lumpName = 'myLump';
+        const project = await createProject({
+            localJson: { mode: 'shared' },
+            lumps: [{ name: lumpName }],
+        });
+        git('checkout --detach HEAD', project.projectRoot);
+
+        const run = await runE2eCli({ project, args: ['run', lumpName, '--json'] });
+        expect(run.code).not.toBe(0);
+        expect(run.json.messages[0]).toBe(
+            'Not on a branch. Shared run needs a named branch to commit and push.',
+        );
+        expect(run.json.data?.code).toBe('detachedHead');
+    });
+
+    it('RUN-SHARED-ON-BASE: clean main succeeds and status is finished after push', async () => {
+        const lumpName = 'myLump';
+        const ctx = 'README';
+        const project = await createProject({
+            localJson: { mode: 'shared' },
+            lumps: [{ name: lumpName }],
+        });
+        expectCliOk(await runE2eCli({ project, args: ['run', lumpName, '--json'] }), 'run on base');
+        const status = await runE2eCli({
+            project,
+            args: ['lump-status', '--lumpName', lumpName, '--json'],
+        });
+        expectLumpStatus(status, { lumpName, contextName: ctx, status: 'finished' });
+    });
+
+    it('START-SHARED: start fails sharedModeNoDaemon', async () => {
+        const project = await createProject({
+            localJson: { mode: 'shared' },
+            lumps: [{ name: 'myLump' }],
+        });
+        const start = await runE2eCli({ project, args: ['start', '--json'] });
+        expectCliFailureEnvelope(start);
+        expect(start.json.messages[0]).toBe(
+            'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.',
+        );
+        expect(start.json.data?.code).toBe('sharedModeNoDaemon');
     });
 });

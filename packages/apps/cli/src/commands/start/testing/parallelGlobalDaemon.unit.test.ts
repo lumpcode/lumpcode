@@ -427,65 +427,6 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
-    it('G7: shared mode + worktree + maxParallelRun 2 peaks at 2', async () => {
-        await writeLocal({
-            mode: 'shared',
-            maxParallelRun: 2,
-        });
-        await writeLumps(['a', 'b', 'c']);
-
-        const started: string[] = [];
-        const gates = new Map<string, PromiseGate>();
-        let peak = 0;
-        let inFlight = 0;
-        let releaseShutdown!: () => void;
-        const shutdownGate = new Promise<void>((resolve) => {
-            releaseShutdown = resolve;
-        });
-
-        const runLumpSpy = vi
-            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
-            .mockImplementation(async (input) => {
-                started.push(input.lumpName);
-                inFlight += 1;
-                peak = Math.max(peak, inFlight);
-                const gate = makePromiseGate();
-                gates.set(input.lumpName, gate);
-                await gate.promise;
-                inFlight -= 1;
-                return runSuccess;
-            });
-
-        let startPromise: Promise<{ success: boolean }> | undefined;
-        try {
-            startPromise = makeStartHandler(deps(), {
-                waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
-
-            await vi.waitFor(() => {
-                if (peak < 2) throw new Error('waiting for shared peak 2');
-            }, waitForOpts);
-            releaseAllGates(gates);
-            await vi.waitFor(() => {
-                if (started.length < 3) throw new Error('waiting for third');
-            }, waitForOpts);
-            releaseAllGates(gates);
-            releaseShutdown();
-            await startPromise;
-
-            expect(peak).toBe(2);
-            expect(started.sort()).toEqual(['a', 'b', 'c']);
-        } finally {
-            releaseAllGates(gates);
-            releaseShutdown();
-            await startPromise?.catch(() => undefined);
-            runLumpSpy.mockRestore();
-        }
-    });
-
     it('S1: single-include filtered daemon runs only that lump', async () => {
         await writeLocal({ maxParallelRun: 3 });
         await writeLumps(['alpha', 'beta', 'gamma']);
@@ -571,6 +512,32 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
                 arguments: {},
             });
             expect(started).toEqual(['alpha']);
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it.skip('shared-in-place-run G7: shared start fails sharedModeNoDaemon (no parallel tick)', async () => {
+        await writeLocal({
+            mode: 'shared',
+            maxParallelRun: 2,
+        });
+        await writeLumps(['a', 'b', 'c']);
+        const runLumpSpy = vi.spyOn(
+            await import('../../../utils/runLumpFromLumpName'),
+            'runLumpFromLumpName',
+        );
+        try {
+            const result = await makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.data?.code).toBe('sharedModeNoDaemon');
+            expect(runLumpSpy).not.toHaveBeenCalled();
         } finally {
             runLumpSpy.mockRestore();
         }
