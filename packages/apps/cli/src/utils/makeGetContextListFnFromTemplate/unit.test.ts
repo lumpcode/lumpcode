@@ -306,4 +306,88 @@ describe("makeGetContextListFnFromTemplate", () => {
             })),
         );
     });
+
+    describe.skip('exact-path contextListJson (lumpcode-setup)', () => {
+        it('matches README.md to a single context named README', () => {
+            const fn = makeGetContextListFnFromTemplate({ FILE: 'README.md' });
+            const out = fn({
+                lumpVariables: {},
+                codeBasePaths: [
+                    { isDir: false, path: 'README.md' },
+                    { isDir: false, path: 'src/README.md' },
+                    { isDir: true, path: 'src' },
+                ],
+            });
+            expect(out).toEqual([
+                { name: 'README', variables: { FILE: 'README.md' } },
+            ]);
+        });
+
+        it('uses the basename with the final extension stripped for a nested legal path', () => {
+            const fn = makeGetContextListFnFromTemplate({ FILE: 'docs/guide.md' });
+            const out = fn({
+                lumpVariables: {},
+                codeBasePaths: [
+                    { isDir: true, path: 'docs' },
+                    { isDir: false, path: 'docs/guide.md' },
+                    { isDir: false, path: 'README.md' },
+                ],
+            });
+            expect(out).toEqual([
+                { name: 'guide', variables: { FILE: 'docs/guide.md' } },
+            ]);
+        });
+
+        it('does not emit a usable context when the derived name is illegal', () => {
+            const spaced = makeGetContextListFnFromTemplate({ FILE: 'my file.md' })({
+                lumpVariables: {},
+                codeBasePaths: [{ isDir: false, path: 'my file.md' }],
+            });
+            const dotted = makeGetContextListFnFromTemplate({ FILE: 'foo.bar.md' })({
+                lumpVariables: {},
+                codeBasePaths: [{ isDir: false, path: 'foo.bar.md' }],
+            });
+            for (const out of [spaced, dotted]) {
+                const names = Array.isArray(out) ? out.map((c) => c.name) : [];
+                expect(names.every((name) => /^[a-zA-Z0-9_-]+$/.test(name))).toBe(true);
+                expect(out).toEqual([]);
+            }
+        });
+
+        it('treats ./README.md the same as README.md after normalize', () => {
+            const fn = makeGetContextListFnFromTemplate({ FILE: './README.md' });
+            const out = fn({
+                lumpVariables: {},
+                codeBasePaths: [{ isDir: false, path: 'README.md' }],
+            });
+            expect(out).toEqual([
+                { name: 'README', variables: { FILE: 'README.md' } },
+            ]);
+        });
+
+        it('leaves {NAME}.md placeholder matching unchanged', () => {
+            const fn = makeGetContextListFnFromTemplate({ NAME: '{NAME}.md' });
+            const out = fn({
+                lumpVariables: {},
+                codeBasePaths: [
+                    { isDir: false, path: 'README.md' },
+                    { isDir: false, path: 'docs/guide.md' },
+                ],
+            });
+            expect(out).toHaveLength(2);
+            expect(out).toEqual(expect.arrayContaining([
+                { name: 'README', variables: { NAME: 'README.md' } },
+                { name: 'docs/guide', variables: { NAME: 'docs/guide.md' } },
+            ]));
+        });
+
+        it('emits no context when the exact path is absent', () => {
+            const fn = makeGetContextListFnFromTemplate({ FILE: 'README.md' });
+            const out = fn({
+                lumpVariables: {},
+                codeBasePaths: [{ isDir: false, path: 'LICENSE' }],
+            });
+            expect(out).toEqual([]);
+        });
+    });
 });

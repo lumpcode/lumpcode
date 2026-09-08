@@ -270,4 +270,54 @@ describe('project-setup command', () => {
             process.chdir(prev);
         }
     });
+
+    /**
+     * After lumpcode-setup extracts `scaffoldLumpcodeProject`, project-setup stays
+     * flag-only create: mode-only local.json, refuse an existing tree.
+     */
+    describe.skip('project-setup stays create-only after scaffold extract (lumpcode-setup)', () => {
+        it('still writes mode-only local.json (no workspaceStrategy) when used alone', async () => {
+            const handle = makeHandler();
+            const prev = process.cwd();
+            process.chdir(projectRoot);
+            try {
+                const result = await handle({
+                    options: { projectName: 'thin-wrap', mode: 'shared' },
+                    arguments: {},
+                });
+                expect(result.success).toBe(true);
+                const localRaw = await fs.readFile(
+                    path.join(projectRoot, '.lumpcode', 'local.json'),
+                    'utf-8',
+                );
+                expect(JSON.parse(localRaw)).toEqual({ mode: 'shared' });
+                const projectRaw = await fs.readFile(
+                    path.join(projectRoot, '.lumpcode', 'project.json'),
+                    'utf-8',
+                );
+                expect(JSON.parse(projectRaw)).toEqual({
+                    projectName: 'thin-wrap',
+                    primaryBranch: 'main',
+                });
+            } finally {
+                process.chdir(prev);
+            }
+        });
+
+        it('still refuses when .lumpcode/ already exists', async () => {
+            await fs.mkdir(path.join(projectRoot, '.lumpcode'), { recursive: true });
+            const handle = makeHandler();
+            const prev = process.cwd();
+            process.chdir(projectRoot);
+            try {
+                const result = await handle({
+                    options: { projectName: 'x' },
+                    arguments: {},
+                });
+                expect(result.success).toBe(false);
+            } finally {
+                process.chdir(prev);
+            }
+        });
+    });
 });
