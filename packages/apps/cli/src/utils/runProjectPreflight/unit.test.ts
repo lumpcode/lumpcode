@@ -55,20 +55,6 @@ describe('runProjectPreflight', () => {
         expect(result.data.workspaceStrategy).toBe('checkout');
     });
 
-    it('returns the project copy as executionWorkspacePath in shared mode', async () => {
-        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
-        const result = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-        });
-        expect(result.success).toBe(true);
-        if (!result.success) throw new Error('unreachable');
-        expect(result.data.executionWorkspacePath).toBe(
-            path.resolve(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
-        );
-    });
-
     it('uses frozen localConfig instead of re-reading local.json from disk', async () => {
         await writeLocalJsonDedicated();
         await writeJsonFile({
@@ -153,32 +139,21 @@ describe('runProjectPreflight', () => {
         expect(result.data).toMatch(/ver\/0\.0\.9/i);
     });
 
-    it('shared mode + targetBranch leaves source checkout untouched and syncs copy', async () => {
-        await writeLocalJson(localConfigFolderPath, {
-            mode: 'shared',
-            primaryBranch: 'main',
-            primaryBranches: ['main', 'ver/0.0.9'],
+    describe.skip('shared-in-place-run', () => {
+        it('returns sourceProjectRoot as executionWorkspacePath in shared mode', async () => {
+            await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+            const result = await runProjectPreflight({
+                sourceProjectRoot: projectRoot,
+                localConfigFolderPath,
+                globalConfigFolderPath,
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.executionWorkspacePath).toBe(path.resolve(projectRoot));
+            await expect(
+                fs.access(path.join(globalConfigFolderPath, 'project-copies')),
+            ).rejects.toMatchObject({ code: 'ENOENT' });
         });
-        await createIntegrationBranch({
-            projectRoot,
-            remoteDir,
-            branchName: 'ver/0.0.9',
-        });
-
-        const result = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-            targetBranch: 'ver/0.0.9',
-        });
-        expect(result.success).toBe(true);
-        if (!result.success) throw new Error('unreachable');
-        expect(gitCurrentBranch(projectRoot)).toBe('main');
-        expect(gitCurrentBranch(result.data.executionWorkspacePath)).toBe('ver/0.0.9');
-        expect(result.data.executionWorkspacePath).toBe(
-            path.resolve(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
-        );
     });
-
 });
 

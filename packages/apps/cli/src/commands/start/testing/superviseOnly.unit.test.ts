@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
@@ -11,6 +12,7 @@ import {
     supervisorPidPath,
 } from '../../../utils';
 import { command as stopCommand } from '../../stop/main';
+import { writeJsonFile } from '../../../utils/writeJsonFile';
 import type { Input } from '../main';
 import {
     localConfigFolderPath,
@@ -181,5 +183,25 @@ describe('start --superviseOnly', () => {
         await expect(fs.access(daemonFiles.desiredFilePath)).resolves.toBeUndefined();
         await expect(fs.access(daemonFiles.pidFilePath)).resolves.toBeUndefined();
         await stopDaemon(deps(), { daemonId });
+    });
+
+    it.skip('shared-in-place-run: fails sharedModeNoDaemon and does not start supervise', async () => {
+        await writeJsonFile({
+            filePath: path.join(projectRoot, '.lumpcode', 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const handle = makeStartHandler(deps(), { spawnFn, skipEnsureSupervisor: false });
+        const result = await handle({
+            options: startHandleOptions({ superviseOnly: true }),
+            arguments: {},
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toBe(
+            'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.',
+        );
+        expect(result.data.data?.code).toBe('sharedModeNoDaemon');
+        expect(spawnFn).not.toHaveBeenCalled();
     });
 });

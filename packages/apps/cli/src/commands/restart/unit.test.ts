@@ -13,6 +13,7 @@ import {
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
 import { createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('restart command', () => {
     let projectRoot: string;
@@ -213,5 +214,21 @@ describe('restart command', () => {
         expect(spawnFn).not.toHaveBeenCalled();
         expect(() => process.kill(pid, 0)).not.toThrow();
         await expect(fs.access(pidPath())).resolves.toBeUndefined();
+    });
+
+    it.skip('shared-in-place-run: fails sharedModeNoDaemon without stopping or spawning', async () => {
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: { json: true }, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toBe(
+            'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.',
+        );
+        expect(result.data.data?.code).toBe('sharedModeNoDaemon');
+        expect(spawnFn).not.toHaveBeenCalled();
     });
 });

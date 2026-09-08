@@ -754,4 +754,19 @@ describe('stop command', () => {
             }
         }, 15_000);
     });
+
+    it.skip('shared-in-place-run: stop still reaps leftovers in shared mode', async () => {
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
+        await fs.mkdir(path.dirname(pidPath()), { recursive: true });
+        await fs.writeFile(pidPath(), '999999999\n', 'utf8');
+        const result = await makeStopHandler()({ options: {}, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/not running|removed stale/i);
+        expect(JSON.stringify(result.data)).not.toMatch(/sharedModeNoDaemon/);
+        await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
+    });
 });

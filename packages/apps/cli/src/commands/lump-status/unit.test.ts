@@ -330,3 +330,80 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
         }, 60_000);
     });
 });
+
+describe.skip('lump-status command — shared-in-place-run', () => {
+    let projectRoot: string;
+    let bareDir: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        ({ projectRoot, remoteDir: bareDir, localConfigFolderPath } = await createTempTestDirs({
+            prefix: 'lump-status-shared-in-place-',
+            global: false,
+        }));
+        initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'status-shared-in-place' },
+        });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
+    }, 60_000);
+
+    afterEach(async () => {
+        await removeTempTestDirs({ projectRoot, remoteDir: bareDir });
+    }, 60_000);
+
+    async function writeRehearsalLump() {
+        await fs.writeFile(path.join(projectRoot, 'README.md'), '# rehearsal\n', 'utf-8');
+        const lumpDir = path.join(localConfigFolderPath, 'lumps', 'rehearsal');
+        await fs.mkdir(lumpDir, { recursive: true });
+        await writeJsonFile({
+            filePath: path.join(lumpDir, 'config.json'),
+            data: {
+                baseBranch: 'main',
+                contextListJson: { NAME: '{NAME}.md' },
+                prompt: { promptTemplate: 'task', command: 'claude' },
+            },
+        });
+    }
+
+    it('reports branchPushed after a marker is pushed on a non-base branch', async () => {
+        const { getGitCommitMessage } = await import('../../utils/getGitCommitMessage');
+        await writeRehearsalLump();
+        execGit('checkout -b make-my-new-lump', projectRoot);
+        execGit(
+            `commit --allow-empty -m "${getGitCommitMessage({ lumpName: 'rehearsal', contextName: 'README' })}"`,
+            projectRoot,
+        );
+        execGit('push -u origin make-my-new-lump', projectRoot);
+
+        const result = await command.handlerMaker({ projectRoot, localConfigFolderPath })({
+            options: {},
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.statusByLump.rehearsal.README.status).toBe('branchPushed');
+    }, 60_000);
+
+    it('reports finished after a marker is pushed on the execution base', async () => {
+        const { getGitCommitMessage } = await import('../../utils/getGitCommitMessage');
+        await writeRehearsalLump();
+        execGit(
+            `commit --allow-empty -m "${getGitCommitMessage({ lumpName: 'rehearsal', contextName: 'README' })}"`,
+            projectRoot,
+        );
+        execGit('push origin main', projectRoot);
+
+        const result = await command.handlerMaker({ projectRoot, localConfigFolderPath })({
+            options: {},
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.statusByLump.rehearsal.README.status).toBe('finished');
+    }, 60_000);
+});

@@ -367,22 +367,6 @@ describe('runLumpFromJsConfig', () => {
         expect(core.runLump).toHaveBeenCalled();
     });
 
-    it('shared mode runs preflight to resolvedBaseBranch when setup is invoked', async () => {
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'shared', primaryBranch: 'main' } });
-        execGit('checkout -b ver/0.0.9', projectRoot);
-        execGit('push -u origin ver/0.0.9', projectRoot);
-        execGit('checkout main', projectRoot);
-
-        mockRunLumpInvokingSetup();
-        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
-
-        await callRunLumpFromJsConfig(makeJsConfig({ baseBranch: 'ver/0.0.9' }));
-
-        expect(preflightSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ targetBranch: 'ver/0.0.9' }),
-        );
-    });
-
     it('worktree dedicated releases execution lock after setup while branch lock stays held', async () => {
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main', workspaceStrategy: 'worktree' } });
 
@@ -641,6 +625,222 @@ describe('runLumpFromJsConfig', () => {
             if (!result.success) throw new Error('unreachable');
             expect(result.data.skipped).toBe(false);
             expect(core.runLump).toHaveBeenCalledOnce();
+        });
+    });
+
+    describe.skip('shared-in-place-run', () => {
+        const dirtyMessage =
+            'Working tree is dirty. Commit or stash before lumpcode run in shared mode.';
+        const detachedMessage =
+            'Not on a branch. Shared run needs a named branch to commit and push.';
+
+        async function writeSharedLocal() {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: { mode: 'shared', primaryBranch: 'main' },
+            });
+        }
+
+        function expectFailureCode(
+            result: Awaited<ReturnType<typeof runLumpFromJsConfig>>,
+            code: 'dirtyWorkTree' | 'detachedHead',
+            message: string,
+        ) {
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.message).toBe(message);
+            expect((result.data as { code?: string }).code).toBe(code);
+        }
+
+        it('does not call runProjectPreflight', async () => {
+            await writeSharedLocal();
+            mockRunLumpInvokingSetup();
+            const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+            expect(result.success).toBe(true);
+            expect(preflightSpy).not.toHaveBeenCalled();
+        });
+
+        it('passes workspacePath equal to the source checkout', async () => {
+            await writeSharedLocal();
+            vi.mocked(core.runLump).mockImplementation(async (runInput) => {
+                const setup = await runInput.setupWorkspaceFn!(defaultSetupInput);
+                expect(setup.workspacePath).toBe(path.resolve(projectRoot));
+                expect(setup.command ?? '').not.toMatch(/git /);
+                return core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput);
+            });
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+            expect(result.success).toBe(true);
+        });
+
+        it('uses the current branch as branchFn (not lump/…)', async () => {
+            await writeSharedLocal();
+            execGit('checkout -b make-my-new-lump', projectRoot);
+            vi.mocked(core.runLump).mockImplementation(async (runInput) => {
+                const branch = await runInput.branchFn({
+                    contextList: [{ name: 'ctx1', variables: {} }],
+                    contextRunStateList: [{}],
+                    lumpVariables: {},
+                });
+                expect(branch).toBe('make-my-new-lump');
+                expect(branch.startsWith(LUMP_BRANCH_PREFIX)).toBe(false);
+                return core.success({
+                    result: {
+                        branchName: branch,
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput);
+            });
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+            expect(result.success).toBe(true);
+        });
+
+        it('fails dirtyWorkTree before runLump when the tree is dirty', async () => {
+            await writeSharedLocal();
+            await fs.writeFile(path.join(projectRoot, 'DIRTY.txt'), 'x\n', 'utf-8');
+            const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+            expectFailureCode(result, 'dirtyWorkTree', dirtyMessage);
+            expect(core.runLump).not.toHaveBeenCalled();
+            expect(preflightSpy).not.toHaveBeenCalled();
+        });
+
+        it('fails detachedHead when HEAD is detached', async () => {
+            await writeSharedLocal();
+            execGit('checkout --detach HEAD', projectRoot);
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+            expectFailureCode(result, 'detachedHead', detachedMessage);
+            expect(core.runLump).not.toHaveBeenCalled();
+        });
+
+        it('warns once and runs when HEAD is the execution base', async () => {
+            await writeSharedLocal();
+            const warnCalls: string[] = [];
+            const logger = {
+                ...noopLogger,
+                warn: (message: string) => {
+                    warnCalls.push(message);
+                },
+                child: () => logger,
+            };
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}), { logger });
+            expect(result.success).toBe(true);
+            expect(core.runLump).toHaveBeenCalledOnce();
+            expect(warnCalls.filter((m) => /commit and push on this branch/i.test(m))).toHaveLength(1);
+        });
+
+        it('does not skip for tooManyOpenBranches in shared mode', async () => {
+            await writeSharedLocal();
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(
+                makeJsConfig({ maximumNumberOfConcurrentBranches: 2 }),
+            );
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(false);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
+
+        it('does not create a project-copies directory', async () => {
+            await writeSharedLocal();
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            await callRunLumpFromJsConfig(makeJsConfig({}));
+            await expect(
+                fs.access(path.join(globalConfigFolderPath, 'project-copies')),
+            ).rejects.toMatchObject({ code: 'ENOENT' });
+        });
+
+        it('ignores workspaceStrategy and maxParallelRun on shared run', async () => {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: {
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                    workspaceStrategy: 'worktree',
+                    maxParallelRun: 2,
+                },
+            });
+            mockRunLumpInvokingSetup({
+                result: {
+                    branchName: 'main',
+                    contextNames: ['ctx1'],
+                    contextRunStateList: [],
+                },
+            } as unknown as core.RunLumpOutput);
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+            expect(result.success).toBe(true);
+            const runInput = vi.mocked(core.runLump).mock.calls[0]?.[0];
+            expect(runInput?.setupWorkspaceFn).toBeTypeOf('function');
+            const setup = await runInput!.setupWorkspaceFn!(defaultSetupInput);
+            expect(setup.workspacePath).toBe(path.resolve(projectRoot));
+        });
+
+        it('does not exec refreshCommand on shared run', async () => {
+            const marker = path.join(projectRoot, 'shared-refresh.marker');
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: {
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                    refreshCommand: `node -e "require('fs').writeFileSync(${JSON.stringify(marker)}, 'ran')"`,
+                },
+            });
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+            expect(result.success).toBe(true);
+            await expect(fs.access(marker)).rejects.toMatchObject({ code: 'ENOENT' });
         });
     });
 });

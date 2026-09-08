@@ -242,3 +242,59 @@ describe('jsConfigToRunLumpInput', () => {
         });
     });
 });
+
+describe.skip('jsConfigToRunLumpInput shared-in-place-run', () => {
+    it('returns the current branch from branchFn and a no-git workspace in shared mode', async () => {
+        const { createTempTestDirs, removeTempTestDirs } = await import('../../createTempTestDirs');
+        const { initBareRemoteAndCheckout } = await import('../../initBareRemoteAndCheckout');
+        const { execGit } = await import('../../execGit');
+
+        const dirs = await createTempTestDirs({ prefix: 'lump-jsconfig-shared-' });
+        const { projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = dirs;
+        try {
+            initBareRemoteAndCheckout({ projectRoot, remoteDir: remoteDir! });
+            execGit('checkout -b make-my-new-lump', projectRoot);
+
+            const result = await jsConfigToRunLumpInput({
+                config: makeConfig({}),
+                lumpName: 'my-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath: globalConfigFolderPath!,
+                projectBaseBranch: 'main',
+                executionWorkspacePath: projectRoot,
+                workspaceStrategy: 'checkout',
+                localConfig: { mode: 'shared', primaryBranch: 'main', workspaceStrategy: 'checkout' },
+            });
+            const data = assertSuccess(result);
+            expect(
+                await data.branchFn({
+                    contextList: [{ name: 'header', variables: {} }],
+                    contextRunStateList: [{}],
+                    lumpVariables: {},
+                }),
+            ).toBe('make-my-new-lump');
+
+            const setup = await data.setupWorkspaceFn!({
+                baseBranch: 'main',
+                branchName: 'make-my-new-lump',
+                contextList: [{ name: 'header', variables: {} }],
+            });
+            expect(setup.workspacePath).toBe(path.resolve(projectRoot));
+            expect(setup.command ?? '').not.toMatch(/git /);
+
+            const teardown = await data.teardownWorkspaceFn!({
+                baseBranch: 'main',
+                branchName: 'make-my-new-lump',
+                contextList: [{ name: 'header', variables: {} }],
+                workspacePath: projectRoot,
+            });
+            expect(teardown ?? '').not.toMatch(/git /);
+        } finally {
+            await removeTempTestDirs({
+                projectRoot,
+                remoteDir,
+                globalConfigFolderPath,
+            });
+        }
+    });
+});

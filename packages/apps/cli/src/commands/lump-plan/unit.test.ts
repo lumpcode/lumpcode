@@ -294,3 +294,51 @@ describe('lump-plan command — dynamic-discovery-branch (F*)', () => {
         expect(result.data.messages.join(' ')).toMatch(/concrete|pattern|discoveryBranch/i);
     });
 });
+
+describe.skip('lump-plan command — shared-in-place-run', () => {
+    let projectRoot: string;
+    let localConfigFolderPath: string;
+    const globalConfigFolderPath = path.join(os.homedir(), '.lumpcode-test-plan-shared-in-place');
+
+    beforeEach(async () => {
+        projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-shared-in-place-'));
+        localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'my-lump'), { recursive: true });
+        await fs.mkdir(globalConfigFolderPath, { recursive: true });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'local.json'),
+            data: { mode: 'shared', primaryBranch: 'main' },
+        });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'plan-shared-in-place' },
+        });
+        initLocalGitRepo({ cwd: projectRoot });
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),
+            LUMP_CONFIG_JS,
+            'utf-8',
+        );
+    });
+
+    afterEach(async () => {
+        await fs.rm(projectRoot, { recursive: true, force: true });
+    });
+
+    it('still succeeds on a dirty shared checkout', async () => {
+        await fs.writeFile(path.join(projectRoot, 'DIRTY.txt'), 'x\n', 'utf-8');
+        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        const result = await command.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        })({
+            options: {},
+            arguments: { lumpName: 'my-lump' },
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data?.valid).toBe(true);
+        expect(preflightSpy).not.toHaveBeenCalled();
+    });
+});

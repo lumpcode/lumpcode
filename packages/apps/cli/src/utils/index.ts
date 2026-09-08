@@ -2,6 +2,8 @@ export * from './addCommand';
 export * from './appendMissingGitignoreLines';
 export * from './applyLumpConfigDefaults';
 export * from './assertDaemonStartAllowed';
+export * from './assertDedicatedDaemonRequired';
+export * from './assertSourceWorkTreeClean';
 export * from './atDirectory';
 export * from './workspacePathLock';
 export * from './branchMatchesGitGlob';
