@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: lumpcode-setup
 workflow: [manualReq, testImpl, impl]
-manualReq: true
+manual: true
 task: >-
   Interactive `lumpcode setup` command that walks a user through shared or
   dedicated mode, then to a first lump, and finishes when that lump has pushed
