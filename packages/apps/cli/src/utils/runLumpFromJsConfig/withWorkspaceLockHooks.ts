@@ -152,25 +152,21 @@ export function withWorkspaceLockHooks(input: {
             return setupWorkspaceFn(setupInput);
         }
 
-        if (
-            !(await acquirePathLockOrBusy({
-                globalConfigFolderPath: ctx.globalConfigFolderPath,
-                workspacePath: resolvedBranchPath,
-                lumpName: ctx.lumpName,
-                lockMode: ctx.lockMode,
-                projectName: ctx.projectName,
-                logger: ctx.logger,
-                session,
-                assign: 'branch',
-            }))
-        ) {
-            return blockedSetupResult(branchWorkspacePathValue);
-        }
-
-        const preflightResult = await ctx.preflight();
-        if (!preflightResult.success) {
-            session.pendingFailure = toRunLumpMessageFailure(preflightResult.data);
-            return blockedSetupResult(branchWorkspacePathValue);
+        if (!session.releaseExecutionPathLock) {
+            if (
+                !(await acquirePathLockOrBusy({
+                    globalConfigFolderPath: ctx.globalConfigFolderPath,
+                    workspacePath: resolvedExecutionPath,
+                    lumpName: ctx.lumpName,
+                    lockMode: ctx.lockMode,
+                    projectName: ctx.projectName,
+                    logger: ctx.logger,
+                    session,
+                    assign: 'execution',
+                }))
+            ) {
+                return blockedSetupResult(resolvedExecutionPath);
+            }
         }
 
         return setupWorkspaceFn(setupInput);

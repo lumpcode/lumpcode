@@ -120,7 +120,7 @@ lumpcode --version</code></pre>
   "mode": "shared"
 }</code></pre>
 
-  <p>Shared mode never touches this checkout. Runs go to <code>~/.lumpcode/project-copies/&lt;projectName&gt;/</code>.</p>
+  <p>Shared <code>lumpcode run</code> rehearses on this branch. Commit or stash first. It does not create a <code>lump/…</code> branch.</p>
 
   <p>Install <code>@lumpcode/cli-utils</code> and <code>@lumpcode/recipes</code> into this repo <strong>now</strong>, before the first push. Later TypeScript lumps import them from the project's <code>node_modules</code> (the global CLI does not ship them). If they are already in <code>package.json</code> when the dedicated clone is set up, that machine runs <code>npm install</code> once and does not need another install when the first lump lands.</p>
 
@@ -198,11 +198,11 @@ export default defineConfig({
 
   <p>That loads the config, lists contexts, and previews the tick. It does not run the agent, branch, or push. Add <code>--contextName Button</code> to inspect one context.</p>
 
-  <p>If you want a real tick on one context, shared mode keeps your checkout untouched:</p>
+  <p>If you want a real tick on one context, run it on this authoring branch:</p>
 
   <pre><code>lumpcode run reactToVue</code></pre>
 
-  <p>Default is one context per branch (the next eligible one). Review the pushed <code>lump/reactToVue/…</code> branch before you let the daemon loose.</p>
+  <p>Default is one context. Review the commits on this branch, then merge. The worker later cuts <code>lump/reactToVue/…</code> branches.</p>
 
   <h2>8. Merge the lump to primary</h2>
 

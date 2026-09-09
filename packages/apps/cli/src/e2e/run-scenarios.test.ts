@@ -6,7 +6,6 @@ import {
     createE2eLoopLumpConfigJs,
     e2eMarkerPath,
     e2ePathAgentPromptReceivedPath,
-    expectCliFailureEnvelope,
     expectCliOk,
     expectLumpStatus,
     expectRunContextNames,
@@ -215,7 +214,7 @@ describe('E2E run scenarios', () => {
     });
 });
 
-describe.skip('E2E run scenarios — shared-in-place-run', () => {
+describe('E2E run scenarios — shared-in-place-run', () => {
     const { createProject } = useE2eProjects();
 
     it('RUN-SHARED-IN-PLACE: commits and pushes the current branch, no copy, no lump/…', async () => {
@@ -234,9 +233,9 @@ describe.skip('E2E run scenarios — shared-in-place-run', () => {
         expect(remoteHasBranch({ remoteDir: project.remoteDir, branch: 'main' })).toBe(true);
         expect(
             git(`log origin/main --format=%s`, project.projectRoot).includes(
-                `LUMP:${lumpName} - ${ctx}`,
+                `LUMP: ${lumpName} - ${ctx}`,
             ) ||
-                git(`log main --format=%s`, project.remoteDir).includes(`LUMP:${lumpName} - ${ctx}`),
+                git(`log main --format=%s`, project.remoteDir).includes(`LUMP: ${lumpName} - ${ctx}`),
         ).toBe(true);
         await expect(fs.access(e2eMarkerPath(project.projectRoot, lumpName, ctx))).resolves.toBeUndefined();
         await expect(
@@ -300,7 +299,7 @@ describe.skip('E2E run scenarios — shared-in-place-run', () => {
             lumps: [{ name: 'myLump' }],
         });
         const start = await runE2eCli({ project, args: ['start', '--json'] });
-        expectCliFailureEnvelope(start);
+        expect(start.code).not.toBe(0);
         expect(start.json.messages[0]).toBe(
             'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.',
         );

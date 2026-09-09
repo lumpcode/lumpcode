@@ -295,7 +295,7 @@ describe('lump-plan command — dynamic-discovery-branch (F*)', () => {
     });
 });
 
-describe.skip('lump-plan command — shared-in-place-run', () => {
+describe('lump-plan command — shared-in-place-run', () => {
     let projectRoot: string;
     let localConfigFolderPath: string;
     const globalConfigFolderPath = path.join(os.homedir(), '.lumpcode-test-plan-shared-in-place');

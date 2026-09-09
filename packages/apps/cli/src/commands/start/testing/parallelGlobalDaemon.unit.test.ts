@@ -517,7 +517,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
-    it.skip('shared-in-place-run G7: shared start fails sharedModeNoDaemon (no parallel tick)', async () => {
+    it('shared-in-place-run G7: shared start fails sharedModeNoDaemon (no parallel tick)', async () => {
         await writeLocal({
             mode: 'shared',
             maxParallelRun: 2,

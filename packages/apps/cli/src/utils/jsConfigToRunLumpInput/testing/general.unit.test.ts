@@ -243,7 +243,7 @@ describe('jsConfigToRunLumpInput', () => {
     });
 });
 
-describe.skip('jsConfigToRunLumpInput shared-in-place-run', () => {
+describe('jsConfigToRunLumpInput shared-in-place-run', () => {
     it('returns the current branch from branchFn and a no-git workspace in shared mode', async () => {
         const { createTempTestDirs, removeTempTestDirs } = await import('../../createTempTestDirs');
         const { initBareRemoteAndCheckout } = await import('../../initBareRemoteAndCheckout');

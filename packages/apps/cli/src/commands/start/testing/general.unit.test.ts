@@ -572,7 +572,7 @@ describe('start command', () => {
     });
 });
 
-describe.skip('start command — shared-in-place-run', () => {
+describe('start command — shared-in-place-run', () => {
     const sharedModeNoDaemonMessage =
         'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.';
 

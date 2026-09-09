@@ -793,7 +793,7 @@ describe('start command — daemon-primary-branch-refresh-command (T5–T7)', ()
         }
     });
 
-    it.skip('shared-in-place-run T7: shared start fails sharedModeNoDaemon and does not run refreshCommand', async () => {
+    it('shared-in-place-run T7: shared start fails sharedModeNoDaemon and does not run refreshCommand', async () => {
         const markerName = 'shared-refresh.marker';
         const script = `require('fs').writeFileSync(${JSON.stringify(markerName)}, 'ran')`;
         const refreshCommand = `node -e ${JSON.stringify(script)}`;

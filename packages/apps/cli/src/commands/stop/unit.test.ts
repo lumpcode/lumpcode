@@ -755,7 +755,7 @@ describe('stop command', () => {
         }, 15_000);
     });
 
-    it.skip('shared-in-place-run: stop still reaps leftovers in shared mode', async () => {
+    it('shared-in-place-run: stop still reaps leftovers in shared mode', async () => {
         await writeJsonFile({
             filePath: path.join(localConfigFolderPath, 'local.json'),
             data: { mode: 'shared', primaryBranch: 'main' },

@@ -12,7 +12,7 @@ const DIRTY_MESSAGE =
 const DETACHED_MESSAGE =
     'Not on a branch. Shared run needs a named branch to commit and push.';
 
-describe.skip('assertSourceWorkTreeClean (shared-in-place-run)', () => {
+describe('assertSourceWorkTreeClean (shared-in-place-run)', () => {
     let cwd: string;
 
     beforeEach(async () => {

@@ -5,6 +5,7 @@ import { failure, Failure, runLump, RunLumpOutput, success, Success, type Logger
 import { LumpJsConfig } from '../../types';
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
+import { assertSourceWorkTreeClean } from '../assertSourceWorkTreeClean';
 import { coerceResolvedProjectLocalConfig } from '../coerceResolvedProjectLocalConfig';
 import type { GitCommonDirLockContext } from '../gitCommonDirLock';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
@@ -148,13 +149,25 @@ export async function runLumpFromJsConfig(input: {
 
         const resolvedBaseBranch = runLumpInputResult.data.baseBranch;
 
-        const tooManySkip = await evaluateTooManyOpenBranchesSkip({
-            jsConfig,
-            lumpName,
-            executionWorkspacePath: tentativeExecutionWorkspacePath,
-        });
-        if (tooManySkip) {
-            return success(tooManySkip);
+        if (localConfig.mode === 'shared') {
+            const cleanResult = await assertSourceWorkTreeClean({ cwd: sourceProjectRoot });
+            if (!cleanResult.success) {
+                return failure(toRunLumpMessageFailure(cleanResult.data.message, cleanResult.data.code));
+            }
+            if (cleanResult.data.branchName === resolvedBaseBranch) {
+                logger.warn(
+                    'Shared run will commit and push on this branch. You are on the execution base.',
+                );
+            }
+        } else {
+            const tooManySkip = await evaluateTooManyOpenBranchesSkip({
+                jsConfig,
+                lumpName,
+                executionWorkspacePath: tentativeExecutionWorkspacePath,
+            });
+            if (tooManySkip) {
+                return success(tooManySkip);
+            }
         }
 
         const runLumpInput = {

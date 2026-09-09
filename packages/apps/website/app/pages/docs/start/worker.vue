@@ -51,9 +51,10 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
       <section id="first-pr-already-done" class="guide-step">
         <h2>1. First PR already done</h2>
         <p>
-          If you have not run a lump by hand yet, do that first:
+          If you have not rehearsed a lump on the laptop yet, do that first:
           <NuxtLink :to="docs.firstPr">From install to the first PR</NuxtLink>.
-          <code>.lumpcode/</code> must already be committed and pushed. This page is only the worker.
+          That run was on your authoring branch. This clone is the campaign.
+          <code>.lumpcode/</code> must already be committed and pushed.
         </p>
       </section>
 

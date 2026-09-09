@@ -19,7 +19,7 @@ This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (ca
 | **Marker commit** | Commit whose message contains `LUMP: <lumpName> - <contextName>` (Lumpcode writes that string as the subject). **Not configurable** so `clean`, `lump-status`, and `context-status` stay aligned with the engine. When squashing, keep that string in the squash message; if it is gone, status looks `toDo` until `context-status --setToFinished`. |
 | **primaryBranch** | First **exact** integration branch from the merged project/local config (`primaryBranches` when set, else `primaryBranch`). Either file may supply it; local wins when both set. See [Branch resolution](#branch-resolution) and [project-config.md](./project-config.md#merge-and-lump-defaults). |
 | **baseBranch**  | Per-lump execution integration branch — see [Branch resolution](#branch-resolution). Use `baseBranch` when execution should differ from discovery (e.g. a long-lived release branch). |
-| **mode**        | `shared` or `dedicated` (in `.lumpcode/local.json`). Decides whether Lumpcode operates on the current checkout or a separate copy under `~/.lumpcode/project-copies/<projectName>/`. |
+| **mode**        | `shared` or `dedicated` (in `.lumpcode/local.json`). Shared `run` rehearses in place on the current branch. Dedicated pre-flights and cuts `lump/…` branches. `start` is dedicated-only. |
 
 **Status** — Per-context progress, derived from **remote** git history and cached in `.lumpcode/lumps/<lumpName>/contextStatusRecord.json`:
 
@@ -35,7 +35,7 @@ Repeated `run` or daemon ticks are **resumable**: finished contexts are skipped 
 
 **Ordering:** Per-context `options.priority` (lower runs sooner) and `options.dependsOnContexts` gate which `toDo` contexts are eligible in a batch. A dependency must be **`finished`** on the remote base branch; `branchPushed` does not count. Same-lump deps use the context `name`; cross-lump deps use `<otherLumpName>/<contextName>` (see [types.md § Context](./types.md#context) and [examples.md § 7](./examples.md#7-cross-lump-dependency--run-after-another-lump-finishes)).
 
-**Safety:** Lumpcode does **not** push routine agent work to `baseBranch`; work lives on `lump/<lumpName>/…` branches for normal review and merge. Cap how many such branches are in flight with **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`).
+**Safety:** Dedicated runs do **not** push routine agent work to `baseBranch`; work lives on `lump/<lumpName>/…` branches for review and merge. Shared `run` commits and pushes the current branch (including the execution base, with a warning). Cap dedicated in-flight `lump/…` branches with **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`). Shared `run` skips that cap.
 
 ## Three workspaces
 
@@ -43,15 +43,13 @@ Lumpcode uses three path concepts during a run. Engine and command-module APIs k
 
 | Concept | Engine / command API | Meaning |
 | ------- | -------------------- | ------- |
-| **Project workspace** | `projectRoot` | Source checkout where `.lumpcode/` lives. In `shared` mode your editor clone is never touched; config and history paths are always under this tree. |
-| **Execution workspace** | *(CLI only)* | Git repo root Lumpcode runs in after pre-flight: project copy in `shared` mode, the checkout itself in `dedicated` mode. |
-| **Branch workspace** | `workspacePath` on `CommandFn` / `SetupWorkspaceFn` | Where the agent and per-context `git add` / `git commit` run for this lump. With `workspaceStrategy: "checkout"`, equals the execution workspace. With `"worktree"`, a linked tree under `.lumpcode/worktrees/<branch>/` inside the execution workspace. |
+| **Project workspace** | `projectRoot` | Source checkout where `.lumpcode/` lives. Shared `run` also uses this tree as the agent cwd. |
+| **Execution workspace** | *(CLI only)* | Git repo root Lumpcode runs in. Both modes: the source checkout. Dedicated pre-flights it; shared `run` does not. |
+| **Branch workspace** | `workspacePath` on `CommandFn` / `SetupWorkspaceFn` | Where the agent and per-context `git add` / `git commit` run. Shared `run`: the current branch in the source checkout. Dedicated `checkout`: same path on a `lump/…` branch. Dedicated `worktree`: `.lumpcode/worktrees/<branch>/`. |
 
 ```text
 shared mode:
-  project workspace     ~/your-repo/          (untouched)
-  execution workspace   ~/.lumpcode/project-copies/<projectName>/
-  branch workspace      same as execution (checkout) OR .../worktrees/lump/... (worktree)
+  project = execution = branch workspace   ~/your-repo/   (current branch)
 
 dedicated mode:
   project workspace = execution workspace = your checkout
@@ -134,9 +132,9 @@ flowchart TD
 
 Order notes:
 
-1. **Dedicated** resolves a concrete discovery branch and preflights the checkout there **before** config load; **shared** loads config from the source project workspace and preflights only the **copy** at workspace-setup time (`resolvedBaseBranch`). Neither path uses `git pull`; both use fetch / switch / hard-reset. See [Pre-flight and modes](#pre-flight-and-modes).
+1. **Dedicated** resolves a concrete discovery branch and preflights the checkout there **before** config load, then preflights again at `resolvedBaseBranch`. **Shared** `run` loads config from this checkout, requires a clean named branch, and does **not** preflight or create a copy. Dedicated uses fetch / switch / hard-reset (not `git pull`). See [Pre-flight and modes](#pre-flight-and-modes).
 2. Context discovery and the status-driven todo list run **before** branch workspace setup. Author hooks (`setupFn`, `promptFn`, …) sit inside the per-context loop after setup; details only in [advanced-config.md](./advanced-config.md#hook-lifecycle).
-3. Execution workspace comes from `local.json.mode`: checkout in `dedicated`, or `~/.lumpcode/project-copies/<projectName>/` in `shared`. See [Three workspaces](#three-workspaces).
+3. Execution workspace is the source checkout in both modes. See [Three workspaces](#three-workspaces).
 
 When a lump sets **`keepHistory: true`**, each prompt step appends prompt text and agent output to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` on disk (gitignored by `project-setup`). See [lump-config.md § Prompt run history](./lump-config.md#prompt-run-history-keephistory).
 
@@ -154,13 +152,13 @@ stateDiagram-v2
 
 ## When to use `run` vs `start` (daemon)
 
-- **`lumpcode run <lumpName>`** — Run **one tick** for one lump, then exit. Best for **sporadic** work: tickets you step through locally, one-off codemods, or anything you start and review in the same session.
-- **`lumpcode start`** — **Scheduler**: on a cron (default every 5 minutes), discovers loadable lumps (dedicated: each primary branch subtick), applies optional `--include` / `--exclude`, and runs the filtered queue (soft-skipping `"disabled": true` at run time). Default daemon id is `global`. With `workspaceStrategy: "worktree"` and `maxParallelRun` > 1, a tick can run multiple matching lumps concurrently. Best for **sustained agent loop campaigns**: run it on a **machine that stays on** (your dev box or a small remote server with the same git push access). You merge good branches; the next tick picks up the next eligible context.
+- **`lumpcode run <lumpName>`** — Run **one tick** for one lump, then exit. On a laptop (`mode: shared`) this is in-place rehearsal on the current branch. Dedicated `run` still preflights and cuts `lump/…` branches.
+- **`lumpcode start`** — **Dedicated-only scheduler**. Shared mode fails with `sharedModeNoDaemon`. On a worker cron (default every 5 minutes), discovers loadable lumps (each primary branch subtick), applies optional `--include` / `--exclude`, and runs the filtered queue (soft-skipping `"disabled": true` at run time). Default daemon id is `global`. With `workspaceStrategy: "worktree"` and `maxParallelRun` > 1, a tick can run multiple matching lumps concurrently. Best for **sustained agent loop campaigns** on a clone you do not edit. You merge good branches; the next tick picks up the next eligible context.
 
 Useful pairings on a server:
 
 - **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`) — caps how many open `lump/<lumpName>/*` branches on `origin` exist before a run is skipped (local-only branches are not counted). See [lump-config.md](./lump-config.md#optional-top-level-fields).
-- **`mode: "dedicated"`** in `.lumpcode/local.json` — on a server you don't develop on, skip the copy and run pre-flight directly on the checkout. Pre-flight destructively resets the checkout to the primary branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
+- **`mode: "dedicated"`** in `.lumpcode/local.json` — required for `start`. Pre-flight destructively resets the checkout to the primary branch before each tick. See [Pre-flight and modes](#pre-flight-and-modes).
 - **`"disabled": true`** on a lump soft-skips that lump on daemon ticks and on manual `lumpcode run` (exit 0) without stopping the scheduler.
 - **`--include` / `--exclude`** on `start` — run a subset of lumps in one daemon (or several overlapping daemons with different `--daemonId` values).
 - **`maxParallelRun`** in `local.json` or `--maxParallelRun` on `start` (with **`workspaceStrategy: "worktree"`**) — caps how many lumps a daemon tick runs at once. Default `1`. See [Concurrency and locks](#concurrency-and-locks).
@@ -221,24 +219,28 @@ Full flag reference: [commands.md](./commands.md).
 
 ## Pre-flight and modes
 
-Before every `run` and every daemon tick, Lumpcode runs a **pre-flight** that:
+**Dedicated** `run` and every daemon tick run a **pre-flight** that:
 
-1. Resolves the execution workspace from `local.json.mode`.
-2. In that workspace runs `git fetch --no-write-fetch-head origin <branch>`, switches to the target branch (primary branch or a lump's resolved `baseBranch`), then `git reset --hard origin/<branch>` (no `git pull` after reset).
+1. Uses this checkout as the execution workspace.
+2. Runs `git fetch --no-write-fetch-head origin <branch>`, switches to the target branch (primary branch or a lump's resolved `baseBranch`), then `git reset --hard origin/<branch>` (no `git pull` after reset).
 
-After pre-flight, each lump prepares git inside the execution workspace according to `local.json.workspaceStrategy` (default `checkout`):
+**Shared** `run` skips pre-flight. It fails if `git status --porcelain` is non-empty or HEAD is detached. If you are on the execution base, it warns once and still runs.
+
+After dedicated pre-flight, each lump prepares git according to `local.json.workspaceStrategy` (default `checkout`):
 
 - **`checkout`:** fetch `baseBranch`, create a fresh `lump/<lumpName>/<context…>` branch in the main worktree, run, commit, push, then switch back to the lump's resolved `baseBranch`.
 - **`worktree`:** add a linked worktree at `.lumpcode/worktrees/<branch>/` (paths mirror branch segments), run the agent there, commit, push, then remove the worktree. The main worktree stays on the lump's resolved `baseBranch`.
 
-The next lump in the same tick starts from a clean, known state.
+Shared `run` does not create `lump/…` branches; `workspaceStrategy` has no effect.
 
-| `local.json.mode` | Execution workspace | Use when |
-| ----------------- | ------------------- | -------- |
-| `shared` | A full copy at `~/.lumpcode/project-copies/<projectName>/` (created once, reused thereafter) | You use lumpcode on your personal device next to your day-to-day work — Lumpcode never touches your work and only works on the copy |
-| `dedicated` | The current checkout itself | You setup lumpcode as a daemon on a distant server machine you don't develop on; pre-flight runs the destructive in-place reset |
+The next dedicated lump in the same tick starts from a clean, known state.
 
-Worktrees always live under the execution workspace (the copy in `shared`, the checkout in `dedicated`). See [local-config.md](./local-config.md#workspace-strategies).
+| `local.json.mode` | `run` | `start` |
+| ----------------- | ----- | ------- |
+| `shared` | In-place on the current branch. Dirty or detached HEAD fails. | Refused (`sharedModeNoDaemon`) |
+| `dedicated` | This checkout with destructive pre-flight and `lump/…` branches | Worker scheduler |
+
+Worktrees live under the dedicated execution workspace. See [local-config.md](./local-config.md#workspace-strategies).
 
 ## Concurrency and locks
 

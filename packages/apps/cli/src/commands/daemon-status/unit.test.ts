@@ -201,7 +201,7 @@ describe('daemon-status command', () => {
         });
     });
 
-    it.skip('shared-in-place-run: daemon-status still lists project daemons in shared mode', async () => {
+    it('shared-in-place-run: daemon-status still lists project daemons in shared mode', async () => {
         await writeJsonFile({
             filePath: path.join(localConfigFolderPath, 'local.json'),
             data: { mode: 'shared', primaryBranch: 'main' },

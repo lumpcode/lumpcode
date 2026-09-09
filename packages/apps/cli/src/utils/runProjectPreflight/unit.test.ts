@@ -139,7 +139,7 @@ describe('runProjectPreflight', () => {
         expect(result.data).toMatch(/ver\/0\.0\.9/i);
     });
 
-    describe.skip('shared-in-place-run', () => {
+    describe('shared-in-place-run', () => {
         it('returns sourceProjectRoot as executionWorkspacePath in shared mode', async () => {
             await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
             const result = await runProjectPreflight({

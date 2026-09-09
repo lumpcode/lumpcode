@@ -1,0 +1,12 @@
+name: shared-in-place-run
+workflow:
+  - manualReq
+  - testImpl
+  - impl
+task: >-
+  Shared mode is laptop rehearsal: lumpcode run on this checkout and this branch
+  (commit + push, no copy, no lump/… branch). Dedicated stays the worker (reset,
+  lump/… PRs, start). Refuse start/restart/superviseOnly in shared. Dirty work
+  tree fails run. Docs, website, and articles match.
+priority: 0
+completedAt: '2026-09-09T04:33:21.312Z'

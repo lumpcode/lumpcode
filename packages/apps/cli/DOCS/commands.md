@@ -28,7 +28,7 @@ This page documents every `lumpcode` subcommand and its options.
 
 Most commands use the current working directory as the project root. Run `lumpcode` from the root of the git repository that contains `.lumpcode/`.
 
-If a lump uses a **workspace copy** under `~/.lumpcode/project-copies/`, you still invoke the CLI from your real repo root; see [concepts.md § Three workspaces](./concepts.md#three-workspaces).
+Run `lumpcode` from the git repository that contains `.lumpcode/`. Shared `run` uses this checkout; dedicated `run` / `start` also use this checkout after pre-flight. See [concepts.md § Three workspaces](./concepts.md#three-workspaces).
 
 <h3 id="ref-json-output"><code>--json</code> output</h3>
 
@@ -302,7 +302,7 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 - On SIGINT/SIGTERM, marks desired `stopping` so the supervisor does not respawn, stops the scheduler, and removes PID/meta/desired if they belong to this process.
 - If the supervisor dies, the daemon finishes in-flight work then exits without clearing desired, so a restarted supervisor can relaunch it.
 
-**Fails if:** Invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
+**Fails if:** `local.json.mode` is `shared` (`sharedModeNoDaemon` — use a dedicated worker clone, or `lumpcode run` on the laptop), invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start. `restart` and `start --superviseOnly` use the same dedicated-only rule. `stop` and `daemon-status` still work in shared mode.
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (daemon tick wrappers), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-5-run-continuously-optional).
 

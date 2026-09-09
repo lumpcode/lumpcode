@@ -104,7 +104,7 @@ describe('withWorkspaceLockHooks', () => {
         expect((await fs.readdir(locksDir)).filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
     });
 
-    it.skip('shared-in-place-run: locks the source checkout and skips preflight', async () => {
+    it('shared-in-place-run: locks the source checkout and skips preflight', async () => {
         const preflightSpy = vi.fn(async () => success(undefined));
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({

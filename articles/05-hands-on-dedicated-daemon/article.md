@@ -55,7 +55,7 @@ Use your real integration branch instead of `main` if that is what you merge to.
 }
 ```
 
-Shared mode never touches this checkout. Runs go to `~/.lumpcode/project-copies/<projectName>/`.
+Shared `lumpcode run` rehearses on this branch. Commit or stash first. It does not create a `lump/…` branch.
 
 Install `@lumpcode/cli-utils` and `@lumpcode/recipes` into this repo **now**, before the first push. Later TypeScript lumps import them from the project's `node_modules` (the global CLI does not ship them). If they are already in `package.json` when the dedicated clone is set up, that machine runs `npm install` once and does not need another install when the first lump lands.
 
@@ -149,13 +149,13 @@ lumpcode lump-plan reactToVue --plan --contexts
 
 That loads the config, lists contexts, and previews the tick. It does not run the agent, branch, or push. Add `--contextName Button` to inspect one context.
 
-If you want a real tick on one context, shared mode keeps your checkout untouched:
+If you want a real tick on one context, run it on this authoring branch:
 
 ```bash
 lumpcode run reactToVue
 ```
 
-Default is one context per branch (the next eligible one). Review the pushed `lump/reactToVue/…` branch before you let the daemon loose.
+Default is one context. Review the commits on this branch, then merge. The worker later cuts `lump/reactToVue/…` branches.
 
 ## 8. Merge the lump to primary
 

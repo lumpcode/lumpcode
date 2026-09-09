@@ -35,17 +35,17 @@ If you squash and drop the `LUMP: …` line, Lumpcode forgets the work and the c
 
 | Name | Where | What it is for |
 | --- | --- | --- |
-| **Project workspace** | Your repo | Config, status cache, history. In `shared` mode Lumpcode never checks this tree out for agent work. |
-| **Execution workspace** | A copy under `~/.lumpcode/project-copies/…` in `shared` mode; this clone in `dedicated` mode | Git fetch, switch, reset. The repo the run actually uses. |
-| **Branch workspace** | Same as execution (`checkout`), or `.lumpcode/worktrees/<branch>/` (`worktree`) | Where the agent runs and where `git add` / `git commit` happen. |
+| **Project workspace** | Your repo | Config, status cache, history. In `shared` mode this is also where the agent runs. |
+| **Execution workspace** | This clone in both modes | Dedicated: git fetch, switch, reset. Shared: no pre-flight; same path as the project workspace. |
+| **Branch workspace** | Same as execution (`checkout`), or `.lumpcode/worktrees/<branch>/` (`worktree`) | Where the agent runs and where `git add` / `git commit` happen. Shared `run` stays on the current branch. |
 
-On a laptop, keep `mode: "shared"` so the copy is the thing that gets reset. On a worker clone you never edit, `mode: "dedicated"` is the point. Details: [local config](/docs/config/local).
+On a laptop, keep `mode: "shared"` so `run` rehearses on this branch. On a worker clone you never edit, `mode: "dedicated"` is the point. Details: [local config](/docs/config/local).
 
 ## Branches Lumpcode cares about
 
 - **Primary branch** — the integration line from `.lumpcode/project.json` (often `main` or `dev`). Local config can override it.
 - **Base branch** — the branch this lump’s work branches off, and the branch whose remote history counts as `finished`. Usually the primary. Set a lump `baseBranch` only when this campaign should land somewhere else.
-- **Work branch** — default `lump/<lumpName>/<contextName>`. That is what you open as a PR.
+- **Work branch** — dedicated default `lump/<lumpName>/<contextName>` (open that as a PR). Shared `run` commits the branch you are already on.
 
 Dedicated workers can scan several primary lines (`dev` plus `feature/*`). Shared mode on your laptop does not. See [how a run works](/docs/start/run) and [local config](/docs/config/local).
 

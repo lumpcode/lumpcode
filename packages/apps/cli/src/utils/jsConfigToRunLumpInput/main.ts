@@ -17,7 +17,7 @@ import type {
     TeardownFn,
     Context,
 } from "@lumpcode/core";
-import { success, failure, pathExists } from "@lumpcode/core";
+import { execAsync, success, failure, pathExists } from "@lumpcode/core";
 import { noopLogger } from '../noopLogger';
 import { readJsonFile } from '../readJsonFile';
 import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled";
@@ -196,11 +196,12 @@ export async function jsConfigToRunLumpInput({
 
     const resolvedExecutionWorkspacePath = path.resolve(executionWorkspacePath);
     let { setupWorkspaceFn, teardownWorkspaceFn } = makeLumpWorkspaceFns({
-        executionWorkspacePath: resolvedExecutionWorkspacePath, // TODO : why need path.resolve ?
+        executionWorkspacePath: resolvedExecutionWorkspacePath,
         projectBaseBranch,
         lumpBaseBranch: baseBranch,
         workspaceStrategy,
         gitLock,
+        mode: localConfig?.mode,
     });
 
     if (!skipPostWorkspaceHooks) {
@@ -277,7 +278,11 @@ export async function jsConfigToRunLumpInput({
     });
     if (!stepsResult.success) return stepsResult;
 
-    const branchFnResult = await makeBranchFn(lumpName);
+    const branchFnResult = await makeBranchFn({
+        lumpName,
+        mode: localConfig?.mode,
+        executionWorkspacePath: resolvedExecutionWorkspacePath,
+    });
     if (!branchFnResult.success) return branchFnResult;
 
     const getKeepHistoryFilePathFn = resolveGetKeepHistoryFilePathFn({
@@ -453,7 +458,27 @@ async function preRegisterCommands({
     return success(undefined);
 }
 
-async function makeBranchFn(lumpName: string): Promise<Success<BranchFn> | Failure<string>> {
+async function makeBranchFn(input: {
+    lumpName: string;
+    mode?: LocalConfig['mode'];
+    executionWorkspacePath: string;
+}): Promise<Success<BranchFn> | Failure<string>> {
+    const { lumpName, mode, executionWorkspacePath } = input;
+    if (mode === 'shared') {
+        return success(async () => {
+            const headResult = await execAsync('git rev-parse --abbrev-ref HEAD', {
+                cwd: executionWorkspacePath,
+            });
+            if (!headResult.success) {
+                throw new Error(headResult.data.message);
+            }
+            const branchName = headResult.data.stdout.trim();
+            if (branchName === '' || branchName === 'HEAD') {
+                throw new Error('Not on a branch. Shared run needs a named branch to commit and push.');
+            }
+            return branchName;
+        });
+    }
     return success(({ contextList }) => lumpBranchName({ lumpName, contextList }));
 }
 

@@ -8,7 +8,7 @@ useHead({
   meta: [
     {
       name: 'description',
-      content: 'First PR on the machine you develop on. One campaign, by hand. Lumpcode never touches this checkout.',
+      content: 'Rehearse on this branch: commit the lump, run it here, then leave a worker for the campaign.',
     },
   ],
 })
@@ -25,7 +25,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
 <template>
   <DocsPageShell
     title="Get started : From install to the first PR"
-    description="First PR on the machine you develop on. One campaign, by hand. Lumpcode never touches this checkout."
+    description="Rehearse on this branch: commit the lump, run it here, then leave a worker for the campaign."
     :path="docs.firstPr"
     :headings="page?.headings ?? []"
     :source-path="page?.sourcePath"
@@ -96,7 +96,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
         </p>
         <CodeWindow filename="terminal" :code="previewThenRun" />
         <p>
-          <code>run</code> invokes the agent on one context, writes a <code>LUMP: myFirstLump - …</code> marker commit, and pushes a <code>lump/myFirstLump/…</code> branch. Open that as a PR.
+          <code>run</code> on this laptop is rehearsal: it needs a clean named branch, invokes the agent on one context, writes a <code>LUMP: myFirstLump - …</code> marker commit, and pushes <em>this</em> branch. Open that as a PR. A worker later cuts <code>lump/…</code> branches.
         </p>
       </section>
     </div>

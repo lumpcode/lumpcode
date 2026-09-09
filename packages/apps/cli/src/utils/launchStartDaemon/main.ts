@@ -4,6 +4,7 @@ import { failure, success, type Failure, type Logger, type Success } from '@lump
 
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { assertDaemonStartAllowed } from '../assertDaemonStartAllowed';
+import { assertDedicatedDaemonRequired } from '../assertDedicatedDaemonRequired';
 import { RESERVED_DAEMON_ID } from '../daemonFileBaseName';
 import { daemonSchedulerFiles } from '../daemonSchedulerFiles';
 import { daemonsDirPath } from '../daemonsDirPath';
@@ -37,7 +38,7 @@ export type LaunchStartDaemonOutput = {
 export type LaunchStartDaemonFailure = {
     messages: string[];
     data?: {
-        code: 'daemonIdInUse' | 'daemonMetaCorrupt';
+        code: 'daemonIdInUse' | 'daemonMetaCorrupt' | 'sharedModeNoDaemon';
         reason?: 'missing' | 'invalid';
     };
 };
@@ -97,6 +98,14 @@ export async function launchStartDaemon(
         projectName,
         daemonId: recipe.daemonId,
     });
+
+    const daemonRequired = assertDedicatedDaemonRequired({ mode: frozenLocalConfig.mode });
+    if (!daemonRequired.success) {
+        return failure({
+            messages: [daemonRequired.data.message],
+            data: { code: daemonRequired.data.code },
+        });
+    }
 
     let runningDaemons = running;
     if (runningDaemons === undefined) {

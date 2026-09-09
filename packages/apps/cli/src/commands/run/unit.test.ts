@@ -196,6 +196,8 @@ describe('run command — multi discovery branches', () => {
             primaryBranches: ['main'],
         });
         await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "shared fixture"', projectRoot);
 
         const result = await makeHandler()({
             options: {},
@@ -220,6 +222,8 @@ describe('run command — multi discovery branches', () => {
             discoveryBranch: 'ver/0.0.9',
             baseBranch: 'ver/0.0.9',
         });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "shared fixture"', projectRoot);
 
         const result = await makeHandler()({
             options: {},
@@ -364,6 +368,8 @@ describe('run command — dynamic-discovery-branch (C*)', () => {
             primaryBranches: ['main'],
         });
         await writeMinimalLump(projectRoot, 'legacyLine', { discoveryBranch: 'ver/0.0.7' });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "shared fixture"', projectRoot);
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -440,7 +446,7 @@ describe('run command abort signal wiring (W2)', () => {
     });
 });
 
-describe.skip('run command — shared-in-place-run', () => {
+describe('run command — shared-in-place-run', () => {
     const dirtyMessage =
         'Working tree is dirty. Commit or stash before lumpcode run in shared mode.';
     const detachedMessage =
@@ -463,6 +469,8 @@ describe.skip('run command — shared-in-place-run', () => {
         });
         await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
         await writeMinimalLump(projectRoot, 'rehearsal');
+        execGit('add -A', projectRoot);
+        execGit('commit -m "shared fixture"', projectRoot);
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
                 result: {

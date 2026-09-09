@@ -219,7 +219,7 @@ describe('clean command', () => {
         expect(gitCurrentBranch(projectRoot)).toBe(branchBefore);
     });
 
-    it.skip('shared-in-place-run: does not target project-copies', async () => {
+    it('shared-in-place-run: does not target project-copies', async () => {
         const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',

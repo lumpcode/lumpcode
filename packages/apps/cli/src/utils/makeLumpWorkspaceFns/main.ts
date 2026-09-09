@@ -6,6 +6,7 @@ import type {
     TeardownWorkspaceFn,
 } from '@lumpcode/core';
 
+import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { atDirectory } from '../atDirectory';
 import {
@@ -16,8 +17,10 @@ import { lumpWorktreePath } from '../getLumpWorktreePath';
 import { shellBestEffort } from '../shellBestEffort';
 
 export interface MakeLumpWorkspaceFnsInput {
-    /** Execution workspace (absolute): git repo root — project copy in shared mode, checkout in dedicated. */
+    /** Execution workspace (absolute): git repo root (source checkout in both modes). */
     executionWorkspacePath: string;
+    /** Shared mode: no git in setup/teardown; agent stays on the current branch. */
+    mode?: Mode;
     /**
      * Project-wide base branch declared in `.lumpcode/local.json`. Used for setup
      * switch-back when no per-lump override is provided.
@@ -52,10 +55,20 @@ export interface MakeLumpWorkspaceFnsOutput {
  * (tests / callers without a lock context).
  */
 export function makeLumpWorkspaceFns(input: MakeLumpWorkspaceFnsInput): MakeLumpWorkspaceFnsOutput {
-    const { executionWorkspacePath, projectBaseBranch, lumpBaseBranch, workspaceStrategy, gitLock } =
-        input;
+    const {
+        executionWorkspacePath,
+        projectBaseBranch,
+        lumpBaseBranch,
+        workspaceStrategy,
+        gitLock,
+        mode,
+    } = input;
     const resolvedExecutionWorkspace = path.resolve(executionWorkspacePath);
     const switchBackBranch = lumpBaseBranch ?? projectBaseBranch;
+
+    if (mode === 'shared') {
+        return makeSharedInPlaceWorkspaceFns(resolvedExecutionWorkspace);
+    }
 
     if (workspaceStrategy === 'worktree') {
         return makeWorktreeWorkspaceFns({
@@ -70,6 +83,16 @@ export function makeLumpWorkspaceFns(input: MakeLumpWorkspaceFnsInput): MakeLump
         switchBackBranch,
         gitLock,
     });
+}
+
+function makeSharedInPlaceWorkspaceFns(executionWorkspacePath: string): MakeLumpWorkspaceFnsOutput {
+    return {
+        setupWorkspaceFn: async () => ({
+            command: '',
+            workspacePath: executionWorkspacePath,
+        }),
+        teardownWorkspaceFn: async () => '',
+    };
 }
 
 async function runGitBodyUnderLock(input: {

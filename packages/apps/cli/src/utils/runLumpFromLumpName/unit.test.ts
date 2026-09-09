@@ -233,7 +233,7 @@ describe('runLumpFromLumpName', () => {
         });
     });
 
-    describe.skip('shared-in-place-run', () => {
+    describe('shared-in-place-run', () => {
         const dirtyMessage =
             'Working tree is dirty. Commit or stash before lumpcode run in shared mode.';
 
@@ -242,6 +242,8 @@ describe('runLumpFromLumpName', () => {
                 filePath: path.join(localConfigFolderPath, 'local.json'),
                 data: { mode: 'shared', primaryBranch: 'main' },
             });
+            execGit('add -A', projectRoot);
+            execGit('commit -m "shared fixture"', projectRoot);
         }
 
         it('skips a disabled lump before the dirty-tree gate', async () => {
@@ -272,8 +274,8 @@ describe('runLumpFromLumpName', () => {
         });
 
         it('does not skip tooManyOpenBranches in shared mode', async () => {
-            await writeSharedLocal();
             await writeMinimalLump(projectRoot, 'my-lump', { maximumNumberOfConcurrentBranches: 2 });
+            await writeSharedLocal();
             createAndPushLumpBranch('my-lump', 'ctx-a');
             createAndPushLumpBranch('my-lump', 'ctx-b');
             vi.mocked(core.runLump).mockResolvedValue(

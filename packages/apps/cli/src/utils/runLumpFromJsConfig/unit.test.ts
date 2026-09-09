@@ -351,6 +351,8 @@ describe('runLumpFromJsConfig', () => {
 
     it('proceeds to runLump in shared mode when discoveryBranch is unlisted', async () => {
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'shared', primaryBranch: 'main' } });
+        execGit('add -A', projectRoot);
+        execGit('commit -m "shared fixture"', projectRoot);
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
                 result: {
@@ -628,17 +630,19 @@ describe('runLumpFromJsConfig', () => {
         });
     });
 
-    describe.skip('shared-in-place-run', () => {
+    describe('shared-in-place-run', () => {
         const dirtyMessage =
             'Working tree is dirty. Commit or stash before lumpcode run in shared mode.';
         const detachedMessage =
             'Not on a branch. Shared run needs a named branch to commit and push.';
 
-        async function writeSharedLocal() {
+        async function writeSharedLocal(data: Record<string, unknown> = { mode: 'shared', primaryBranch: 'main' }) {
             await writeJsonFile({
                 filePath: path.join(localConfigFolderPath, 'local.json'),
-                data: { mode: 'shared', primaryBranch: 'main' },
+                data,
             });
+            execGit('add -A', projectRoot);
+            execGit('commit -m "shared fixture"', projectRoot);
         }
 
         function expectFailureCode(
@@ -793,14 +797,11 @@ describe('runLumpFromJsConfig', () => {
         });
 
         it('ignores workspaceStrategy and maxParallelRun on shared run', async () => {
-            await writeJsonFile({
-                filePath: path.join(localConfigFolderPath, 'local.json'),
-                data: {
-                    mode: 'shared',
-                    primaryBranch: 'main',
-                    workspaceStrategy: 'worktree',
-                    maxParallelRun: 2,
-                },
+            await writeSharedLocal({
+                mode: 'shared',
+                primaryBranch: 'main',
+                workspaceStrategy: 'worktree',
+                maxParallelRun: 2,
             });
             mockRunLumpInvokingSetup({
                 result: {
@@ -820,13 +821,10 @@ describe('runLumpFromJsConfig', () => {
 
         it('does not exec refreshCommand on shared run', async () => {
             const marker = path.join(projectRoot, 'shared-refresh.marker');
-            await writeJsonFile({
-                filePath: path.join(localConfigFolderPath, 'local.json'),
-                data: {
-                    mode: 'shared',
-                    primaryBranch: 'main',
-                    refreshCommand: `node -e "require('fs').writeFileSync(${JSON.stringify(marker)}, 'ran')"`,
-                },
+            await writeSharedLocal({
+                mode: 'shared',
+                primaryBranch: 'main',
+                refreshCommand: `node -e "require('fs').writeFileSync(${JSON.stringify(marker)}, 'ran')"`,
             });
             vi.mocked(core.runLump).mockResolvedValue(
                 core.success({

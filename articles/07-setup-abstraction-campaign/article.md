@@ -95,7 +95,7 @@ The implementer skips items without `requirements.md`. Both recipes need `config
 
 ## 5. Dry run
 
-On the laptop (shared mode, checkout untouched):
+On the laptop (shared mode, in-place rehearsal):
 
 ```bash
 lumpcode lump-plan abstractionFinder --plan --contexts

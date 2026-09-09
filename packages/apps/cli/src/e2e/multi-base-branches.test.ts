@@ -216,7 +216,7 @@ describe('E2E multi discovery branches', () => {
     it('CLEAN-MDB-S1 clean removes lump branches without switching checkout', async () => {
         const project = await createProject({
             localJson: {
-                mode: 'shared',
+                mode: 'dedicated',
                 primaryBranches: ['main', 'ver/0.0.9'],
             },
             lumps: [{ name: 'cleanLump' }],

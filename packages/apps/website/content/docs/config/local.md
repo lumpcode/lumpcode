@@ -27,7 +27,9 @@ There is no `--mode` on `run` or `start`. Change this file (and restart the work
 
 ### `shared`
 
-This clone is your editor. Lumpcode never checks it out for agent work. Every run uses a copy at `~/.lumpcode/project-copies/<projectName>/`, created once and reset by pre-flight.
+This clone is your editor. `lumpcode run` rehearses **in place** on the current branch: no copy, no `lump/…` branch, no hard reset. The working tree must be clean (commit or stash). Running on the execution base (`main` / `dev`) is allowed and warns once.
+
+`lumpcode start` is dedicated-only. Use a [worker](/docs/start/worker) clone, or `run` on this laptop.
 
 Use on laptops.
 

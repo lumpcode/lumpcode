@@ -110,6 +110,12 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                     data: errData,
                 });
             }
+            if (errData.code !== undefined) {
+                return failure({
+                    messages: [errData.message],
+                    data: { code: errData.code },
+                });
+            }
             return commandFailure(runLumpFromJsConfigFailureMessage(errData));
         }
         if (runLumpRes.data.skipped) {

@@ -28,7 +28,7 @@ export function openPrPostTeardown<
 
     return async (input) => {
         const { baseBranch, branchName, contextList, workspacePath } = input;
-        if (!branchName || branchName === baseBranch) {
+        if (!branchName || branchName === baseBranch || !branchName.startsWith(LUMP_BRANCH_PREFIX)) {
             return;
         }
 

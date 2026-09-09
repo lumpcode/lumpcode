@@ -60,7 +60,7 @@ This creates:
 └── commands/         # optional custom agent command modules (.js)
 ```
 
-**`project.json`** stores **`projectName`** (letters, digits, `_`, and `-` only) and **`primaryBranch`** (from `--primaryBranch`, default `main`). If you omit **`--projectName`**, `project-setup` infers a name from **`origin`** or the directory basename and normalizes it to those rules. That same value is used for daemon files and for `~/.lumpcode/project-copies/<projectName>/` when `local.json.mode` is `shared`. You can also set team defaults such as `"command": "cursor"` here so lumps can omit top-level `command`.
+**`project.json`** stores **`projectName`** (letters, digits, `_`, and `-` only) and **`primaryBranch`** (from `--primaryBranch`, default `main`). If you omit **`--projectName`**, `project-setup` infers a name from **`origin`** or the directory basename and normalizes it to those rules. That same value is used for daemon filenames. You can also set team defaults such as `"command": "cursor"` here so lumps can omit top-level `command`.
 
 **`local.json`** is per machine and gitignored. The default scaffold is:
 
@@ -70,7 +70,7 @@ This creates:
 }
 ```
 
-Keep `shared` on your workstation (Lumpcode never touches your checkout — it runs in a separate copy). Edit it to `"dedicated"` on a server / daemon machine that you don't develop on. Full reference: [local-config.md](./local-config.md).
+Keep `shared` on your laptop: `lumpcode run` rehearses on this branch (commit or stash first). Edit it to `"dedicated"` on a worker clone you do not develop on. `lumpcode start` is dedicated-only. Full reference: [local-config.md](./local-config.md).
 
 Optional flags:
 
@@ -136,9 +136,9 @@ A richer pattern (several files per context, naming-convention transforms) is sh
 lumpcode run myFirstLump
 ```
 
-In one tick, Lumpcode loads the lump, resolves contexts from remote status, preflights the execution workspace (fetch / switch / hard-reset, not `git pull`), prepares the work branch `lump/myFirstLump/…`, runs your agent, commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above), pushes to **`origin`**, tears down the branch workspace, and refreshes **`contextStatusRecord.json`**. Shared vs dedicated order and every hook call site: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle). Short overview: [concepts.md § One run, end to end](./concepts.md#one-run-end-to-end).
+On a laptop (`mode: shared`), one tick loads the lump, requires a clean named branch, runs your agent **here**, commits with the **`LUMP: myFirstLump - <contextName>`** marker (see Terms above), and pushes **this branch**. There is no copy and no `lump/…` branch. Dedicated `run` still preflights (fetch / switch / hard-reset, not `git pull`) and cuts `lump/myFirstLump/…`. Shared vs dedicated order and every hook call site: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle). Short overview: [concepts.md § One run, end to end](./concepts.md#one-run-end-to-end).
 
-**Workspace:** `local.json.mode` decides where the run happens — `shared` uses **`~/.lumpcode/project-copies/<projectName>/`** (a copy of your repo); `dedicated` uses **this checkout** in place (destructive reset). [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes) · [local-config.md](./local-config.md)
+**Workspace:** both modes use this checkout. Shared `run` is in-place rehearsal. Dedicated `run` / `start` reset this clone. [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes) · [local-config.md](./local-config.md)
 
 **Sanity checks:**
 
@@ -190,9 +190,9 @@ Recipe format and collision rules: [concepts.md § Repo daemon config files](./c
 | Context status cache | `.lumpcode/lumps/<lumpName>/contextStatusRecord.json` |
 | Prompt run history (optional, `keepHistory: true`) | `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored) |
 | TypeScript transpile cache | `.lumpcode/.cache/transpile/` (gitignored) |
-| Default work branch names | `lump/<lumpName>/<context…>` (local + `origin`) |
-| Isolated repo copy (when `local.json.mode` is `shared`) | `~/.lumpcode/project-copies/<projectName>/` |
-| Background daemon PID / logs | `~/.lumpcode/daemons/` |
+| Dedicated work branch names | `lump/<lumpName>/<context…>` (local + `origin`) |
+| Shared rehearsal | Current branch of this checkout |
+| Background daemon PID / logs | `~/.lumpcode/daemons/` (dedicated `start` only) |
 
 Commit `.lumpcode/` if you want lump definitions and status tracked in git; omit secrets and machine-only paths from shared configs.
 

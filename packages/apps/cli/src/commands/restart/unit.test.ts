@@ -216,7 +216,7 @@ describe('restart command', () => {
         await expect(fs.access(pidPath())).resolves.toBeUndefined();
     });
 
-    it.skip('shared-in-place-run: fails sharedModeNoDaemon without stopping or spawning', async () => {
+    it('shared-in-place-run: fails sharedModeNoDaemon without stopping or spawning', async () => {
         await writeJsonFile({
             filePath: path.join(localConfigFolderPath, 'local.json'),
             data: { mode: 'shared', primaryBranch: 'main' },

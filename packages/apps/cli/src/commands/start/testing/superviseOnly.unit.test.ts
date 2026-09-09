@@ -185,7 +185,7 @@ describe('start --superviseOnly', () => {
         await stopDaemon(deps(), { daemonId });
     });
 
-    it.skip('shared-in-place-run: fails sharedModeNoDaemon and does not start supervise', async () => {
+    it('shared-in-place-run: fails sharedModeNoDaemon and does not start supervise', async () => {
         await writeJsonFile({
             filePath: path.join(projectRoot, '.lumpcode', 'local.json'),
             data: { mode: 'shared', primaryBranch: 'main' },

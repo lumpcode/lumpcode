@@ -179,20 +179,20 @@ describe('openPrPostTeardown', () => {
         });
     });
 
-    it.skip('shared-in-place-run: skips when branchName does not start with lump/', async () => {
+    it('shared-in-place-run: skips when branchName does not start with lump/', async () => {
         const hook = openPrPostTeardown({ provider: 'github' });
         await hook(hookInput({ branchName: 'make-my-new-lump', baseBranch: 'dev' }));
         expect(execBinaryMock).not.toHaveBeenCalled();
     });
 
-    it.skip('shared-in-place-run: skips a non-lump feature branch even when it is on origin', async () => {
+    it('shared-in-place-run: skips a non-lump feature branch even when it is on origin', async () => {
         execBinaryMock.mockResolvedValue(execOk('abc123\trefs/heads/make-my-new-lump\n'));
         const hook = openPrPostTeardown({ provider: 'github' });
         await hook(hookInput({ branchName: 'make-my-new-lump', baseBranch: 'main' }));
         expect(execBinaryMock).not.toHaveBeenCalled();
     });
 
-    it.skip('shared-in-place-run: dedicated lump/ branch still opens a PR', async () => {
+    it('shared-in-place-run: dedicated lump/ branch still opens a PR', async () => {
         execBinaryMock
             .mockResolvedValueOnce(execOk('abc123\trefs/heads/lump/backlog/foo\n'))
             .mockResolvedValueOnce(execOk('[]'))

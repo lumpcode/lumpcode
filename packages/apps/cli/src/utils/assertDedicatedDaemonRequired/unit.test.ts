@@ -5,7 +5,7 @@ import { assertDedicatedDaemonRequired } from './main';
 const SHARED_MODE_NO_DAEMON_MESSAGE =
     'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.';
 
-describe.skip('assertDedicatedDaemonRequired (shared-in-place-run)', () => {
+describe('assertDedicatedDaemonRequired (shared-in-place-run)', () => {
     it('succeeds in dedicated mode', () => {
         const result = assertDedicatedDaemonRequired({ mode: 'dedicated' });
         expect(result.success).toBe(true);

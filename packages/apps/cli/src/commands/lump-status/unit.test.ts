@@ -331,7 +331,7 @@ describe('lump-status command — dynamic-discovery-branch (F*)', () => {
     });
 });
 
-describe.skip('lump-status command — shared-in-place-run', () => {
+describe('lump-status command — shared-in-place-run', () => {
     let projectRoot: string;
     let bareDir: string;
     let localConfigFolderPath: string;
