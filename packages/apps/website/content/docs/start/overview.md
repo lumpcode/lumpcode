@@ -3,7 +3,7 @@ title: Overview
 description: Lumpcode runs your coding agent through a campaign too big for one chat, one reviewable branch at a time. These pages are the operator manual.
 ---
 
-A **lump** is that campaign: a folder in your repo that names the work, the prompt, and the agent. Lumpcode walks the unfinished items, runs the agent, and pushes a `lump/…` branch. You open the pull request, adjust it if needed, and merge. The next run skips what already landed.
+A **lump** is that campaign: a folder in your repo that names the work, the prompt, and the agent. On the laptop, `run` rehearses on this branch; you push yourself. A worker still pushes a `lump/…` branch. You open that pull request, adjust it if needed, and merge. The next run skips what already landed.
 
 You just need git and a CLI agent. There is no account and no database. Finished work is a commit on your git remote.
 
@@ -24,7 +24,7 @@ The tutorials at [Get started](/docs/start/first-pr) are the shortest path to a 
 
 - It does not merge. You do that.
 - It does not open pull requests by itself. A run stops at `git push`. Opening the PR is opt-in via [`@lumpcode/recipes`](/docs/author/recipes).
-- It does not edit your day-to-day checkout when the machine is in `shared` mode. That is the default after `project-setup`.
+- A laptop `run` writes on this branch and does not push. A worker still pushes `lump/…`.
 
 ## Packages
 

@@ -53,12 +53,10 @@ Merge and lump-default overlay are described in [project-config.md](project-conf
 
 ### `shared` (default)
 
-You use this clone for your **day-to-day work**. Lumpcode never touches it; every run happens in a **separate copy** at `~/.lumpcode/project-copies/<projectName>/`. The copy is created once and kept up to date by pre-flight on subsequent runs.
+This clone is the execution workspace. `lumpcode run` writes on the current named branch. A dirty tree is allowed. The walk does not commit or push unless you type `c` after a successful run (commit only). `lumpcode start` / `restart` / `start --superviseOnly` fail (`sharedModeNoDaemon`).
 
 ```text
-~/your-repo/             ← your editor / git client; untouched by Lumpcode
-~/.lumpcode/
-└── project-copies/<projectName>/   ← Lumpcode runs here
+~/your-repo/             ← editor and lumpcode run (same checkout)
 ```
 
 Pick `shared` on **workstations**.
@@ -77,7 +75,7 @@ Each lump run switches the main worktree to a fresh `lump/<lumpName>/…` branch
 
 ### `worktree`
 
-Each lump run uses a **linked git worktree** under `.lumpcode/worktrees/<branch>/` inside the execution workspace (the project copy in `shared` mode, the checkout in `dedicated`). The main worktree stays on the lump's resolved `baseBranch` while the agent runs inside the worktree (the **branch workspace**). Worktree paths mirror branch segments (e.g. branch `lump/migrate-vue/Button.tsx` → `.lumpcode/worktrees/lump/migrate-vue/Button.tsx`). `project-setup` gitignores `.lumpcode/worktrees/`. `lumpcode clean` removes worktrees when it deletes lump branches.
+Each dedicated lump run uses a **linked git worktree** under `.lumpcode/worktrees/<branch>/` inside the execution workspace (this checkout). The main worktree stays on the lump's resolved `baseBranch` while the agent runs inside the worktree (the **branch workspace**). Worktree paths mirror branch segments (e.g. branch `lump/migrate-vue/Button.tsx` → `.lumpcode/worktrees/lump/migrate-vue/Button.tsx`). `project-setup` gitignores `.lumpcode/worktrees/`. `lumpcode clean` removes worktrees when it deletes lump branches. Shared `run` ignores `workspaceStrategy` (stays on `HEAD`).
 
 Pick `worktree` when you want the base branch checked out in the main tree during runs, or when using `maxParallelRun` so a global daemon can run multiple lumps concurrently in one tick.
 

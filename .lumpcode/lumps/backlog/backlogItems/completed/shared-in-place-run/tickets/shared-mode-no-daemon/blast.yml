@@ -1,0 +1,52 @@
+packages/apps/cli/src/utils/assertDedicatedDaemonRequired/main.ts:
+  change: >-
+    shared → Failure sharedModeNoDaemon with the exact start-dedicated-only
+    message. dedicated → Success.
+  "-": 0
+  "+": 25
+packages/apps/cli/src/utils/assertDedicatedDaemonRequired/index.ts:
+  change: Barrel export.
+  "-": 0
+  "+": 3
+packages/apps/cli/src/utils/assertDedicatedDaemonRequired/unit.test.ts:
+  change: Shared fails; dedicated succeeds.
+  "-": 0
+  "+": 30
+packages/apps/cli/src/utils/index.ts:
+  change: Barrel-export assertDedicatedDaemonRequired.
+  "-": 0
+  "+": 1
+packages/apps/cli/src/commands/start/main.ts:
+  change: >-
+    After merged local config on every path including --superviseOnly, call
+    the owner before discover/refresh/spawn.
+  "-": 0
+  "+": 15
+packages/apps/cli/src/commands/start/testing/general.unit.test.ts:
+  change: Invert shared start success (T7 / S1 / G7). Discover not called.
+  "-": 40
+  "+": 25
+packages/apps/cli/src/commands/start/testing/superviseOnly.unit.test.ts:
+  change: Shared --superviseOnly fails sharedModeNoDaemon.
+  "-": 15
+  "+": 20
+packages/apps/cli/src/commands/start/testing/multiDiscoveryBranches.unit.test.ts:
+  change: Shared start cases become refuse; dedicated unchanged.
+  "-": 30
+  "+": 20
+packages/apps/cli/src/commands/start/testing/parallelGlobalDaemon.unit.test.ts:
+  change: Shared start success inverted if present.
+  "-": 15
+  "+": 10
+packages/apps/cli/src/utils/launchStartDaemon/main.ts:
+  change: Gate from frozen/merged mode before spawn (covers restart).
+  "-": 0
+  "+": 12
+packages/apps/cli/src/commands/restart/main.ts:
+  change: Fail shared via the same owner (or launchStartDaemon if that is the only caller).
+  "-": 0
+  "+": 8
+packages/apps/cli/src/commands/restart/unit.test.ts:
+  change: Shared restart fails sharedModeNoDaemon.
+  "-": 5
+  "+": 25

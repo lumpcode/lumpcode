@@ -194,4 +194,50 @@ describe('openPrPostTeardown', () => {
 
         errorSpy.mockRestore();
     });
+
+    it('does not open a PR for shared in-place branch make-my-new-lump', async () => {
+        const hook = openPrPostTeardown({ provider: 'github' });
+        await expect(
+            hook(hookInput({ branchName: 'make-my-new-lump' })),
+        ).resolves.toBeUndefined();
+        expect(execBinaryMock).not.toHaveBeenCalled();
+    });
+
+    it('does not open a PR for shared in-place branch dev', async () => {
+        const hook = openPrPostTeardown({ provider: 'github' });
+        await expect(
+            hook(hookInput({ branchName: 'dev', baseBranch: 'main' })),
+        ).resolves.toBeUndefined();
+        expect(execBinaryMock).not.toHaveBeenCalled();
+    });
+
+    it('opens a PR for a dedicated lump/myLump/button branch', async () => {
+        execBinaryMock
+            .mockResolvedValueOnce(execOk('abc123\trefs/heads/lump/myLump/button\n'))
+            .mockResolvedValueOnce(execOk('[]'))
+            .mockResolvedValueOnce(execOk('https://github.com/org/repo/pull/1\n'));
+
+        const hook = openPrPostTeardown({ provider: 'github' });
+        await hook(hookInput({
+            branchName: 'lump/myLump/button',
+            contextList: [{ name: 'button', variables: {} }],
+        }));
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: [
+                'pr',
+                'create',
+                '--base',
+                'dev',
+                '--head',
+                'lump/myLump/button',
+                '--title',
+                'LUMP: myLump - button',
+                '--body',
+                'LUMP contexts: button',
+            ],
+            cwd: '/tmp/ws',
+        });
+    });
 });

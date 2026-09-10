@@ -104,6 +104,21 @@ describe('withWorkspaceLockHooks', () => {
         expect((await fs.readdir(locksDir)).filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
     });
 
+    it('does not call preflight in shared mode (in-place-workspace)', async () => {
+        const preflightSpy = vi.fn(async () => success(undefined));
+        const session = createWorkspaceLockSession();
+        const wrapped = withWorkspaceLockHooks({
+            setupWorkspaceFn: makeInnerSetup(),
+            session,
+            ctx: makeCtx({ mode: 'shared', preflight: preflightSpy }),
+        });
+
+        await wrapped(setupInput);
+
+        expect(preflightSpy).not.toHaveBeenCalled();
+        await releaseWorkspaceLockSession(session);
+    });
+
     it('acquires path lock for shared mode', async () => {
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({

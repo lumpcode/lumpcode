@@ -5,17 +5,14 @@ description: Lumpcode takes the next unfinished context, runs your agent, commit
 
 ## One context, end to end
 
-`lumpcode run myLump` (and each worker pass for that lump) does this:
+`lumpcode run myLump` on a laptop (`mode: "shared"` in `local.json`) rehearses on this branch:
 
 1. Load the lump config. Soft-skip if the lump is `disabled`.
 2. Resolve the context list, then ask git which of those names are still `toDo`.
-3. Cap in-flight work if `maximumNumberOfConcurrentBranches` is set.
-4. Create or check out the work branch (`lump/myLump/…` by default).
-5. For each context in the batch: optional setup, walk `prompt` / `steps`, optional teardown, `git add` + commit with `LUMP: myLump - <contextName>`.
-6. `git push` that branch to your git remote.
-7. Tear the branch workspace down. Refresh the on-disk status cache.
+3. Run the agent on this checkout. A dirty tree is allowed. No `lump/…` branch. The walk does not commit or push.
+4. After a successful walk with contexts, a TTY (not `--json`) shows porcelain and `[c]` / `[e]`. `c` stamps LUMP markers (no push). `e` leaves the tree dirty.
 
-Lumpcode never merges. You open the pushed branch as a pull request, change it if the agent missed, and merge when it looks right.
+Each worker pass (`mode: "dedicated"`) still cuts `lump/myLump/…`, commits markers, and pushes. Lumpcode never merges. You open that pushed branch as a pull request, change it if the agent missed, and merge when it looks right.
 
 > [!NOTE]
 > Preview without calling the agent: `lumpcode lump-plan myLump`. That validates config and can print contexts and prompts. It does not reset git, commit, or push.
@@ -35,9 +32,9 @@ toDo ──run + push──► branchPushed ──you merge──► finished
 | You want | Command |
 | --- | --- |
 | One lump, one batch, then your shell back | `lumpcode run <lumpName>` |
-| A machine that keeps going | `lumpcode start` on a [worker clone](/docs/start/worker) |
+| A machine that keeps going | `lumpcode start` on a [worker clone](/docs/start/worker) (`mode: "dedicated"`) |
 
-`start` discovers every loadable lump (unless you pass `--include` / `--exclude`) on a cron, default every five minutes. New lumps appear on the next pass after you merge them to the branch the worker tracks. Nothing to deploy or register.
+`start` is dedicated-only. It discovers every loadable lump (unless you pass `--include` / `--exclude`) on a cron, default every five minutes. New lumps appear on the next pass after you merge them to the branch the worker tracks. Nothing to deploy or register.
 
 Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up; you do not run that yourself.
 
@@ -49,16 +46,14 @@ On a dedicated **worker**, commit `.lumpcode/daemons/<id>.json` so that **daemon
 
 ## Shared laptop versus dedicated worker
 
-Before the agent runs, Lumpcode **pre-flights** the execution workspace: fetch the target branch, switch to it, `git reset --hard` to the remote (not `git pull`).
-
 | `local.json` `mode` | Execution workspace | Use when |
 | --- | --- | --- |
-| `shared` (default) | `~/.lumpcode/project-copies/<projectName>/` | This clone is your editor. Lumpcode never touches it. |
-| `dedicated` | This clone | A worker you do not develop in. Pre-flight **wipes uncommitted work**. |
+| `shared` (default) | This clone (`HEAD`) | Laptop rehearsal. Dirty allowed. No auto commit or push. `start` fails. |
+| `dedicated` | This clone | A worker you do not develop in. Pre-flight **wipes uncommitted work**. Cuts `lump/…`. |
 
-[Get started](/docs/start/first-pr) is shared. [The worker](/docs/start/worker) is dedicated.
+[Get started](/docs/start/first-pr) is the laptop rehearsal. [The worker](/docs/start/worker) is dedicated.
 
-**Shared** loads config from your editor clone and pre-flights only the copy. **Dedicated** pre-flights this clone to a concrete discovery branch **before** config load, then pre-flights again at `baseBranch` for the run.
+**Shared** loads config and runs the agent on this checkout. No pre-flight. **Dedicated** pre-flights this clone to a concrete discovery branch **before** config load (fetch / switch / hard-reset, not `git pull`), then pre-flights again at `baseBranch` for the run.
 
 ## Branch resolution
 
@@ -83,7 +78,7 @@ The open-branch cap is **per lump name**, across every scan line. On a dedicated
 
 `workspaceStrategy` in `local.json`:
 
-- **`checkout`** (default) — the execution workspace switches onto the lump branch for the run, then back. One lump at a time in that folder.
+- **`checkout`** (default) — on a dedicated worker, the execution workspace switches onto the lump branch for the run, then back. One lump at a time in that folder. Shared `run` ignores this (stays on `HEAD`).
 - **`worktree`** — the agent runs in `.lumpcode/worktrees/<branch>/` (branch segments become folders: `lump/a/b` → `…/worktrees/lump/a/b`). The main tree can stay on the base branch. Needed if you want `maxParallelRun` > 1 on a worker. Execution-path lock is released after workspace setup; the git-object-db lock still serializes git.
 
 ## If two things try to run at once
