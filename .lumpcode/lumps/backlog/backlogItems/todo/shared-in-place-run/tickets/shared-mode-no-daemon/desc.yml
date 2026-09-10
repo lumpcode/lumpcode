@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: shared-mode-no-daemon
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Refuse lumpcode start, start --superviseOnly, and restart when
+  local.json mode is shared (sharedModeNoDaemon). stop and daemon-status
+  still work. Do not put the check inside assertDaemonStartAllowed.
+priority: 1

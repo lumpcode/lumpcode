@@ -1,0 +1,84 @@
+packages/apps/website/app/pages/docs/start/first-pr.vue:
+  change: >-
+    Rehearse on this branch; dirty ok; run; verify; c stamps LUMP markers;
+    you push. Drop never-touches-this-checkout and lump/… as the first PR.
+  "-": 20
+  "+": 25
+packages/apps/website/app/pages/docs/start/worker.vue:
+  change: Laptop run was rehearsal. Dedicated campaign unchanged.
+  "-": 8
+  "+": 10
+packages/apps/website/content/docs/config/local.md:
+  change: Shared is this checkout. Drop project-copies / never-touches.
+  "-": 12
+  "+": 14
+packages/apps/website/content/docs/config/project.md:
+  change: projectName is not a project-copies key for shared run.
+  "-": 2
+  "+": 2
+packages/apps/website/content/docs/start/terms.md:
+  change: Execution workspace is this clone in shared. Work branch is HEAD.
+  "-": 8
+  "+": 10
+packages/apps/website/content/docs/start/run.md:
+  change: In-place shared; review c/e; start dedicated-only; dirty allowed.
+  "-": 20
+  "+": 22
+packages/apps/website/content/docs/start/overview.md:
+  change: Do not say every run pushes lump/…. Worker still does.
+  "-": 4
+  "+": 6
+packages/apps/website/content/docs/author/write-a-lump.md:
+  change: Laptop run is in-place, not a copy / lump/… first PR.
+  "-": 8
+  "+": 10
+packages/apps/website/content/docs/author/agents.md:
+  change: Align shared rehearsal with in-place run if it still says copy.
+  "-": 4
+  "+": 4
+packages/apps/cli/DOCS/concepts.md:
+  change: Shared project = execution. Drop copy diagram and never-touches.
+  "-": 25
+  "+": 20
+packages/apps/cli/DOCS/local-config.md:
+  change: Shared is this clone. start dedicated-only.
+  "-": 18
+  "+": 16
+packages/apps/cli/DOCS/commands.md:
+  change: run review c/e; drop workspace-copy invoke note.
+  "-": 10
+  "+": 14
+packages/apps/cli/DOCS/project-config.md:
+  change: Drop project-copies as the shared projectName use.
+  "-": 4
+  "+": 3
+packages/apps/cli/DOCS/get-started.md:
+  change: In-place shared; dirty ok; c/e; then worker.
+  "-": 15
+  "+": 16
+packages/apps/cli/DOCS/advanced-config.md:
+  change: Shared execution workspace is projectRoot.
+  "-": 8
+  "+": 8
+packages/apps/website/content/docs/reference/commands.md:
+  change: Shared run does not restore a copy or auto-push lump/….
+  "-": 6
+  "+": 8
+articles/05-hands-on-dedicated-daemon/article.md:
+  change: Kill checkout-untouched and review-lump/…-before-daemon.
+  "-": 12
+  "+": 10
+articles/07-setup-abstraction-campaign/article.md:
+  change: Same laptop rehearsal line.
+  "-": 6
+  "+": 6
+articles/01-dedicated-lumpcode-worker/article.md:
+  change: Worker-only. No laptop copy.
+  "-": 6
+  "+": 4
+AGENTS.md:
+  change: >-
+    Shared in-place; no auto commit/push; review only in commands/run;
+    getExecutionWorkspacePath both modes = source; no shared start; no copy.
+  "-": 8
+  "+": 10
