@@ -428,7 +428,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
-    it.skip('G7: shared mode + worktree + maxParallelRun 2 fails sharedModeNoDaemon (shared-mode-no-daemon)', async () => {
+    it('G7: shared mode + worktree + maxParallelRun 2 fails sharedModeNoDaemon (shared-mode-no-daemon)', async () => {
         await writeLocal({
             mode: 'shared',
             maxParallelRun: 2,

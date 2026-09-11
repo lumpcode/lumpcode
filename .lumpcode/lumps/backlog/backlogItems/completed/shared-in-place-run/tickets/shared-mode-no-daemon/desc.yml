@@ -1,0 +1,11 @@
+name: shared-mode-no-daemon
+workflow:
+  - manualReq
+  - testImpl
+  - impl
+task: >-
+  Refuse lumpcode start, start --superviseOnly, and restart when local.json mode
+  is shared (sharedModeNoDaemon). stop and daemon-status still work. Do not put
+  the check inside assertDaemonStartAllowed.
+priority: 1
+completedAt: '2026-09-11T16:14:01.474Z'

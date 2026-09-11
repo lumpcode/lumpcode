@@ -209,7 +209,7 @@ describe('start command — multi discovery branches', () => {
         expect(result.success).toBe(true);
     });
 
-    it.skip('shared mode launch fails sharedModeNoDaemon (shared-mode-no-daemon)', async () => {
+    it('shared mode launch fails sharedModeNoDaemon (shared-mode-no-daemon)', async () => {
         await writeLocalJson(localConfigFolderPath(projectRoot), {
             mode: 'shared',
             primaryBranch: 'main',
@@ -652,7 +652,7 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         }
     });
 
-    it.skip('S1: shared mode fails sharedModeNoDaemon without scan fan-out (shared-mode-no-daemon)', async () => {
+    it('S1: shared mode fails sharedModeNoDaemon without scan fan-out (shared-mode-no-daemon)', async () => {
         await writeLocalJson(localConfigFolderPath(projectRoot), {
             mode: 'shared',
             primaryBranch: 'main',
@@ -860,7 +860,7 @@ describe('start command — daemon-primary-branch-refresh-command (T5–T7)', ()
         }
     });
 
-    it.skip('T7: shared mode fails sharedModeNoDaemon and does not run refreshCommand (shared-mode-no-daemon)', async () => {
+    it('T7: shared mode fails sharedModeNoDaemon and does not run refreshCommand (shared-mode-no-daemon)', async () => {
         const markerName = 'shared-refresh.marker';
         const script = `require('fs').writeFileSync(${JSON.stringify(markerName)}, 'ran')`;
         const refreshCommand = `node -e ${JSON.stringify(script)}`;

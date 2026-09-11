@@ -83,7 +83,7 @@ describe('restart command', () => {
         expect(spawnFn).not.toHaveBeenCalled();
     });
 
-    it.skip('fails sharedModeNoDaemon when local.json mode is shared (shared-mode-no-daemon)', async () => {
+    it('fails sharedModeNoDaemon when local.json mode is shared (shared-mode-no-daemon)', async () => {
         await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
         const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
         const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });

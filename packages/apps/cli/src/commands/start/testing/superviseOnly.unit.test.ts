@@ -111,7 +111,7 @@ describe('start --superviseOnly', () => {
         expect(result.data.messages[0]).toContain(label);
     });
 
-    it.skip('fails sharedModeNoDaemon in shared mode (shared-mode-no-daemon)', async () => {
+    it('fails sharedModeNoDaemon in shared mode (shared-mode-no-daemon)', async () => {
         await writeLocalJson(localConfigFolderPath(projectRoot), {
             mode: 'shared',
             primaryBranch: 'main',
