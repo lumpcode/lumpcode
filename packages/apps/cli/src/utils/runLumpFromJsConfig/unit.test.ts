@@ -371,7 +371,7 @@ describe('runLumpFromJsConfig', () => {
      * in-place-workspace — shared walk is this checkout / this branch.
      * Unskip when assertSharedRunHead, no-copy workspace, and git no-ops land.
      */
-    describe.skip('shared in-place walk (in-place-workspace)', () => {
+    describe('shared in-place walk (in-place-workspace)', () => {
         const onBaseWarning = (resolvedBaseBranch: string) =>
             `You are on the execution base (${resolvedBaseBranch}). A LUMP commit you accept, then push, will mark contexts finished on origin/${resolvedBaseBranch}.`;
 

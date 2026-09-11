@@ -104,7 +104,7 @@ describe('withWorkspaceLockHooks', () => {
         expect((await fs.readdir(locksDir)).filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
     });
 
-    it.skip('does not call preflight in shared mode (in-place-workspace)', async () => {
+    it('does not call preflight in shared mode (in-place-workspace)', async () => {
         const preflightSpy = vi.fn(async () => success(undefined));
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({

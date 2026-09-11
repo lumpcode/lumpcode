@@ -5,6 +5,7 @@ import { failure, Failure, runLump, RunLumpOutput, success, Success, type Logger
 import { LumpJsConfig } from '../../types';
 import type { LocalConfig } from '../../types/LocalConfig';
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
+import { assertSharedRunHead } from '../assertSharedRunHead';
 import { coerceResolvedProjectLocalConfig } from '../coerceResolvedProjectLocalConfig';
 import type { GitCommonDirLockContext } from '../gitCommonDirLock';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
@@ -148,13 +149,29 @@ export async function runLumpFromJsConfig(input: {
 
         const resolvedBaseBranch = runLumpInputResult.data.baseBranch;
 
-        const tooManySkip = await evaluateTooManyOpenBranchesSkip({
-            jsConfig,
-            lumpName,
-            executionWorkspacePath: tentativeExecutionWorkspacePath,
-        });
-        if (tooManySkip) {
-            return success(tooManySkip);
+        if (localConfig.mode === 'shared') {
+            const headResult = await assertSharedRunHead({ cwd: sourceProjectRoot });
+            if (!headResult.success) {
+                return failure(toRunLumpMessageFailure(headResult.data.message, {
+                    code: headResult.data.code,
+                }));
+            }
+            if (headResult.data.branchName === resolvedBaseBranch) {
+                logger.warn(
+                    `You are on the execution base (${resolvedBaseBranch}). A LUMP commit you accept, then push, will mark contexts finished on origin/${resolvedBaseBranch}.`,
+                );
+            }
+        }
+
+        if (localConfig.mode !== 'shared') {
+            const tooManySkip = await evaluateTooManyOpenBranchesSkip({
+                jsConfig,
+                lumpName,
+                executionWorkspacePath: tentativeExecutionWorkspacePath,
+            });
+            if (tooManySkip) {
+                return success(tooManySkip);
+            }
         }
 
         const runLumpInput = {

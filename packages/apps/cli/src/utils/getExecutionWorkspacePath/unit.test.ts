@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import { getExecutionWorkspacePath } from './main';
 
-describe.skip('getExecutionWorkspacePath (in-place-workspace)', () => {
+describe('getExecutionWorkspacePath (in-place-workspace)', () => {
     const sourceProjectRoot = '/tmp/source-project';
     const globalConfigFolderPath = '/home/.lumpcode';
     const projectName = 'demo';

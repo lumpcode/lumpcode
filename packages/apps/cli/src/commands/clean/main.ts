@@ -14,12 +14,10 @@ import {
 
 import { shellBestEffort } from '../../utils/shellBestEffort';
 
-import { globalConfigFolderPath as defaultGlobalConfigFolderPath } from '../../constants';
 import { REFS_HEADS_PREFIX, LUMP_BRANCH_PREFIX } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { commandFailure } from '../../utils/commandFailure';
-import { getExecutionWorkspacePath } from '../../utils/getExecutionWorkspacePath';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import { lumpWorktreePath } from '../../utils/getLumpWorktreePath';
 import { listRemoteHeadBranches } from '../../utils/listRemoteHeadBranches';
@@ -166,7 +164,6 @@ async function deleteRefs(executionWorkspacePath: string, refs: DiscoveredRefs):
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot } = injections;
-    const globalConfigFolderPath = injections.globalConfigFolderPath ?? defaultGlobalConfigFolderPath;
     const { lumpName, contextName } = input.options;
 
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
@@ -181,44 +178,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath: localConfigDir });
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
 
-    const executionWorkspaces: string[] = [path.resolve(projectRoot)];
-    if (localConfigResult.data.mode === 'shared') {
-        const copyPath = getExecutionWorkspacePath({
-            mode: 'shared',
-            sourceProjectRoot: projectRoot,
-            globalConfigFolderPath,
-            projectName: localConfigResult.data.projectName,
-        });
-        try {
-            const stat = await fs.stat(copyPath);
-            if (stat.isDirectory()) {
-                executionWorkspaces.push(path.resolve(copyPath));
-            }
-        } catch {
-            // no shared copy at this path
-        }
-    }
+    const executionWorkspacePath = path.resolve(projectRoot);
+    await execAsync('git fetch --all', { cwd: executionWorkspacePath });
 
-    const uniqueExecutionWorkspaces = [...new Set(executionWorkspaces)];
-    const allBranches = new Set<string>();
+    const refs = contextName && lumpName
+        ? await discoverByContext(executionWorkspacePath, lumpName, contextName)
+        : await discoverByGlob(
+            executionWorkspacePath,
+            lumpBranchGlob({ lumpName }),
+        );
 
-    for (const executionWorkspacePath of uniqueExecutionWorkspaces) {
-        await execAsync('git fetch --all', { cwd: executionWorkspacePath });
-
-        const refs = contextName && lumpName
-            ? await discoverByContext(executionWorkspacePath, lumpName, contextName)
-            : await discoverByGlob(
-                executionWorkspacePath,
-                lumpBranchGlob({ lumpName }),
-            );
-
-        await deleteRefs(executionWorkspacePath, refs);
-        for (const branch of [...refs.remoteBranches, ...refs.localBranches]) {
-            allBranches.add(branch);
-        }
-    }
-
-    const deletedBranches = [...allBranches];
+    await deleteRefs(executionWorkspacePath, refs);
+    const deletedBranches = [...new Set([...refs.remoteBranches, ...refs.localBranches])];
 
     return success({
         messages: [`Cleaned ${deletedBranches.length} branch(es)`],

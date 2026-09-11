@@ -10,7 +10,7 @@ import {
     assertSharedRunHead,
 } from './main';
 
-describe.skip('assertSharedRunHead (in-place-workspace)', () => {
+describe('assertSharedRunHead (in-place-workspace)', () => {
     let cwd: string;
 
     beforeEach(async () => {

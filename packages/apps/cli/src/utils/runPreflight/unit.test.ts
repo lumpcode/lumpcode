@@ -72,7 +72,7 @@ describe('runPreflight', () => {
         });
     });
 
-    describe.skip('shared mode (in-place-workspace)', () => {
+    describe('shared mode (in-place-workspace)', () => {
         it('does not create a project-copies directory', async () => {
             const projectName = 'preflight-shared';
             const expectedCopy = path.join(globalConfigFolderPath, 'project-copies', projectName);
