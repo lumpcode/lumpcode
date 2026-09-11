@@ -422,6 +422,40 @@
     (`scoreDedicatedLumpLine` + `reorderDedicatedLumpLines` only); this is a
     later decoupling of slot count from discovery-line cardinality
   tags: [daemon, config, cli]
+- name: daemon-file-lump-priority
+  task: >-
+    Add an optional per-lump priority on committed file-daemon recipes
+    (`.lumpcode/daemons/<daemonId>.{json,yml,yaml}`) so a file-launched
+    daemon can orchestrate which included lumps it prefers when a tick
+    scores, reorders, and spends `maxParallelRun` slots. Today those
+    files only declare membership and cadence (`discoveryBranch`,
+    `cronSetup`, `include` / `exclude` string globs, `disabled`,
+    `maxParallelRun` — `daemonConfig.schema.json` /
+    `daemonConfigFileSchema`). `include` is a flat string list;
+    `normalizeDaemonConfigFile` sorts include/exclude for hashing, so
+    list order is not a priority signal. Context `priority` (lower =
+    sooner) already ranks work *inside* one `runLump`, and dedicated
+    `scoreDedicatedLumpLine` / `reorderDedicatedLumpLines` fill collect
+    slots from remaining-todo context priorities — that is not an
+    operator-declared lump-vs-lump rank on the recipe. Operators need
+    a git-reviewed way to say e.g. run `ideasToBacklog` ahead of `qol`
+    on a given daemon / discovery line. YAML/JSON shape is exploratory:
+    sibling map (`priority: { lumpName: n }`), include entries as
+    objects (`{ name, priority }`), or a richer lumps table; lower
+    number = sooner, matching context / backlog `priority`. Unspecified
+    lumps stay unordered / after explicit ranks (suggestion, not
+    decided). Shared-mode collect has no score/reorder today — dedicated
+    tick is the first consumer. Not daemon-vs-daemon priority across
+    multiple file daemons. Not a replacement for context `priority`.
+    Not `tick-line-slot-count` (invoke count vs discovery-line
+    cardinality). Not overlapping ticks and not
+    `memory-pressure-run-gate`. Complementary to parked
+    `worker-orchestration` (this is one concrete file-config knob that
+    orchestration would use; git-driven daemon files have already
+    shipped). Touch: schema + `daemonConfigFile` normalize/hash,
+    dedicated collect/score/reorder, `/docs/config/daemons` and CLI
+    DOCS concepts.
+  tags: [daemon, config, cli]
 - name: sparse-cron-tick-catch-up
   task: >-
     Sparse-cron daemons lose a due run when the worker is busy at the scheduled
