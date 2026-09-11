@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: accept-json-schema-key
+workflow: [directImpl]
+task: >-
+  Operator JSON configs that docs/website show with a $schema key are rejected
+  at runtime (Zod .strict) and by published JSON Schemas (additionalProperties:
+  false). Accept optional $schema on daemon, project, and local JSON, strip it
+  from parsed output, keep rejecting other unknown keys, and declare $schema on
+  the published schemas including lumpConfig.
+priority: 2

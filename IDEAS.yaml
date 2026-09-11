@@ -456,3 +456,39 @@
     dedicated collect/score/reorder, `/docs/config/daemons` and CLI
     DOCS concepts.
   tags: [daemon, config, cli]
+- name: sparse-cron-tick-catch-up
+  task: >-
+    Sparse-cron daemons lose a due run when the worker is busy at the scheduled
+    instant, with no catch-up until the next cron match (tomorrow for daily).
+    Documented pattern: `--include=<lump> --cronSetup '<daily>'` plus a frequent
+    global daemon that `--exclude`s that lump (`ideasToBacklog`). Motivating
+    case: `local.json.maxParallelRun: 2` (worktree) and two lumps already
+    running when the daily fire hits. `maxParallelRun` is not a machine-wide
+    slot gate — it is per-daemon in-tick pool concurrency via
+    `runLumpLinesWithConcurrency` (`local.json` default 1, recipe/CLI override;
+    checkout forces 1). Overflow lines inside one tick queue and still run; two
+    daemons can oversubscribe past 2. The miss is the one-shot sparse tick:
+    `runForegroundStartDaemon` runs immediately then Croner `{ protect: true }`
+    (`packages/apps/cli/src/utils/launchStartDaemon/runForeground.ts`); a fire
+    while a tick is already running is skipped, and Croner does not replay
+    missed fires. Default `*/5 * * * *` (`DEFAULT_DAEMON_CRON_SETUP`) self-heals
+    in minutes; daily does not. Busy-worker path is real on checkout (default
+    `workspaceStrategy`): daemon runs use `lockMode: 'wait'`
+    (`WORKSPACE_LOCK_WAIT_TIMEOUT_MS` 15 min in `workspaceFileLock`); checkout
+    holds the execution-workspace lock for the whole other lump run; agent runs
+    routinely exceed 15 min → `waitTimedOut` / `workspacePathBusy` → that day's
+    attempt dies. Worktree usually releases the execution-path lock after setup,
+    so two mid-agent lumps typically do not block a third daily daemon (they
+    oversubscribe); timeout there only if discovery/setup/git-common-dir stays
+    held 15+ min. Second miss: the sparse daemon's own immediate first tick, or
+    a previous daily run still in flight, overlapping the scheduled minute.
+    Wanted: due-work catch-up so a sparse lump does not lose a day because the
+    worker was busy or the instant was skipped (retry after lock timeout inside
+    the due window, or treat "cron due and not yet succeeded" as work that
+    survives a missed fire). Do not wait forever on locks (Croner `protect`
+    convoy; same warning as parked `memory-pressure-run-gate`). Do not turn
+    `maxParallelRun` into a machine-wide cap (`worker-orchestration`, parked).
+    Distinct from `tick-line-slot-count` (collect slot cardinality). Touch:
+    primarily `packages/apps/cli` (`runForeground.ts`, workspace/git lock wait,
+    cron scheduling).
+  tags: [daemon, config, workspace]

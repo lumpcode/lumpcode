@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: truncate-log-files
+workflow: [directImpl]
+task: >-
+  Truncate daemon and supervisor log files so they stay under ~1 MiB. Today
+  they are append-only with no rotation
+  (~/.lumpcode/daemons/<project>.<id>.daemon.log and
+  ~/.lumpcode/supervisor/<project>.log); lump verbose dumps full agent stdout
+  and can grow unbounded.
+priority: 0
