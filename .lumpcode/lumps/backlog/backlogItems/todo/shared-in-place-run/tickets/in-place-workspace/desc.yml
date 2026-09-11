@@ -1,9 +1,0 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
-name: in-place-workspace
-workflow: [manualReq, testImpl, impl]
-task: >-
-  Shared lumpcode run executes on this checkout and this branch: no
-  project-copies, no preflight, no lump/…, git add/commit/push no-ops,
-  detached HEAD fails, on-base warn, skip open-branch cap. Dirty trees
-  allowed. Dedicated walk unchanged. No review prompt in this ticket.
-priority: 0

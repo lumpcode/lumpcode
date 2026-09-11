@@ -84,7 +84,7 @@ describe('E2E run scenarios', () => {
         expect(git('rev-parse --abbrev-ref HEAD', project.projectRoot)).toBe('main');
     });
 
-    it.skip('RUN-S4 shared-mode-run (in-place-workspace)', async () => {
+    it('RUN-S4 shared-mode-run (in-place-workspace)', async () => {
         const lumpName = 'myLump';
         const ctx = 'README';
         const project = await createProject({ localJson: { mode: 'shared' }, lumps: [{ name: lumpName }] });

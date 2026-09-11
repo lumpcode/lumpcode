@@ -204,7 +204,7 @@ describe('clean command', () => {
         expect(gitCurrentBranch(projectRoot)).toBe(branchBefore);
     });
 
-    it.skip('does not create or require project-copies in shared mode (in-place-workspace)', async () => {
+    it('does not create or require project-copies in shared mode (in-place-workspace)', async () => {
         const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',

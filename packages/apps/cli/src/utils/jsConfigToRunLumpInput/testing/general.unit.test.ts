@@ -245,7 +245,7 @@ describe('jsConfigToRunLumpInput', () => {
         });
     });
 
-    describe.skip('shared in-place walk (in-place-workspace)', () => {
+    describe('shared in-place walk (in-place-workspace)', () => {
         let projectRoot: string;
         let localConfigFolderPath: string;
 
