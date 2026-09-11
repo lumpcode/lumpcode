@@ -5,7 +5,7 @@ import {
     assertDedicatedDaemonRequired,
 } from './main';
 
-describe.skip('assertDedicatedDaemonRequired (shared-mode-no-daemon)', () => {
+describe('assertDedicatedDaemonRequired (shared-mode-no-daemon)', () => {
     it('fails shared with code sharedModeNoDaemon and the exact message', () => {
         const result = assertDedicatedDaemonRequired({ mode: 'shared' });
 

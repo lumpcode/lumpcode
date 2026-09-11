@@ -7,6 +7,7 @@ import { DAEMON_FORCE_STOP_WAIT_MS, DAEMON_IDLE_STOP_WAIT_MS } from '../../const
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
+    assertDedicatedDaemonRequired,
     createCliLogger,
     fromMeta,
     launchStartDaemon,
@@ -85,6 +86,16 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath });
     if (!localConfigResult.success) {
         return failure({ messages: [localConfigResult.data] });
+    }
+
+    const dedicatedRequired = assertDedicatedDaemonRequired({
+        mode: localConfigResult.data.mode,
+    });
+    if (!dedicatedRequired.success) {
+        return failure({
+            messages: [dedicatedRequired.data.message],
+            data: { code: dedicatedRequired.data.code },
+        });
     }
 
     const daemonId = scopeResult.data.daemonId;

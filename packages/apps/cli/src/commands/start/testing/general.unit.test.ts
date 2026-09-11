@@ -505,7 +505,7 @@ describe('start command', () => {
         });
     });
 
-    describe.skip('shared mode refuse (shared-mode-no-daemon)', () => {
+    describe('shared mode refuse (shared-mode-no-daemon)', () => {
         it('fails start with sharedModeNoDaemon and does not discover', async () => {
             await writeLocalJson(localConfigFolderPath(projectRoot), {
                 mode: 'shared',
