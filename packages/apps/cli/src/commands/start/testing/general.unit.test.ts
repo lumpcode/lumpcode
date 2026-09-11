@@ -2,8 +2,8 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { withAliveDaemon, writeMinimalLump } from '../../../testing';
-import { createTempTestDirs, removeTempTestDirs } from '../../../utils';
+import { withAliveDaemon, writeLocalJson, writeMinimalLump } from '../../../testing';
+import { SHARED_MODE_NO_DAEMON_MESSAGE, createTempTestDirs, removeTempTestDirs } from '../../../utils';
 import { writeJsonFile } from '../../../utils/writeJsonFile';
 import { command } from '../main';
 import {
@@ -502,6 +502,52 @@ describe('start command', () => {
                 if (!result.success) throw new Error('unreachable');
                 expect(spawnFn).toHaveBeenCalledOnce();
             },
+        });
+    });
+
+    describe.skip('shared mode refuse (shared-mode-no-daemon)', () => {
+        it('fails start with sharedModeNoDaemon and does not discover', async () => {
+            await writeLocalJson(localConfigFolderPath(projectRoot), {
+                mode: 'shared',
+                primaryBranch: 'main',
+            });
+            await writeMinimalLump(projectRoot, 'alpha');
+            const discoverSpy = vi.spyOn(
+                await import('../../../utils/discoverLoadableLumpNames'),
+                'discoverLoadableLumps',
+            );
+
+            try {
+                const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
+                    options: { foreground: true, cronSetup: '*/5 * * * *' },
+                    arguments: {},
+                });
+                expect(result.success).toBe(false);
+                if (result.success) throw new Error('unreachable');
+                expect(result.data.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
+                expect(JSON.stringify(result.data)).toContain('sharedModeNoDaemon');
+                expect(discoverSpy).not.toHaveBeenCalled();
+            } finally {
+                discoverSpy.mockRestore();
+            }
+        });
+
+        it('fails sharedModeNoDaemon even with checkout and --maxParallelRun', async () => {
+            await writeLocalJson(localConfigFolderPath(projectRoot), {
+                mode: 'shared',
+                primaryBranch: 'main',
+                workspaceStrategy: 'checkout',
+            });
+            await writeMinimalLump(projectRoot, 'alpha');
+
+            const result = await makeStartHandler(deps())({
+                options: { maxParallelRun: 2, foreground: true },
+                arguments: {},
+            });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
+            expect(JSON.stringify(result.data)).toContain('sharedModeNoDaemon');
         });
     });
 
