@@ -1,7 +1,7 @@
 import type { Failure, Success } from '@lumpcode/core';
 
 export const SHARED_MODE_NO_DAEMON_MESSAGE =
-    'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.';
+    'lumpcode start is dedicated-only. Use a worker clone with mode: dedicated (another copy of the repo on this machine is enough), or lumpcode run on this repo.';
 
 export type AssertDedicatedDaemonRequiredFailure = {
     code: 'sharedModeNoDaemon';

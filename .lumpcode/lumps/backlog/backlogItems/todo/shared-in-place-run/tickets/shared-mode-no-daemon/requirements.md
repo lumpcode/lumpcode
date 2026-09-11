@@ -35,7 +35,7 @@ Umbrella: [parent requirements](../../requirements.md).
 
 | `data.code` | Commands | Message (exact) |
 | --- | --- | --- |
-| `sharedModeNoDaemon` | `start`, `start --superviseOnly`, `restart` | `lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.` |
+| `sharedModeNoDaemon` | `start`, `start --superviseOnly`, `restart` | `lumpcode start is dedicated-only. Use a worker clone with mode: dedicated (another copy of the repo on this machine is enough), or lumpcode run on this repo.` |
 
 Fail after merged local config is available, before discover / refresh / spawn.
 

@@ -147,7 +147,7 @@ No `dirtyWorkTree`. Walk failures keep their existing reasons. `e` and implicit-
 
 | `data.code` | Commands | Message (exact) |
 | --- | --- | --- |
-| `sharedModeNoDaemon` | `start`, `start --superviseOnly`, `restart` | `lumpcode start is dedicated-only. Use a worker clone with mode: dedicated, or lumpcode run on this laptop.` |
+| `sharedModeNoDaemon` | `start`, `start --superviseOnly`, `restart` | `lumpcode start is dedicated-only. Use a worker clone with mode: dedicated (another copy of the repo on this machine is enough), or lumpcode run on this repo.` |
 
 `stop`, `stop --all`, `daemon-status`, `daemon-log` unchanged (reap leftovers).
 
