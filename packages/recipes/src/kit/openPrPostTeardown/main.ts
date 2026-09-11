@@ -31,6 +31,9 @@ export function openPrPostTeardown<
         if (!branchName || branchName === baseBranch) {
             return;
         }
+        if (!branchName.startsWith(LUMP_BRANCH_PREFIX)) {
+            return;
+        }
 
         const remote = await execBinary({
             binaryPath: 'git',

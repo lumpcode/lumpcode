@@ -1,7 +1,0 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
-name: open-pr-lump-prefix
-workflow: [manualReq, testImpl, impl]
-task: >-
-  openPrPostTeardown opens a PR only when branchName starts with lump/.
-  Shared in-place branches never open a PR. Dedicated lump/… unchanged.
-priority: 1
