@@ -443,7 +443,7 @@ describe('run command abort signal wiring (W2)', () => {
     });
 });
 
-describe.skip('run command — shared run review (shared-run-review)', () => {
+describe('run command — shared run review (shared-run-review)', () => {
     let projectRoot: string;
     let remoteDir: string;
     let globalConfigFolderPath: string;

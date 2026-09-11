@@ -10,7 +10,7 @@ function walked(contextNames: string[]): RunLumpFromLumpNameSuccess {
     };
 }
 
-describe.skip('shouldPromptSharedRunReview (shared-run-review)', () => {
+describe('shouldPromptSharedRunReview (shared-run-review)', () => {
     it('is true for a shared walk with contexts', () => {
         expect(shouldPromptSharedRunReview({ mode: 'shared', run: walked(['a', 'b']) })).toBe(true);
     });

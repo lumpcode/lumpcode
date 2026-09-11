@@ -39,7 +39,7 @@ async function choose(
     return { result: await pending, read: io.read };
 }
 
-describe.skip('promptSharedRunReview (shared-run-review)', () => {
+describe('promptSharedRunReview (shared-run-review)', () => {
     it('prints porcelain and returns commit for c / C', async () => {
         for (const key of ['c', 'C']) {
             const { result, read } = await choose(true, false, [key], [' M foo.ts', '?? bar.ts']);

@@ -9,7 +9,7 @@ import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { initLocalGitRepo } from '../initLocalGitRepo';
 import { commitSharedRunReview } from './main';
 
-describe.skip('commitSharedRunReview (shared-run-review)', () => {
+describe('commitSharedRunReview (shared-run-review)', () => {
     let cwd: string;
     let remoteDir: string | undefined;
 
