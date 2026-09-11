@@ -1,12 +1,15 @@
 import { createHash } from 'node:crypto';
 import * as path from 'node:path';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 import { shellSingleQuote } from '@lumpcode/core';
 
 import { shellBestEffort } from '../../shellBestEffort';
 import { LUMP_BRANCH_PREFIX, LUMP_COMMIT_PREFIX } from '../../../consts';
 import { jsConfigToRunLumpInput } from '../main';
+import { createTempTestDirs, removeTempTestDirs } from '../../createTempTestDirs';
+import { execGit } from '../../execGit';
+import { initLocalGitRepo } from '../../initLocalGitRepo';
 import {
     assertSuccess,
     DEFAULT_TEST_GLOBAL_CONFIG,
@@ -239,6 +242,127 @@ describe('jsConfigToRunLumpInput', () => {
                 await resolveJsConf({}, { localConfigFolderPath: '/home/user/project/.lumpcode' }),
             );
             expect(data.projectRoot).toBe('/home/user/project');
+        });
+    });
+
+    describe.skip('shared in-place walk (in-place-workspace)', () => {
+        let projectRoot: string;
+        let localConfigFolderPath: string;
+
+        const sharedLocal = { mode: 'shared' as const, primaryBranch: 'main' };
+        const workspaceInput = {
+            baseBranch: 'main',
+            branchName: 'make-my-new-lump',
+            contextList: [{ name: 'ctx', variables: {} }],
+        };
+
+        beforeEach(async () => {
+            ({ projectRoot, localConfigFolderPath } = await createTempTestDirs({
+                prefix: 'lump-jsconf-shared-',
+                remote: false,
+                global: false,
+            }));
+            initLocalGitRepo({ cwd: projectRoot });
+            execGit('checkout -b make-my-new-lump', projectRoot);
+        });
+
+        afterEach(async () => {
+            await removeTempTestDirs({ projectRoot });
+        });
+
+        it('sets workspacePath to source and setup/teardown return no git', async () => {
+            const data = assertSuccess(
+                await resolveJsConf(
+                    {},
+                    {
+                        localConfigFolderPath,
+                        executionWorkspacePath: projectRoot,
+                        localConfig: sharedLocal,
+                    },
+                ),
+            );
+
+            const setupOut = await data.setupWorkspaceFn!(workspaceInput);
+            expect(setupOut.workspacePath).toBe(path.resolve(projectRoot));
+            expect(setupOut.command ?? '').not.toMatch(/\bgit\b/);
+
+            const teardownCmd = await data.teardownWorkspaceFn!({
+                ...workspaceInput,
+                workspacePath: projectRoot,
+            });
+            expect(teardownCmd ?? '').not.toMatch(/\bgit\b/);
+        });
+
+        it('branchFn returns the current branch name, not lump/…', async () => {
+            const data = assertSuccess(
+                await resolveJsConf(
+                    {},
+                    {
+                        lumpName: 'refactor',
+                        localConfigFolderPath,
+                        executionWorkspacePath: projectRoot,
+                        localConfig: sharedLocal,
+                    },
+                ),
+            );
+
+            expect(await data.branchFn({
+                contextList: [{ name: 'header', variables: {} }],
+                contextRunStateList: [{}],
+                lumpVariables: {},
+            })).toBe('make-my-new-lump');
+            expect(await data.branchFn({
+                contextList: [{ name: 'header', variables: {} }],
+                contextRunStateList: [{}],
+                lumpVariables: {},
+            })).not.toContain(LUMP_BRANCH_PREFIX);
+        });
+
+        it('gitAddCommitFn and gitPushFn no-op with success(undefined)', async () => {
+            const data = assertSuccess(
+                await jsConfigToRunLumpInput({
+                    config: makeConfig({}),
+                    lumpName: 'my-lump',
+                    localConfigFolderPath,
+                    globalConfigFolderPath: DEFAULT_TEST_GLOBAL_CONFIG,
+                    projectBaseBranch: DEFAULT_TEST_PROJECT_BASE_BRANCH,
+                    executionWorkspacePath: projectRoot,
+                    workspaceStrategy: 'checkout',
+                    localConfig: sharedLocal,
+                    gitLock: {
+                        globalConfigFolderPath: DEFAULT_TEST_GLOBAL_CONFIG,
+                        gitCwd: projectRoot,
+                        lumpName: 'my-lump',
+                        lockMode: 'fail',
+                    },
+                }),
+            );
+
+            expect(typeof data.gitAddCommitFn).toBe('function');
+            expect(typeof data.gitPushFn).toBe('function');
+
+            const addResult = await data.gitAddCommitFn!({
+                baseBranch: 'main',
+                branchName: 'make-my-new-lump',
+                workspacePath: projectRoot,
+                context: { name: 'ctx', variables: {} },
+                commitMessage: 'LUMP:my-lump - ctx',
+            });
+            expect(addResult.success).toBe(true);
+            if (!addResult.success) throw new Error('unreachable');
+            expect(addResult.data).toBeUndefined();
+
+            const pushResult = await data.gitPushFn!({
+                baseBranch: 'main',
+                branchName: 'make-my-new-lump',
+                workspacePath: projectRoot,
+                contextList: [{ name: 'ctx', variables: {} }],
+            });
+            expect(pushResult.success).toBe(true);
+            if (!pushResult.success) throw new Error('unreachable');
+            expect(pushResult.data).toBeUndefined();
+
+            expect(execGit('log -1 --pretty=%s', projectRoot)).not.toBe('LUMP:my-lump - ctx');
         });
     });
 });

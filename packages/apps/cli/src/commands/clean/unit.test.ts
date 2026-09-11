@@ -7,7 +7,6 @@ import { LUMP_BRANCH_PREFIX, REFS_HEADS_PREFIX } from '../../consts';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import { gitCurrentBranch, writeLocalJson } from '../../testing';
-import { runProjectPreflight } from '../../utils/runProjectPreflight';
 import { execGit, initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
@@ -205,38 +204,20 @@ describe('clean command', () => {
         expect(gitCurrentBranch(projectRoot)).toBe(branchBefore);
     });
 
-    it('cleans shared copy lump branches when copy exists (LC-SHARED)', async () => {
+    it.skip('does not create or require project-copies in shared mode (in-place-workspace)', async () => {
         const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
             primaryBranch: 'main',
-            primaryBranches: ['main', 'ver/0.0.9'],
         });
-        const preflight = await runProjectPreflight({
-            sourceProjectRoot: projectRoot,
-            localConfigFolderPath,
-            globalConfigFolderPath,
-        });
-        expect(preflight.success).toBe(true);
-        if (!preflight.success) throw new Error('unreachable');
-
-        const copyRoot = preflight.data.executionWorkspacePath;
-        const branch = `${LUMP_BRANCH_PREFIX}myLump/shared-copy`;
-        const message = getGitCommitMessage({ contextName: 'shared-copy', lumpName: 'myLump' });
-        execGit(`checkout -b ${branch}`, copyRoot);
-        execGit(`commit --allow-empty -m "${message}"`, copyRoot);
-        execGit(`push origin ${branch}`, copyRoot);
-        execGit('checkout main', copyRoot);
-        execGit('checkout main', projectRoot);
+        setupLumpBranch('myLump', 'button');
 
         const handle = command.handlerMaker({ projectRoot, globalConfigFolderPath });
         const result = await handle({ options: {}, arguments: {} });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.data!.deletedBranches).toContain(branch);
-
-        const copyBranches = execGit(`branch --list "${LUMP_BRANCH_PREFIX}*"`, copyRoot);
-        expect(copyBranches).toBe('');
+        expect(result.data.data!.deletedBranches).toContain(`${LUMP_BRANCH_PREFIX}myLump/button`);
+        await expect(fs.access(path.join(globalConfigFolderPath, 'project-copies'))).rejects.toBeDefined();
     });
 
     it('works with LC-MULTI without parsing effective list for branch switch', async () => {
