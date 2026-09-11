@@ -195,7 +195,7 @@ describe('openPrPostTeardown', () => {
         errorSpy.mockRestore();
     });
 
-    it.skip('does not open a PR for shared in-place branch make-my-new-lump', async () => {
+    it('does not open a PR for shared in-place branch make-my-new-lump', async () => {
         const hook = openPrPostTeardown({ provider: 'github' });
         await expect(
             hook(hookInput({ branchName: 'make-my-new-lump' })),
@@ -203,7 +203,7 @@ describe('openPrPostTeardown', () => {
         expect(execBinaryMock).not.toHaveBeenCalled();
     });
 
-    it.skip('does not open a PR for shared in-place branch dev', async () => {
+    it('does not open a PR for shared in-place branch dev', async () => {
         const hook = openPrPostTeardown({ provider: 'github' });
         await expect(
             hook(hookInput({ branchName: 'dev', baseBranch: 'main' })),
@@ -211,7 +211,7 @@ describe('openPrPostTeardown', () => {
         expect(execBinaryMock).not.toHaveBeenCalled();
     });
 
-    it.skip('opens a PR for a dedicated lump/myLump/button branch', async () => {
+    it('opens a PR for a dedicated lump/myLump/button branch', async () => {
         execBinaryMock
             .mockResolvedValueOnce(execOk('abc123\trefs/heads/lump/myLump/button\n'))
             .mockResolvedValueOnce(execOk('[]'))
