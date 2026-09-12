@@ -577,5 +577,45 @@ describe('run command — shared run review (shared-run-review)', () => {
         expect(JSON.stringify(result.data)).toContain('sharedRunCommitFailed');
         expect(result.data.messages.join(' ')).not.toMatch(/SUCCESS: Lump run successfully/);
     });
+
+    /**
+     * Parent shared-in-place-run — review messages and no-prompt on walk failure.
+     * Unskip during the implementation stage.
+     */
+    it.skip('prints LUMP-marker commit lines then SUCCESS when c succeeds', async () => {
+        vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(walkedRun());
+        vi.spyOn(promptSharedRunReviewModule, 'promptSharedRunReview').mockResolvedValue(core.success('commit'));
+        vi.spyOn(commitSharedRunReviewModule, 'commitSharedRunReview').mockResolvedValue(core.success(undefined));
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'reviewLump' },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.messages).toEqual([
+            'Committed LUMP markers for: ctxA, ctxB',
+            'Contexts stay toDo until you push this branch. The next lumpcode run will pick them again.',
+            'SUCCESS: Lump run successfully',
+        ]);
+    });
+
+    it.skip('does not prompt after a walk failure', async () => {
+        const promptSpy = vi.spyOn(promptSharedRunReviewModule, 'promptSharedRunReview');
+        vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(
+            core.failure({ kind: 'message', message: 'step walk failed' }) as Awaited<
+                ReturnType<typeof runLumpFromLumpNameModule.runLumpFromLumpName>
+            >,
+        );
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'reviewLump' },
+        });
+
+        expect(result.success).toBe(false);
+        expect(promptSpy).not.toHaveBeenCalled();
+    });
 });
 

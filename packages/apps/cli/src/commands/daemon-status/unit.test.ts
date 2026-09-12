@@ -7,6 +7,7 @@ import {
     removeDaemonMetaUntilGone,
     withAliveDaemon,
     writeDaemonMetaSticky,
+    writeLocalJson,
 } from '../../testing';
 import { command as daemonStatusCommand } from './main';
 import { writeJsonFile, createTempTestDirs, removeTempTestDirs } from '../../utils';
@@ -55,6 +56,20 @@ describe('daemon-status command', () => {
         } finally {
             await removeTempTestDirs(dirs);
         }
+    });
+
+    /**
+     * Parent shared-in-place-run AC9 — companions still work in shared.
+     * Unskip during the implementation stage.
+     */
+    it.skip('lists no daemons in shared mode (not sharedModeNoDaemon)', async () => {
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        const result = await makeDaemonStatusHandler()({ options: {}, arguments: {} });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        const data = result.data.data as { daemons: unknown[] };
+        expect(data.daemons).toEqual([]);
+        expect(JSON.stringify(result.data)).not.toContain('sharedModeNoDaemon');
     });
 
     it('lists no daemons when there is no PID file', async () => {

@@ -182,6 +182,29 @@ describe('lump-plan command', () => {
         });
         expect(gitCurrentBranch(projectRoot)).toBe(before);
     });
+
+    /**
+     * Parent shared-in-place-run AC11.
+     * Unskip during the implementation stage.
+     */
+    it.skip('succeeds on a dirty shared checkout and does not create project-copies', async () => {
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        const dirtyPath = path.join(projectRoot, 'DIRTY.txt');
+        await fs.writeFile(dirtyPath, 'authoring\n', 'utf-8');
+
+        const result = await makeHandler()({
+            options: { contexts: true, json: true },
+            arguments: { lumpName: 'my-lump' },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data?.contexts?.[0].name).toBe('alpha');
+        expect(await fs.readFile(dirtyPath, 'utf-8')).toBe('authoring\n');
+        await expect(
+            fs.access(path.join(globalConfigFolderPath, 'project-copies')),
+        ).rejects.toMatchObject({ code: 'ENOENT' });
+    });
 });
 
 /**
