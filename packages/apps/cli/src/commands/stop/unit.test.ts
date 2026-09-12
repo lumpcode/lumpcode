@@ -10,6 +10,7 @@ import {
     removeDaemonMetaUntilGone,
     waitForDaemonPidFile,
     writeDaemonMetaSticky,
+    writeLocalJson,
 } from '../../testing';
 import { daemonSchedulerFiles } from '../../utils/daemonSchedulerFiles';
 import { pollUntil } from '../../utils/pollUntil';
@@ -57,6 +58,19 @@ describe('stop command', () => {
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toContain('No daemon PID file');
+    });
+
+    /**
+     * Parent shared-in-place-run AC9 — companions still work in shared.
+     * Unskip during the implementation stage.
+     */
+    it.skip('does not fail sharedModeNoDaemon when local.json mode is shared', async () => {
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        const result = await makeStopHandler()({ options: {}, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toContain('No daemon PID file');
+        expect(JSON.stringify(result.data)).not.toContain('sharedModeNoDaemon');
     });
     it('cleans up stale PID when the daemon process is gone', async () => {
         await fs.mkdir(path.dirname(pidPath()), { recursive: true });

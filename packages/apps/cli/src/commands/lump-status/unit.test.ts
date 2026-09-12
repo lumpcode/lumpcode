@@ -11,7 +11,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../testing';
-import { execGit, initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { execGit, getGitCommitMessage, initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
 describe('lump-status command', () => {
@@ -191,6 +191,87 @@ describe('lump-status command', () => {
             arguments: {},
         });
         expect(result.success).toBe(true);
+    }, 60_000);
+});
+
+/**
+ * Parent shared-in-place-run AC7 — local LUMP commits do not change remote status.
+ * Unskip during the implementation stage.
+ */
+describe.skip('lump-status command — shared in-place local markers (shared-in-place-run)', () => {
+    let projectRoot: string;
+    let bareDir: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        ({ projectRoot, remoteDir: bareDir, localConfigFolderPath } = await createTempTestDirs({
+            prefix: 'lump-status-shared-local-',
+            global: false,
+        }));
+        initBareRemoteAndCheckout({ projectRoot, remoteDir: bareDir });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'status-shared-local' },
+        });
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        await writeMinimalLump(projectRoot, 'myLump');
+    }, 60_000);
+
+    afterEach(async () => {
+        await removeTempTestDirs({ projectRoot, remoteDir: bareDir });
+    }, 60_000);
+
+    function makeHandler() {
+        return command.handlerMaker({ projectRoot, localConfigFolderPath });
+    }
+
+    it('stays toDo after a local LUMP commit that has not been pushed', async () => {
+        execGit('checkout -b make-my-new-lump', projectRoot);
+        execGit(
+            `commit --allow-empty -m "${getGitCommitMessage({ lumpName: 'myLump', contextName: 'README' })}"`,
+            projectRoot,
+        );
+
+        const result = await makeHandler()({
+            options: { lumpName: 'myLump', json: true },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.statusByLump.myLump?.README).toBeUndefined();
+    }, 60_000);
+
+    it('is branchPushed after the author pushes a non-base branch', async () => {
+        execGit('checkout -b make-my-new-lump', projectRoot);
+        execGit(
+            `commit --allow-empty -m "${getGitCommitMessage({ lumpName: 'myLump', contextName: 'README' })}"`,
+            projectRoot,
+        );
+        execGit('push -u origin make-my-new-lump', projectRoot);
+
+        const result = await makeHandler()({
+            options: { lumpName: 'myLump', json: true },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.statusByLump.myLump.README.status).toBe('branchPushed');
+    }, 60_000);
+
+    it('is finished after the author pushes the LUMP commit on the base', async () => {
+        execGit(
+            `commit --allow-empty -m "${getGitCommitMessage({ lumpName: 'myLump', contextName: 'README' })}"`,
+            projectRoot,
+        );
+        execGit('push origin main', projectRoot);
+
+        const result = await makeHandler()({
+            options: { lumpName: 'myLump', json: true },
+            arguments: {},
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data!.statusByLump.myLump.README.status).toBe('finished');
     }, 60_000);
 });
 

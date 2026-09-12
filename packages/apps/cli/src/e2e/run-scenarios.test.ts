@@ -2,11 +2,14 @@ import * as fs from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 import { lumpWorktreePath } from '../utils/getLumpWorktreePath';
+import { SHARED_MODE_NO_DAEMON_MESSAGE } from '../utils/assertDedicatedDaemonRequired';
+import { getGitCommitMessage } from '../utils/getGitCommitMessage';
 import {
     createE2eLoopLumpConfigJs,
     e2eMarkerPath,
     e2ePathAgentPromptReceivedPath,
     expectCliOk,
+    expectLumpStatus,
     expectRunContextNames,
     expectRunSkippedTooManyOpenBranches,
     git,
@@ -229,5 +232,99 @@ describe('E2E run scenarios', () => {
                 filePath: e2ePathAgentPromptReceivedPath(lumpName),
             }),
         ).toBe(expectedPrompt);
+    });
+});
+
+/**
+ * Parent shared-in-place-run — cross-cutting e2e.
+ * Unskip during the implementation stage.
+ */
+describe.skip('E2E shared in-place run (shared-in-place-run)', () => {
+    const { createProject } = useE2eProjects();
+
+    it('RUN-SHARED-DIRTY dirty tree run and lump-plan stay on this checkout', async () => {
+        const lumpName = 'myLump';
+        const ctx = 'README';
+        const project = await createProject({ localJson: { mode: 'shared' }, lumps: [{ name: lumpName }] });
+        const dirtyPath = `${project.projectRoot}/DIRTY.txt`;
+        await fs.writeFile(dirtyPath, 'authoring\n', 'utf-8');
+
+        expectCliOk(await runE2eCli({ project, args: ['run', lumpName, '--json'] }), 'run');
+        expectCliOk(await runE2eCli({ project, args: ['lump-plan', lumpName, '--json'] }), 'lump-plan');
+
+        expect(await fs.readFile(dirtyPath, 'utf-8')).toBe('authoring\n');
+        await expect(fs.access(sharedModeCopyPath(project.globalConfigFolderPath, project.projectName))).rejects.toThrow();
+        await expect(fs.access(e2eMarkerPath(project.projectRoot, lumpName, ctx))).resolves.toBeUndefined();
+        expect(git('log -1 --pretty=%s', project.projectRoot)).not.toMatch(/^LUMP:/);
+        expect(remoteHasBranch({ remoteDir: project.remoteDir, branch: lumpBranchName(lumpName, ctx) })).toBe(false);
+    });
+
+    it('RUN-SHARED-STATUS local c stays toDo and the next run walks again', async () => {
+        const lumpName = 'myLump';
+        const ctx = 'README';
+        const project = await createProject({ localJson: { mode: 'shared' }, lumps: [{ name: lumpName }] });
+        git('checkout -b make-my-new-lump', project.projectRoot);
+
+        expectCliOk(await runE2eCli({ project, args: ['run', lumpName, '--json'] }), 'first run');
+        git('add .', project.projectRoot);
+        git(
+            `commit --allow-empty -m "${getGitCommitMessage({ lumpName, contextName: ctx })}"`,
+            project.projectRoot,
+        );
+
+        const status = await runE2eCli({ project, args: ['lump-status', '--lumpName', lumpName, '--json'] });
+        expectCliOk(status, 'status after local commit');
+        const afterLocal = status.json.data as { statusByLump?: Record<string, Record<string, { status?: string }>> };
+        expect(afterLocal.statusByLump?.[lumpName]?.[ctx]?.status ?? 'toDo').toBe('toDo');
+
+        const second = await runE2eCli({ project, args: ['run', lumpName, '--json'] });
+        expectCliOk(second, 'second run');
+        expectRunContextNames(second, [ctx]);
+        expect(git('rev-parse --abbrev-ref HEAD', project.projectRoot)).toBe('make-my-new-lump');
+        expect(remoteHasBranch({ remoteDir: project.remoteDir, branch: lumpBranchName(lumpName, ctx) })).toBe(false);
+    });
+
+    it('RUN-SHARED-PUSH non-base push is branchPushed; base push is finished', async () => {
+        const lumpName = 'myLump';
+        const ctx = 'README';
+        const project = await createProject({ localJson: { mode: 'shared' }, lumps: [{ name: lumpName }] });
+
+        git('checkout -b make-my-new-lump', project.projectRoot);
+        git(
+            `commit --allow-empty -m "${getGitCommitMessage({ lumpName, contextName: ctx })}"`,
+            project.projectRoot,
+        );
+        git('push -u origin make-my-new-lump', project.projectRoot);
+        const pushed = await runE2eCli({ project, args: ['lump-status', '--lumpName', lumpName, '--json'] });
+        expectCliOk(pushed, 'status after non-base push');
+        expectLumpStatus(pushed, { lumpName, contextName: ctx, status: 'branchPushed' });
+
+        git('checkout main', project.projectRoot);
+        git('merge make-my-new-lump', project.projectRoot);
+        git('push origin main', project.projectRoot);
+        const finished = await runE2eCli({ project, args: ['lump-status', '--lumpName', lumpName, '--json'] });
+        expectCliOk(finished, 'status after base push');
+        expectLumpStatus(finished, { lumpName, contextName: ctx, status: 'finished' });
+    });
+
+    it('RUN-SHARED-START start, superviseOnly, and restart fail sharedModeNoDaemon', async () => {
+        const project = await createProject({ localJson: { mode: 'shared' }, lumps: [{ name: 'myLump' }] });
+
+        for (const args of [
+            ['start', '--json'],
+            ['start', '--superviseOnly', '--json'],
+            ['restart', '--json'],
+        ]) {
+            const result = await runE2eCli({ project, args });
+            expect(result.code).not.toBe(0);
+            expect(result.json.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
+            expect(JSON.stringify(result.json)).toContain('sharedModeNoDaemon');
+        }
+
+        const status = await runE2eCli({ project, args: ['daemon-status', '--json'] });
+        expectCliOk(status, 'daemon-status');
+        const stop = await runE2eCli({ project, args: ['stop', '--json'] });
+        expect(stop.code).not.toBe(0);
+        expect(JSON.stringify(stop.json)).not.toContain('sharedModeNoDaemon');
     });
 });

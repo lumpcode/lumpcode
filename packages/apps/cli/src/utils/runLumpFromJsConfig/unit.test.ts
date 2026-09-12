@@ -490,6 +490,138 @@ describe('runLumpFromJsConfig', () => {
             expect(core.runLump).toHaveBeenCalledOnce();
         });
 
+        /**
+         * Parent shared-in-place-run — on-base is exact resolvedBaseBranch only.
+         * Unskip during the implementation stage.
+         */
+        it.skip('does not warn when HEAD matches another primaryBranches entry', async () => {
+            execGit('checkout -b dev', projectRoot);
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: {
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                    primaryBranches: ['main', 'dev'],
+                },
+            });
+            const warnCalls: string[] = [];
+            const logger = {
+                ...noopLogger,
+                warn: (message: string) => {
+                    warnCalls.push(message);
+                },
+                child: () => logger,
+            };
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'dev',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}), { logger });
+
+            expect(result.success).toBe(true);
+            expect(warnCalls.some((message) => message.includes('execution base'))).toBe(false);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
+
+        it.skip('does not warn when HEAD matches a primaryBranches glob that is not resolvedBaseBranch', async () => {
+            execGit('checkout -b feature/foo', projectRoot);
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: {
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                    primaryBranches: ['main', 'feature/*'],
+                },
+            });
+            const warnCalls: string[] = [];
+            const logger = {
+                ...noopLogger,
+                warn: (message: string) => {
+                    warnCalls.push(message);
+                },
+                child: () => logger,
+            };
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'feature/foo',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}), { logger });
+
+            expect(result.success).toBe(true);
+            expect(warnCalls.some((message) => message.includes('execution base'))).toBe(false);
+        });
+
+        it.skip('still runs when workspaceStrategy is worktree and maxParallelRun is 2', async () => {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: {
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                    workspaceStrategy: 'worktree',
+                    maxParallelRun: 2,
+                },
+            });
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+
+            expect(result.success).toBe(true);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
+
+        it.skip('does not exec refreshCommand on shared run', async () => {
+            const sentinel = path.join(projectRoot, 'REFRESHED.txt');
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
+                    projectName: 'run-from-js-test',
+                    refreshCommand: `node -e "require('fs').writeFileSync(${JSON.stringify(sentinel)}, 'ran')"`,
+                },
+            });
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: {
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                    refreshCommand: `node -e "require('fs').writeFileSync(${JSON.stringify(sentinel)}, 'ran')"`,
+                },
+            });
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+
+            expect(result.success).toBe(true);
+            await expect(fs.access(sentinel)).rejects.toMatchObject({ code: 'ENOENT' });
+        });
+
         it('injects gitAddCommitFn / gitPushFn no-ops (no auto commit)', async () => {
             execGit('checkout -b make-my-new-lump', projectRoot);
             vi.mocked(core.runLump).mockImplementation(async (runInput) => {
