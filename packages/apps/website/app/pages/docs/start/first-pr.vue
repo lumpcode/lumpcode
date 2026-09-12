@@ -8,7 +8,7 @@ useHead({
   meta: [
     {
       name: 'description',
-      content: 'First PR on the machine you develop on. One campaign, by hand. Lumpcode never touches this checkout.',
+      content: 'Rehearse one campaign on this branch. Verify, type c for LUMP markers, then push yourself.',
     },
   ],
 })
@@ -25,7 +25,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
 <template>
   <DocsPageShell
     title="Get started : From install to the first PR"
-    description="First PR on the machine you develop on. One campaign, by hand. Lumpcode never touches this checkout."
+    description="Rehearse one campaign on this branch. Verify, type c for LUMP markers, then push yourself."
     :path="docs.firstPr"
     :headings="page?.headings ?? []"
     :source-path="page?.sourcePath"
@@ -42,7 +42,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
         <ul>
           <li>Node.js 22+</li>
           <li>A git repo with <code>origin</code> you can push to, and a primary branch that already exists on that remote (usually <code>main</code>)</li>
-          <li>Git <code>user.name</code> and <code>user.email</code> set. Lumpcode writes commits.</li>
+          <li>Git <code>user.name</code> and <code>user.email</code> set. Needed if you type <code>c</code> to stamp LUMP markers.</li>
           <li>A CLI coding agent on <code>PATH</code> (Cursor, Copilot, Claude Code, Codex, or OpenCode)</li>
           <li>Awareness that <code>lumpcode run</code> invokes that agent (LLM cost)</li>
         </ul>
@@ -96,7 +96,9 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
         </p>
         <CodeWindow filename="terminal" :code="previewThenRun" />
         <p>
-          <code>run</code> invokes the agent on one context, writes a <code>LUMP: myFirstLump - …</code> marker commit, and pushes a <code>lump/myFirstLump/…</code> branch. Open that as a PR.
+          <code>run</code> invokes the agent on this branch. A dirty tree is fine. It does not create a <code>lump/…</code> branch and does not commit or push.
+          Verify the updates. Type <code>c</code> to stamp <code>LUMP: myFirstLump - …</code> markers (still no push), or <code>e</code> to leave the tree dirty and run again.
+          Then push this branch yourself.
         </p>
       </section>
     </div>
