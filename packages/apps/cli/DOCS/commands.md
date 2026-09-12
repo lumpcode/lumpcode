@@ -26,9 +26,7 @@ This page documents every `lumpcode` subcommand and its options.
 
 ### Working directory
 
-Most commands use the current working directory as the project root. Run `lumpcode` from the root of the git repository that contains `.lumpcode/`.
-
-If a lump uses a **workspace copy** under `~/.lumpcode/project-copies/`, you still invoke the CLI from your real repo root; see [concepts.md § Three workspaces](./concepts.md#three-workspaces).
+Most commands use the current working directory as the project root. Run `lumpcode` from the root of the git repository that contains `.lumpcode/`. Shared `run` uses this checkout as the execution workspace; see [concepts.md § Three workspaces](./concepts.md#three-workspaces).
 
 <h3 id="ref-json-output"><code>--json</code> output</h3>
 
@@ -160,7 +158,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 
 ### `lumpcode run`
 
-**Description:** Execute **one** tick for a single lump (load config, resolve contexts, run the agent, refresh status).
+**Description:** Execute **one** tick for a single lump (load config, resolve contexts, run the agent, refresh status). Shared `run` writes on this branch and does not commit or push unless you type `c` after a successful walk. Dedicated `run` still cuts `lump/…`, commits, and pushes.
 
 **Usage:** `lumpcode run <lumpName> [options]`
 
@@ -179,9 +177,10 @@ Plus global [`--json`](#ref-json-output).
 
 **Behavior:**
 
-1. Reads `.lumpcode/local.json` (hard-fails if missing); in dedicated mode, phase 1 locks the execution workspace, pre-flights to `effectiveDiscoveryBranch` (CLI override or lump `discoveryBranch`), loads config, then runs the lump; phase 2 pre-flights to the lump `baseBranch` before agent work.
+1. Reads `.lumpcode/local.json` (hard-fails if missing). Shared: fails on detached HEAD; dirty is allowed; no preflight; agent writes on this checkout. Dedicated: phase 1 locks the execution workspace, pre-flights to `effectiveDiscoveryBranch` (CLI override or lump `discoveryBranch`), loads config, then runs the lump; phase 2 pre-flights to the lump `baseBranch` before agent work.
 2. In shared mode, `--discoveryBranch` is ignored by `run` (warn once); `lump-plan` and `lump-status` honor it for context filtering without checkout.
-3. After a dedicated manual run, switches the operator checkout back to the branch you were on before `run`.
+3. After a dedicated manual run, switches the operator checkout back to the branch you were on before `run`. Shared does not restore a copy.
+4. After a successful shared walk that executed contexts, a TTY (not `--json`) prints porcelain and `[c]` / `[e]`. `c` commits LUMP markers (`git add .`, no push). `e` or Ctrl+C leaves the tree dirty (exit 0). Non-TTY / `--json` is implicit `e`.
 
 **Success cases:**
 
@@ -189,7 +188,7 @@ Plus global [`--json`](#ref-json-output).
 - **Skipped run** when `maximumNumberOfConcurrentBranches` is reached: still a success but nothing is done.
 - **Skipped run** when the lump config has `disabled: true`: exit 0 with an informational message.
 
-**Fails if:** `local.json` missing or invalid, pre-flight git commands fail, config missing/invalid, engine errors, or **`workspacePathBusy`** (another run or daemon holds the workspace path lock — see [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
+**Fails if:** `local.json` missing or invalid, shared detached HEAD (`detachedHead`), dedicated pre-flight git commands fail, config missing/invalid, engine errors, shared `c` git failure (`sharedRunCommitFailed`), or **`workspacePathBusy`** (another run or daemon holds the workspace path lock — see [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks)).
 
 With **`--json`**, busy responses include a stable `code` field (`workspacePathBusy`) plus path and optional holder pid/lump name.
 
@@ -246,7 +245,7 @@ Plus global [`--json`](#ref-json-output).
 
 ### `lumpcode start`
 
-**Description:** Run a **scheduler** that periodically discovers and executes lumps (all loadable lumps by default, or a filtered subset). Every daemon uses the same discovery path; identity is a unique `daemonId`. Pass **`--superviseOnly`** to keep the project supervisor up without launching a daemon.
+**Description:** Run a **scheduler** that periodically discovers and executes lumps (all loadable lumps by default, or a filtered subset). Dedicated-only: shared mode fails `sharedModeNoDaemon`. Every daemon uses the same discovery path; identity is a unique `daemonId`. Pass **`--superviseOnly`** to keep the project supervisor up without launching a daemon.
 
 **Usage:** `lumpcode start [options]`
 
@@ -302,7 +301,7 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 - On SIGINT/SIGTERM, marks desired `stopping` so the supervisor does not respawn, stops the scheduler, and removes PID/meta/desired if they belong to this process.
 - If the supervisor dies, the daemon finishes in-flight work then exits without clearing desired, so a restarted supervisor can relaunch it.
 
-**Fails if:** Invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
+**Fails if:** `local.json` `mode` is `shared` (`sharedModeNoDaemon`), invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (daemon tick wrappers), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-5-run-continuously-optional).
 
@@ -341,7 +340,7 @@ When the PID is alive but daemon **meta is missing or invalid**, default stop **
 
 ### `lumpcode restart`
 
-**Description:** `lumpcode stop` then `lumpcode start`, restoring `cronSetup`, `include` / `exclude`, `maxParallelRun`, and `daemonId` from desired.json (legacy: live meta).
+**Description:** `lumpcode stop` then `lumpcode start`, restoring `cronSetup`, `include` / `exclude`, `maxParallelRun`, and `daemonId` from desired.json (legacy: live meta). Dedicated-only: shared mode fails `sharedModeNoDaemon`.
 
 **Usage:** `lumpcode restart [options]`
 

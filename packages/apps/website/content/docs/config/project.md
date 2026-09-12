@@ -18,7 +18,7 @@ description: .lumpcode/project.json is committed. It names the project and can s
 
 | Field | Required | Notes |
 | --- | --- | --- |
-| `projectName` | yes | Letters, digits, `_`, `-` only. Daemon filenames and `~/.lumpcode/project-copies/<projectName>/`. |
+| `projectName` | yes | Letters, digits, `_`, `-` only. Daemon filenames under `~/.lumpcode/daemons/`. |
 | `primaryBranch` or `primaryBranches` | yes after merge with local | Integration line. Either this file or `local.json` may supply it; local wins. Deprecated alias: `projectBaseBranch`. |
 | `command` | no | Lump default. Tag only, not a `.ts` path. |
 | `maximumNumberOfConcurrentBranches` | no | Lump default. |

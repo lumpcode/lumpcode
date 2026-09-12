@@ -1,6 +1,6 @@
 # How to set up a dedicated Lumpcode worker
 
-A dedicated worker is a clone Lumpcode owns. Don’t develop on it. Pre-flight hard-resets the checkout.
+A dedicated worker is a clone Lumpcode owns. Don’t develop on it. Pre-flight hard-resets the checkout. This page is the worker only: it cuts `lump/…` branches. Laptop `run` is rehearsal on the authoring branch, not a second copy.
 
 ## 1. Provision the machine
 
