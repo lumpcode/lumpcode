@@ -1,0 +1,90 @@
+packages/apps/cli/src/utils/assertSharedRunHead/main.ts:
+  change: >-
+    New util. Named-branch HEAD or Failure detachedHead. Dirty porcelain
+    is not a fail.
+  "-": 0
+  "+": 45
+packages/apps/cli/src/utils/assertSharedRunHead/index.ts:
+  change: Barrel export.
+  "-": 0
+  "+": 3
+packages/apps/cli/src/utils/assertSharedRunHead/unit.test.ts:
+  change: >-
+    Detached fails. Named branch succeeds when clean, dirty, staged, or
+    ignored-only.
+  "-": 0
+  "+": 90
+packages/apps/cli/src/utils/index.ts:
+  change: Barrel-export assertSharedRunHead.
+  "-": 0
+  "+": 1
+packages/apps/cli/src/utils/getExecutionWorkspacePath/main.ts:
+  change: Shared returns sourceProjectRoot (same as dedicated). Drop project-copies.
+  "-": 4
+  "+": 2
+packages/apps/cli/src/utils/getExecutionWorkspacePath/unit.test.ts:
+  change: New. Shared path equals source.
+  "-": 0
+  "+": 25
+packages/apps/cli/src/types/Mode.ts:
+  change: Shared comment is in-place rehearsal, not a project copy.
+  "-": 4
+  "+": 4
+packages/apps/cli/src/utils/jsConfigToRunLumpInput/main.ts:
+  change: >-
+    Shared: gitAddCommitFn/gitPushFn no-ops; branchFn is current branch;
+    workspace fns have no git.
+  "-": 15
+  "+": 35
+packages/apps/cli/src/utils/jsConfigToRunLumpInput/testing/general.unit.test.ts:
+  change: Shared git fns no-op; workspacePath is source; invert copy expectations.
+  "-": 20
+  "+": 40
+packages/apps/cli/src/utils/makeLumpWorkspaceFns/main.ts:
+  change: Shared setup/teardown return no git. Comment no longer says project copy.
+  "-": 8
+  "+": 20
+packages/apps/cli/src/utils/runLumpFromJsConfig/main.ts:
+  change: >-
+    Shared: assertSharedRunHead, on-base warn, skip preflight, skip
+    open-branch cap.
+  "-": 12
+  "+": 40
+packages/apps/cli/src/utils/runLumpFromJsConfig/unit.test.ts:
+  change: >-
+    Invert shared preflight-to-copy cases. Dirty allowed. Detached fails.
+    On-base warns. No auto commit.
+  "-": 40
+  "+": 80
+packages/apps/cli/src/utils/runLumpFromJsConfig/withWorkspaceLockHooks.ts:
+  change: Shared does not call runProjectPreflight.
+  "-": 6
+  "+": 10
+packages/apps/cli/src/utils/runPreflight/main.ts:
+  change: Dedicated-only reset. Delete ensureProjectCopy / origin-sync.
+  "-": 80
+  "+": 5
+packages/apps/cli/src/utils/runPreflight/unit.test.ts:
+  change: Drop shared copy cases. Dedicated reset unchanged.
+  "-": 50
+  "+": 15
+packages/apps/cli/src/utils/runProjectPreflight/unit.test.ts:
+  change: Invert shared copy path expectations.
+  "-": 15
+  "+": 8
+packages/apps/cli/src/commands/clean/main.ts:
+  change: Stop targeting project-copies in shared.
+  "-": 15
+  "+": 4
+packages/apps/cli/src/commands/clean/unit.test.ts:
+  change: Invert or delete LC-SHARED copy-branch case.
+  "-": 25
+  "+": 8
+packages/apps/cli/src/e2e/harness/createE2eProject.ts:
+  change: Shared execution workspace is the fixture repo, not project-copies.
+  "-": 8
+  "+": 6
+packages/apps/cli/src/e2e/run-scenarios.test.ts:
+  change: Shared e2e asserts no copy dir, agent cwd is fixture, no auto push.
+  "-": 20
+  "+": 25

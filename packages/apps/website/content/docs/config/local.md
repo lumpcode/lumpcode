@@ -27,7 +27,7 @@ There is no `--mode` on `run` or `start`. Change this file (and restart the work
 
 ### `shared`
 
-This clone is your editor. Lumpcode never checks it out for agent work. Every run uses a copy at `~/.lumpcode/project-copies/<projectName>/`, created once and reset by pre-flight.
+This clone is the execution workspace. `lumpcode run` writes on the current named branch. A dirty tree is allowed. The walk does not commit or push unless you type `c` after a successful run (commit only). `lumpcode start` is dedicated-only.
 
 Use on laptops.
 
@@ -44,7 +44,7 @@ Use on a [worker](/docs/start/worker) you do not develop in.
 | `checkout` (default) | Switch the execution workspace onto the lump branch, then back. Sequential. |
 | `worktree` | Agent runs in `.lumpcode/worktrees/<branch>/` (slash segments become folders). Needed for `maxParallelRun` > 1. |
 
-`maxParallelRun` in this file (or `--maxParallelRun` on `start`) only applies with `worktree`. Passing the flag with `checkout` fails. Checkout always runs one lump at a time.
+`maxParallelRun` in this file (or `--maxParallelRun` on `start`) only applies with `worktree` on a dedicated worker. Passing the flag with `checkout` fails. Checkout always runs one lump at a time. Shared `run` ignores `workspaceStrategy` and `maxParallelRun` (one checkout).
 
 ## Other local-only fields
 

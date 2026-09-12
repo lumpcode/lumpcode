@@ -9,6 +9,7 @@ import { Command, CommandHandlerMaker } from '../../types';
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
+    assertDedicatedDaemonRequired,
     commandFailure,
     createCliLogger,
     daemonsDirPath,
@@ -158,6 +159,16 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath });
         if (!localConfigResult.success) return commandFailure(localConfigResult.data);
 
+        const dedicatedRequired = assertDedicatedDaemonRequired({
+            mode: localConfigResult.data.mode,
+        });
+        if (!dedicatedRequired.success) {
+            return failure({
+                messages: [dedicatedRequired.data.message],
+                data: { code: dedicatedRequired.data.code },
+            });
+        }
+
         const nameResult = await getProjectName({ localConfigFolderPath, projectRoot });
         if (!nameResult.success) return commandFailure(nameResult.data);
         const projectName = nameResult.data;
@@ -199,6 +210,16 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!localConfigResult.success) return commandFailure(localConfigResult.data);
     const frozenLocalConfig: ResolvedProjectLocalConfig = localConfigResult.data;
     const workspaceStrategy = frozenLocalConfig.workspaceStrategy;
+
+    const dedicatedRequired = assertDedicatedDaemonRequired({
+        mode: frozenLocalConfig.mode,
+    });
+    if (!dedicatedRequired.success) {
+        return failure({
+            messages: [dedicatedRequired.data.message],
+            data: { code: dedicatedRequired.data.code },
+        });
+    }
 
     if (lumpNameOpt && input.options.include !== undefined && input.options.include.trim() !== '') {
         return failure({

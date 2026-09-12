@@ -167,12 +167,6 @@ export function withWorkspaceLockHooks(input: {
             return blockedSetupResult(branchWorkspacePathValue);
         }
 
-        const preflightResult = await ctx.preflight();
-        if (!preflightResult.success) {
-            session.pendingFailure = toRunLumpMessageFailure(preflightResult.data);
-            return blockedSetupResult(branchWorkspacePathValue);
-        }
-
         return setupWorkspaceFn(setupInput);
     };
 }

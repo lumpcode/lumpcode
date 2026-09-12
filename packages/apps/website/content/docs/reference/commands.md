@@ -13,13 +13,13 @@ Run `lumpcode` from the repo root that contains `.lumpcode/` and `.git/`. Comman
 
 ### `lumpcode run <lumpName>`
 
-One tick for one lump: load, discover todos, run the agent, commit, push.
+One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: "shared"`), the agent writes on this branch. After a successful walk with contexts, a TTY (not `--json`) offers `[c]` commit LUMP markers (no push) or `[e]` exit dirty. A dedicated worker still commits, pushes `lump/…`, and restores the checkout.
 
 | Option | Role |
 | --- | --- |
 | `--discoveryBranch` | Concrete discovery branch. Required when the lump’s rules are pattern-only. Ignored by `run` in shared mode (warned). |
 
-Success includes a skipped run (`disabled`, or too many open `lump/<name>/*` branches). Busy workspace: fails with `workspacePathBusy`. After a dedicated manual run, the checkout is switched back to the branch you were on.
+Success includes a skipped run (`disabled`, or too many open `lump/<name>/*` branches on a dedicated worker). Busy workspace: fails with `workspacePathBusy`. After a dedicated manual run, the checkout is switched back to the branch you were on. Shared `run` does not restore a copy or auto-push `lump/…`.
 
 ### `lumpcode lump-plan <lumpName>`
 
@@ -63,7 +63,7 @@ These start and inspect **daemons** on a [worker](/docs/start/worker) (the dedic
 
 ### `lumpcode start`
 
-Detach a daemon (omit `--foreground` to background). Discovers loadable lumps each cron fire.
+Detach a daemon (omit `--foreground` to background). Dedicated-only (`sharedModeNoDaemon` if `local.json` `mode` is `shared`). Discovers loadable lumps each cron fire.
 
 | Option | Role |
 | --- | --- |

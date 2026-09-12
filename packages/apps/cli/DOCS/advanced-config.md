@@ -1,6 +1,6 @@
 # Advanced Lumpcode CLI configuration
 
-This page is the deep-dive companion to [lump-config.md](./lump-config.md): where that page lists every config field at table depth, this one covers the parts that need more — **hook lifecycle**, **dynamic prompt lists**, **workspace overrides**, and **custom agent command modules**. Operations (daemon, cron, isolated repo copies, workspace presets) live in [concepts.md](./concepts.md); type shapes live in [types.md](./types.md).
+This page is the deep-dive companion to [lump-config.md](./lump-config.md): where that page lists every config field at table depth, this one covers the parts that need more — **hook lifecycle**, **dynamic prompt lists**, **workspace overrides**, and **custom agent command modules**. Operations (daemon, cron, workspaces) live in [concepts.md](./concepts.md); type shapes live in [types.md](./types.md).
 
 Every `*Fn` field below is a [function reference](./lump-config.md#field-forms-conventions) — either:
 
@@ -32,20 +32,19 @@ Operator overview (no full hook list): [concepts.md § One run, end to end](./co
 
 ### Shared mode
 
-Execution workspace = `~/.lumpcode/project-copies/<projectName>/`. Pre-flight never mutates the project workspace (source checkout). Config load and context discovery read the **source**. Lump `discoveryBranch(es)` and `--discoveryBranch` are ignored for scheduling (CLI warns if the flag is passed).
+Execution workspace = `projectRoot` (this checkout). No preflight. Config load and context discovery read this tree. Lump `discoveryBranch(es)` and `--discoveryBranch` are ignored for scheduling (CLI warns if the flag is passed). The walk does not commit or push; `commands/run` may prompt `[c]` / `[e]` after success.
 
 ```mermaid
 flowchart TD
-  start["lumpcode run / daemon match"] --> load["Load lump config from source"]
+  start["lumpcode run"] --> load["Load lump config from source"]
   load --> disabled{"disabled?"}
   disabled -->|yes| skip["soft-skip reason: disabled"]
   disabled -->|no| adapt["Adapt config: one context source<br/>contextListJson + contextOptionsFn<br/>or getContextListFn or contextMatchFn<br/>then optional BaseBranchFn"]
-  adapt --> gate["auto: concurrent-branch gate"]
-  gate --> refresh["auto: locked refreshRemoteTrackingRefs"]
+  adapt --> refresh["auto: locked refreshRemoteTrackingRefs"]
   refresh --> todo["Todo list from context source + remote status"]
-  todo --> branchFn["branchFn"]
-  branchFn --> locks["auto: path lock + git-common-dir lock"]
-  locks --> setup["auto: setupWorkspace<br/>preflight copy at resolvedBaseBranch<br/>fetch / switch / hard-reset<br/>then branch workspace"]
+  todo --> branchFn["branchFn = current HEAD"]
+  branchFn --> locks["auto: path lock"]
+  locks --> setup["auto: setupWorkspace<br/>in-place on this checkout<br/>no preflight"]
   setup --> postSetup["postSetupWorkspaceFn / Command"]
   postSetup --> setupFn
 
@@ -55,21 +54,14 @@ flowchart TD
     cmdSetup --> walk["walk steps until done:<br/>StepFn expands functions<br/>leaf: promptFn or promptTemplate or empty<br/>then CommandFn / command module command<br/>null skips spawn, still runs postCommandExecFn"]
     walk --> cmdTd["command module teardown"]
     cmdTd --> tdFn["teardownFn"]
-    tdFn --> git["auto: git add + commit<br/>marker LUMP: lumpName - contextName"]
   end
 
-  git --> push["auto: git push"]
-  push --> postTd["postTeardownWorkspaceFn / Command"]
+  tdFn --> postTd["postTeardownWorkspaceFn / Command"]
   postTd --> teardownWs["auto: teardownWorkspace"]
   teardownWs --> unlock["auto: release locks<br/>refresh contextStatusRecord.json"]
 ```
 
-**Daemon tick (shared):** discover loadable lumps → apply `--include` / `--exclude` → for each match, run the shared path above (no primary-branch subtick expansion).
-
-```mermaid
-flowchart TD
-  d["Discover loadable lumps"] --> f["apply include / exclude"] --> m["each match = shared run path"]
-```
+**No shared tick:** `start` is dedicated-only.
 
 ### Dedicated mode
 
@@ -432,10 +424,10 @@ export const setup = defineCommandSetup(async () => ({}));
 
 Lump configs do **not** define `projectRoot`; the CLI resolves it as the directory that contains `.lumpcode/`. Both fields below are runtime parameters on your `CommandFn`:
 
-- **`projectRoot`** — **project workspace**: the source checkout where `.lumpcode/` lives (always your repo in `shared` mode; same as the execution workspace in `dedicated` mode).
-- **`workspacePath`** — **branch workspace**: where the agent process runs for this lump (the engine sets `cwd: workspacePath` for you). With `workspaceStrategy: "checkout"`, this equals the execution workspace (project copy in `shared`, checkout in `dedicated`). With `"worktree"`, it is a linked worktree under `.lumpcode/worktrees/<branch>/` inside the execution workspace. See [concepts.md § Three workspaces](./concepts.md#three-workspaces) and [local-config.md](./local-config.md).
+- **`projectRoot`** — **project workspace**: the source checkout where `.lumpcode/` lives (same as the execution workspace in both modes).
+- **`workspacePath`** — **branch workspace**: where the agent process runs for this lump (the engine sets `cwd: workspacePath` for you). Shared `run`: this checkout (`HEAD`). Dedicated `checkout`: the execution workspace. Dedicated `worktree`: a linked worktree under `.lumpcode/worktrees/<branch>/`. See [concepts.md § Three workspaces](./concepts.md#three-workspaces) and [local-config.md](./local-config.md).
 
-The CLI also resolves an **execution workspace** (git repo root after pre-flight)—not passed to `CommandFn`. In `shared` mode that is `~/.lumpcode/project-copies/<projectName>/`; in `dedicated` mode it matches `projectRoot`.
+The CLI also resolves an **execution workspace**—not passed to `CommandFn`. Both modes: `projectRoot`.
 
 ### How `setup` / `teardown` compose
 
@@ -464,7 +456,7 @@ Per-lump git setup is generated by the CLI from the execution workspace (resolve
 | `checkout` (default) | Main worktree: fetch / switch / hard-reset `baseBranch`, then `git switch -c` lump branch; teardown switches back to the lump's resolved `baseBranch`. |
 | `worktree` | Main worktree stays on the lump's resolved `baseBranch`; agent runs in `.lumpcode/worktrees/<branch>/`; teardown removes the worktree. |
 
-Pick `mode` (`shared` / `dedicated`) and `workspaceStrategy` in [local-config.md](./local-config.md). Worktrees are always created under the execution workspace (project copy in `shared`, checkout in `dedicated`).
+Pick `mode` (`shared` / `dedicated`) and `workspaceStrategy` in [local-config.md](./local-config.md). Shared `run` ignores `workspaceStrategy`. Dedicated worktrees are created under the execution workspace (this checkout).
 
 ---
 

@@ -1,0 +1,16 @@
+name: shared-in-place-docs
+workflow:
+  - manualReq
+  - impl
+dependsOn:
+  - in-place-workspace
+  - shared-run-review
+  - shared-mode-no-daemon
+  - open-pr-lump-prefix
+task: >-
+  User-facing website, CLI DOCS, articles, and AGENTS.md match shipped shared
+  in-place run: this checkout, dirty allowed, c/e review, no auto push, start
+  dedicated-only. No project-copies copy. Do not document before the other
+  tickets have landed.
+priority: 2
+completedAt: '2026-09-12T16:21:56.313Z'

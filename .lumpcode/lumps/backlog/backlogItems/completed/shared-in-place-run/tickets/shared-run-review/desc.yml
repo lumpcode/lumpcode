@@ -1,0 +1,14 @@
+name: shared-run-review
+workflow:
+  - manualReq
+  - testImpl
+  - impl
+dependsOn:
+  - in-place-workspace
+task: >-
+  After a successful shared lumpcode run that walked contexts, commands/run
+  offers TTY commit (one multi-marker LUMP commit, git add ., no push) or exit.
+  Non-TTY and --json implicit-exit. Ctrl+C is exit. Commit failure fails the
+  command. Prompt does not live in runLumpFromLumpName or phase 2.
+priority: 1
+completedAt: '2026-09-11T16:50:01.035Z'

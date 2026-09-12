@@ -2,8 +2,9 @@ import * as fs from 'node:fs/promises';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { aliveDaemonSpawnFn } from '../../../testing';
+import { aliveDaemonSpawnFn, writeLocalJson } from '../../../testing';
 import {
+    SHARED_MODE_NO_DAEMON_MESSAGE,
     daemonSchedulerFiles,
     daemonsDirPath,
     stopSupervisor,
@@ -108,6 +109,20 @@ describe('start --superviseOnly', () => {
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toContain('--superviseOnly cannot be combined with');
         expect(result.data.messages[0]).toContain(label);
+    });
+
+    it('fails sharedModeNoDaemon in shared mode (shared-mode-no-daemon)', async () => {
+        await writeLocalJson(localConfigFolderPath(projectRoot), {
+            mode: 'shared',
+            primaryBranch: 'main',
+        });
+        const spawnSpy = vi.fn(aliveDaemonSpawnFn) as unknown as typeof nodeSpawn;
+        const result = await runSuperviseOnly(spawnSpy);
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
+        expect(JSON.stringify(result.data)).toContain('sharedModeNoDaemon');
+        expect((spawnSpy as unknown as ReturnType<typeof vi.fn>).mock.calls).toHaveLength(0);
     });
 
     it('starts supervise without writing daemon desired or pid files', async () => {

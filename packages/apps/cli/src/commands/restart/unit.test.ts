@@ -9,10 +9,11 @@ import {
     waitForDaemonMetaFile,
     waitForDaemonPidFile,
     writeDaemonMetaSticky,
+    writeLocalJson,
 } from '../../testing';
 import { command as startCommand } from '../start/main';
 import { command as restartCommand } from './main';
-import { createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { SHARED_MODE_NO_DAEMON_MESSAGE, createTempTestDirs, removeTempTestDirs } from '../../utils';
 
 describe('restart command', () => {
     let projectRoot: string;
@@ -79,6 +80,17 @@ describe('restart command', () => {
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toContain('No daemon PID file');
+        expect(spawnFn).not.toHaveBeenCalled();
+    });
+
+    it('fails sharedModeNoDaemon when local.json mode is shared (shared-mode-no-daemon)', async () => {
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+        const result = await makeRestartHandler({ spawnFn })({ options: {}, arguments: {} });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
+        expect(JSON.stringify(result.data)).toContain('sharedModeNoDaemon');
         expect(spawnFn).not.toHaveBeenCalled();
     });
 

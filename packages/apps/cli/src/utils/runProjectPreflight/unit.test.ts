@@ -55,7 +55,7 @@ describe('runProjectPreflight', () => {
         expect(result.data.workspaceStrategy).toBe('checkout');
     });
 
-    it('returns the project copy as executionWorkspacePath in shared mode', async () => {
+    it('returns sourceProjectRoot as executionWorkspacePath in shared mode (in-place-workspace)', async () => {
         await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
         const result = await runProjectPreflight({
             sourceProjectRoot: projectRoot,
@@ -64,9 +64,10 @@ describe('runProjectPreflight', () => {
         });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(result.data.executionWorkspacePath).toBe(
-            path.resolve(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
-        );
+        expect(result.data.executionWorkspacePath).toBe(projectRoot);
+        await expect(
+            fs.access(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
+        ).rejects.toBeDefined();
     });
 
     it('uses frozen localConfig instead of re-reading local.json from disk', async () => {
@@ -153,7 +154,7 @@ describe('runProjectPreflight', () => {
         expect(result.data).toMatch(/ver\/0\.0\.9/i);
     });
 
-    it('shared mode + targetBranch leaves source checkout untouched and syncs copy', async () => {
+    it('shared mode + targetBranch does not create a project copy (in-place-workspace)', async () => {
         await writeLocalJson(localConfigFolderPath, {
             mode: 'shared',
             primaryBranch: 'main',
@@ -173,11 +174,10 @@ describe('runProjectPreflight', () => {
         });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
-        expect(gitCurrentBranch(projectRoot)).toBe('main');
-        expect(gitCurrentBranch(result.data.executionWorkspacePath)).toBe('ver/0.0.9');
-        expect(result.data.executionWorkspacePath).toBe(
-            path.resolve(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
-        );
+        expect(result.data.executionWorkspacePath).toBe(projectRoot);
+        await expect(
+            fs.access(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
+        ).rejects.toBeDefined();
     });
 
 });

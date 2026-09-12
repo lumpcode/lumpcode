@@ -8,9 +8,5 @@ export function getExecutionWorkspacePath(input: {
     globalConfigFolderPath: string;
     projectName: string;
 }): string {
-    const { mode, sourceProjectRoot, globalConfigFolderPath, projectName } = input;
-    if (mode === 'shared') {
-        return path.resolve(globalConfigFolderPath, 'project-copies', projectName);
-    }
-    return path.resolve(sourceProjectRoot);
+    return path.resolve(input.sourceProjectRoot);
 }
