@@ -5,14 +5,17 @@ import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import {
     applyLumpConfigDefaults,
     commandFailure,
+    commitSharedRunReview,
     createCliLogger,
     getJsConfigFromLumpName,
     installRunAbortHandlers,
     isRunLumpWorkspacePathBusyFailure,
+    promptSharedRunReview,
     readProjectLocalConfig,
     resolveEffectiveDiscoveryBranch,
     runLumpFromJsConfigFailureMessage,
     runLumpFromLumpName,
+    shouldPromptSharedRunReview,
     type RunLumpFromLumpNameSuccess,
 } from '../../utils';
 import { execAsync, failure, shellSingleQuote, success } from '@lumpcode/core';
@@ -122,9 +125,47 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 data: runLumpRes.data,
             });
         }
+
+        const runSuccess = runLumpRes.data;
+        if (shouldPromptSharedRunReview({ mode: localConfig.mode, run: runSuccess })) {
+            disposeAbortHandlers?.();
+            disposeAbortHandlers = undefined;
+
+            const porcelainResult = await execAsync('git status --porcelain', { cwd: projectRoot });
+            const porcelainLines = porcelainResult.success
+                ? porcelainResult.data.stdout.split('\n').filter((line) => line.length > 0)
+                : [];
+            const review = await promptSharedRunReview({
+                stdin: process.stdin,
+                stdout: process.stdout,
+                json: !!json,
+                porcelainLines,
+            });
+            if (review.data === 'commit') {
+                const commitRes = await commitSharedRunReview({
+                    cwd: projectRoot,
+                    lumpName,
+                    contextNames: runSuccess.result.contextNames,
+                });
+                if (!commitRes.success) {
+                    return failure({
+                        messages: [commitRes.data.message],
+                        data: commitRes.data,
+                    });
+                }
+                return success({
+                    messages: [
+                        `Committed LUMP markers for: ${runSuccess.result.contextNames.join(', ')}`,
+                        'Contexts stay toDo until you push this branch. The next lumpcode run will pick them again.',
+                        'SUCCESS: Lump run successfully',
+                    ],
+                    data: runSuccess,
+                });
+            }
+        }
         return success({
             messages: ["SUCCESS: Lump run successfully"],
-            data: runLumpRes.data,
+            data: runSuccess,
         });
     } finally {
         disposeAbortHandlers?.();
