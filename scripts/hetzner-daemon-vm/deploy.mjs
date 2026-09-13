@@ -11,7 +11,7 @@
  *   - regenerate scripts/hetzner-daemon-vm/connect.sh with the current public IP
  *   - print how to SSH in
  *
- * Secrets stay off the repo under ~/.lumpcode/hetzner-daemon-vm/.
+ * Secrets stay off the repo under ~/.config/hetzner-daemon-vm/ (not ~/.lumpcode).
  *
  * Prerequisites:
  *   - `hcloud` CLI on PATH (https://github.com/hetznercloud/cli)
@@ -25,7 +25,7 @@
  *   npm run hetzner-daemon-vm -- --regen-ssh-keys
  *   node scripts/hetzner-daemon-vm/deploy.mjs --help
  *
- * Non-secret config (env overrides ~/.lumpcode/hetzner-daemon-vm/config.json):
+ * Non-secret config (env overrides ~/.config/hetzner-daemon-vm/config.json):
  *   LUMPCODE_HETZNER_LOCATION         (default: fsn1)
  *   LUMPCODE_HETZNER_SERVER_NAME      (default: lumpcode-daemon)
  *   LUMPCODE_HETZNER_SERVER_TYPE      (default: cx43 — 8 vCPU / 16 GB)
@@ -34,7 +34,8 @@
  *   LUMPCODE_HETZNER_SSH_KEY_NAME     (default: same as server name)
  *
  * Token (first match wins): LUMPCODE_HETZNER_TOKEN, HCLOUD_TOKEN,
- *   ~/.lumpcode/hetzner-daemon-vm/token, else the active `hcloud` context.
+ *   ~/.config/hetzner-daemon-vm/token, else the active `hcloud` context.
+ * Prefer `hcloud context create` so the token never lives in this tree.
  */
 
 import { spawnSync } from "node:child_process";
@@ -51,7 +52,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
-const STATE_DIR = resolve(homedir(), ".lumpcode", "hetzner-daemon-vm");
+const STATE_DIR_NAME = "hetzner-daemon-vm";
+const LEGACY_STATE_DIR = resolve(homedir(), ".lumpcode", STATE_DIR_NAME);
+const STATE_DIR = resolve(xdgConfigHome(), STATE_DIR_NAME);
 const SSH_DIR = join(STATE_DIR, "ssh");
 const PRIVATE_KEY_PATH = join(SSH_DIR, "id_ed25519");
 const PUBLIC_KEY_PATH = join(SSH_DIR, "id_ed25519.pub");
@@ -78,6 +81,7 @@ let hcloudEnv = { ...process.env };
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
+  migrateLegacyStateDir();
   ensureDir(STATE_DIR);
   ensureDir(SSH_DIR);
 
@@ -159,7 +163,7 @@ Prerequisites
 Auth (first match)
   LUMPCODE_HETZNER_TOKEN  env
   HCLOUD_TOKEN            env
-  ${TOKEN_PATH}
+  ${TOKEN_PATH}           optional file; prefer hcloud context instead
   active hcloud context   (hcloud context create)
 
 Quick start (from repo root)
@@ -198,11 +202,11 @@ Config (non-secret; first run writes a starter file)
     LUMPCODE_HETZNER_ADMIN_USERNAME   (default: ${DEFAULTS.adminUsername})
     LUMPCODE_HETZNER_SSH_KEY_NAME     (default: server name)
 
-Secrets / state (never commit; outside the repo)
+Secrets / state (never commit; outside the repo and outside ~/.lumpcode)
   ${STATE_DIR}
     ssh/id_ed25519      private key
     ssh/id_ed25519.pub  public key
-    token               optional API token (chmod 600)
+    token               optional API token (chmod 600); prefer hcloud
     config.json         non-secret names / type / location
     state.json          last run snapshot (public IP, paths)
 
@@ -791,6 +795,25 @@ function ensureDir(path) {
 function fail(message) {
   console.error(`${LOG_PREFIX} ${message}`);
   process.exit(1);
+}
+
+function xdgConfigHome() {
+  const fromEnv = process.env.XDG_CONFIG_HOME?.trim();
+  if (fromEnv) return fromEnv;
+  return join(homedir(), ".config");
+}
+
+function migrateLegacyStateDir() {
+  if (!existsSync(LEGACY_STATE_DIR)) return;
+  if (existsSync(STATE_DIR)) {
+    console.log(
+      `${LOG_PREFIX} using ${STATE_DIR}; leftover ${LEGACY_STATE_DIR} not moved`,
+    );
+    return;
+  }
+  ensureDir(dirname(STATE_DIR));
+  renameSync(LEGACY_STATE_DIR, STATE_DIR);
+  console.log(`${LOG_PREFIX} moved ${LEGACY_STATE_DIR} -> ${STATE_DIR}`);
 }
 
 main();

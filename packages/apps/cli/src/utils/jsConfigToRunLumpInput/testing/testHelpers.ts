@@ -4,7 +4,7 @@ import { expect } from 'vitest';
 
 import type { CommandFn, GetContextListFn, PromptFn } from '@lumpcode/core';
 
-import type { LumpJsConfig } from '../../../types';
+import type { LocalConfig, LumpJsConfig } from '../../../types';
 import { jsConfigToRunLumpInput } from '../main';
 
 export const FIXTURES_DIR = path.resolve(__dirname, '..', '__fixtures__');
@@ -48,9 +48,10 @@ export function resolveJsConf(
         effectiveDiscoveryBranch?: string;
         /** Post-impl: plan path skips composing post workspace hooks. */
         skipPostWorkspaceHooks?: boolean;
+        localConfig?: LocalConfig;
     } = {},
 ) {
-    const { effectiveDiscoveryBranch, skipPostWorkspaceHooks, ...restOpts } = opts;
+    const { effectiveDiscoveryBranch, skipPostWorkspaceHooks, localConfig, ...restOpts } = opts;
     return jsConfigToRunLumpInput({
         config: makeConfig(configOverrides),
         lumpName: restOpts.lumpName ?? 'my-lump',
@@ -61,6 +62,7 @@ export function resolveJsConf(
         workspaceStrategy: restOpts.workspaceStrategy ?? 'checkout',
         ...(effectiveDiscoveryBranch !== undefined ? { effectiveDiscoveryBranch } : {}),
         ...(skipPostWorkspaceHooks !== undefined ? { skipPostWorkspaceHooks } : {}),
+        ...(localConfig !== undefined ? { localConfig } : {}),
     } as Parameters<typeof jsConfigToRunLumpInput>[0] & {
         effectiveDiscoveryBranch?: string;
         skipPostWorkspaceHooks?: boolean;

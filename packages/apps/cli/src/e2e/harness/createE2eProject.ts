@@ -281,7 +281,10 @@ export function e2eMarkerPath(root: string, lumpName: string, contextName: strin
     return path.join(root, '.lumpcode', 'e2e-markers', lumpName, `${contextName}.done`);
 }
 
-/** Execution workspace path for a project running in `shared` mode (`~/.lumpcode/project-copies/<projectName>`). */
+/**
+ * Unused copy path (`~/.lumpcode/project-copies/<projectName>`). Shared run
+ * executes in the fixture repo; tests assert this directory is not created.
+ */
 export function sharedModeCopyPath(globalConfigFolderPath: string, projectName: string): string {
     return path.join(globalConfigFolderPath, 'project-copies', projectName);
 }

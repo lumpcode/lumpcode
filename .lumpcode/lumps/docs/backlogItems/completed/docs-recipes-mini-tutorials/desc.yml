@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
 name: docs-recipes-mini-tutorials
 task: >-
   Cleaner recipes examples in DOCS: concise mini-tutorials that show how to use

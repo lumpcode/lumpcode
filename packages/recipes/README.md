@@ -38,6 +38,22 @@ The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a fo
 
 `desc.yml` is a single YAML object with `name`, `task`, `priority`, optional `dependsOn`, and recipe-specific fields (`workflow`, `manual` for featureBacklog).
 
+JSON Schema for editors (YAML language server):
+
+- Generic / abstraction items: `https://lumpcode.com/schemas/backlogDesc.schema.json`
+- `featureBacklog` items: `https://lumpcode.com/schemas/featureBacklogDesc.schema.json`
+
+Add a first-line comment, map globs in `yaml.schemas`, or import from `@lumpcode/recipes/schemas/featureBacklogDesc.schema.json`:
+
+```yaml
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: my-item
+task: Do the thing
+priority: 1
+workflow: [manualReq, testImpl]
+```
+
+
 ## Kit
 
 Flat helpers under `src/kit/` (re-exported from the package root):
@@ -117,7 +133,7 @@ export default featureBacklog<
 });
 ```
 
-`desc.yml` `workflow` is an array of `req`, `testPlan`, `testImpl`, `impl`, and/or `directImpl`. Omit ≡ `[req, testPlan, testImpl]` (terminal defaults to `impl`). `directImpl` in the array wins over `impl` and may implement without `requirements.md`; default `impl` waits for that file unless `req` is in the array. `manual: true` skips standalone items and tickets (umbrella `completion` still runs). On the primary discovery branch (default `dev`) only top-level items without `testPlan`/`testImpl` run; tickets never run there. On `<itemDiscoveryBranchPrefix>/<key>` (default `feature/<key>`) the matching item or parent runs. Ticket context names are `<parent>-<ticket>`. After every ticket finishes, one parent `completion` context (no agent) depends on all ticket impl names and merges the parent folder into `completed/`. Status reads use the concrete `discoveryBranch`. Optional `primaryDiscoveryBranch` / `itemDiscoveryBranchPrefix` replace hardcoded `dev` / `feature`; the recipe emits `discoveryBranches` from those values. Optional `promptFns` replaces the main `promptFn` per stage (`req`, `testPlan`, `testImpl`, `impl`, `directImpl`); artifact validation and fix prompts stay the defaults.
+`desc.yml` `workflow` is an array of `req`, `manualReq`, `testPlan`, `testImpl`, `impl`, and/or `directImpl`. Omit ≡ `[req, testPlan, testImpl]` (terminal defaults to `impl`). `req` lets the lump write `requirements.md`. `manualReq` is a gate (no agent context): wait until that file exists. If both are listed, `manualReq` wins (the recipe warns once). Omitting both still waits before `testPlan` / `testImpl` / default `impl`. `directImpl` in the array wins over `impl` and may implement without `requirements.md`. `manual: true` skips standalone items and tickets (umbrella `completion` still runs). On the primary discovery branch (default `dev`) only top-level items without `testPlan`/`testImpl` run; tickets never run there. On `<itemDiscoveryBranchPrefix>/<key>` (default `feature/<key>`) the matching item or parent runs. Ticket context names are `<parent>-<ticket>`. After every ticket finishes, one parent `completion` context (no agent) depends on all ticket impl names and merges the parent folder into `completed/`. Status reads use the concrete `discoveryBranch`. Optional `primaryDiscoveryBranch` / `itemDiscoveryBranchPrefix` replace hardcoded `dev` / `feature`; the recipe emits `discoveryBranches` from those values. Optional `promptFns` replaces the main `promptFn` per stage (`req`, `testPlan`, `testImpl`, `impl`, `directImpl`); artifact validation and fix prompts stay the defaults.
 
 ### abstractionFinder + abstractionBacklog
 

@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "backlogDesc.schema.json",
+  "title": "Lumpcode backlog item (desc.yml)",
+  "description": "Schema for backlogItems/todo|completed/<name>/desc.yml used by the generic `backlog` and `abstractionBacklog` recipes. Required: name, task, priority. Extra keys are allowed (runtime ignores unknown fields).",
+  "type": "object",
+  "required": ["name", "task", "priority"],
+  "additionalProperties": true,
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]+$",
+      "description": "Item id. Must match the folder name. Letters, digits, underscore, hyphen only.",
+      "examples": ["port-to-vue", "open-pr"]
+    },
+    "task": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What to do. Folded YAML (`>-`) is fine for multi-line text."
+    },
+    "priority": {
+      "type": "number",
+      "description": "Lower number runs sooner. Per lump, not global across lumps."
+    },
+    "dependsOn": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Other item names in this lump that must finish first. Tickets are prefixed with the parent name at runtime."
+    },
+    "completedAt": {
+      "type": "string",
+      "description": "ISO timestamp stamped when the item is moved to completed/. Do not set this by hand on todo items."
+    }
+  }
+}

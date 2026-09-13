@@ -23,70 +23,83 @@ export const BUILD_ENV = ${JSON.stringify(envValue)};
 export const BUILD_API_URL = ${JSON.stringify(apiUrl)};
 `;
 
-fs.writeFileSync(generatedEnvPath, generatedEnvContent);
-console.log('📝 Generated env file with build-time values');
+async function main() {
+    fs.writeFileSync(generatedEnvPath, generatedEnvContent);
+    console.log('📝 Generated env file with build-time values');
 
-const nccFlags = isDev
-    ? '--source-map'
-    : '--minify --no-source-map-register';
+    const nccFlags = isDev
+        ? '--source-map'
+        : '--minify --no-source-map-register';
 
-try {
-    // Run ncc to bundle the application
-    console.log('📦 Bundling with @vercel/ncc...');
-    execSync(`npx ncc build src/root.ts -o dist -e esbuild ${nccFlags}`, {
-        stdio: 'inherit',
-        cwd: path.join(__dirname, '..'),
-    });
-    console.log('✅ Bundle complete: dist/index.js');
-    if (isDev) {
-        console.log("💡 Readable stack traces: NODE_OPTIONS='--enable-source-maps' node dist/index.js …");
-    }
-
-    const cliRoot = path.join(__dirname, '..');
-    const schemasSrc = path.join(cliRoot, 'src', 'schemas');
-    const schemasDest = path.join(cliRoot, 'dist', 'schemas');
-    fs.mkdirSync(schemasDest, { recursive: true });
-    for (const name of fs.readdirSync(schemasSrc)) {
-        if (name.endsWith('.json')) {
-            fs.copyFileSync(path.join(schemasSrc, name), path.join(schemasDest, name));
+    try {
+        // Run ncc to bundle the application
+        console.log('📦 Bundling with @vercel/ncc...');
+        execSync(`npx ncc build src/root.ts -o dist -e esbuild ${nccFlags}`, {
+            stdio: 'inherit',
+            cwd: path.join(__dirname, '..'),
+        });
+        console.log('✅ Bundle complete: dist/index.js');
+        if (isDev) {
+            console.log("💡 Readable stack traces: NODE_OPTIONS='--enable-source-maps' node dist/index.js …");
+        } else {
+            const { wrapMinifiedBundleFile } = await import('./wrapMinifiedBundle.mjs');
+            const bundlePath = path.join(__dirname, '..', 'dist', 'index.js');
+            console.log('📐 Wrapping minified bundle lines for readable stack traces...');
+            await wrapMinifiedBundleFile(bundlePath);
+            console.log('✅ Bundle line wrap complete');
         }
-    }
-    console.log('📋 Copied JSON schemas to dist/schemas/');
 
-    const presetsSrc = path.join(cliRoot, 'src', 'presets', 'commands');
-    const presetsDest = path.join(cliRoot, 'dist', 'presets', 'commands');
-    fs.mkdirSync(presetsDest, { recursive: true });
-    for (const name of fs.readdirSync(presetsSrc)) {
-        if (name.endsWith('.js')) {
-            fs.copyFileSync(path.join(presetsSrc, name), path.join(presetsDest, name));
-        }
-    }
-    const presetsUtilsSrc = path.join(presetsSrc, 'utils');
-    if (fs.existsSync(presetsUtilsSrc)) {
-        const presetsUtilsDest = path.join(presetsDest, 'utils');
-        fs.mkdirSync(presetsUtilsDest, { recursive: true });
-        for (const name of fs.readdirSync(presetsUtilsSrc)) {
-            if (name.endsWith('.js')) {
-                fs.copyFileSync(path.join(presetsUtilsSrc, name), path.join(presetsUtilsDest, name));
+        const cliRoot = path.join(__dirname, '..');
+        const schemasSrc = path.join(cliRoot, 'src', 'schemas');
+        const schemasDest = path.join(cliRoot, 'dist', 'schemas');
+        fs.mkdirSync(schemasDest, { recursive: true });
+        for (const name of fs.readdirSync(schemasSrc)) {
+            if (name.endsWith('.json')) {
+                fs.copyFileSync(path.join(schemasSrc, name), path.join(schemasDest, name));
             }
         }
-    }
-    console.log('📋 Copied preset command modules to dist/presets/commands/');
+        console.log('📋 Copied JSON schemas to dist/schemas/');
 
-    const installPresetCommandsSrc = path.join(
-        cliRoot,
-        'src',
-        'utils',
-        'ensurePresetCommandsInstalled',
-        'installPresetCommands.mjs',
-    );
-    const installPresetCommandsDest = path.join(cliRoot, 'dist', 'installPresetCommands.mjs');
-    fs.copyFileSync(installPresetCommandsSrc, installPresetCommandsDest);
-    console.log('📋 Copied installPresetCommands.mjs to dist/');
-} finally {
-    // Clean up the generated file
-    if (fs.existsSync(generatedEnvPath)) {
-        fs.unlinkSync(generatedEnvPath);
-        console.log('🧹 Cleaned up generated env file');
+        const presetsSrc = path.join(cliRoot, 'src', 'presets', 'commands');
+        const presetsDest = path.join(cliRoot, 'dist', 'presets', 'commands');
+        fs.mkdirSync(presetsDest, { recursive: true });
+        for (const name of fs.readdirSync(presetsSrc)) {
+            if (name.endsWith('.js')) {
+                fs.copyFileSync(path.join(presetsSrc, name), path.join(presetsDest, name));
+            }
+        }
+        const presetsUtilsSrc = path.join(presetsSrc, 'utils');
+        if (fs.existsSync(presetsUtilsSrc)) {
+            const presetsUtilsDest = path.join(presetsDest, 'utils');
+            fs.mkdirSync(presetsUtilsDest, { recursive: true });
+            for (const name of fs.readdirSync(presetsUtilsSrc)) {
+                if (name.endsWith('.js')) {
+                    fs.copyFileSync(path.join(presetsUtilsSrc, name), path.join(presetsUtilsDest, name));
+                }
+            }
+        }
+        console.log('📋 Copied preset command modules to dist/presets/commands/');
+
+        const installPresetCommandsSrc = path.join(
+            cliRoot,
+            'src',
+            'utils',
+            'ensurePresetCommandsInstalled',
+            'installPresetCommands.mjs',
+        );
+        const installPresetCommandsDest = path.join(cliRoot, 'dist', 'installPresetCommands.mjs');
+        fs.copyFileSync(installPresetCommandsSrc, installPresetCommandsDest);
+        console.log('📋 Copied installPresetCommands.mjs to dist/');
+    } finally {
+        // Clean up the generated file
+        if (fs.existsSync(generatedEnvPath)) {
+            fs.unlinkSync(generatedEnvPath);
+            console.log('🧹 Cleaned up generated env file');
+        }
     }
 }
+
+main().catch((error) => {
+    console.error(error);
+    process.exit(1);
+});

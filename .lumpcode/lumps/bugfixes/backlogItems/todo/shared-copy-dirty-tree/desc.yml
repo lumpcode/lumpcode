@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: shared-copy-dirty-tree
+workflow: [directImpl]
+task: >-
+  Shared-mode pre-flight copies the source checkout with fs.cp when
+  ~/.lumpcode/project-copies/<projectName>/ does not exist yet. If the source
+  working tree is dirty, the copy inherits that dirt and the following git
+  switch (resetProjectBaseBranch) fails. Before creating the copy, verify the
+  source is a clean git state (empty git status --porcelain); if it is dirty,
+  fail with a clear error instead of copying.
+priority: 0

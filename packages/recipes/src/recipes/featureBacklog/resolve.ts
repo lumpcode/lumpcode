@@ -184,6 +184,10 @@ export async function resolveFeatureBacklogItem(input: {
         }),
     });
 
+    if (wants('manualReq') && !hasReq) {
+        return { ignored: true };
+    }
+
     if (wants('req') && !hasReq) {
         return resolveStage('req');
     }

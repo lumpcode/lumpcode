@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: reuse-existing-lump-branch
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Opt a lump out of creating a new lump/… branch, and instead check out and
+  push on an existing branch (typically another lump’s already-open PR).
+  Motivating use case: a follow-up lump that fetches review comments on that
+  PR, applies fixes, and pushes to the same head — not a second lump/… branch.
+  Still fuzzy: how the target branch is chosen (branchFn? explicit existing
+  branch? other-lump/context ref?), how context status and LUMP markers work
+  when this lump does not own the branch, how workspace setup / locks /
+  open-branch caps treat a reused head, and how this differs from
+  shared-in-place-run (laptop, no lump branch at all). Design the product
+  contract before implementing. Distinct from IDEAS add-git-client-abstraction
+  (host API / comment-driven relaunch).
+priority: 5

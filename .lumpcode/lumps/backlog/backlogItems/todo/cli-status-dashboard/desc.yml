@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: cli-status-dashboard
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Mini CLI dashboard: one command with a comprehensive view of which lumps are
+  running, which contexts are in flight or left, and how many have run.
+  Unified `lumpcode status` (or equivalent) covering daemon state plus per-lump
+  context summaries, so operators do not bounce between daemon-status,
+  lump-status, and context-status. Git/file-shaped (remote history + live
+  daemon meta); not a database. Supersedes IDEAS unified-status-command.
+  Complements the later local web dashboard MVP.
+priority: 2

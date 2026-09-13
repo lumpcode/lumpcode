@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
 name: docs-shared-install-guide
 task: Add a quick guide to shared-mode installation in DOCS.
 priority: 16

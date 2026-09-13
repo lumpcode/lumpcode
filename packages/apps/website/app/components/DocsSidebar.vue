@@ -17,11 +17,18 @@ onMounted(() => {
 </script>
 
 <template>
-  <aside class="docs-sidebar" :data-open="open">
+  <aside id="docs-sidebar" class="docs-sidebar" :data-open="open">
     <div class="docs-sidebar-head">
       <p class="docs-sidebar-kicker">Docs</p>
-      <button class="docs-icon-btn docs-sidebar-close" type="button" @click="closeSidebar">
-        Close
+      <button
+        class="docs-sidebar-close"
+        type="button"
+        aria-label="Close documentation menu"
+        @click="closeSidebar"
+      >
+        <svg class="docs-nav-burger" viewBox="0 0 18 18" aria-hidden="true">
+          <path d="M5 5l8 8M13 5l-8 8" />
+        </svg>
       </button>
     </div>
     <button class="docs-sidebar-search" type="button" @click="openSearch">

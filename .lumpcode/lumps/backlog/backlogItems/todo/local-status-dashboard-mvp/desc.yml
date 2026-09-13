@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: local-status-dashboard-mvp
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Local web dashboard on a port showing live lump status from git (contexts in
+  flight, todo / branchPushed / finished, daemon idle vs running). Not a cloud
+  database; the remote remains source of truth. Complements the CLI
+  `cli-status-dashboard`. Definitely needs a lot of tickets, only MVP for now.
+priority: 3

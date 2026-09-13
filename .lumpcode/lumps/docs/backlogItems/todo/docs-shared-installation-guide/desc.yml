@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
+name: docs-shared-installation-guide
+workflow: [manualReq, directImpl]
+task: >-
+  Quick-start DOCS guide for laptop rehearsal (shared mode), parallel to the
+  dedicated worker guide. Shared run is in place on this checkout (dirty
+  allowed, c/e review, no auto push, start dedicated-only). Covered by
+  get-started.md and First PR; do not describe a project copy or an untouched
+  laptop checkout. Dedicated remains the worker.
+priority: 4

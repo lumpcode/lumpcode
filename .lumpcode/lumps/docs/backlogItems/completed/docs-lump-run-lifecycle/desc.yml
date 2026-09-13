@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
 name: docs-lump-run-lifecycle
 task: >-
   Cleaner DOCS: add a clear schema/diagram of the whole lump run lifecycle in

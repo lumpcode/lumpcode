@@ -26,7 +26,7 @@ With lump defaults:
 ## `projectName` rules
 
 - **Required:** Letters, digits, underscore (`_`), and hyphen (`-`) only (`^[a-zA-Z0-9_-]+$`).
-- Used for daemon filenames under `~/.lumpcode/daemons/` and for `~/.lumpcode/project-copies/<projectName>/` when `local.json.mode` is `shared`.
+- Used for daemon filenames under `~/.lumpcode/daemons/`.
 - **`lumpcode project-setup`** writes `projectName` (from `--projectName` or inferred from `git remote get-url origin` / directory basename) and `primaryBranch` (from `--primaryBranch`, default `main`).
 
 ## Field membership
@@ -70,7 +70,7 @@ Keeping both at the repo root lets you **commit** lump definitions with the same
 ## Related topics
 
 - [local-config.md](./local-config.md) — Per-machine `local.json`, merge rules pointer
-- [concepts.md](./concepts.md) — Project root, daemon files, workspace copies
+- [concepts.md](./concepts.md) — Project root, daemon files, workspaces
 - [get-started.md](./get-started.md) — First-time setup
 - [lump-config.md](./lump-config.md) — Per-lump `config.json` / `config.js` / `config.ts`
 - [commands.md](./commands.md) — `project-setup` flags

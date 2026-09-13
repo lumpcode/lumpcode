@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: command-as-shell-string
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Allow command / commandFn to be (or return) a plain shell string such as
+  "npm run …", not only a CommandDescriptor object or registered tag /
+  CommandModule path.
+priority: 3

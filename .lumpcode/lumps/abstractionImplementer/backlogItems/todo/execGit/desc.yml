@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
 name: execGit
 task: >-
   Extract repeated synchronous git test helpers (execSync with git subcommand, cwd, stdio pipe,

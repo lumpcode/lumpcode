@@ -3,8 +3,10 @@ import type { LumpJsConfig, LumpVariables, PromptFn, StepVariables } from '@lump
 import type { ValidationCommandFn } from '../../kit';
 import type { BaseBacklogItem } from '../../types';
 
+/** `manualReq` is a wait-for-requirements.md gate, not a runnable agent stage. */
 export const FEATURE_BACKLOG_WORKFLOW_STAGES = [
     'req',
+    'manualReq',
     'testPlan',
     'testImpl',
     'impl',
@@ -33,7 +35,7 @@ export const FEATURE_BACKLOG_RESERVED_NAME_SUFFIXES = [
     '_testImpl',
 ] as const;
 
-export const WORKFLOW_PREFIX_ORDER = ['req', 'testPlan', 'testImpl'] as const;
+export const WORKFLOW_PREFIX_ORDER = ['req', 'manualReq', 'testPlan', 'testImpl'] as const;
 
 export type FeatureBacklogItem = BaseBacklogItem & {
     workflow?: FeatureBacklogWorkflow;

@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: command-fn-result-return
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Make commandFn more approachable for JS/TS steps: besides a CommandDescriptor
+  (or nullish skip), allow returning { commandResult, commandSucceeded } so the
+  step can finish in-process without spawning. The engine should treat that
+  shape as the step outcome (history, postCommandExecFn) and still honor
+  continueOnError when commandSucceeded is false. Same union for inline
+  command on JS/TS steps. Distinct from command-as-shell-string (a string to
+  execute, not an already-computed result).
+priority: 2

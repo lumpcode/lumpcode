@@ -10,14 +10,12 @@ import {
     utcDateContextName,
 } from './launchIdeasCloudAgent';
 
-const MAX_BACKLOG_TODO_ITEMS = 3;
-const BACKLOG_TODO_DIR = path.join(
-    '.lumpcode',
-    'lumps',
-    'backlog',
-    'backlogItems',
-    'todo',
-);
+const MAX_TODOS_PER_LANE = 3;
+const BACKLOG_LANES = ['backlog', 'docs', 'qol', 'bugfixes'] as const;
+
+function laneTodoDir(lane: (typeof BACKLOG_LANES)[number]): string {
+    return path.join('.lumpcode', 'lumps', lane, 'backlogItems', 'todo');
+}
 
 type IdeaEntry = {
     name?: unknown;
@@ -38,15 +36,20 @@ const configUrl = import.meta.url;
 const projectRoot = projectRootFromConfigUrl(configUrl);
 const ideasPath = path.join(projectRoot, IDEAS_FILE);
 
-async function backlogTodoCountExceedsLimit(): Promise<boolean> {
-    const todoDir = path.join(projectRoot, BACKLOG_TODO_DIR);
+async function countTodoDirs(todoDir: string): Promise<number> {
     try {
         const entries = await fs.readdir(todoDir, { withFileTypes: true });
-        const count = entries.filter((entry) => entry.isDirectory()).length;
-        return count > MAX_BACKLOG_TODO_ITEMS;
+        return entries.filter((entry) => entry.isDirectory()).length;
     } catch {
-        return false;
+        return 0;
     }
+}
+
+async function allLanesOverTodoCap(): Promise<boolean> {
+    const counts = await Promise.all(
+        BACKLOG_LANES.map((lane) => countTodoDirs(path.join(projectRoot, laneTodoDir(lane)))),
+    );
+    return counts.every((count) => count > MAX_TODOS_PER_LANE);
 }
 
 export default defineConfig({
@@ -54,7 +57,7 @@ export default defineConfig({
     maximumNumberOfConcurrentBranches: 1,
     verbose: true,
     keepHistory: true,
-    disabled: backlogTodoCountExceedsLimit,
+    disabled: allLanesOverTodoCap,
     async getContextListFn() {
         const entries = await readYamlList<IdeaEntry>(ideasPath);
         if (!entries.some(isUnblockedIdea)) {
