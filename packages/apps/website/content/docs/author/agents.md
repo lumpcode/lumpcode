@@ -103,7 +103,7 @@ export const command = defineCommand(({ prompt }) => {
 })
 ```
 
-The agent `cwd` is the **branch workspace** (`workspacePath`). `projectRoot` is the source checkout that contains `.lumpcode/`. In `shared` mode those are different folders.
+The agent `cwd` is the **branch workspace** (`workspacePath`). `projectRoot` is the source checkout that contains `.lumpcode/`. On a laptop `run` those are the same folder. On a worker they differ when `workspaceStrategy` is `worktree`.
 
 Signatures: [types](/docs/config/types).
 

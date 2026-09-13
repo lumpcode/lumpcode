@@ -26,5 +26,5 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
     verbose: true,
     keepHistory: true,
     /** Flip to `false` for one `lumpcode run presetSmoke`. */
-    disabled: true,
+    disabled: false,
 });

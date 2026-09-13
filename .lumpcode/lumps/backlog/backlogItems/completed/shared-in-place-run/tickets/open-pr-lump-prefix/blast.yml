@@ -1,0 +1,12 @@
+packages/recipes/src/kit/openPrPostTeardown/main.ts:
+  change: >-
+    Return before gh unless branchName starts with lump/ (existing constant).
+    Other skips unchanged.
+  "-": 0
+  "+": 4
+packages/recipes/src/kit/openPrPostTeardown/unit.test.ts:
+  change: >-
+    Skip make-my-new-lump / dev. Still open lump/myLump/button. Skip is not
+    workspaceTeardownFailed.
+  "-": 0
+  "+": 40

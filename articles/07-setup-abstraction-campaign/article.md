@@ -95,7 +95,7 @@ The implementer skips items without `requirements.md`. Both recipes need `config
 
 ## 5. Dry run
 
-On the laptop (shared mode, checkout untouched):
+On the laptop (rehearse on this branch):
 
 ```bash
 lumpcode lump-plan abstractionFinder --plan --contexts
@@ -104,7 +104,7 @@ lumpcode lump-plan abstractionImplementer --plan --contexts
 
 Finder should preview a scan + a prompt that writes a folder, not code. Implementer with an empty `todo/` is a valid empty plan.
 
-Optional: run one finder context and review the requirements PR before the implementer is allowed to code:
+Optional: run one finder context on this branch, verify, type `c` if you want LUMP markers, then push yourself before the implementer is allowed to code:
 
 ```bash
 lumpcode run abstractionFinder

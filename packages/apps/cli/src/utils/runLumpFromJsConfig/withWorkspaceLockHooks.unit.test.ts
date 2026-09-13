@@ -104,6 +104,21 @@ describe('withWorkspaceLockHooks', () => {
         expect((await fs.readdir(locksDir)).filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
     });
 
+    it('does not call preflight in shared mode (in-place-workspace)', async () => {
+        const preflightSpy = vi.fn(async () => success(undefined));
+        const session = createWorkspaceLockSession();
+        const wrapped = withWorkspaceLockHooks({
+            setupWorkspaceFn: makeInnerSetup(),
+            session,
+            ctx: makeCtx({ mode: 'shared', preflight: preflightSpy }),
+        });
+
+        await wrapped(setupInput);
+
+        expect(preflightSpy).not.toHaveBeenCalled();
+        await releaseWorkspaceLockSession(session);
+    });
+
     it('acquires path lock for shared mode', async () => {
         const session = createWorkspaceLockSession();
         const wrapped = withWorkspaceLockHooks({
@@ -113,6 +128,27 @@ describe('withWorkspaceLockHooks', () => {
         });
 
         await wrapped(setupInput);
+
+        expect(session.releaseBranchPathLock).toBeTypeOf('function');
+        expect(session.releaseExecutionPathLock).toBeUndefined();
+
+        await releaseWorkspaceLockSession(session);
+    });
+
+    it('shared mode ignores worktree strategy on a non-lump branch', async () => {
+        const session = createWorkspaceLockSession();
+        const wrapped = withWorkspaceLockHooks({
+            setupWorkspaceFn: makeInnerSetup(),
+            session,
+            ctx: makeCtx({ mode: 'shared', workspaceStrategy: 'worktree' }),
+        });
+
+        await expect(
+            wrapped({
+                ...setupInput,
+                branchName: 'feature/shared-in-place-run',
+            }),
+        ).resolves.toMatchObject({ workspacePath: executionWorkspacePath });
 
         expect(session.releaseBranchPathLock).toBeTypeOf('function');
         expect(session.releaseExecutionPathLock).toBeUndefined();

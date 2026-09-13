@@ -1,0 +1,55 @@
+packages/apps/cli/src/utils/shouldPromptSharedRunReview/main.ts:
+  change: >-
+    True only for shared, not skipped, result.contextNames.length > 0.
+  "-": 0
+  "+": 25
+packages/apps/cli/src/utils/shouldPromptSharedRunReview/index.ts:
+  change: Barrel export.
+  "-": 0
+  "+": 3
+packages/apps/cli/src/utils/shouldPromptSharedRunReview/unit.test.ts:
+  change: Shared+contexts; skip; empty names; dedicated.
+  "-": 0
+  "+": 40
+packages/apps/cli/src/utils/promptSharedRunReview/main.ts:
+  change: >-
+    Porcelain + c/e. Junk re-prompts. Ctrl+C/EOF and json/non-TTY → exit.
+    Always Success.
+  "-": 0
+  "+": 80
+packages/apps/cli/src/utils/promptSharedRunReview/index.ts:
+  change: Barrel export.
+  "-": 0
+  "+": 3
+packages/apps/cli/src/utils/promptSharedRunReview/unit.test.ts:
+  change: c/e, junk, Ctrl+C/EOF, json, non-TTY. No TTY injection in phase 2.
+  "-": 0
+  "+": 90
+packages/apps/cli/src/utils/commitSharedRunReview/main.ts:
+  change: >-
+    git add . && git commit --allow-empty with getGitCommitMessage joined
+    by blank lines. No push. Failure sharedRunCommitFailed.
+  "-": 0
+  "+": 50
+packages/apps/cli/src/utils/commitSharedRunReview/index.ts:
+  change: Barrel export.
+  "-": 0
+  "+": 3
+packages/apps/cli/src/utils/commitSharedRunReview/unit.test.ts:
+  change: Multi-marker %B, allow-empty, fail code, no push.
+  "-": 0
+  "+": 80
+packages/apps/cli/src/utils/index.ts:
+  change: Barrel-export the three review utils.
+  "-": 0
+  "+": 3
+packages/apps/cli/src/commands/run/main.ts:
+  change: >-
+    After success, dispose abort handlers, then prompt/commit. c fail is
+    command Failure. Implicit e on --json.
+  "-": 8
+  "+": 45
+packages/apps/cli/src/commands/run/unit.test.ts:
+  change: Success-with-contexts prompts; skip does not; --json no commit; c fail.
+  "-": 10
+  "+": 70

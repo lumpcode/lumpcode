@@ -13,6 +13,9 @@ import {
     writeMinimalLump,
 } from '../../testing';
 import { gitCommitAllAndPush } from '../../utils/gitCommitAllAndPush';
+import * as commitSharedRunReviewModule from '../../utils/commitSharedRunReview';
+import * as installRunAbortHandlersModule from '../../utils/installRunAbortHandlers';
+import * as promptSharedRunReviewModule from '../../utils/promptSharedRunReview';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
 import * as runLumpFromLumpNameModule from '../../utils/runLumpFromLumpName';
 import { command } from './main';
@@ -439,3 +442,140 @@ describe('run command abort signal wiring (W2)', () => {
         expect(callArg.signal?.aborted).toBe(false);
     });
 });
+
+describe('run command — shared run review (shared-run-review)', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+    let globalConfigFolderPath: string;
+    let localConfigFolderPath: string;
+
+    beforeEach(async () => {
+        ({ projectRoot, remoteDir, globalConfigFolderPath, localConfigFolderPath } = await createTempTestDirs({ prefix: 'lump-run-review-' }));
+
+        initBareRemoteAndCheckout(projectRoot, remoteDir);
+        await fs.mkdir(path.join(localConfigFolderPath, 'lumps'), { recursive: true });
+        await writeJsonFile({
+            filePath: path.join(localConfigFolderPath, 'project.json'),
+            data: { projectName: 'run-review-test' },
+        });
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        await writeMinimalLump(projectRoot, 'reviewLump');
+    });
+
+    afterEach(async () => {
+        await removeTempTestDirs({ projectRoot, remoteDir, globalConfigFolderPath });
+        vi.restoreAllMocks();
+    });
+
+    function makeHandler() {
+        return command.handlerMaker({
+            projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+    }
+
+    function walkedRun() {
+        return core.success({
+            skipped: false,
+            result: {
+                branchName: 'make-my-new-lump',
+                contextNames: ['ctxA', 'ctxB'],
+                contextRunStateList: [],
+            },
+        }) as Awaited<ReturnType<typeof runLumpFromLumpNameModule.runLumpFromLumpName>>;
+    }
+
+    it('prompts after a successful walk once abort handlers are disposed', async () => {
+        const dispose = vi.fn();
+        vi.spyOn(installRunAbortHandlersModule, 'installRunAbortHandlers').mockReturnValue(dispose);
+        vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(walkedRun());
+        const promptSpy = vi.spyOn(promptSharedRunReviewModule, 'promptSharedRunReview').mockImplementation(async () => {
+            expect(dispose).toHaveBeenCalled();
+            return core.success('exit');
+        });
+        const commitSpy = vi.spyOn(commitSharedRunReviewModule, 'commitSharedRunReview');
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'reviewLump' },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.messages).toContain('SUCCESS: Lump run successfully');
+        expect(promptSpy).toHaveBeenCalledWith(expect.objectContaining({
+            json: false,
+            stdin: process.stdin,
+            stdout: process.stdout,
+        }));
+        expect(commitSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not prompt when the run was skipped or contextNames is empty', async () => {
+        const promptSpy = vi.spyOn(promptSharedRunReviewModule, 'promptSharedRunReview');
+        vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(
+            core.success({
+                skipped: true,
+                reason: 'disabled',
+                reasonDetail: 'lump disabled',
+            }) as Awaited<ReturnType<typeof runLumpFromLumpNameModule.runLumpFromLumpName>>,
+        );
+
+        const skipped = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'reviewLump' },
+        });
+        expect(skipped.success).toBe(true);
+        expect(promptSpy).not.toHaveBeenCalled();
+
+        vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(
+            core.success({
+                skipped: false,
+                result: { branchName: 'make-my-new-lump', contextNames: [], contextRunStateList: [] },
+            }) as Awaited<ReturnType<typeof runLumpFromLumpNameModule.runLumpFromLumpName>>,
+        );
+        const empty = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'reviewLump' },
+        });
+        expect(empty.success).toBe(true);
+        expect(promptSpy).not.toHaveBeenCalled();
+    });
+
+    it('--json succeeds without committing', async () => {
+        vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(walkedRun());
+        vi.spyOn(promptSharedRunReviewModule, 'promptSharedRunReview').mockResolvedValue(core.success('exit'));
+        const commitSpy = vi.spyOn(commitSharedRunReviewModule, 'commitSharedRunReview');
+
+        const result = await makeHandler()({
+            options: { json: true },
+            arguments: { lumpName: 'reviewLump' },
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.messages).toContain('SUCCESS: Lump run successfully');
+        expect(commitSpy).not.toHaveBeenCalled();
+    });
+
+    it('returns sharedRunCommitFailed without SUCCESS when c commit fails', async () => {
+        vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName').mockResolvedValue(walkedRun());
+        vi.spyOn(promptSharedRunReviewModule, 'promptSharedRunReview').mockResolvedValue(core.success('commit'));
+        vi.spyOn(commitSharedRunReviewModule, 'commitSharedRunReview').mockResolvedValue(
+            core.failure({ code: 'sharedRunCommitFailed', message: 'fatal: hook failed' }),
+        );
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'reviewLump' },
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data.messages[0]).toMatch(/fatal: hook failed/);
+        expect(JSON.stringify(result.data)).toContain('sharedRunCommitFailed');
+        expect(result.data.messages.join(' ')).not.toMatch(/SUCCESS: Lump run successfully/);
+    });
+});
+

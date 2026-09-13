@@ -367,20 +367,167 @@ describe('runLumpFromJsConfig', () => {
         expect(core.runLump).toHaveBeenCalled();
     });
 
-    it('shared mode runs preflight to resolvedBaseBranch when setup is invoked', async () => {
-        await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'shared', primaryBranch: 'main' } });
-        execGit('checkout -b ver/0.0.9', projectRoot);
-        execGit('push -u origin ver/0.0.9', projectRoot);
-        execGit('checkout main', projectRoot);
+    /**
+     * in-place-workspace — shared walk is this checkout / this branch.
+     * Unskip when assertSharedRunHead, no-copy workspace, and git no-ops land.
+     */
+    describe('shared in-place walk (in-place-workspace)', () => {
+        const onBaseWarning = (resolvedBaseBranch: string) =>
+            `You are on the execution base (${resolvedBaseBranch}). A LUMP commit you accept, then push, will mark contexts finished on origin/${resolvedBaseBranch}.`;
 
-        mockRunLumpInvokingSetup();
-        const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
+        beforeEach(async () => {
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: { mode: 'shared', primaryBranch: 'main' },
+            });
+        });
 
-        await callRunLumpFromJsConfig(makeJsConfig({ baseBranch: 'ver/0.0.9' }));
+        it('does not preflight or create project-copies when setup is invoked', async () => {
+            mockRunLumpInvokingSetup();
+            const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
 
-        expect(preflightSpy).toHaveBeenCalledWith(
-            expect.objectContaining({ targetBranch: 'ver/0.0.9' }),
-        );
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+
+            expect(result.success).toBe(true);
+            expect(preflightSpy).not.toHaveBeenCalled();
+            await expect(fs.access(path.join(globalConfigFolderPath, 'project-copies'))).rejects.toMatchObject({
+                code: 'ENOENT',
+            });
+        });
+
+        it('uses sourceProjectRoot as workspacePath and leaves a dirty tree', async () => {
+            const dirtyPath = path.join(projectRoot, 'DIRTY.txt');
+            await fs.writeFile(dirtyPath, 'still here\n', 'utf-8');
+            execGit('checkout -b make-my-new-lump', projectRoot);
+
+            vi.mocked(core.runLump).mockImplementation(async (runInput) => {
+                expect(runInput.projectRoot).toBe(projectRoot);
+                const setup = await runInput.setupWorkspaceFn!({
+                    baseBranch: 'main',
+                    branchName: 'make-my-new-lump',
+                    contextList: [{ name: 'ctx1', variables: {} }],
+                });
+                expect(setup.workspacePath).toBe(path.resolve(projectRoot));
+                expect(setup.command ?? '').not.toMatch(/\bgit\b/);
+                return core.success({
+                    result: {
+                        branchName: 'make-my-new-lump',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput);
+            });
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+
+            expect(result.success).toBe(true);
+            expect(await fs.readFile(dirtyPath, 'utf-8')).toBe('still here\n');
+            expect(execGit('rev-parse --abbrev-ref HEAD', projectRoot)).toBe('make-my-new-lump');
+            expect(execGit('branch --list "lump/*"', projectRoot)).toBe('');
+        });
+
+        it('fails detached HEAD before the agent with detachedHead', async () => {
+            execGit('checkout --detach', projectRoot);
+            mockRunLumpInvokingSetup();
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(runLumpFromJsConfigFailureMessage(result.data)).toBe(
+                'Not on a branch. Shared run needs a named branch.',
+            );
+            expect((result.data as { code?: string }).code).toBe('detachedHead');
+            expect(core.runLump).not.toHaveBeenCalled();
+        });
+
+        it('warns once when HEAD equals resolvedBaseBranch and still runs', async () => {
+            const warnCalls: string[] = [];
+            const logger = {
+                ...noopLogger,
+                warn: (message: string) => {
+                    warnCalls.push(message);
+                },
+                child: () => logger,
+            };
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'main',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}), { logger });
+
+            expect(result.success).toBe(true);
+            expect(warnCalls.filter((message) => message === onBaseWarning('main'))).toHaveLength(1);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
+
+        it('does not skip for tooManyOpenBranches in shared mode', async () => {
+            createAndPushLumpBranch('my-lump', 'ctx-a');
+            createAndPushLumpBranch('my-lump', 'ctx-b');
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'make-my-new-lump',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+
+            const result = await callRunLumpFromJsConfig(
+                makeJsConfig({ maximumNumberOfConcurrentBranches: 2 }),
+            );
+
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.skipped).toBe(false);
+            expect(core.runLump).toHaveBeenCalledOnce();
+        });
+
+        it('injects gitAddCommitFn / gitPushFn no-ops (no auto commit)', async () => {
+            execGit('checkout -b make-my-new-lump', projectRoot);
+            vi.mocked(core.runLump).mockImplementation(async (runInput) => {
+                expect(typeof runInput.gitAddCommitFn).toBe('function');
+                expect(typeof runInput.gitPushFn).toBe('function');
+                const add = await runInput.gitAddCommitFn!({
+                    baseBranch: 'main',
+                    branchName: 'make-my-new-lump',
+                    workspacePath: projectRoot,
+                    context: { name: 'ctx1', variables: {} },
+                    commitMessage: 'LUMP:my-lump - ctx1',
+                });
+                expect(add.success).toBe(true);
+                if (!add.success) throw new Error('unreachable');
+                expect(add.data).toBeUndefined();
+                const push = await runInput.gitPushFn!({
+                    baseBranch: 'main',
+                    branchName: 'make-my-new-lump',
+                    workspacePath: projectRoot,
+                    contextList: [{ name: 'ctx1', variables: {} }],
+                });
+                expect(push.success).toBe(true);
+                if (!push.success) throw new Error('unreachable');
+                expect(push.data).toBeUndefined();
+                return core.success({
+                    result: {
+                        branchName: 'make-my-new-lump',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput);
+            });
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig({}));
+
+            expect(result.success).toBe(true);
+            expect(execGit('log -1 --pretty=%s', projectRoot)).not.toBe('LUMP:my-lump - ctx1');
+        });
     });
 
     it('worktree dedicated releases execution lock after setup while branch lock stays held', async () => {

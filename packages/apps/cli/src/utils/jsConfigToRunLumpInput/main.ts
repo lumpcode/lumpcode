@@ -6,6 +6,8 @@ import type {
     CommandFn,
     Failure,
     GetContextListFn,
+    GitAddCommitFn,
+    GitPushFn,
     Logger,
     PostCommandExecFn,
     PromptFn,
@@ -17,7 +19,7 @@ import type {
     TeardownFn,
     Context,
 } from "@lumpcode/core";
-import { success, failure, pathExists } from "@lumpcode/core";
+import { execAsync, success, failure, pathExists } from "@lumpcode/core";
 import { noopLogger } from '../noopLogger';
 import { readJsonFile } from '../readJsonFile';
 import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled";
@@ -49,6 +51,7 @@ import type { GitCommonDirLockContext } from '../gitCommonDirLock';
 import { makeGatedGitFns } from '../makeGatedGitFns';
 import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
 import { makeLumpWorkspaceFns } from '../makeLumpWorkspaceFns';
+import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import type { LocalConfig } from '../../types/LocalConfig';
 import { resolveLumpBaseBranch, resolveLumpDiscoveryBranch } from '../resolveLumpBranches';
@@ -195,12 +198,14 @@ export async function jsConfigToRunLumpInput({
     const baseBranch = baseBranchResult.data;
 
     const resolvedExecutionWorkspacePath = path.resolve(executionWorkspacePath);
+    const mode = localConfig?.mode;
     let { setupWorkspaceFn, teardownWorkspaceFn } = makeLumpWorkspaceFns({
         executionWorkspacePath: resolvedExecutionWorkspacePath, // TODO : why need path.resolve ?
         projectBaseBranch,
         lumpBaseBranch: baseBranch,
         workspaceStrategy,
         gitLock,
+        mode,
     });
 
     if (!skipPostWorkspaceHooks) {
@@ -231,7 +236,11 @@ export async function jsConfigToRunLumpInput({
     }
 
     const gitCommitMessageFn = makeGitCommitMessageFnFromLumpName(lumpName);
-    const gatedGitFns = gitLock ? makeGatedGitFns({ gitLock }) : undefined;
+    const gatedGitFns = mode === 'shared'
+        ? makeSharedNoopGitFns()
+        : gitLock
+            ? makeGatedGitFns({ gitLock })
+            : undefined;
     const refreshRemoteTrackingRefsFn = gitLock
         ? makeLockedRefreshRemoteTrackingRefsFn({ gitLock })
         : undefined;
@@ -277,7 +286,11 @@ export async function jsConfigToRunLumpInput({
     });
     if (!stepsResult.success) return stepsResult;
 
-    const branchFnResult = await makeBranchFn(lumpName);
+    const branchFnResult = await makeBranchFn({
+        lumpName,
+        mode,
+        cwd: resolvedExecutionWorkspacePath,
+    });
     if (!branchFnResult.success) return branchFnResult;
 
     const getKeepHistoryFilePathFn = resolveGetKeepHistoryFilePathFn({
@@ -453,8 +466,25 @@ async function preRegisterCommands({
     return success(undefined);
 }
 
-async function makeBranchFn(lumpName: string): Promise<Success<BranchFn> | Failure<string>> {
-    return success(({ contextList }) => lumpBranchName({ lumpName, contextList }));
+async function makeBranchFn(input: {
+    lumpName: string;
+    mode?: Mode;
+    cwd: string;
+}): Promise<Success<BranchFn> | Failure<string>> {
+    if (input.mode === 'shared') {
+        const headResult = await execAsync('git rev-parse --abbrev-ref HEAD', { cwd: input.cwd });
+        if (!headResult.success) {
+            return failure(headResult.data.message);
+        }
+        const branchName = headResult.data.stdout.trim();
+        return success(async () => branchName);
+    }
+    return success(({ contextList }) => lumpBranchName({ lumpName: input.lumpName, contextList }));
+}
+
+function makeSharedNoopGitFns(): { gitAddCommitFn: GitAddCommitFn; gitPushFn: GitPushFn } {
+    const noop = async () => success(undefined);
+    return { gitAddCommitFn: noop, gitPushFn: noop };
 }
 
 async function resolveGetContextListFn({

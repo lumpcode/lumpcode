@@ -239,7 +239,7 @@ export const docsVuePages: {
       { id: 'meant-to-run', text: 'This is how Lumpcode is meant to run', depth: 2 },
     ],
     searchText:
-      'first pr tutorial get started install cli project-setup lump-create myFirstLump lump-plan --contexts primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email',
+      'first pr tutorial get started install cli project-setup lump-create myFirstLump lump-plan --contexts primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker',
   },
   {
     path: '/docs/start/worker',
@@ -251,6 +251,6 @@ export const docsVuePages: {
       { id: 'back-to-the-laptop', text: '4. Back to the laptop', depth: 2 },
     ],
     searchText:
-      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe daemon files start daemons from git',
+      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe daemon files start daemons from git rehearsal laptop campaign lump/',
   },
 ]

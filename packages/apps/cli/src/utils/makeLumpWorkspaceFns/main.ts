@@ -6,6 +6,7 @@ import type {
     TeardownWorkspaceFn,
 } from '@lumpcode/core';
 
+import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { atDirectory } from '../atDirectory';
 import {
@@ -16,8 +17,10 @@ import { lumpWorktreePath } from '../getLumpWorktreePath';
 import { shellBestEffort } from '../shellBestEffort';
 
 export interface MakeLumpWorkspaceFnsInput {
-    /** Execution workspace (absolute): git repo root — project copy in shared mode, checkout in dedicated. */
+    /** Execution workspace (absolute): git repo root (source checkout in both modes). */
     executionWorkspacePath: string;
+    /** Shared: no git in setup/teardown; workspacePath stays the source checkout. */
+    mode?: Mode;
     /**
      * Project-wide base branch declared in `.lumpcode/local.json`. Used for setup
      * switch-back when no per-lump override is provided.
@@ -43,19 +46,30 @@ export interface MakeLumpWorkspaceFnsOutput {
 
 /**
  * Builds the per-lump setup/teardown that the engine runs around a single lump
- * execution. Pre-flight has already reset `projectBaseBranch` and resolved
- * `executionWorkspacePath`; here we prepare the lump branch (checkout or worktree)
- * and teardown back to a known state.
+ * execution. Dedicated: pre-flight has already reset `projectBaseBranch` and
+ * resolved `executionWorkspacePath`; here we prepare the lump branch (checkout
+ * or worktree) and teardown back to a known state. Shared: no git — the walk
+ * stays on the current named branch at `executionWorkspacePath`.
  *
  * When `gitLock` is provided, git runs inside the fn under that lock and the
  * engine receives an empty command. Otherwise a compound shell string is returned
  * (tests / callers without a lock context).
  */
 export function makeLumpWorkspaceFns(input: MakeLumpWorkspaceFnsInput): MakeLumpWorkspaceFnsOutput {
-    const { executionWorkspacePath, projectBaseBranch, lumpBaseBranch, workspaceStrategy, gitLock } =
-        input;
+    const {
+        executionWorkspacePath,
+        projectBaseBranch,
+        lumpBaseBranch,
+        workspaceStrategy,
+        gitLock,
+        mode,
+    } = input;
     const resolvedExecutionWorkspace = path.resolve(executionWorkspacePath);
     const switchBackBranch = lumpBaseBranch ?? projectBaseBranch;
+
+    if (mode === 'shared') {
+        return makeSharedInPlaceWorkspaceFns(resolvedExecutionWorkspace);
+    }
 
     if (workspaceStrategy === 'worktree') {
         return makeWorktreeWorkspaceFns({
@@ -70,6 +84,16 @@ export function makeLumpWorkspaceFns(input: MakeLumpWorkspaceFnsInput): MakeLump
         switchBackBranch,
         gitLock,
     });
+}
+
+function makeSharedInPlaceWorkspaceFns(executionWorkspacePath: string): MakeLumpWorkspaceFnsOutput {
+    return {
+        setupWorkspaceFn: async () => ({
+            command: '',
+            workspacePath: executionWorkspacePath,
+        }),
+        teardownWorkspaceFn: async () => '',
+    };
 }
 
 async function runGitBodyUnderLock(input: {

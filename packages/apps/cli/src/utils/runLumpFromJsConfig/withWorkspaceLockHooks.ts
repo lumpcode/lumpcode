@@ -90,6 +90,7 @@ export function withWorkspaceLockHooks(input: {
             executionWorkspacePath: ctx.executionWorkspacePath,
             workspaceStrategy: ctx.workspaceStrategy,
             branchName: setupInput.branchName,
+            mode: ctx.mode,
         });
 
         const resolvedExecutionPath = path.resolve(ctx.executionWorkspacePath);
@@ -164,12 +165,6 @@ export function withWorkspaceLockHooks(input: {
                 assign: 'branch',
             }))
         ) {
-            return blockedSetupResult(branchWorkspacePathValue);
-        }
-
-        const preflightResult = await ctx.preflight();
-        if (!preflightResult.success) {
-            session.pendingFailure = toRunLumpMessageFailure(preflightResult.data);
             return blockedSetupResult(branchWorkspacePathValue);
         }
 

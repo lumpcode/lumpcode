@@ -4,6 +4,7 @@ import { failure, success, type Failure, type Logger, type Success } from '@lump
 
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { assertDaemonStartAllowed } from '../assertDaemonStartAllowed';
+import { assertDedicatedDaemonRequired } from '../assertDedicatedDaemonRequired';
 import { RESERVED_DAEMON_ID } from '../daemonFileBaseName';
 import { daemonSchedulerFiles } from '../daemonSchedulerFiles';
 import { daemonsDirPath } from '../daemonsDirPath';
@@ -37,7 +38,7 @@ export type LaunchStartDaemonOutput = {
 export type LaunchStartDaemonFailure = {
     messages: string[];
     data?: {
-        code: 'daemonIdInUse' | 'daemonMetaCorrupt';
+        code: 'daemonIdInUse' | 'daemonMetaCorrupt' | 'sharedModeNoDaemon';
         reason?: 'missing' | 'invalid';
     };
 };
@@ -92,6 +93,17 @@ export async function launchStartDaemon(
         skipEnsureSupervisor,
         running,
     } = input;
+
+    const dedicatedRequired = assertDedicatedDaemonRequired({
+        mode: frozenLocalConfig.mode,
+    });
+    if (!dedicatedRequired.success) {
+        return failure({
+            messages: [dedicatedRequired.data.message],
+            data: { code: dedicatedRequired.data.code },
+        });
+    }
+
     const { pidFilePath, logFilePath, metaFilePath, desiredFilePath } = daemonSchedulerFiles({
         daemonsDir: daemonsDirPath({ globalConfigFolderPath }),
         projectName,
