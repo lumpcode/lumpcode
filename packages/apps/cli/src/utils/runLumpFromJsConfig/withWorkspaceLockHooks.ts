@@ -90,6 +90,7 @@ export function withWorkspaceLockHooks(input: {
             executionWorkspacePath: ctx.executionWorkspacePath,
             workspaceStrategy: ctx.workspaceStrategy,
             branchName: setupInput.branchName,
+            mode: ctx.mode,
         });
 
         const resolvedExecutionPath = path.resolve(ctx.executionWorkspacePath);

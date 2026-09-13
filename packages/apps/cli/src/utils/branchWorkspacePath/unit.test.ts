@@ -27,4 +27,16 @@ describe('branchWorkspacePath', () => {
             }),
         ).toBe(path.join(executionWorkspacePath, '.lumpcode', 'worktrees', ...branchName.split('/')));
     });
+
+    it('shared mode stays on the checkout even when workspaceStrategy is worktree', () => {
+        const executionWorkspacePath = '/repo/copy';
+        expect(
+            branchWorkspacePath({
+                executionWorkspacePath,
+                workspaceStrategy: 'worktree',
+                branchName: 'feature/shared-in-place-run',
+                mode: 'shared',
+            }),
+        ).toBe(path.resolve(executionWorkspacePath));
+    });
 });

@@ -135,6 +135,27 @@ describe('withWorkspaceLockHooks', () => {
         await releaseWorkspaceLockSession(session);
     });
 
+    it('shared mode ignores worktree strategy on a non-lump branch', async () => {
+        const session = createWorkspaceLockSession();
+        const wrapped = withWorkspaceLockHooks({
+            setupWorkspaceFn: makeInnerSetup(),
+            session,
+            ctx: makeCtx({ mode: 'shared', workspaceStrategy: 'worktree' }),
+        });
+
+        await expect(
+            wrapped({
+                ...setupInput,
+                branchName: 'feature/shared-in-place-run',
+            }),
+        ).resolves.toMatchObject({ workspacePath: executionWorkspacePath });
+
+        expect(session.releaseBranchPathLock).toBeTypeOf('function');
+        expect(session.releaseExecutionPathLock).toBeUndefined();
+
+        await releaseWorkspaceLockSession(session);
+    });
+
     it('records workspacePathBusy on session when worktree branch path lock is held', async () => {
         const branchWorkspacePath = path.join(
             executionWorkspacePath,
