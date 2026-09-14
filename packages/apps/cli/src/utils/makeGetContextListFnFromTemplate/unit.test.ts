@@ -306,4 +306,41 @@ describe("makeGetContextListFnFromTemplate", () => {
             })),
         );
     });
+
+    it("still expands {NAME}.md via the placeholder matcher", () => {
+        const fn = makeGetContextListFnFromTemplate({
+            NAME: "{NAME}.md",
+        });
+
+        const out = fn({
+            lumpVariables: {},
+            codeBasePaths: [
+                { isDir: false, path: "README.md" },
+            ],
+        });
+
+        expect(out).toEqual([
+            {
+                name: "README",
+                variables: {
+                    NAME: "README.md",
+                },
+            },
+        ]);
+    });
+
+    it("emits no context for a no-placeholder template value", () => {
+        const fn = makeGetContextListFnFromTemplate({
+            FILE: "README.md",
+        });
+
+        const out = fn({
+            lumpVariables: {},
+            codeBasePaths: [
+                { isDir: false, path: "README.md" },
+            ],
+        });
+
+        expect(out).toEqual([]);
+    });
 });

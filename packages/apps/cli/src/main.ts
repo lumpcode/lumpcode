@@ -53,6 +53,7 @@ export async function main() {
                 authFilePath: undefined,
             },
             projectSetup: {},
+            setup: {},
             lumpCreate: {
                 projectRoot: process.cwd(),
             },

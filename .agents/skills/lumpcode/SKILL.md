@@ -116,11 +116,15 @@ Read [references/pick-a-shape.md](references/pick-a-shape.md) if you have not al
 
 | Field | Use when | Form |
 |-------|----------|------|
-| `contextListJson` | Units map to file **path patterns** in the repo | Inline object (or path to a JSON file) |
+| `contextListJson` | Units are a **static list**, or map to file **path patterns** | Inline `ContextList` array, path-template object, or path to a JSON file of either |
 | `getContextListFn` | Units come from a **custom list** (tickets, an API, computed) | Function (inline in `.js`/`.ts`, or a string path to a module) |
 | `contextMatchFn` | Units come from **scanning files** with skip logic | Function (inline in `.js`/`.ts`, or a string path to a module) |
 
-**`contextListJson`** — each key becomes a variable; each value is a path template. `{PLACEHOLDER}` captures a path segment from the real file tree; the context is created once per real match. The context **name** is the captured value(s). Naming-convention modifiers: `$upperFirst`, `$camel`, `$kebab`, `$snake`, `$lower`, `$pascal` (e.g. `$upperFirst{NAME}` requires the on-disk text to equal `UpperFirst(NAME)`).
+**`contextListJson`** — a static `ContextList` (`[{ name, variables, options? }]`) returned as written, or a path-template object. For templates, each key becomes a variable; each value is a path template. `{PLACEHOLDER}` captures a path segment from the real file tree; the context is created once per real match. The context **name** is the captured value(s). Naming-convention modifiers: `$upperFirst`, `$camel`, `$kebab`, `$snake`, `$lower`, `$pascal` (e.g. `$upperFirst{NAME}` requires the on-disk text to equal `UpperFirst(NAME)`). A template value with no placeholder fails; use a `ContextList`. `[]` and `{}` are empty plans.
+
+```json
+"contextListJson": [{ "name": "README", "variables": { "FILE": "README.md" } }]
+```
 
 ```json
 "contextListJson": { "FILE": "src/{NAME}.ts" }

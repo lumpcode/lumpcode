@@ -71,6 +71,95 @@ describe('jsConfigToRunLumpInput getContextListFn resolution', () => {
         });
     });
 
+    it('should return a static ContextList from inline contextListJson', async () => {
+        const list = [{
+            name: 'README',
+            variables: { FILE: 'README.md' },
+            options: { priority: 0, dependsOnContexts: ['other'] },
+        }];
+        const data = assertSuccess(await resolveJsConf({
+            getContextListFn: undefined,
+            contextMatchFn: undefined,
+            contextListJson: list,
+        }));
+        const contexts = await data.getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+        });
+        expect(contexts).toEqual(list);
+    });
+
+    it('should ignore contextOptionsFn when contextListJson is a ContextList', async () => {
+        const list = [{ name: 'README', variables: { FILE: 'README.md' } }];
+        const data = assertSuccess(await resolveJsConf({
+            getContextListFn: undefined,
+            contextMatchFn: undefined,
+            contextListJson: list,
+            contextOptionsFn: () => ({ priority: 9 }),
+        }));
+        const contexts = await data.getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+        });
+        expect(contexts).toEqual(list);
+    });
+
+    it('should return an empty plan for an empty ContextList or empty template object', async () => {
+        for (const contextListJson of [[], {}] as const) {
+            const data = assertSuccess(await resolveJsConf({
+                getContextListFn: undefined,
+                contextMatchFn: undefined,
+                contextListJson,
+            }));
+            const contexts = await data.getContextListFn({
+                codeBasePaths: [{ isDir: false, path: 'README.md' }],
+                lumpVariables: {},
+            });
+            expect(contexts).toEqual([]);
+        }
+    });
+
+    it('should fail resolve when a template value has no placeholder', async () => {
+        assertFailure(
+            await resolveJsConf({
+                getContextListFn: undefined,
+                contextMatchFn: undefined,
+                contextListJson: { FILE: 'README.md' },
+            }),
+            'contextListJson template value for "FILE" must contain a {PLACEHOLDER} or $modifier{…} token, or use a ContextList array',
+        );
+    });
+
+    it('should fail resolve when a ContextList item has extra keys', async () => {
+        assertFailure(
+            await resolveJsConf({
+                getContextListFn: undefined,
+                contextMatchFn: undefined,
+                contextListJson: [{ name: 'a', variables: { FILE: 'a.ts' }, extra: 1 }] as never,
+            }),
+            'contextListJson[0] has unknown keys: extra',
+        );
+    });
+
+    it('should create getContextListFn from a ContextList JSON file', async () => {
+        const data = assertSuccess(await resolveWithFixtures({
+            getContextListFn: undefined,
+            contextMatchFn: undefined,
+            contextListJson: './staticContextList.json',
+        }));
+        const contexts = await data.getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+        });
+        expect(contexts).toEqual([
+            {
+                name: 'README',
+                variables: { FILE: 'README.md' },
+                options: { priority: 1 },
+            },
+        ]);
+    });
+
     it('should create getContextListFn from contextListJson file path', async () => {
         const data = assertSuccess(await resolveWithFixtures({
             getContextListFn: undefined,

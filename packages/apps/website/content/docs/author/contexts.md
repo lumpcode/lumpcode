@@ -6,16 +6,26 @@ description: A context is one unit of work. Pick one way to discover them. Order
 A context has:
 
 - **`name`** — unique id. Letters, digits, `_`, `-` only. No `/`. This becomes the default branch suffix and the marker commit suffix.
-- **`variables`** — string map. Prompt `{VAR}` / `@{VAR}` read from here, not from lump-level options.
+- **`variables`** — map (`string` / `number` / `boolean`). Prompt `{VAR}` / `@{VAR}` read from here, not from lump-level options.
 - **`options`** (optional) — `priority` (lower runs sooner) and `dependsOnContexts`.
 
 One context can be one file, a component folder plus its test, or a ticket with no files yet. Several contexts can share a branch with `numberOfContextsPerBranch`.
 
 ## Pick one source
 
-### `contextListJson` — path patterns
+### `contextListJson` — a static list or path patterns
 
-Each key is a variable. Each value is a path template. Lumpcode scans the repo; every real path that fits the template becomes (or joins) a context.
+A **`ContextList`** array is the list you wrote. Files named in `variables` need not exist. `[]` is an empty plan.
+
+```json config.json
+{
+  "contextListJson": [
+    { "name": "README", "variables": { "FILE": "README.md" } }
+  ]
+}
+```
+
+A **path-template object** scans the repo. Each key is a variable. Each value needs a `{…}` or `$modifier{…}` token. `{}` is an empty plan. A value with no placeholder fails at config load; use a `ContextList` instead.
 
 ```json config.json
 {
@@ -45,7 +55,7 @@ Write templates without a leading `./`. Prefer `src/{NAME}.ts` over `./src/{NAME
 "COMPONENT": "src/components/{NAME}/$upperFirst{NAME}.tsx"
 ```
 
-`contextListJson` can be an inline object or a path to a JSON file. It does not set `options`. Attach those with `contextOptionsFn` (JS/TS inline, or a module path from any format).
+`contextListJson` can be an inline array, an inline template object, or a path to a JSON file of either shape. A static list may set `options` on each item. Template maps do not; attach those with `contextOptionsFn` (JS/TS inline, or a module path from any format). `contextOptionsFn` is ignored for a static list.
 
 ```ts contextOptions.ts
 export default function contextOptionsFn({ name }) {

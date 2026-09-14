@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: static-context-list-json
+workflow: [manualReq, testImpl, impl]
+task: >-
+  contextListJson accepts a static ContextList array (or a file of the same
+  JSON), so a smoke lump can declare one context without a path-template scan.
+  A no-placeholder template object fails at resolve except {}.
+priority: 0
+completedAt: '2026-09-16T00:42:00.000Z'

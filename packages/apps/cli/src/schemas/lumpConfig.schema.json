@@ -81,19 +81,27 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "File path to a JSON file containing a { [variableName]: pathTemplate } mapping."
+          "description": "File path to a JSON file containing either a ContextList array or a { [variableName]: pathTemplate } mapping."
+        },
+        {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Context" },
+          "description": "Static ContextList. Returned as written; files named in variables need not exist. Empty array is an empty plan."
         },
         {
           "type": "object",
           "additionalProperties": {
             "type": "string"
           },
-          "description": "Inline mapping from variable name to path template. Each value is a path template with {PLACEHOLDER} captures (e.g. 'src/{NAME}.ts'); each key is the variable name exposed to the prompt as {KEY} / @{KEY}."
+          "description": "Inline mapping from variable name to path template. Each value must contain a {PLACEHOLDER} or $modifier{…} token (e.g. 'src/{NAME}.ts'), or the object must be empty (zero matches). Each key is the variable name exposed to the prompt as {KEY} / @{KEY}."
         }
       ],
-      "description": "Static context source. The engine scans the tree and, for every path that matches a template, builds a context whose variables map keys (e.g. 'FILE') to the matched path. Path templates support {PLACEHOLDER} captures and $modifier{PLACEHOLDER} (e.g. $upperFirst{NAME}) for naming-convention checks. Prefer paths without a leading './'. Mutually exclusive with getContextListFn / contextMatchFn.",
+      "description": "Static context source: a ContextList array, a path-template object, or a path to a JSON file of either shape. Template maps are expanded by scanning the tree ({PLACEHOLDER} / $modifier{PLACEHOLDER}). A non-empty template value with no placeholder fails at config resolve; use a ContextList instead. Prefer template paths without a leading './'. Mutually exclusive with getContextListFn / contextMatchFn.",
       "examples": [
         "./contextList.json",
+        [
+            { "name": "README", "variables": { "FILE": "README.md" } }
+        ],
         {
             "FILE": "src/{NAME}.ts"
         },
@@ -223,6 +231,35 @@
     }
   },
   "$defs": {
+    "Context": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "variables"],
+      "description": "One unit of work. name must match ^[a-zA-Z0-9_-]+$ and be unique in the list (uniqueness is checked when the list is planned).",
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-zA-Z0-9_-]+$"
+        },
+        "variables": {
+          "type": "object",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean"]
+          }
+        },
+        "options": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "priority": { "type": "number" },
+            "dependsOnContexts": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    },
     "LumpJsonConfigStep": {
       "type": ["object", "string"],
       "additionalProperties": false,
