@@ -1,0 +1,24 @@
+desc: "Resume setup on an existing .lumpcode/ without rewriting project.json, and let a dedicated clone start the unfiltered global worker."
+files:
+  packages/apps/cli/src/commands/setup/main.ts:
+    desc: "Existing tree: keep project.json; merge answered local.json keys; skip stub when a lump config exists; still editLump and offer commitPush. Dedicated confirm start → launchStartDaemon daemonId global. Shared never calls it."
+    "-": 20
+    "+": 90
+    symbols:
+      handlerMaker: update
+  packages/apps/cli/src/commands/setup/testing/resume.unit.test.ts:
+    desc: "project.json not rewritten. local.json merge keeps extra keys. Existing lump skips stub. Dedicated wipe confirm. Shared never launchStartDaemon. Dedicated yes → daemonId global."
+    "-": 0
+    "+": 160
+  packages/apps/website/app/pages/docs/start/worker.vue:
+    desc: "May run setup to write local.json / offer start. Still do not run project-setup."
+    "-": 12
+    "+": 16
+  packages/apps/cli/DOCS/commands.md:
+    desc: "Resume behavior and dedicated start on setup."
+    "-": 6
+    "+": 16
+  packages/apps/website/content/docs/reference/commands.md:
+    desc: "Same resume and dedicated start notes."
+    "-": 4
+    "+": 12
