@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: setup-js-ts-stubs
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Choosing js or ts in `setup` installs the authoring packages and writes a
+  `contextMatchFn` stub over a file suffix so `lump-plan` lists those files.
+priority: 2
+dependsOn:
+  - setup-first-pr-drive

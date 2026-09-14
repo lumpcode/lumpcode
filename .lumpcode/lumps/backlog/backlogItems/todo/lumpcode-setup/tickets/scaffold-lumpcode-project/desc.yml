@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: scaffold-lumpcode-project
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Extract a create-only scaffold so `project-setup` and later `setup` share one
+  write path for a fresh `.lumpcode/` tree. `project-setup` stays flag-only and
+  still refuses when `.lumpcode/` already exists.
+priority: 0

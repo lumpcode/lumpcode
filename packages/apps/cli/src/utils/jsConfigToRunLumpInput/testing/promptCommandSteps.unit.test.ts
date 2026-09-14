@@ -308,4 +308,57 @@ describe('jsConfigToRunLumpInput prompt, command, and steps', () => {
             expect(command).toEqual({ executable: 'echo', args: ['done'] });
         });
     });
+
+    describe('timeoutMillis inheritance', () => {
+        it('should inherit lump-level timeoutMillis on steps that omit it', async () => {
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                timeoutMillis: 600_000,
+                prompt: undefined,
+                steps: ['Step one', 'Step two'],
+            }));
+            const [item0, item1] = data.steps as Step[];
+            expect(item0.timeoutMillis).toBe(600_000);
+            expect(item1.timeoutMillis).toBe(600_000);
+        });
+
+        it('should let per-step timeoutMillis override the lump default', async () => {
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                timeoutMillis: 600_000,
+                prompt: undefined,
+                steps: [
+                    'Uses lump default',
+                    { promptTemplate: 'Uses step override', timeoutMillis: 1_800_000, commandFn: stubCommandFn },
+                ],
+            }));
+            const [item0, item1] = data.steps as Step[];
+            expect(item0.timeoutMillis).toBe(600_000);
+            expect(item1.timeoutMillis).toBe(1_800_000);
+        });
+
+        it('should omit timeoutMillis when neither lump nor step set it', async () => {
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                prompt: 'Do something',
+            }));
+            expect((data.steps[0] as Step).timeoutMillis).toBeUndefined();
+        });
+
+        it('should inherit lump-level timeoutMillis on dynamic step returns', async () => {
+            const recursiveFn = vi.fn(async () => [
+                'Dynamic step',
+                { promptTemplate: 'Override', timeoutMillis: 90_000, commandFn: stubCommandFn },
+            ]);
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                timeoutMillis: 600_000,
+                prompt: undefined,
+                steps: [recursiveFn],
+            }));
+            const subItems = await (data.steps[0] as Function)(promptFnInput()) as Step[];
+            expect(subItems[0].timeoutMillis).toBe(600_000);
+            expect(subItems[1].timeoutMillis).toBe(90_000);
+        });
+    });
 });

@@ -11,7 +11,7 @@ export default {
         maximumNumberOfConcurrentBranches: 1,
         verbose: true,
         keepHistory: true,
-        lumpVariables: { model: 'cursor-grok-4.6-high-fast' },
+        lumpVariables: { model: 'composer-2.5' },
         discoveryBranch: 'dev',
         postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     }),

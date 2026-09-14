@@ -111,6 +111,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `discoveryBranch` | string | Singular discovery rule (exact or git glob). Mutually exclusive with `discoveryBranches`. Dedicated allowlist vs configured `primaryBranches`. |
 | `discoveryBranches` | string[] | Discovery rules (exact and/or globs). Mutually exclusive with `discoveryBranch`. Flagless CLI uses the first exact rule; pattern-only requires `--discoveryBranch`. |
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Default agent command for all prompt items that don’t set their own `command` |
+| `timeoutMillis` | number | Default agent/command timeout for steps that omit `timeoutMillis`; per-step value overrides. Engine default is 30 minutes when both are omitted. |
 | `branchFn` | [Function reference](#field-forms-conventions) | Custom branch naming; default is `lump/<lumpName>/<contextNames…>` |
 | `disabled` | boolean \| DisabledFn \| FilePath | When truthy / returns `true`, soft-skips the lump on both `lumpcode start` ticks and manual `lumpcode run` (`skipped: true`, reason `disabled`, exit 0). |
 | `maximumNumberOfConcurrentBranches` | number | If set (≥ 0), `run` / daemon tick **skips** when open `lump/<lumpName>/*` branches on `origin` ≥ limit (local-only branches are not counted) |
@@ -225,7 +226,7 @@ In `config.js` / `config.ts`, `steps` itself may be a single item of any of thos
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Required on each step unless overridden inline via `commandFn` in `config.js` / `config.ts`; inherits top-level `command` when omitted. |
 | `postCommandExecFn` | [Function reference](#field-forms-conventions) | Hook called after the agent finishes. May return follow-on steps (runtime-only nesting under this leaf; see [types.md](./types.md#postcommandexecfn)) |
 | `stepVariables` | object | JSON-serializable bag passed to promptFn/command/postCommandExecFn hooks |
-| `timeoutMillis` | number | Millis cap for the agent/command process; on expiry Lumpcode terminates the process tree (SIGTERM, then SIGKILL after a grace period) and the step fails |
+| `timeoutMillis` | number | Millis cap for the agent/command process; on expiry Lumpcode terminates the process tree (SIGTERM, then SIGKILL after a grace period) and the step fails. Inherits top-level `timeoutMillis` when omitted; engine default is 30 minutes when both are omitted. |
 
 ## Prompt run history (`keepHistory`)
 

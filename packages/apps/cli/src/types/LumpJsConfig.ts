@@ -58,6 +58,11 @@ export type LumpJsConfig<
     prompt?: LumpJsConfigSoloStep<V, SV>;
     steps?: LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>;
     /**
+     * Default agent/command timeout for steps that omit `timeoutMillis`.
+     * Engine default is 30 minutes when both are omitted.
+     */
+    timeoutMillis?: number;
+    /**
      * Extra command tags to pre-load before composed setup/teardown.
      * A tag top-level `command` is pre-registered automatically; list other
      * tags that appear only in dynamic/recursive returns.
