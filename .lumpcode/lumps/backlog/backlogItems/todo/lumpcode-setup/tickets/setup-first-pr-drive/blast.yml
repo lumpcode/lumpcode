@@ -1,0 +1,62 @@
+desc: "Register lumpcode setup and walk a fresh repo on the shared JSON path through in-place run. First PR and get-started use this command."
+files:
+  packages/apps/cli/src/commands/setup/main.ts:
+    desc: "TTY/--json gates. Preflight, optional skill, scaffold, chooseCommand, JSON README stub, edit pause, commitPush allowlist, plan then runLumpFromLumpName. Shared never starts a daemon. Existing .lumpcode/ may fail-closed."
+    "-": 0
+    "+": 380
+    symbols:
+      command: create
+      handlerMaker: create
+      SetupPrompter: create
+  packages/apps/cli/src/commands/setup/index.ts:
+    desc: "Barrel export."
+    "-": 0
+    "+": 3
+  packages/apps/cli/src/commands/setup/testing/general.unit.test.ts:
+    desc: "No TTY / --json fail. Injected prompter: shared JSON README, cli push, runLumpFromLumpName. Custom tag retries. Skill failure continues. Empty plan returns to editLump. Shared never calls launchStartDaemon. No local.json in add-list."
+    "-": 0
+    "+": 280
+  packages/apps/cli/src/commands/index.ts:
+    desc: "Export setup + Input/Output/Injections."
+    "-": 0
+    "+": 6
+    symbols:
+      setup: create
+  packages/apps/cli/src/main.ts:
+    desc: "Register setup injections (empty object / optional isInteractive + prompter)."
+    "-": 0
+    "+": 4
+    symbols:
+      makeProgram: update
+  packages/apps/cli/src/utils/readLocalConfig/main.ts:
+    desc: "Missing-file hint may mention setup or project-setup."
+    "-": 1
+    "+": 1
+    symbols:
+      MISSING_HINT: update
+  packages/apps/cli/src/utils/readProjectJson/main.ts:
+    desc: "Missing-file hint may mention setup or project-setup."
+    "-": 1
+    "+": 1
+    symbols:
+      MISSING_HINT: update
+  packages/apps/website/app/pages/docs/start/first-pr.vue:
+    desc: "Happy path is lumpcode setup. Rehearsal on this branch. Skill optional in the drive. Link worker after. No project-setup + lump-create first-run."
+    "-": 25
+    "+": 30
+  packages/apps/cli/DOCS/get-started.md:
+    desc: "Same happy path. project-setup stays flags-only."
+    "-": 40
+    "+": 35
+  packages/apps/cli/DOCS/commands.md:
+    desc: "New setup (options, TTY). Keep project-setup. Resume/start details wait."
+    "-": 8
+    "+": 40
+  packages/apps/website/content/docs/reference/commands.md:
+    desc: "New setup under Setup. Keep project-setup."
+    "-": 4
+    "+": 22
+  AGENTS.md:
+    desc: "One bullet: setup is the interactive first-run drive; project-setup remains flag-only."
+    "-": 0
+    "+": 6

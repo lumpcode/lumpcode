@@ -1,0 +1,20 @@
+desc: "Ask json|js|ts before the first lump. js/ts installs authoring packages and writes a contextMatchFn suffix stub."
+files:
+  packages/apps/cli/src/commands/setup/main.ts:
+    desc: "configFormat prompt. js/ts: confirm npm install cli-utils + recipes (warn on fail). Write contextMatchFn stub (default .js, ask suffix if none). JSON path unchanged. contextNameFromPath only in the generated file."
+    "-": 15
+    "+": 90
+    symbols:
+      handlerMaker: update
+  packages/apps/cli/src/commands/setup/testing/jsTsStubs.unit.test.ts:
+    desc: "js/ts writes contextMatchFn stub; suffix ask when no .js; npm failure continues; JSON never npm install; resume with a lump still skips the write."
+    "-": 0
+    "+": 120
+  packages/apps/website/app/pages/docs/start/first-pr.vue:
+    desc: "Format choice exists; JSON is the simple path; js/ts installs authoring packages."
+    "-": 6
+    "+": 10
+  packages/apps/cli/DOCS/get-started.md:
+    desc: "Same format-choice note. JSON remains the default first-run story."
+    "-": 8
+    "+": 12

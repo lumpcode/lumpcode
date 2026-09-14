@@ -1,0 +1,37 @@
+desc: "Extract create-only scaffoldLumpcodeProject and resolveInferredProjectName. project-setup stays a flag wrap that still refuses an existing .lumpcode/."
+files:
+  packages/apps/cli/src/utils/getProjectName/main.ts:
+    desc: "Add resolveInferredProjectName (explicit name or origin/basename infer). Keep getProjectName and the sanitizers."
+    "-": 0
+    "+": 40
+    symbols:
+      resolveInferredProjectName: create
+  packages/apps/cli/src/utils/getProjectName/unit.test.ts:
+    desc: "Flag name, origin infer, basename infer, invalid name."
+    "-": 0
+    "+": 70
+  packages/apps/cli/src/utils/scaffoldLumpcodeProject/main.ts:
+    desc: "Create-only owner. Fail if .lumpcode/ exists. Write project.json, mode-only local.json unless strategy / maxParallelRun passed, same five gitignore lines."
+    "-": 0
+    "+": 90
+    symbols:
+      scaffoldLumpcodeProject: create
+  packages/apps/cli/src/utils/scaffoldLumpcodeProject/index.ts:
+    desc: "Barrel export."
+    "-": 0
+    "+": 3
+  packages/apps/cli/src/utils/scaffoldLumpcodeProject/unit.test.ts:
+    desc: "Fresh write; second call fails; optional strategy / maxParallelRun omitted vs written."
+    "-": 0
+    "+": 90
+  packages/apps/cli/src/utils/index.ts:
+    desc: "Barrel-export scaffoldLumpcodeProject."
+    "-": 0
+    "+": 1
+  packages/apps/cli/src/commands/project-setup/main.ts:
+    desc: "Resolve root + git work-tree + name + defaults, then call the util. Delete resolveProjectName and the inline mkdir/write/gitignore body."
+    "-": 80
+    "+": 20
+    symbols:
+      resolveProjectName: delete
+      handlerMaker: update

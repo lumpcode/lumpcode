@@ -1,25 +1,41 @@
 ---
 name: blast-review
-description: Reviews the current branch or open PR against a backlog blast.yml (listed files, change notes, +/- line estimates). Use when the user asks to review against blast, mentions blast.yml, or wants a blast-fit check on a PR or branch.
+description: Reviews the current branch or open PR against a backlog blast.yml (files, desc, +/- estimates, create/update/delete symbols). Use when the user asks to review against blast, mentions blast.yml, or wants a blast-fit check on a PR or branch.
 ---
 
 # Blast review
 
-Compare the current branch (and its PR, if any) to a `blast.yml`. The blast is the scope contract: which files, what each should do, and roughly how large. Stay on blast fit. Do not turn this into a general code review.
+Compare the current branch (and its PR, if any) to a `blast.yml`. The blast is the scope contract: which files, what each should do, roughly how large, and which named symbols must move. Stay on blast fit. Do not turn this into a general code review.
+
+To **write** a blast before code exists, use `create-blast`.
 
 ## Blast file
 
-A `blast.yml` lives next to a backlog item or ticket (`desc.yml`). Each key is a repo-relative path:
+A `blast.yml` lives next to a backlog item or ticket (`desc.yml`). Canonical shape (same as the blast article):
 
 ```yaml
-packages/apps/cli/src/utils/example/main.ts:
-  change: >-
-    What this file should do in the PR.
-  "-": 12
-  "+": 40
+desc: "Extract acquireLock so setup and teardown share one release callback."
+files:
+  src/lock.ts:
+    desc: "New helper: acquire and release the path lock."
+    "-": 0
+    "+": 40
+    symbols:
+      acquireLock: create
+      releaseLock: create
+  src/run.ts:
+    desc: "Call acquireLock. Drop the inlined lock block."
+    "-": 12
+    "+": 8
+    symbols:
+      run: update
 ```
 
-`change` is the intended edit. `"-"` / `"+"` are line-estimate hints, not hard caps. Impl prompts say: prefer the listed files and stay close to the estimates.
+`desc` (top-level) is for humans. `files` is the blast. Per-file `desc` is the intended edit. `"-"` / `"+"` are expected size, not a pass or fail. `symbols` are not exhaustive: `create`, `update`, or `delete` for names already cared about.
+
+**Legacy files** (path keys at the root, `change` instead of `desc`, no `files` / `symbols`): still review. Treat each root path as a `files` entry and `change` as `desc`. Skip the symbol column.
+
+Impl prompts say: prefer the listed files and stay close to the estimates.
 
 ## Resolve the blast
 
@@ -43,7 +59,15 @@ git diff --name-only <base>...HEAD
 git diff --numstat <base>...HEAD
 ```
 
-Read the actual diffs for listed files and for extras that look material. If the worktree is dirty, say so; the review is the committed range unless the user asks to include uncommitted changes.
+Read the actual diffs for listed files and for extras that look material. For each listed symbol, check the file diff (and the resulting file) for that name:
+
+| Action | Match when |
+| --- | --- |
+| **create** | Symbol is added (new export/function/type, or new file that defines it) |
+| **update** | A hunk touches that symbol (signature, body, or call-site role in this file) |
+| **delete** | Symbol is removed from this file (or the file is deleted) |
+
+If the worktree is dirty, say so; the review is the committed range unless the user asks to include uncommitted changes.
 
 `blast.yml` itself in the diff is normal. Ignore it as an "extra" unless the blast listed it.
 
@@ -51,25 +75,26 @@ Read the actual diffs for listed files and for extras that look material. If the
 
 | Signal | Flag when |
 | --- | --- |
-| **Missing** | Blast path has no diff (and the `change` is not a no-op) |
+| **Missing** | Blast path has no diff (and the `desc` is not a no-op) |
 | **Extra** | Changed path is not in the blast, especially a large or unrelated file |
-| **Over / under** | Actual `-/+` is far from the estimate (about 2× and ≥20 lines off, or a small estimate that became a rewrite) |
-| **Intent** | Diff does not do what `change` says (wrong behavior, different file role, drive-by rewrite) |
+| **Over / under** | Actual `-/+` is far from the estimate (about 2× and ≥20 lines off, or a small estimate that became a rewrite). Tighter on `src/` than on tests. Small misses (a few lines) are not findings. |
+| **Intent** | Diff does not do what `desc` says (wrong behavior, different file role, drive-by rewrite) |
+| **Symbol** | Listed symbol did not move as declared (create missing, update never touched, delete still present) |
 
-Small estimate misses (a few lines) are not findings. Necessary test/barrel/export extras can be notes, not failures, when they clearly serve a listed file. Sibling `requirements.md` may explain extras; the blast still wins on scope.
+Necessary test/barrel/export extras can be notes, not failures, when they clearly serve a listed file. Sibling `requirements.md` may explain extras; the blast still wins on scope. Unlisted symbols are not findings (`symbols` is not exhaustive).
 
 ## Output (chat only)
 
 Do not post GitHub review comments unless the user asks.
 
-**Blast** — path used and how it was chosen.
+**Blast** — path used and how it was chosen. Quote the top-level `desc` when present.
 
 **Fit** — one row per blast path, then extras:
 
-| File | Blast −/+ | Actual −/+ | Change |
-| --- | --- | --- | --- |
-| `path` | 12 / 40 | 10 / 38 | match / drift / missing |
+| File | Blast −/+ | Actual −/+ | Symbols | Change |
+| --- | --- | --- | --- | --- |
+| `path` | 12 / 40 | 10 / 38 | `run` update · match | match / drift / missing |
 
-**Findings** — missing, extra, over/under, intent drift. Skip empty groups. Each finding: file, what the blast said, what the PR did.
+**Findings** — missing, extra, over/under, intent drift, symbol miss. Skip empty groups. Each finding: file, what the blast said, what the PR did.
 
-**Verdict** — one of `matches` / `close` / `drifted`, plus one sentence. `matches` = listed files present, changes fit the notes, sizes close. `close` = small extras or modest size misses. `drifted` = missing listed work, large unlisted surface, or intent mismatch.
+**Verdict** — one of `matches` / `close` / `drifted`, plus one sentence. `matches` = listed files present, changes fit the notes, sizes close, listed symbols moved. `close` = small extras or modest size misses. `drifted` = missing listed work, large unlisted surface, intent mismatch, or a listed symbol that did not move.
