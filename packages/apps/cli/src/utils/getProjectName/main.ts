@@ -25,6 +25,17 @@ export function rawRepoSegmentFromRemoteUrl(url: string): string | undefined {
 }
 
 /**
+ * Flag `--projectName` or infer from `origin` / directory basename.
+ * Stub until scaffold-lumpcode-project impl.
+ */
+export async function resolveInferredProjectName(_input: {
+    projectRoot: string;
+    explicitName?: string;
+}): Promise<Success<string> | Failure<string>> {
+    throw new Error('not implemented');
+}
+
+/**
  * Reads and returns `projectName` from `.lumpcode/project.json` via strict `readProjectJson`.
  */
 export async function getProjectName(input: {
