@@ -116,10 +116,7 @@ describe('sanitizeInferredProjectName', () => {
     });
 });
 
-/**
- * scaffold-lumpcode-project — skipped until resolveInferredProjectName lands.
- */
-describe.skip('resolveInferredProjectName', () => {
+describe('resolveInferredProjectName', () => {
     let projectRoot: string;
 
     beforeEach(async () => {
