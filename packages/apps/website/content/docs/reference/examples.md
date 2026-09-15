@@ -7,13 +7,13 @@ Each example is a drop-in `.lumpcode/lumps/<name>/` config. After a run, Lumpcod
 
 ## Smoke test
 
-Confirm remotes, the agent binary, and marker commits before you invest in a real campaign. Uses `README.md` so most repos match immediately.
+Confirm remotes, the agent binary, and marker commits before you invest in a real campaign. One declared context; change `FILE` if this repo has no `README.md`.
 
 ```json .lumpcode/lumps/smokeTest/config.json
 {
-  "contextListJson": {
-    "FILE": "README.md"
-  },
+  "contextListJson": [
+    { "name": "README", "variables": { "FILE": "README.md" } }
+  ],
   "prompt": {
     "promptTemplate": "Reply with exactly one line: smoke OK for @{FILE}. Do not edit any file.",
     "command": "cursor"

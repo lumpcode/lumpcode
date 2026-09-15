@@ -8,4 +8,4 @@ task: >-
 priority: 1
 dependsOn:
   - scaffold-lumpcode-project
-  - exact-path-context-list-json
+  - static-context-list-json

@@ -141,7 +141,7 @@ describe('start command — multi discovery branches', () => {
         async () => {
             await writeMultiLocal();
             await writeMinimalLump(projectRoot, 'consumer', {
-                contextListJson: { ctx: 'README' },
+                contextListJson: [{ name: 'ctx', variables: { FILE: 'README' } }],
                 dependsOnContexts: ['provider/ctx'],
             });
             await writeMinimalLump(projectRoot, 'provider', { baseBranch: 'ver/0.0.9' });
