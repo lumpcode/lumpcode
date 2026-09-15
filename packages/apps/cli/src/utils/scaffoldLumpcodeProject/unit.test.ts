@@ -13,10 +13,7 @@ const GITIGNORE_LINES = [
     '.lumpcode/local.json',
 ];
 
-/**
- * scaffold-lumpcode-project — skipped until scaffoldLumpcodeProject lands.
- */
-describe.skip('scaffoldLumpcodeProject', () => {
+describe('scaffoldLumpcodeProject', () => {
     let projectRoot: string;
 
     beforeEach(async () => {
