@@ -6,3 +6,4 @@ task: >-
   JSON), so a smoke lump can declare one context without a path-template scan.
   A no-placeholder template object fails at resolve except {}.
 priority: 0
+completedAt: '2026-09-16T00:42:00.000Z'
