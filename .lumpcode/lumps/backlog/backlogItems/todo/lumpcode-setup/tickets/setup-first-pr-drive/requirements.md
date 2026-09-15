@@ -4,7 +4,7 @@
 | --- | --- |
 | **Backlog** | `setup-first-pr-drive` · priority **1** · type **feature** |
 | **Status** | Pending implementation |
-| **Depends on** | `scaffold-lumpcode-project`, `exact-path-context-list-json` |
+| **Depends on** | `scaffold-lumpcode-project`, `static-context-list-json` |
 | **Packages** | Primary: `@lumpcode/cli` (`commands/setup`, `main.ts`, `commands/index.ts`, DOCS). Also: `packages/apps/website` First PR + commands. Core / recipes / `cli-types` / `cli-utils` unchanged (consume existing APIs). |
 
 ## Problem statement and motivation
@@ -125,15 +125,15 @@ Chosen tag is the first lump’s `prompt.command`. Not written on `project.json`
 ### JSON stub
 
 ```ts
-contextListJson: { FILE: string }  // exact relative path
+contextListJson: [{ name: string; variables: { FILE: string } }]
 prompt: { promptTemplate: 'clean and improve the code in @{FILE}'; command: string }
 ```
 
 No `baseBranch`. No `defineConfig` / recipe imports.
 
-Default path `README.md` if that file exists at repo root. Else ask for one existing file (default: first `getCodeBasePaths` file whose exact-path context name is legal).
+Default path `README.md` if that file exists at repo root. Else ask for one existing file (default: first `getCodeBasePaths` file whose derived context name is legal).
 
-Exact-path context name: basename with the final `.[^/.]+` stripped. Must match `^[a-zA-Z0-9_-]+$`. Refuse the file if not.
+Context `name` written on the item: basename with the final `.[^/.]+` stripped. Must match `^[a-zA-Z0-9_-]+$`. Refuse the file if not.
 
 ### `commitPush`
 
@@ -171,7 +171,7 @@ Leftover dirty files are not an extra setup check. Shared `run` will fail `dirty
 | Level | Host | Expect |
 | --- | --- | --- |
 | Unit | `commands/setup/` (colocate `testing/` if large) | No TTY / `--json` fail. Injected prompter: shared + JSON + README + cli push + `runLumpFromLumpName`. Custom tag retries until `getCommandPath` hits. Skill failure warns and continues. Empty plan returns to `editLump`. Shared never calls `launchStartDaemon`. `commitPush` add-list only; no `local.json`. Dedicated wipe confirm when mode is dedicated. |
-| E2E | Optional | JSON exact-path `README.md` via `lump-plan` (already covered by the expander ticket). No live-agent `setup` drive. |
+| E2E | Optional | JSON static `README` `ContextList` via `lump-plan` (already covered by `static-context-list-json`). No live-agent `setup` drive. |
 
 Do not inject TTY into other commands. Mock `execAsync` / `execBinary` / git.
 

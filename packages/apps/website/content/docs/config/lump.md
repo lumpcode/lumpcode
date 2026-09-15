@@ -43,7 +43,7 @@ getContextListFn() {
 }
 ```
 
-**JSON reference** (`contextListJson`): an inline object, or a string path to a JSON file.
+**JSON reference** (`contextListJson`): an inline `ContextList` array, a path-template object, or a string path to a JSON file of either shape.
 
 ```json config.json
 {
@@ -85,7 +85,7 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `setupFn` / `teardownFn` | Per-context hooks. Teardown always runs; failures are logged and do not block git. |
 | `postSetupWorkspaceFn` / `Command` | After generated git setup, in the branch workspace (`npm ci`). Not under the git lock; do not put git mutations here. Mutually exclusive pairs. |
 | `postTeardownWorkspaceFn` / `Command` | Before generated teardown. Same rules. `openPrPostTeardown` hooks in here. |
-| `contextOptionsFn` | Only with `contextListJson`: attach `priority` / `dependsOnContexts`. |
+| `contextOptionsFn` | Only with a `contextListJson` path-template object: attach `priority` / `dependsOnContexts`. |
 
 There are **no** `setupWorkspaceFn` / `teardownWorkspaceFn` knobs. The CLI generates git setup from `local.json` and `baseBranch`. `lump-plan` skips post-setup / post-teardown commands.
 

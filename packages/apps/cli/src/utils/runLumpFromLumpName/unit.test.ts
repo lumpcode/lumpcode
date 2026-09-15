@@ -166,7 +166,7 @@ describe('runLumpFromLumpName', () => {
             await writeJsonFile({
                 filePath: path.join(lumpDir, 'config.json'),
                 data: {
-                    contextListJson: { NAME: 'README' },
+                    contextListJson: [{ name: 'README', variables: { NAME: 'README' } }],
                     prompt: { promptTemplate: 'E2E @{NAME}' },
                 },
             });

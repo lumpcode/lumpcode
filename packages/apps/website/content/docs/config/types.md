@@ -10,7 +10,7 @@ description: Hook and config shapes for config.ts. Inline in JS/TS, or a file wh
 ```ts context.ts
 interface Context {
   name: string // ^[a-zA-Z0-9_-]+$, unique, no /
-  variables: Record<string, string>
+  variables: Record<string, string | number | boolean>
   options?: { priority?: number; dependsOnContexts?: string[] }
 }
 
@@ -57,7 +57,7 @@ type ContextOptionsFn = (
 ) => MaybePromise<Maybe<Context['options']>>
 ```
 
-`contextMatchFn`: same `contextName` **merges**. `contextOptionsFn` only with `contextListJson`.
+`contextMatchFn`: same `contextName` **merges**. `contextOptionsFn` only with a `contextListJson` path-template object.
 
 ## Command and prompt
 

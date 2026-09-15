@@ -17,7 +17,7 @@ Conventions:
 ```ts
 interface Context {
   name: string;
-  variables: Record<string, string>;
+  variables: Record<string, string | number | boolean>;
   options?: {
     priority?: number;
     dependsOnContexts?: string[];
@@ -26,7 +26,7 @@ interface Context {
 ```
 
 - `name` — unique id for the unit of work; drives default commit subject suffix. Must match `^[a-zA-Z0-9_-]+$` (letters, digits, `_`, `-` only).
-- `variables` — string map substituted into `{VAR}` / `@{VAR}` in prompts.
+- `variables` — map substituted into `{VAR}` / `@{VAR}` in prompts (string, number, or boolean values).
 - `options.priority` — lower runs sooner among eligible contexts.
 - `options.dependsOnContexts` — contexts that must be **`finished`** (marker commit on `origin/<baseBranch>`) before this one runs. Each entry is either:
   - a **same-lump** context `name`, or
@@ -40,7 +40,7 @@ interface Context {
 type ContextList = Context[];
 ```
 
-Return type of `getContextListFn`; built internally for `contextMatchFn` and `contextListJson` (with optional `contextOptionsFn`) merges.
+Return type of `getContextListFn`; also the array form of `contextListJson`. Built internally for `contextMatchFn` and path-template `contextListJson` (with optional `contextOptionsFn`) merges.
 
 ### `ContextOptionsFn`
 
@@ -53,7 +53,7 @@ type ContextOptionsFn = (
 - **Input** — a `Context` with `name` and `variables` only (no `options` field yet from the template expander).
 - **Return** — `null` or `undefined` to leave `options` unset; otherwise an object merged into that context (same shape as `Context['options']`).
 
-Runs only when **`contextListJson`** is the context source; ignored for `getContextListFn` and `contextMatchFn`.
+Runs only when **`contextListJson`** is a path-template object; ignored for a static `ContextList`, `getContextListFn`, and `contextMatchFn`.
 
 ### `CodeBasePath`
 

@@ -307,70 +307,7 @@ describe("makeGetContextListFnFromTemplate", () => {
         );
     });
 
-    // Exact-path contextListJson (no placeholder). Skipped until impl.
-    it.skip("matches a no-placeholder template to that exact relative path (README.md → README)", () => {
-        const fn = makeGetContextListFnFromTemplate({
-            FILE: "README.md",
-        });
-
-        const out = fn({
-            lumpVariables: {},
-            codeBasePaths: [
-                { isDir: false, path: "README.md" },
-                { isDir: false, path: "src/README.md" },
-            ],
-        });
-
-        expect(out).toEqual([
-            {
-                name: "README",
-                variables: {
-                    FILE: "README.md",
-                },
-            },
-        ]);
-    });
-
-    it.skip("matches a nested exact path and names the context from the legal basename", () => {
-        const fn = makeGetContextListFnFromTemplate({
-            FILE: "docs/api.md",
-        });
-
-        const out = fn({
-            lumpVariables: {},
-            codeBasePaths: [
-                { isDir: true, path: "docs" },
-                { isDir: false, path: "docs/api.md" },
-                { isDir: false, path: "api.md" },
-            ],
-        });
-
-        expect(out).toEqual([
-            {
-                name: "api",
-                variables: {
-                    FILE: "docs/api.md",
-                },
-            },
-        ]);
-    });
-
-    it.skip("emits no context when the exact-path derived name is illegal", () => {
-        const fn = makeGetContextListFnFromTemplate({
-            FILE: "foo.bar.md",
-        });
-
-        const out = fn({
-            lumpVariables: {},
-            codeBasePaths: [
-                { isDir: false, path: "foo.bar.md" },
-            ],
-        });
-
-        expect(out).toEqual([]);
-    });
-
-    it.skip("still expands {NAME}.md via the placeholder matcher", () => {
+    it("still expands {NAME}.md via the placeholder matcher", () => {
         const fn = makeGetContextListFnFromTemplate({
             NAME: "{NAME}.md",
         });
@@ -392,9 +329,9 @@ describe("makeGetContextListFnFromTemplate", () => {
         ]);
     });
 
-    it.skip("normalizes a leading ./ on an exact-path template before matching", () => {
+    it("emits no context for a no-placeholder template value", () => {
         const fn = makeGetContextListFnFromTemplate({
-            FILE: "./README.md",
+            FILE: "README.md",
         });
 
         const out = fn({
@@ -404,13 +341,6 @@ describe("makeGetContextListFnFromTemplate", () => {
             ],
         });
 
-        expect(out).toEqual([
-            {
-                name: "README",
-                variables: {
-                    FILE: "README.md",
-                },
-            },
-        ]);
+        expect(out).toEqual([]);
     });
 });

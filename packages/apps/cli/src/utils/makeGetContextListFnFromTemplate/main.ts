@@ -46,25 +46,26 @@ export function makeGetContextListFnFromTemplate(
 
             for (const key in jsonTemplate) {
                 const pathPattern = normalizeForTemplateMatch(jsonTemplate[key]);
-                const extractedRaw = extractPattern(pathPattern, path, modifiers);
-                const extracted = extractedRaw;
 
+                const extracted = extractPattern(pathPattern, path, modifiers);
                 const extractedEntries = Object.entries(extracted);
-
-                if (extractedEntries.length > 0) {
-                    const contextName = extractedEntries.reduce((acc, [,ctxName]) => (
-                        acc + (acc ? "-" : "") + ctxName
-                    ), "");
-                    let allContextsEntry = allContexts[contextName];
-                    if (!allContextsEntry) {
-                        allContextsEntry = {
-                            name: contextName,
-                            variables: {},
-                        };
-                        allContexts[contextName] = allContextsEntry;
-                    }
-                    allContextsEntry.variables[key] = path;
+                if (extractedEntries.length === 0) {
+                    continue;
                 }
+
+                const contextName = extractedEntries.reduce((acc, [,ctxName]) => (
+                    acc + (acc ? "-" : "") + ctxName
+                ), "");
+
+                let allContextsEntry = allContexts[contextName];
+                if (!allContextsEntry) {
+                    allContextsEntry = {
+                        name: contextName,
+                        variables: {},
+                    };
+                    allContexts[contextName] = allContextsEntry;
+                }
+                allContextsEntry.variables[key] = path;
             }
         }
 
