@@ -20,8 +20,7 @@ const workerLocal = `{
 
 const workerStart = `npm install -g @lumpcode/cli
 npm install
-lumpcode start
-lumpcode daemon-status`
+lumpcode setup`
 
 const page = docsVuePages.find((item) => item.path === docs.worker)
 </script>
@@ -69,7 +68,8 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         <h2>3. Start it</h2>
         <p>
           <code>.lumpcode/</code> is already in the repo, so do not run <code>project-setup</code> on the worker.
-          Put the CLI on this clone, install project deps, write <code>.lumpcode/local.json</code>, then start.
+          Put the CLI on this clone, install project deps, then run <code>lumpcode setup</code>.
+          It writes this machine’s <code>local.json</code> and can start the unfiltered worker.
           The worker also needs Node.js 22+, git <code>user.name</code> and <code>user.email</code>, git <code>origin</code> fetch and push, and a CLI agent on <code>PATH</code> (already logged in).
         </p>
         <CodeWindow filename=".lumpcode/local.json" :code="workerLocal" />
@@ -78,7 +78,7 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         </p>
         <CodeWindow filename="terminal" :code="workerStart" />
         <p>
-          <code>lumpcode start</code> with no filters discovers every lump on a schedule. You do not restart for new lumps.
+          <code>lumpcode setup</code> offers <code>lumpcode start</code> with no filters. That daemon discovers every lump on a schedule. You do not restart for new lumps.
         </p>
         <p>
           Later: <code>lumpcode daemon-status</code>, <code>lumpcode daemon-log</code>, <code>lumpcode stop</code>.

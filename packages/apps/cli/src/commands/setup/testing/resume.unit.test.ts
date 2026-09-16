@@ -36,8 +36,7 @@ function defaultPrompter(overrides: Partial<SetupPrompter> = {}): SetupPrompter 
     };
 }
 
-/** Skipped until setup resume + dedicated `start` land (setup-resume-and-worker). */
-describe.skip('setup resume and dedicated worker', () => {
+describe('setup resume and dedicated worker', () => {
     let projectRoot: string;
     let remoteDir: string;
     let runSpy: MockInstance<typeof runLumpFromLumpNameModule.runLumpFromLumpName>;
@@ -165,7 +164,7 @@ describe.skip('setup resume and dedicated worker', () => {
         expect(selects.some((m) => /commit|push/i.test(m))).toBe(true);
         expect(inputs.some((m) => /lump name/i.test(m))).toBe(false);
         expect(selects.some((m) => /format|javascript|typescript/i.test(m))).toBe(false);
-        expect([...selects, ...confirms].some((m) => /command|agent/i.test(m) && !/skill/i.test(m))).toBe(false);
+        expect([...selects, ...confirms].some((m) => /command|agent/i.test(m) && !/skill/i.test(m) && !/run the lump/i.test(m))).toBe(false);
         expect(startSpy).not.toHaveBeenCalled();
         expect(result.data.messages.join('\n')).toContain(WORKER_URL);
     });
