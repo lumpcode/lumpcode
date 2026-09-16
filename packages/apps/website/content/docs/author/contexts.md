@@ -55,7 +55,7 @@ export default function contextOptionsFn({ name }) {
 
 ### `getContextListFn` — a list you build
 
-Return `{ name, variables, options? }[]`. Use this for tickets, YAML folders, or anything that is not a file glob.
+Return `{ name, variables, options? }[]`. Use this for tickets, YAML folders, or anything that is not a file glob. Folder tickets with `todo/` → `completed/`: [Folder backlog](/docs/author/backlog).
 
 ```ts tickets.ts
 export default function getContextListFn() {

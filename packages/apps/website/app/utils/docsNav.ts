@@ -68,6 +68,11 @@ export const docsNav: DocsNavSection[] = [
         path: '/docs/author/recipes',
         description: 'retryUntilGreen, backlogs, and other kit helpers.',
       },
+      {
+        title: 'Folder backlog',
+        path: '/docs/author/backlog',
+        description: 'Scaffold the backlog recipe, add one ticket folder, preview, then run.',
+      },
     ],
   },
   {
@@ -147,6 +152,7 @@ const docsRedirectSources: { from: string; to: string }[] = [
   { from: '/docs/prompts', to: '/docs/author/prompts' },
   { from: '/docs/agents', to: '/docs/author/agents' },
   { from: '/docs/recipes', to: '/docs/author/recipes' },
+  { from: '/docs/backlog', to: '/docs/author/backlog' },
   { from: '/docs/lump-config', to: '/docs/config/lump' },
   { from: '/docs/project-config', to: '/docs/config/project' },
   { from: '/docs/local-config', to: '/docs/config/local' },

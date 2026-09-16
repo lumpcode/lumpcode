@@ -93,6 +93,8 @@ export default function getContextListFn() {
 
 Pair with a [worker](/docs/start/worker). Each pass picks the next eligible ticket.
 
+Tickets as folders in git (`backlogItems/todo/<name>/desc.yml`), not a JSON list: [Folder backlog](/docs/author/backlog).
+
 ## Coverage sweep
 
 Path patterns are not enough; skip files that already have a test.

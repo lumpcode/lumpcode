@@ -19,6 +19,6 @@ npm install --save-dev @lumpcode/cli-utils @lumpcode/recipes
 
 `retry-until-green`, `coverage-sweep`, and `step-graph` need both. `context-list-json` needs neither.
 
-Staged folder backlogs (`todo/` → `completed/`, requirements, TDD stages) are **`@lumpcode/recipes`** (`backlog`, `featureBacklog`), not these templates. Fetch the [recipes README](https://github.com/lumpcode/lumpcode/blob/main/packages/recipes/README.md).
+Staged folder backlogs (`todo/` → `completed/`, requirements, TDD stages) are **`@lumpcode/recipes`** (`backlog`, `featureBacklog`), not these templates. Walk through `backlog` in [backlog-recipe.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/backlog-recipe.md). Recipe field list: [recipes README](https://github.com/lumpcode/lumpcode/blob/main/packages/recipes/README.md).
 
 More JSON-only shapes (migration, codemod, docs gen, cross-lump `dependsOnContexts`): [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md).

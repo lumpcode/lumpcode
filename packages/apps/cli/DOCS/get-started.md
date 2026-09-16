@@ -212,3 +212,4 @@ You now have your first working lump ! Browse when you need more depth:
 - [advanced-config.md](./advanced-config.md#hook-lifecycle) — Lifecycle schemas (shared / dedicated), dynamic `steps`, custom commands
 - [types.md](./types.md) — Hook parameter shapes
 - [examples.md](./examples.md) — Short smoke-test style recipes
+- [backlog-recipe.md](./backlog-recipe.md) — Folder of tickets: scaffold, one `desc.yml`, preview, run

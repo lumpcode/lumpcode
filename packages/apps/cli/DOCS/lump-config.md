@@ -192,7 +192,7 @@ Set **`options.priority`** and **`options.dependsOnContexts`** on each context (
 
 Each `dependsOnContexts` entry is either a context **`name` in this lump**, or **`<otherLumpName>/<contextName>`** to wait on a context from another lump in the same project. Lumpcode resolves cross-lump refs using that lump’s marker commit (`LUMP: <otherLumpName> - <contextName>`) on the remote — same git repo, shared integration branch / merge workflow.
 
-Context **`name`** values must not contain `/`; use the slash form only in `dependsOnContexts`. Ticket-queue (same lump): [examples.md § 2](./examples.md#2-feature-ticket-queue--strict-dependency-order). Cross-lump pipeline: [examples.md § 7](./examples.md#7-cross-lump-dependency--run-after-another-lump-finishes).
+Context **`name`** values must not contain `/`; use the slash form only in `dependsOnContexts`. Ticket-queue (same lump): [examples.md § 2](./examples.md#2-feature-ticket-queue--strict-dependency-order). Folder tickets with `todo/` → `completed/`: [backlog-recipe.md](./backlog-recipe.md). Cross-lump pipeline: [examples.md § 7](./examples.md#7-cross-lump-dependency--run-after-another-lump-finishes).
 
 ### `getContextListFn` and `contextMatchFn`
 
