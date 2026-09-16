@@ -93,7 +93,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 
 ### `lumpcode setup`
 
-**Description:** Interactive first-run drive: scaffold a fresh repo, write the first JSON lump, plan, and run on this branch.
+**Description:** Interactive first-run drive: scaffold or resume this machine’s `local.json`, write the first JSON lump when missing, plan, run, and optionally start a dedicated worker.
 
 **Usage:** `lumpcode setup [options]`
 
@@ -105,7 +105,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 
 Requires a TTY. Global **`--json`** fails because setup is interactive. Non-interactive init stays on **`project-setup`**.
 
-Walks a repo with no `.lumpcode/` yet: preflight, optional skill install, scaffold, command choice, JSON stub, edit pause, commit/push, plan, in-place `run`. Shared never starts a daemon. Success prints the current branch. Setup does not open a pull request. If `.lumpcode/` already exists, setup fails closed.
+Walks a repo: preflight, optional skill install, then either scaffold (no `.lumpcode/` yet) or resume. Resume keeps a valid `project.json`, prompts mode (dedicated also asks strategy and confirms the checkout wipe), and merges only the answered keys onto `local.json` (extra keys stay). An existing lump config skips format, command, name, and stub write. The edit pause and commit/push still run even when there is nothing new to commit. Shared never starts a daemon; it prints the worker URL. Dedicated can start an unfiltered `global` daemon (detached, default schedule). A failed `run` skips `start`. Setup does not open a pull request. `project-setup` still refuses an existing `.lumpcode/`.
 
 **See also:** [get-started.md](./get-started.md).
 

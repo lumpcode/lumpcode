@@ -17,21 +17,28 @@ import {
 } from '@lumpcode/core';
 
 import { globalConfigFolderPath } from '../../constants';
-import { DISCOVERY_GIT_TIMEOUT_MS } from '../../consts';
+import { DEFAULT_DAEMON_CRON_SETUP, DISCOVERY_GIT_TIMEOUT_MS } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { commandFailure } from '../../utils/commandFailure';
 import { createCliLogger } from '../../utils/createCliLogger';
+import { RESERVED_DAEMON_ID } from '../../utils/daemonFileBaseName';
+import { discoverLumpNames } from '../../utils/discoverLoadableLumpNames';
 import { getCommandPath } from '../../utils/getCommandPath';
-import { isValidProjectName, resolveInferredProjectName } from '../../utils/getProjectName';
+import { getProjectName, isValidProjectName, resolveInferredProjectName } from '../../utils/getProjectName';
 import { installRunAbortHandlers } from '../../utils/installRunAbortHandlers';
 import { assertValidLumpName } from '../../utils/isValidLumpName';
+import { launchStartDaemon } from '../../utils/launchStartDaemon';
 import { listRemoteHeadBranches } from '../../utils/listRemoteHeadBranches';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpDirPath } from '../../utils/lumpDirPath';
 import { planLumpFromJsConfig } from '../../utils/planLumpFromJsConfig';
+import { readJsonFile } from '../../utils/readJsonFile';
+import { LOCAL_CONFIG_FILE_NAME } from '../../utils/readLocalConfig';
+import { readProjectJson } from '../../utils/readProjectJson';
+import { readProjectLocalConfig } from '../../utils/readProjectLocalConfig';
 import { runLumpFromJsConfigFailureMessage } from '../../utils/runLumpFromJsConfig';
 import { runLumpFromLumpName } from '../../utils/runLumpFromLumpName';
 import { scaffoldLumpcodeProject } from '../../utils/scaffoldLumpcodeProject';
@@ -48,7 +55,7 @@ export type Input = z.infer<typeof inputSchema>;
 
 export type Output = {
     messages: string[];
-    data?: { projectRoot: string; lumpName?: string; branchName?: string };
+    data?: { projectRoot: string; lumpName?: string; branchName?: string; startedDaemon?: boolean };
 };
 
 export type SetupPrompter = {
@@ -137,77 +144,117 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         }
     }
 
+    let mode: Mode;
+    let projectName!: string;
+    let lumpName!: string;
+    let relConfigPath!: string;
+    let skipStub = false;
+
     if (lumpcodeExists) {
-        return failure({
-            messages: [`This repo is already initialized with Lumpcode at ${lumpcodeDir}.`],
+        const projectResult = await readProjectJson({ localConfigFolderPath: lumpcodeDir });
+        if (!projectResult.success) return commandFailure(projectResult.data);
+        projectName = projectResult.data.projectName;
+
+        const existingLocalRead = await readJsonFile<unknown>({
+            filePath: path.join(lumpcodeDir, LOCAL_CONFIG_FILE_NAME),
+            ifMissing: 'undefined',
         });
-    }
+        if (!existingLocalRead.success) return commandFailure(existingLocalRead.data);
+        const existingLocal = recordFromUnknown(existingLocalRead.data);
+        const currentMode =
+            existingLocal.mode === 'shared' || existingLocal.mode === 'dedicated'
+                ? existingLocal.mode
+                : undefined;
 
-    const localConfigResult = await promptLocalConfig({ projectRoot, prompter });
-    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
-    const { projectName, primaryBranch, mode, workspaceStrategy, maxParallelRun } = localConfigResult.data;
+        const machine = await promptModeAndDedicated({ prompter, currentMode });
+        if (!machine.success) return commandFailure(machine.data);
+        mode = machine.data.mode;
 
-    const scaffoldResult = await scaffoldLumpcodeProject({
-        projectRoot,
-        project: { projectName, primaryBranch },
-        local: {
-            mode,
-            ...(workspaceStrategy !== undefined ? { workspaceStrategy } : {}),
-            ...(maxParallelRun !== undefined ? { maxParallelRun } : {}),
-        },
-    });
-    if (!scaffoldResult.success) return commandFailure(scaffoldResult.data);
-
-    const commandPaths = { localConfigFolderPath: lumpcodeDir, globalConfigFolderPath };
-    const configFormat = await chooseConfigFormat(prompter);
-    if (configFormat !== 'json') {
-        await maybeInstallAuthoringPackages({
-            projectRoot,
-            projectName,
-            prompter,
-            logger,
-            messages,
+        const writeLocal = await writeMergedLocalJson({
+            lumpcodeDir,
+            existing: existingLocal,
+            ...machine.data,
         });
-    }
+        if (!writeLocal.success) return commandFailure(writeLocal.data);
 
-    const commandTag = await chooseCommand({ agentsOnPath, prompter, commandPaths, note });
-    if (!commandTag.success) return commandFailure(commandTag.data);
-
-    const lumpNameResult = await promptLumpName({ lumpcodeDir, prompter });
-    if (!lumpNameResult.success) return commandFailure(lumpNameResult.data);
-    const lumpName = lumpNameResult.data;
-
-    const lumpDir = lumpDirPath({ localConfigFolderPath: lumpcodeDir, lumpName });
-    let configPath: string;
-    if (configFormat === 'json') {
-        const fileResult = await promptContextFile({ projectRoot, prompter });
-        if (!fileResult.success) return commandFailure(fileResult.data);
-        const { fileRel, contextName } = fileResult.data;
-        configPath = path.join(lumpDir, 'config.json');
-        const writeResult = await writeJsonFile({
-            filePath: configPath,
-            data: {
-                contextListJson: [{ name: contextName, variables: { FILE: fileRel } }],
-                prompt: { promptTemplate: PROMPT_TEMPLATE, command: commandTag.data },
-            },
-            pretty: true,
-            trailingNewline: true,
-            mkdir: true,
-        });
-        if (!writeResult.success) return commandFailure(writeResult.data);
+        const existingLump = await findExistingLumpConfig(lumpcodeDir);
+        if (existingLump) {
+            skipStub = true;
+            lumpName = existingLump.lumpName;
+            relConfigPath = toPosix(path.relative(projectRoot, existingLump.configPath));
+        }
     } else {
-        const suffix = await resolveMatchSuffix({ projectRoot, prompter });
-        configPath = path.join(lumpDir, `config.${configFormat}`);
-        const writeResult = await writeJsTsStub({
-            configPath,
-            suffix,
-            commandTag: commandTag.data,
+        const localConfigResult = await promptLocalConfig({ projectRoot, prompter });
+        if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+        const { primaryBranch, workspaceStrategy, maxParallelRun } = localConfigResult.data;
+        projectName = localConfigResult.data.projectName;
+        mode = localConfigResult.data.mode;
+
+        const scaffoldResult = await scaffoldLumpcodeProject({
+            projectRoot,
+            project: { projectName, primaryBranch },
+            local: {
+                mode,
+                ...(workspaceStrategy !== undefined ? { workspaceStrategy } : {}),
+                ...(maxParallelRun !== undefined ? { maxParallelRun } : {}),
+            },
         });
-        if (!writeResult.success) return commandFailure(writeResult.data);
+        if (!scaffoldResult.success) return commandFailure(scaffoldResult.data);
     }
 
-    const relConfigPath = toPosix(path.relative(projectRoot, configPath));
-    note(`First lump config: ${relConfigPath}`);
+    if (!skipStub) {
+        const commandPaths = { localConfigFolderPath: lumpcodeDir, globalConfigFolderPath };
+        const configFormat = await chooseConfigFormat(prompter);
+        if (configFormat !== 'json') {
+            await maybeInstallAuthoringPackages({
+                projectRoot,
+                projectName,
+                prompter,
+                logger,
+                messages,
+            });
+        }
+
+        const commandTag = await chooseCommand({ agentsOnPath, prompter, commandPaths, note });
+        if (!commandTag.success) return commandFailure(commandTag.data);
+
+        const lumpNameResult = await promptLumpName({ lumpcodeDir, prompter });
+        if (!lumpNameResult.success) return commandFailure(lumpNameResult.data);
+        lumpName = lumpNameResult.data;
+
+        const lumpDir = lumpDirPath({ localConfigFolderPath: lumpcodeDir, lumpName });
+        let configPath: string;
+        if (configFormat === 'json') {
+            const fileResult = await promptContextFile({ projectRoot, prompter });
+            if (!fileResult.success) return commandFailure(fileResult.data);
+            const { fileRel, contextName } = fileResult.data;
+            configPath = path.join(lumpDir, 'config.json');
+            const writeResult = await writeJsonFile({
+                filePath: configPath,
+                data: {
+                    contextListJson: [{ name: contextName, variables: { FILE: fileRel } }],
+                    prompt: { promptTemplate: PROMPT_TEMPLATE, command: commandTag.data },
+                },
+                pretty: true,
+                trailingNewline: true,
+                mkdir: true,
+            });
+            if (!writeResult.success) return commandFailure(writeResult.data);
+        } else {
+            const suffix = await resolveMatchSuffix({ projectRoot, prompter });
+            configPath = path.join(lumpDir, `config.${configFormat}`);
+            const writeResult = await writeJsTsStub({
+                configPath,
+                suffix,
+                commandTag: commandTag.data,
+            });
+            if (!writeResult.success) return commandFailure(writeResult.data);
+        }
+
+        relConfigPath = toPosix(path.relative(projectRoot, configPath));
+        note(`First lump config: ${relConfigPath}`);
+    }
+
     await prompter.pause({ message: 'Edit the lump config if you want, then press Enter' });
 
     const commitResult = await commitPush({ projectRoot, lumpName, prompter, note });
@@ -224,13 +271,24 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         logger,
     });
     if (!runResult.success) return runResult;
-    return success({ messages, data: runResult.data });
+
+    const startResult = await maybeStartDedicatedDaemon({
+        mode,
+        projectRoot,
+        lumpcodeDir,
+        prompter,
+        note,
+        logger,
+        verbose: !!input.options.verbose,
+    });
+    if (!startResult.success) return startResult;
+    return success({ messages, data: { ...runResult.data, ...startResult.data } });
 };
 
 export const command = {
     handlerMaker,
     name: 'setup',
-    description: 'Interactive first-run drive: scaffold, first lump, plan, and run',
+    description: 'Interactive first-run drive: scaffold or resume local.json, first lump, plan, run, optional worker',
     inputSchema,
 } satisfies Command;
 
@@ -392,12 +450,25 @@ async function promptLocalConfig(input: {
         return failure(`Branch "${primaryBranch}" is not on origin. Create it on the remote, then re-run setup.`);
     }
 
+    const machine = await promptModeAndDedicated({ prompter });
+    if (!machine.success) return machine;
+
+    return success({ projectName, primaryBranch, ...machine.data });
+}
+
+async function promptModeAndDedicated(input: {
+    prompter: SetupPrompter;
+    currentMode?: Mode;
+}): Promise<
+    | Success<{ mode: Mode; workspaceStrategy?: WorkspaceStrategy; maxParallelRun?: number }>
+    | Failure<string>
+> {
+    const { prompter, currentMode } = input;
+    const sharedChoice = { value: 'shared', label: 'shared (rehearse on this branch)' };
+    const dedicatedChoice = { value: 'dedicated', label: 'dedicated (worker checkout; run resets it)' };
     const mode = (await prompter.select({
         message: 'Which mode should this machine use?',
-        choices: [
-            { value: 'shared', label: 'shared (rehearse on this branch)' },
-            { value: 'dedicated', label: 'dedicated (worker checkout; run resets it)' },
-        ],
+        choices: currentMode === 'dedicated' ? [dedicatedChoice, sharedChoice] : [sharedChoice, dedicatedChoice],
     })) as Mode;
 
     let workspaceStrategy: WorkspaceStrategy | undefined;
@@ -429,7 +500,7 @@ async function promptLocalConfig(input: {
         }
     }
 
-    return success({ projectName, primaryBranch, mode, workspaceStrategy, maxParallelRun });
+    return success({ mode, workspaceStrategy, maxParallelRun });
 }
 
 async function inferPrimaryBranch(projectRoot: string): Promise<string> {
@@ -714,17 +785,14 @@ async function commitPush(input: {
         const addResult = await execAsync(addCmd, { cwd: input.projectRoot });
         if (!addResult.success) return failure(`Failed to git add setup files: ${addResult.data.message}`);
     }
-    const commitResult = await execAsync(commitCmd, { cwd: input.projectRoot });
-    if (!commitResult.success && !isNothingToCommit(commitResult.data.message)) {
-        return failure(`Failed to commit setup files: ${commitResult.data.message}`);
+    const hasStaged = await execAsync('git diff --cached --quiet', { cwd: input.projectRoot });
+    if (!hasStaged.success) {
+        const commitResult = await execAsync(commitCmd, { cwd: input.projectRoot });
+        if (!commitResult.success) return failure(`Failed to commit setup files: ${commitResult.data.message}`);
     }
     const pushResult = await execAsync(pushCmd, { cwd: input.projectRoot });
     if (!pushResult.success) return failure(`Failed to push setup files: ${pushResult.data.message}`);
     return success(undefined);
-}
-
-function isNothingToCommit(message: string): boolean {
-    return /nothing to commit/i.test(message);
 }
 
 async function planAndRun(input: {
@@ -799,4 +867,99 @@ async function planAndRun(input: {
     } finally {
         disposeAbortHandlers();
     }
+}
+
+function recordFromUnknown(value: unknown): Record<string, unknown> {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+        return { ...(value as Record<string, unknown>) };
+    }
+    return {};
+}
+
+async function writeMergedLocalJson(input: {
+    lumpcodeDir: string;
+    existing: Record<string, unknown>;
+    mode: Mode;
+    workspaceStrategy?: WorkspaceStrategy;
+    maxParallelRun?: number;
+}): Promise<Success<void> | Failure<string>> {
+    const data: Record<string, unknown> = { ...input.existing, mode: input.mode };
+    if (input.mode === 'shared') {
+        delete data.workspaceStrategy;
+        delete data.maxParallelRun;
+    } else if (input.workspaceStrategy !== undefined) {
+        data.workspaceStrategy = input.workspaceStrategy;
+        if (input.maxParallelRun !== undefined) data.maxParallelRun = input.maxParallelRun;
+        else delete data.maxParallelRun;
+    } else {
+        delete data.workspaceStrategy;
+        delete data.maxParallelRun;
+    }
+    return writeJsonFile({
+        filePath: path.join(input.lumpcodeDir, LOCAL_CONFIG_FILE_NAME),
+        data,
+        pretty: true,
+        trailingNewline: true,
+    });
+}
+
+async function findExistingLumpConfig(
+    lumpcodeDir: string,
+): Promise<{ lumpName: string; configPath: string } | undefined> {
+    for (const lumpName of await discoverLumpNames(lumpcodeDir)) {
+        const lumpDir = lumpDirPath({ localConfigFolderPath: lumpcodeDir, lumpName });
+        for (const name of CONFIG_FILE_NAMES) {
+            const configPath = path.join(lumpDir, name);
+            if (await pathExists(configPath)) return { lumpName, configPath };
+        }
+    }
+    return undefined;
+}
+
+async function maybeStartDedicatedDaemon(input: {
+    mode: Mode;
+    projectRoot: string;
+    lumpcodeDir: string;
+    prompter: SetupPrompter;
+    note: (line: string) => void;
+    logger: ReturnType<typeof createCliLogger>;
+    verbose: boolean;
+}): Promise<Success<{ startedDaemon?: boolean }> | Failure<Output>> {
+    if (input.mode !== 'dedicated') return success({});
+    const startWorker = await input.prompter.confirm({
+        message: 'Leave a worker running?',
+        defaultValue: true,
+    });
+    if (!startWorker) return success({});
+
+    const frozen = await readProjectLocalConfig({ localConfigFolderPath: input.lumpcodeDir });
+    if (!frozen.success) return commandFailure(frozen.data);
+    const nameResult = await getProjectName({
+        localConfigFolderPath: input.lumpcodeDir,
+        projectRoot: input.projectRoot,
+    });
+    if (!nameResult.success) return commandFailure(nameResult.data);
+
+    const launched = await launchStartDaemon({
+        recipe: {
+            projectRoot: input.projectRoot,
+            daemonId: RESERVED_DAEMON_ID,
+            cronSetup: DEFAULT_DAEMON_CRON_SETUP,
+            workspaceStrategy: frozen.data.workspaceStrategy,
+        },
+        frozenLocalConfig: frozen.data,
+        localConfigFolderPath: input.lumpcodeDir,
+        globalConfigFolderPath,
+        projectName: nameResult.data,
+        json: false,
+        cliVerbose: input.verbose,
+        foreground: false,
+        logger: input.logger,
+    });
+    if (!launched.success) {
+        return failure({ messages: launched.data.messages });
+    }
+    for (const line of launched.data.messages) input.note(line);
+    input.note('Later: lumpcode daemon-status, lumpcode daemon-log, lumpcode stop.');
+    return success({ startedDaemon: true });
 }

@@ -44,7 +44,7 @@ Recompute `contextStatusRecord.json` from remote git. `--lumpName` optional (all
 
 ### `lumpcode setup`
 
-Interactive first-run drive on a git repo with no `.lumpcode/` yet: preflight, optional skill, scaffold, first JSON lump, edit pause, commit/push, plan, in-place `run`. Shared never starts a daemon. Does not open a pull request. Needs a TTY; `--json` fails. Scripts should use `project-setup`.
+Interactive first-run drive: preflight, optional skill, then scaffold a fresh `.lumpcode/` or resume an existing one. Resume keeps `project.json`, writes this machine’s `local.json` (extra keys stay), and skips the lump stub when a config already exists. Shared never starts a daemon. Dedicated can start the unfiltered `global` worker. Does not open a pull request. Needs a TTY; `--json` fails. Scripts should use `project-setup`, which still refuses an existing `.lumpcode/`.
 
 | Option | Default |
 | --- | --- |

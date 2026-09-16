@@ -60,9 +60,9 @@ Setup is interactive (needs a TTY; `--json` is rejected). It walks a fresh repo:
 6. Commit and push the allowlisted files (or print the commands)
 7. Plan, then `run` in place on this branch
 
-Shared success prints the current branch. Setup does not create a `lump/…` branch and does not open a pull request. It never starts a daemon. After the run, a TTY (not `--json`) can still show porcelain and `[c]` / `[e]` from `run`.
+Shared success prints the current branch. Setup does not create a `lump/…` branch and does not open a pull request. Shared never starts a daemon. Dedicated can start an unfiltered worker after `run`. After the run, a TTY (not `--json`) can still show porcelain and `[c]` / `[e]` from `run`.
 
-If `.lumpcode/` already exists, this command fails closed. Resume and dedicated `start` are separate flows.
+If `.lumpcode/` already exists, setup resumes: it keeps `project.json`, merges this machine’s `local.json`, and skips the lump stub when a config is already on disk. `project-setup` still refuses that tree.
 
 **`--projectPath <dir>`** — Start from another directory (resolved to that git work tree).
 
