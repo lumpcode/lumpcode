@@ -16,12 +16,12 @@ export const docsNav: DocsNavSection[] = [
       {
         title: 'Overview',
         path: '/docs/start/overview',
-        description: 'What Lumpcode is, and how to read these docs.',
+        description: 'What Lumpcode is: AI loops for the SDLC on an existing git repo, and how to read these docs.',
       },
       {
         title: 'First PR',
         path: '/docs/start/first-pr',
-        description: 'Install the CLI and run one campaign by hand.',
+        description: 'Start AI loops on an existing git repo. Install the CLI and run one campaign by hand.',
       },
       {
         title: 'Worker',
@@ -239,7 +239,7 @@ export const docsVuePages: {
       { id: 'meant-to-run', text: 'This is how Lumpcode is meant to run', depth: 2 },
     ],
     searchText:
-      'first pr tutorial get started install cli project-setup lump-create myFirstLump lump-plan --contexts primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker',
+      'first pr tutorial get started install cli project-setup lump-create myFirstLump lump-plan --contexts primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker AI loops SDLC development life cycle AI coding refactoring existing git repo',
   },
   {
     path: '/docs/start/worker',

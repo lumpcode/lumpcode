@@ -4,11 +4,21 @@ definePageMeta({
 })
 
 useHead({
-  title: 'First PR',
+  title: 'First PR: start AI loops on an existing git repo',
   meta: [
     {
       name: 'description',
-      content: 'Rehearse one campaign on this branch. Verify, type c for LUMP markers, then push yourself.',
+      content:
+        'Start AI loops for the development life cycle on an existing git repo. Rehearse one campaign on this branch, then push yourself.',
+    },
+    {
+      property: 'og:title',
+      content: 'First PR: start AI loops on an existing git repo · Lumpcode',
+    },
+    {
+      property: 'og:description',
+      content:
+        'Start AI loops for the development life cycle on an existing git repo. Rehearse one campaign on this branch, then push yourself.',
     },
   ],
 })
@@ -25,7 +35,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
 <template>
   <DocsPageShell
     title="Get started : From install to the first PR"
-    description="Rehearse one campaign on this branch. Verify, type c for LUMP markers, then push yourself."
+    description="Start AI loops on an existing git repo. Rehearse one campaign on this branch. Verify, type c for LUMP markers, then push yourself."
     :path="docs.firstPr"
     :headings="page?.headings ?? []"
     :source-path="page?.sourcePath"
@@ -39,6 +49,9 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
     <div class="guide">
       <section id="prerequisites" class="guide-step">
         <h2>1. Prerequisites</h2>
+        <p>
+          You already have a git repo. This walkthrough starts AI loops on it.
+        </p>
         <ul>
           <li>Node.js 22+</li>
           <li>A git repo with <code>origin</code> you can push to, and a primary branch that already exists on that remote (usually <code>main</code>)</li>
@@ -80,6 +93,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
         <h2>4. Point the lump at real work</h2>
         <p>
           Edit <code>.lumpcode/lumps/myFirstLump/config.json</code>. This replaces the stub <code>lump-create</code> wrote.
+          A first campaign is often AI coding refactoring, a migration, or a small docs pass.
           Change the path templates to files that exist in <em>this</em> repo. The snippet below is the same shape as the landing example; it only matches if you have <code>src/components/{NAME}/</code>.
           To confirm remotes and the agent first, use the <NuxtLink to="/docs/reference/examples#smoke-test">README smoke test</NuxtLink> instead.
         </p>

@@ -1,5 +1,10 @@
 export const siteUrl = 'https://www.lumpcode.com'
 
+export const siteTitle = 'Lumpcode — AI loops for the SDLC, one PR at a time'
+
+export const siteDescription =
+  'Start AI loops for the SDLC on an existing git repo. Easy to set up, still powerful: AI loops for the development life cycle, including AI coding refactoring.'
+
 export const githubRepoUrl = 'https://github.com/lumpcode/lumpcode'
 export const npmCliUrl = 'https://www.npmjs.com/package/@lumpcode/cli'
 
@@ -51,8 +56,11 @@ export const exampleBranchesFooter = '38 components still to go.'
 export const positioningLine =
   'Your coding agent already handles one task: one branch, one pull request. Lumpcode runs the whole list.'
 
+export const sdlcLine =
+  'The clean way to start AI loops for the SDLC on an existing git repo. Easy to set up, still powerful when the campaign grows.'
+
 export const useWhen = [
-  'The same refactoring logic across hundreds of files',
+  'AI coding refactoring across hundreds of files',
   'An ordered ticket backlog, one PR each',
   'Docs, tests, hardening or cleanup that runs for weeks',
 ] as const

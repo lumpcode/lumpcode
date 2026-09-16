@@ -6,7 +6,7 @@ Lumpcode is a **CLI for running agent loops** over your codebase. It runs on a m
 
 A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every component to Vue"): context discovery, prompt(s), and an agent command under `.lumpcode/lumps/<lumpName>/`. It spans many **contexts**, not a single chat session. Each finished context gets a **marker commit** containing `LUMP: <lumpName> - <contextName>`, so repeated runs are **resumable** from remote git history after you merge PRs.
 
-**Use Lumpcode when** you have many similar edits (migrations, tests, docs), an ordered ticket queue, or a long-running refactor you want to tick forward on a schedule.
+**Use Lumpcode when** you want AI loops for the SDLC on an existing git repo: AI coding refactoring across many files, an ordered ticket queue, or a long-running campaign you want to tick forward on a schedule.
 
 **New here?** The manual is [lumpcode.com/docs](https://www.lumpcode.com/docs). Tutorial: [first PR](https://www.lumpcode.com/docs/start/first-pr).
 
