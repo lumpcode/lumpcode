@@ -9,7 +9,7 @@ import { readJsonFile } from '../readJsonFile';
 export const PROJECT_JSON_FILE_NAME = 'project.json';
 
 const MISSING_HINT =
-    'Missing .lumpcode/project.json with a projectName. Run lumpcode project-setup in the repository root.';
+    'Missing .lumpcode/project.json with a projectName. Run lumpcode setup or project-setup in the repository root.';
 
 /**
  * Strict-validate `.lumpcode/project.json`.

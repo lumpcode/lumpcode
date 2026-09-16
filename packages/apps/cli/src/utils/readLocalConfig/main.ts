@@ -7,7 +7,7 @@ import { formatZodIssues, localJsonConfigSchema } from '../projectLocalConfigSch
 import { readJsonFile } from '../readJsonFile';
 
 const MISSING_HINT =
-    'Missing .lumpcode/local.json. Run `lumpcode project-setup` to scaffold it, or create it with { "mode": "shared" | "dedicated" }.';
+    'Missing .lumpcode/local.json. Run `lumpcode setup` or `lumpcode project-setup` to scaffold it, or create it with { "mode": "shared" | "dedicated" }.';
 
 export const LOCAL_CONFIG_FILE_NAME = 'local.json';
 

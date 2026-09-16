@@ -232,14 +232,13 @@ export const docsVuePages: {
     headings: [
       { id: 'prerequisites', text: '1. Prerequisites', depth: 2 },
       { id: 'install-the-cli', text: '2. Install the CLI', depth: 2 },
-      { id: 'optional-skill', text: '2b. Optional: install the skill', depth: 2 },
-      { id: 'initialize', text: '3. Initialize a project and create a lump', depth: 2 },
-      { id: 'point-at-work', text: '4. Point the lump at real work', depth: 2 },
-      { id: 'run-once', text: '5. Preview, then run', depth: 2 },
+      { id: 'optional-skill', text: '2b. Optional: the skill', depth: 2 },
+      { id: 'initialize', text: '3. Run setup', depth: 2 },
+      { id: 'run-once', text: '4. Rehearse on this branch', depth: 2 },
       { id: 'meant-to-run', text: 'This is how Lumpcode is meant to run', depth: 2 },
     ],
     searchText:
-      'first pr tutorial get started install cli project-setup lump-create myFirstLump lump-plan --contexts primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker',
+      'first pr tutorial get started install cli lumpcode setup project-setup myFirstLump primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker',
   },
   {
     path: '/docs/start/worker',

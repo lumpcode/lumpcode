@@ -81,7 +81,7 @@ function planOk(
 /**
  * Skipped until `lumpcode setup` lands (setup-first-pr-drive).
  */
-describe.skip('setup command', () => {
+describe('setup command', () => {
     it('fails when stdin is not a TTY and points at project-setup', async () => {
         const result = await makeHandler({ isInteractive: () => false })({
             options: {},
