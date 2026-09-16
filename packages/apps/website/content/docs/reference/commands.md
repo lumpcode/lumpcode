@@ -42,9 +42,17 @@ Recompute `contextStatusRecord.json` from remote git. `--lumpName` optional (all
 
 ## Setup
 
+### `lumpcode setup`
+
+Interactive first-run drive: preflight, optional skill, then scaffold a fresh `.lumpcode/` or resume a hole. Already valid `local.json` plus a lump is a no-op. Resume keeps `project.json`, writes this machine’s `local.json` when missing (extra keys stay), and skips the lump stub, edit, and run when a config already exists. Shared never starts a daemon. Dedicated can start the unfiltered `global` worker when `local.json` was the hole. Does not open a pull request. Needs a TTY; `--json` fails. Scripts should use `project-setup`, which still refuses an existing `.lumpcode/`.
+
+| Option | Default |
+| --- | --- |
+| `--projectPath` | `.` (resolved to the git work tree) |
+
 ### `lumpcode project-setup`
 
-Creates `.lumpcode/` (`project.json`, `local.json`, empty `lumps/` and `commands/`, gitignore entries). Fails if `.lumpcode/` already exists, the path is not a directory, or it is not a git work tree.
+Creates `.lumpcode/` (`project.json`, `local.json`, empty `lumps/` and `commands/`, gitignore entries). Fails if `.lumpcode/` already exists, the path is not a directory, or it is not a git work tree. Flags only.
 
 | Option | Default |
 | --- | --- |

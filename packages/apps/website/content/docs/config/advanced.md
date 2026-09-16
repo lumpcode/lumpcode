@@ -45,7 +45,7 @@ Covered with examples on [contexts](/docs/author/contexts). Short gotchas:
 
 - `getContextListFn` variable values must be strings.
 - `contextMatchFn` merges rows that share `contextName`.
-- `contextOptionsFn` runs only with `contextListJson`.
+- `contextOptionsFn` runs only with a `contextListJson` path-template object.
 
 ## Dynamic `steps`
 

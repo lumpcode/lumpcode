@@ -103,6 +103,7 @@ export * from './runLumpLinesWithConcurrency';
 export * from './runPreflight';
 export * from './runProjectPreflight';
 export * from './runSuperviseLocalPass';
+export * from './scaffoldLumpcodeProject';
 export * from './filterLumpNames';
 export * from './scoreDedicatedLumpLine';
 export * from './setContextToFinishedStatus';

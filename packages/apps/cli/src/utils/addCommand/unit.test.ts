@@ -88,6 +88,14 @@ describe('addCommand', () => {
         );
     });
 
+    it('does not reprint messages that the handler already printed live', async () => {
+        const handler = vi.fn().mockResolvedValue(
+            success({ messages: ['already on stdout'], printed: true }),
+        );
+        await addDemoCommandAndRunIt(['alpha'], handler);
+        expect(cliLog).not.toHaveBeenCalled();
+    });
+
     it('exits with code 1 when the handler returns Failure', async () => {
         const exit = vi.fn((code: number) => {
             throw new Error(`exit:${code}`);

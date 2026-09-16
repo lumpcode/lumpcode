@@ -6,7 +6,7 @@ This page documents every `lumpcode` subcommand and its options.
 
 **[Global conventions](#ref-global-conventions)** — [Working directory](#ref-working-directory) · [`--json`](#ref-json-output) · [`--verbose`](#ref-verbose-output) · [Booleans](#ref-boolean-options) · [Validation](#ref-project-validation) · [`--help`](#ref-lumpcode-help)
 
-**[Project setup](#ref-section-project-setup)** — [`lumpcode project-setup`](#ref-cmd-project-setup) · [`lumpcode lump-create`](#ref-cmd-lump-create)
+**[Project setup](#ref-section-project-setup)** — [`lumpcode setup`](#ref-cmd-setup) · [`lumpcode project-setup`](#ref-cmd-project-setup) · [`lumpcode lump-create`](#ref-cmd-lump-create)
 
 **[Run](#ref-section-run)** — [`lumpcode run`](#ref-cmd-run) · [`lumpcode lump-plan`](#ref-cmd-lump-plan)
 
@@ -89,11 +89,31 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 
 ## Project setup
 
+<a id="ref-cmd-setup"></a>
+
+### `lumpcode setup`
+
+**Description:** Interactive first-run drive: scaffold or resume holes (`local.json` / first lump), plan, run, and optionally start a dedicated worker. No-op when `local.json` is valid and a lump already exists.
+
+**Usage:** `lumpcode setup [options]`
+
+
+| Option | Type | Required | Description |
+| ------ | ---- | -------- | ----------- |
+| `--projectPath` | string | No | Directory to start from (resolved to the git work tree root; default: `.`) |
+
+
+Requires a TTY. Global **`--json`** fails because setup is interactive. Non-interactive init stays on **`project-setup`**.
+
+Walks a repo: preflight, optional skill install, then either scaffold (no `.lumpcode/` yet) or resume a hole. A valid `project.json`, valid `local.json`, and at least one lump config is already set up: setup prints that and exits (no skill, no edit, no run). Resume keeps a valid `project.json`. Missing or invalid `local.json` prompts mode (dedicated also asks strategy and confirms the checkout wipe) and merges only the answered keys (extra keys stay). An existing lump config skips format, command, name, stub write, edit, commit/push, and `run`. Shared never starts a daemon; it prints the worker URL. Dedicated can start an unfiltered `global` daemon (detached, default schedule) when `local.json` was the hole. A failed first-lump `run` skips `start`. Setup does not open a pull request. `project-setup` still refuses an existing `.lumpcode/`.
+
+**See also:** [get-started.md](./get-started.md).
+
 <a id="ref-cmd-project-setup"></a>
 
 ### `lumpcode project-setup`
 
-**Description:** Create a fresh `.lumpcode/` tree in a git repository.
+**Description:** Create a fresh `.lumpcode/` tree in a git repository (flags only; no prompts).
 
 **Usage:** `lumpcode project-setup [options]`
 
@@ -120,7 +140,7 @@ The program and each subcommand support **`--help`** (e.g. `lumpcode run --help`
 - Path is not a git work tree
 - `.lumpcode/` already exists
 
-**See also:** [project-config.md](./project-config.md), [get-started.md](./get-started.md#step-1-initialize-the-lumpcode-project).
+**See also:** [project-config.md](./project-config.md), [get-started.md](./get-started.md#step-1-run-lumpcode-setup).
 
 <a id="ref-cmd-lump-create"></a>
 
@@ -192,7 +212,7 @@ Plus global [`--json`](#ref-json-output).
 
 With **`--json`**, busy responses include a stable `code` field (`workspacePathBusy`) plus path and optional holder pid/lump name.
 
-**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (shared / dedicated schemas), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-4-run-once).
+**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (shared / dedicated schemas), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-1-run-lumpcode-setup).
 
 <a id="ref-cmd-lump-plan"></a>
 
@@ -303,7 +323,7 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 
 **Fails if:** `local.json` `mode` is `shared` (`sharedModeNoDaemon`), invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
 
-**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (daemon tick wrappers), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-5-run-continuously-optional).
+**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (daemon tick wrappers), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-2-leave-a-worker-running-optional).
 
 <a id="ref-cmd-stop"></a>
 

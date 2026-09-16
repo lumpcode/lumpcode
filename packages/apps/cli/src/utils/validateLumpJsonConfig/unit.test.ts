@@ -92,4 +92,42 @@ describe('validateLumpJsonConfig', () => {
             ).toBe(false);
         });
     });
+
+    describe('contextListJson shapes', () => {
+        const prompt = { promptTemplate: 'Do {FILE}', command: 'claude' };
+
+        it('accepts a static ContextList', () => {
+            expect(
+                validateLumpJsonConfig({
+                    contextListJson: [
+                        { name: 'README', variables: { FILE: 'README.md' }, options: { priority: 0 } },
+                    ],
+                    prompt,
+                }).success,
+            ).toBe(true);
+        });
+
+        it('accepts an empty ContextList and an empty template object', () => {
+            expect(validateLumpJsonConfig({ contextListJson: [], prompt }).success).toBe(true);
+            expect(validateLumpJsonConfig({ contextListJson: {}, prompt }).success).toBe(true);
+        });
+
+        it('rejects a Context with extra keys', () => {
+            expect(
+                validateLumpJsonConfig({
+                    contextListJson: [{ name: 'a', variables: { FILE: 'a.ts' }, extra: 1 }],
+                    prompt,
+                }).success,
+            ).toBe(false);
+        });
+
+        it('rejects a bare Context object that is not an array', () => {
+            expect(
+                validateLumpJsonConfig({
+                    contextListJson: { name: 'README', variables: { FILE: 'README.md' } },
+                    prompt,
+                }).success,
+            ).toBe(false);
+        });
+    });
 });

@@ -63,7 +63,7 @@ function contextNameFromPath(filePath: string): string
 // strip final extension, then replace each run of chars outside [a-zA-Z0-9_-] with '-'
 ```
 
-This function lives **in the generated lump file**, not as a published CLI util. It is not the exact-path expander rule.
+This function lives **in the generated lump file**, not as a published CLI util. It is not the static `ContextList` name rule.
 
 ## Technical approach
 

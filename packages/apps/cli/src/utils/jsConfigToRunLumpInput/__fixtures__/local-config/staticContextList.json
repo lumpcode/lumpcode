@@ -1,0 +1,7 @@
+[
+    {
+        "name": "README",
+        "variables": { "FILE": "README.md" },
+        "options": { "priority": 1 }
+    }
+]

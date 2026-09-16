@@ -45,7 +45,7 @@ describe('lump-status command', () => {
             filePath: path.join(lumpDir, 'config.json'),
             data: {
                 baseBranch: 'main',
-                contextListJson: { c1: 'README.md' },
+                contextListJson: [{ name: 'c1', variables: { FILE: 'README.md' } }],
                 prompt: { promptTemplate: 'task', command: 'claude' },
             },
         });
@@ -152,7 +152,7 @@ describe('lump-status command', () => {
             filePath: path.join(lumpDir, 'config.json'),
             data: {
                 discoveryBranch: 'ver/0.0.9',
-                contextListJson: { c1: 'README.md' },
+                contextListJson: [{ name: 'c1', variables: { FILE: 'README.md' } }],
                 prompt: { promptTemplate: 'task', command: 'claude' },
             },
         });
@@ -181,7 +181,7 @@ describe('lump-status command', () => {
             filePath: path.join(lumpDir, 'config.json'),
             data: {
                 discoveryBranch: 'ver/0.0.9',
-                contextListJson: { c1: 'README.md' },
+                contextListJson: [{ name: 'c1', variables: { FILE: 'README.md' } }],
                 prompt: { promptTemplate: 'task', command: 'claude' },
             },
         });

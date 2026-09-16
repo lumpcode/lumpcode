@@ -28,7 +28,7 @@ describe('context-status command', () => {
             filePath: path.join(lumpDir, 'config.json'),
             data: {
                 baseBranch: 'main',
-                contextListJson: { CTX: contextKey },
+                contextListJson: [{ name: contextKey, variables: { CTX: contextKey } }],
                 prompt: { promptTemplate: 'task', command: 'claude' },
             },
         });

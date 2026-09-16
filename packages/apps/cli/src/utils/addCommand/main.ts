@@ -145,7 +145,10 @@ export function addCommand<
                 }
             }
             const handlerResult = await handler(validatedInput.data);
-            cliLog(handlerResult.data, !!parsedOpts.json, !handlerResult.success);
+            const skipReprint = handlerResult.success && !parsedOpts.json && handlerResult.data.printed === true;
+            if (!skipReprint) {
+                cliLog(handlerResult.data, !!parsedOpts.json, !handlerResult.success);
+            }
             if (!handlerResult.success) {
                 exit(1);
             }
