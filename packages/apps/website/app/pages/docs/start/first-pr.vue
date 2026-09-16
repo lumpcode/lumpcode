@@ -66,7 +66,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
         <h2>3. Run setup</h2>
         <p>
           From the repo root, on the branch you want to rehearse on. Setup is interactive (a TTY, not <code>--json</code>).
-          It scaffolds <code>.lumpcode/</code>, writes a first JSON lump (README when that file exists), pauses so you can edit, commits and pushes the allowlisted files, plans, then runs in place on this branch.
+          It scaffolds <code>.lumpcode/</code>, asks JSON, JavaScript, or TypeScript (JSON is the simple path; js/ts installs <code>@lumpcode/cli-utils</code> and <code>@lumpcode/recipes</code>), writes a first lump (README when that file exists), pauses so you can edit, commits and pushes the allowlisted files, plans, then runs in place on this branch.
         </p>
         <CodeWindow filename="terminal" :code="setupCommand" />
         <p>
