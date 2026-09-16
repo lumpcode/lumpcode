@@ -66,6 +66,7 @@
 
 ### CLI conventions
 
+- `setup` is the interactive first-run drive; `project-setup` remains flag-only
 - Unregistered `login`/`logout` command modules are **implementation-only** — do not document in user-facing README/DOCS (`npm login` in `DOCS/publishing.md` is npm registry auth only). `supervise` is the same: `start` launches it; do not tell operators to run it; project-wide stop is `stop --all`
 - Arguments before options in usage; long option names in camelCase (e.g. `--lumpName`, `--contextName`, `--lines`) to match Commander/schema — avoid single-char keys needing special `addCommand` handling
 - Lump-config `command` field: registered tag (`"copilot"`, `"cursor"`, …) **or** lump-relative `.ts`/`.js` path (no whitespace; same `CommandModule` exports as `commands/<name>`); never shell flags — agent flags belong in the module's `CommandFn` (`executable` + `args`)
