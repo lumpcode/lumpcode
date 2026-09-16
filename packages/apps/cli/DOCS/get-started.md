@@ -55,7 +55,7 @@ Setup is interactive (needs a TTY; `--json` is rejected). It walks a fresh repo:
 1. Preflight (git work tree, `origin`, identity, agents on `PATH`)
 2. Optional skill install
 3. Scaffold `.lumpcode/` (`project.json` committed later; `local.json` stays gitignored)
-4. First JSON lump (`myFirstLump` by default; `README.md` when that file exists)
+4. First lump format: JSON, JavaScript, or TypeScript (`myFirstLump` by default). JSON is the simple path (`README.md` when that file exists). js/ts installs `@lumpcode/cli-utils` and `@lumpcode/recipes` (default yes) and writes a `contextMatchFn` stub over a file suffix
 5. Pause so you can edit the config
 6. Commit and push the allowlisted files (or print the commands)
 7. Plan, then `run` in place on this branch

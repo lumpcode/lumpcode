@@ -110,10 +110,7 @@ function formatPrompter(format: 'json' | 'js' | 'ts', extra: Partial<SetupPrompt
     });
 }
 
-/**
- * Skipped until `setup` js/ts stubs land (setup-js-ts-stubs).
- */
-describe.skip('setup command — js/ts stubs', () => {
+describe('setup command — js/ts stubs', () => {
     let projectRoot: string;
     let remoteDir: string;
     let npmInstallOk: boolean;

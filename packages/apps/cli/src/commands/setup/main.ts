@@ -69,6 +69,9 @@ const DEFAULT_LUMP_NAME = 'myFirstLump';
 const PROMPT_TEMPLATE = 'clean and improve the code in @{FILE}';
 const CONTEXT_NAME_RE = /^[a-zA-Z0-9_-]+$/;
 const CONFIG_FILE_NAMES = ['config.json', 'config.js', 'config.ts'] as const;
+type ConfigFormat = 'json' | 'js' | 'ts';
+const DEFAULT_MATCH_SUFFIX = '.js';
+const AUTHORING_PACKAGES_INSTALL = 'npm install @lumpcode/cli-utils @lumpcode/recipes';
 const CUSTOM_COMMAND_VALUE = 'custom';
 const SKILL_INSTALL_TIMEOUT_MS = 3_000;
 const COMMIT_ALLOWLIST = [
@@ -156,6 +159,17 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!scaffoldResult.success) return commandFailure(scaffoldResult.data);
 
     const commandPaths = { localConfigFolderPath: lumpcodeDir, globalConfigFolderPath };
+    const configFormat = await chooseConfigFormat(prompter);
+    if (configFormat !== 'json') {
+        await maybeInstallAuthoringPackages({
+            projectRoot,
+            projectName,
+            prompter,
+            logger,
+            messages,
+        });
+    }
+
     const commandTag = await chooseCommand({ agentsOnPath, prompter, commandPaths, note });
     if (!commandTag.success) return commandFailure(commandTag.data);
 
@@ -163,23 +177,34 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     if (!lumpNameResult.success) return commandFailure(lumpNameResult.data);
     const lumpName = lumpNameResult.data;
 
-    const fileResult = await promptContextFile({ projectRoot, prompter });
-    if (!fileResult.success) return commandFailure(fileResult.data);
-    const { fileRel, contextName } = fileResult.data;
-
     const lumpDir = lumpDirPath({ localConfigFolderPath: lumpcodeDir, lumpName });
-    const configPath = path.join(lumpDir, 'config.json');
-    const writeResult = await writeJsonFile({
-        filePath: configPath,
-        data: {
-            contextListJson: [{ name: contextName, variables: { FILE: fileRel } }],
-            prompt: { promptTemplate: PROMPT_TEMPLATE, command: commandTag.data },
-        },
-        pretty: true,
-        trailingNewline: true,
-        mkdir: true,
-    });
-    if (!writeResult.success) return commandFailure(writeResult.data);
+    let configPath: string;
+    if (configFormat === 'json') {
+        const fileResult = await promptContextFile({ projectRoot, prompter });
+        if (!fileResult.success) return commandFailure(fileResult.data);
+        const { fileRel, contextName } = fileResult.data;
+        configPath = path.join(lumpDir, 'config.json');
+        const writeResult = await writeJsonFile({
+            filePath: configPath,
+            data: {
+                contextListJson: [{ name: contextName, variables: { FILE: fileRel } }],
+                prompt: { promptTemplate: PROMPT_TEMPLATE, command: commandTag.data },
+            },
+            pretty: true,
+            trailingNewline: true,
+            mkdir: true,
+        });
+        if (!writeResult.success) return commandFailure(writeResult.data);
+    } else {
+        const suffix = await resolveMatchSuffix({ projectRoot, prompter });
+        configPath = path.join(lumpDir, `config.${configFormat}`);
+        const writeResult = await writeJsTsStub({
+            configPath,
+            suffix,
+            commandTag: commandTag.data,
+        });
+        if (!writeResult.success) return commandFailure(writeResult.data);
+    }
 
     const relConfigPath = toPosix(path.relative(projectRoot, configPath));
     note(`First lump config: ${relConfigPath}`);
@@ -268,7 +293,15 @@ async function resolveProjectRoot(
     if (!top.success || top.data.stdout.trim() === '') {
         return failure(`Not a git repository (expected a working tree at ${startDir})`);
     }
-    return success(top.data.stdout.trim());
+    const gitRoot = top.data.stdout.trim();
+    try {
+        if ((await fs.realpath(startDir)) === (await fs.realpath(gitRoot))) {
+            return success(startDir);
+        }
+    } catch {
+        // Prefer git's path when either side cannot be resolved.
+    }
+    return success(gitRoot);
 }
 
 async function runPreflight(projectRoot: string): Promise<Success<string[]> | Failure<string>> {
@@ -500,6 +533,116 @@ async function lumpDirHasAnyConfigFile(lumpDir: string): Promise<boolean> {
         if (await pathExists(path.join(lumpDir, name))) return true;
     }
     return false;
+}
+
+async function chooseConfigFormat(prompter: SetupPrompter): Promise<ConfigFormat> {
+    const selected = await prompter.select({
+        message: 'First lump config format',
+        choices: [
+            { value: 'json', label: 'JSON' },
+            { value: 'js', label: 'JavaScript' },
+            { value: 'ts', label: 'TypeScript' },
+        ],
+    });
+    if (selected === 'js' || selected === 'ts') return selected;
+    return 'json';
+}
+
+async function maybeInstallAuthoringPackages(input: {
+    projectRoot: string;
+    projectName: string;
+    prompter: SetupPrompter;
+    logger: ReturnType<typeof createCliLogger>;
+    messages: string[];
+}): Promise<void> {
+    const shouldInstall = await input.prompter.confirm({
+        message: 'Install @lumpcode/cli-utils and @lumpcode/recipes?',
+        defaultValue: true,
+    });
+    if (!shouldInstall) return;
+
+    const warnAndContinue = (line: string) => {
+        input.messages.push(line);
+        input.logger.warn(line);
+    };
+
+    const pkgPath = path.join(input.projectRoot, 'package.json');
+    if (!(await pathExists(pkgPath))) {
+        const wrote = await writeJsonFile({
+            filePath: pkgPath,
+            data: { name: input.projectName, private: true },
+            pretty: true,
+            trailingNewline: true,
+        });
+        if (!wrote.success) {
+            warnAndContinue(
+                `Could not write package.json; you can run \`${AUTHORING_PACKAGES_INSTALL}\` later. ${wrote.data}`,
+            );
+            return;
+        }
+    }
+
+    const installResult = await execAsync(AUTHORING_PACKAGES_INSTALL, { cwd: input.projectRoot });
+    if (!installResult.success) {
+        warnAndContinue(
+            `Authoring package install failed; you can run \`${AUTHORING_PACKAGES_INSTALL}\` later. ${installResult.data.message}`,
+        );
+    }
+}
+
+async function resolveMatchSuffix(input: {
+    projectRoot: string;
+    prompter: SetupPrompter;
+}): Promise<string> {
+    const scanned = await getCodeBasePaths({ cwd: input.projectRoot });
+    const hasDefault = scanned.success
+        && scanned.data.some((entry) => !entry.isDir && toPosix(entry.path).endsWith(DEFAULT_MATCH_SUFFIX));
+    if (hasDefault) return DEFAULT_MATCH_SUFFIX;
+    while (true) {
+        const typed = (
+            await input.prompter.input({
+                message: 'No .js files found. File suffix to match (e.g. .ts)',
+            })
+        ).trim();
+        if (!typed) continue;
+        return typed.startsWith('.') ? typed : `.${typed}`;
+    }
+}
+
+function contextMatchFnStubSource(input: { suffix: string; commandTag: string }): string {
+    const suffixLit = JSON.stringify(input.suffix);
+    const commandLit = JSON.stringify(input.commandTag);
+    const promptLit = JSON.stringify(PROMPT_TEMPLATE);
+    return `function contextNameFromPath(filePath) {
+  return filePath.replace(/\\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+}
+
+export default {
+  contextMatchFn({ codeBasePath }) {
+    if (codeBasePath.isDir) return null;
+    if (!codeBasePath.path.endsWith(${suffixLit})) return null;
+    return { contextName: contextNameFromPath(codeBasePath.path), filePathVariableName: 'FILE' };
+  },
+  prompt: {
+    promptTemplate: ${promptLit},
+    command: ${commandLit},
+  },
+};
+`;
+}
+
+async function writeJsTsStub(input: {
+    configPath: string;
+    suffix: string;
+    commandTag: string;
+}): Promise<Success<void> | Failure<string>> {
+    try {
+        await fs.mkdir(path.dirname(input.configPath), { recursive: true });
+        await fs.writeFile(input.configPath, contextMatchFnStubSource(input), 'utf-8');
+        return success(undefined);
+    } catch (error: unknown) {
+        return failure(`Cannot write ${input.configPath}: ${String(error)}`);
+    }
 }
 
 async function promptContextFile(input: {
