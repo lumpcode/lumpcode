@@ -2,7 +2,7 @@
 
 Readable website version: [lumpcode.com/docs](https://www.lumpcode.com/docs).
 
-This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (called **lumps**), contexts, status, how one run flows through git, and when to use `lumpcode run` vs `lumpcode start`. If you think of working this way as **loop engineering** (designing the loop that prompts your agent instead of prompting it yourself), a lump is one such loop, configured declaratively. Agent work is reviewed through PR merge. Tutorial: [get-started.md](./get-started.md). Field reference: [lump-config.md](./lump-config.md). Commands: [commands.md](./commands.md).
+This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (called **lumps**), contexts, status, how one run flows through git, and when to use `lumpcode run` vs `lumpcode start`. If you think of working this way as **loop engineering** (designing the loop that prompts your agent instead of prompting it yourself), a lump is one such loop, configured declaratively. Agent work is reviewed through PR merge. It is the clean way to start AI loops for the SDLC on an existing git repo. Tutorial: [get-started.md](./get-started.md). Field reference: [lump-config.md](./lump-config.md). Commands: [commands.md](./commands.md).
 
 ## Core terms
 

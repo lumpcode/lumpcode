@@ -1,9 +1,11 @@
 ---
 title: Overview
-description: Lumpcode runs your coding agent through a campaign too big for one chat, one reviewable branch at a time. These pages are the operator manual.
+description: Lumpcode runs AI loops for the SDLC on an existing git repo. Campaigns too big for one chat, one reviewable branch at a time. These pages are the operator manual.
 ---
 
 A **lump** is that campaign: a folder in your repo that names the work, the prompt, and the agent. On the laptop, `run` rehearses on this branch; you push yourself. A worker still pushes a `lump/…` branch. You open that pull request, adjust it if needed, and merge. The next run skips what already landed.
+
+It is the clean, easy-to-set-up way to start AI loops for the development life cycle on a repo you already have, including AI coding refactoring, migrations, and ticket campaigns. JSON is enough to begin; TypeScript, retries, and a worker are there when the campaign grows.
 
 You just need git and a CLI agent. There is no account and no database. Finished work is a commit on your git remote.
 
