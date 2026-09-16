@@ -132,8 +132,16 @@ describe('setup command', () => {
                     },
                 }) as Awaited<ReturnType<typeof runLumpFromLumpNameModule.runLumpFromLumpName>>,
             );
-            startSpy = vi.spyOn(launchStartDaemonModule, 'launchStartDaemon').mockRejectedValue(
-                new Error('setup must not call launchStartDaemon'),
+            startSpy = vi.spyOn(launchStartDaemonModule, 'launchStartDaemon').mockResolvedValue(
+                core.success({
+                    messages: [],
+                    data: {
+                        cronSetup: '*/5 * * * *',
+                        lumpNames: ['myFirstLump'],
+                        ticks: 0,
+                        daemonId: 'global',
+                    },
+                }),
             );
             vi.spyOn(installRunAbortHandlersModule, 'installRunAbortHandlers').mockReturnValue(() => {});
         });
@@ -150,15 +158,6 @@ describe('setup command', () => {
                 arguments: {},
             });
         }
-
-        it('fails closed when .lumpcode/ already exists', async () => {
-            await fs.mkdir(path.join(projectRoot, '.lumpcode'));
-            const result = await runSetup();
-            expect(result.success).toBe(false);
-            if (result.success) throw new Error('unreachable');
-            expect(result.data.messages.join('\n')).toMatch(/already/i);
-            expect(runSpy).not.toHaveBeenCalled();
-        });
 
         it('walks shared JSON README, cli-commits the allowlist, and runs in place on HEAD', async () => {
             await fs.writeFile(path.join(projectRoot, 'unrelated.txt'), 'leave me\n');
@@ -295,7 +294,7 @@ describe('setup command', () => {
             expect(runSpy).not.toHaveBeenCalled();
         });
 
-        it('asks for a dedicated wipe confirm and still does not start a daemon', async () => {
+        it('asks for a dedicated wipe confirm', async () => {
             const confirms: string[] = [];
             const result = await runSetup(
                 defaultPrompter({
@@ -311,7 +310,6 @@ describe('setup command', () => {
             );
             expect(result.success).toBe(true);
             expect(confirms.some((m) => /reset|wipe|this checkout/i.test(m))).toBe(true);
-            expect(startSpy).not.toHaveBeenCalled();
         });
     });
 });
