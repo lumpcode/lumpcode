@@ -15,6 +15,7 @@ export {
 export { command as login, Input as LoginInput, Output as LoginOutput, Injections as LoginInjections } from './login';
 export { command as logout, Input as LogoutInput, Output as LogoutOutput, Injections as LogoutInjections } from './logout';
 export { command as projectSetup, Input as ProjectSetupInput, Output as ProjectSetupOutput, Injections as ProjectSetupInjections } from './project-setup';
+export { command as setup, Input as SetupInput, Output as SetupOutput, Injections as SetupInjections } from './setup';
 export { command as run, Input as RunInput, Output as RunOutput, Injections as RunInjections } from './run';
 export {
     command as lumpPlan,

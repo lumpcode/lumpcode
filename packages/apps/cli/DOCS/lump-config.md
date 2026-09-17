@@ -22,7 +22,7 @@ Every runnable lump has **two required parts**:
 
    | Field | Form | Purpose |
    |-------|------|---------|
-   | `contextListJson` | [JSON reference](#field-forms-conventions) (`Record<string,string>`) | Declarative templates expanded by scanning the tree |
+   | `contextListJson` | [JSON reference](#field-forms-conventions) (`ContextList` \| `Record<string,string>`) | Static list, or path templates expanded by scanning the tree |
    | `getContextListFn` | [Function reference](#field-forms-conventions) | Fully custom context list |
    | `contextMatchFn` | [Function reference](#field-forms-conventions) | Per-file scan → grouped contexts |
 
@@ -82,8 +82,8 @@ Two forms appear repeatedly in the field tables below. Each is defined here once
   Relative paths resolve from the lump folder (`.lumpcode/lumps/<lumpName>/`). Modules are loaded with dynamic `import()`.
 
 - **JSON reference** — used by `contextListJson`. Accepts either:
-  - an **inline JSON object**, or
-  - a **string path** to a JSON file with the same shape
+  - an **inline** `ContextList` array or path-template object, or
+  - a **string path** to a JSON file with either of those shapes
 
 ### Command names and file paths
 
@@ -111,6 +111,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `discoveryBranch` | string | Singular discovery rule (exact or git glob). Mutually exclusive with `discoveryBranches`. Dedicated allowlist vs configured `primaryBranches`. |
 | `discoveryBranches` | string[] | Discovery rules (exact and/or globs). Mutually exclusive with `discoveryBranch`. Flagless CLI uses the first exact rule; pattern-only requires `--discoveryBranch`. |
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Default agent command for all prompt items that don’t set their own `command` |
+| `timeoutMillis` | number | Default agent/command timeout for steps that omit `timeoutMillis`; per-step value overrides. Engine default is 30 minutes when both are omitted. |
 | `branchFn` | [Function reference](#field-forms-conventions) | Custom branch naming; default is `lump/<lumpName>/<contextNames…>` |
 | `disabled` | boolean \| DisabledFn \| FilePath | When truthy / returns `true`, soft-skips the lump on both `lumpcode start` ticks and manual `lumpcode run` (`skipped: true`, reason `disabled`, exit 0). |
 | `maximumNumberOfConcurrentBranches` | number | If set (≥ 0), `run` / daemon tick **skips** when open `lump/<lumpName>/*` branches on `origin` ≥ limit (local-only branches are not counted) |
@@ -123,7 +124,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `postSetupWorkspaceCommand` | string | Shell fragment in the branch workspace after generated git setup (e.g. `npm ci`). Mutually exclusive with `postSetupWorkspaceFn`. |
 | `postTeardownWorkspaceFn` | [Function reference](#field-forms-conventions) | Before generated workspace teardown, while the branch workspace still exists. Mutually exclusive with `postTeardownWorkspaceCommand`. |
 | `postTeardownWorkspaceCommand` | string | Shell fragment in the branch workspace before generated git teardown. Mutually exclusive with `postTeardownWorkspaceFn`. |
-| `contextOptionsFn` | [Function reference](#field-forms-conventions) | **Only with `contextListJson`:** set per-context `options` (`priority`, `dependsOnContexts`) after template expansion. See [contextOptionsFn](#contextoptionsfn-only-with-contextlistjson) and [Context ordering](#context-ordering-and-cross-lump-dependencies) |
+| `contextOptionsFn` | [Function reference](#field-forms-conventions) | **Only with a path-template `contextListJson`:** set per-context `options` (`priority`, `dependsOnContexts`) after template expansion. See [contextOptionsFn](#contextoptionsfn-template-maps-only) and [Context ordering](#context-ordering-and-cross-lump-dependencies) |
 | `keepHistory` | boolean | When `true`, append one YAML mapping per prompt step (after the agent command) to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` |
 
 Workspace preparation (fetch / switch / hard-reset / branch) is generated for you from `local.json` and the resolved `baseBranch`—there are no `workspaceSetup`, `setupWorkspaceFn`, or `teardownWorkspaceFn` knobs. Compose extra prep with `postSetupWorkspaceFn` / `postSetupWorkspaceCommand` (and the teardown twins). `lump-plan` does not invoke these hooks or run their commands. Do not put git mutations in post-setup (not covered by `gitCommonDirLock`). When each hook runs: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
@@ -140,7 +141,23 @@ Status, `clean`, and `context-status` treat a commit as that context's marker wh
 
 ## `contextListJson`
 
-### Inline object
+`contextListJson` is one of:
+
+- a **`ContextList`** array (static list; files named in `variables` need not exist)
+- a **path-template object** (`Record<string, string>`)
+- a **file path** whose JSON is one of those two shapes
+
+### Static `ContextList`
+
+```json
+"contextListJson": [
+  { "name": "README", "variables": { "FILE": "README.md" } }
+]
+```
+
+Each item is a [Context](./types.md#context): required `name` and `variables`, optional `options` (`priority`, `dependsOnContexts`). Extra keys fail at config resolve. `[]` is a valid empty plan. Duplicate or illegal names fail later via `validateContextListNames`.
+
+### Path-template object
 
 ```json
 "contextListJson": {
@@ -148,7 +165,7 @@ Status, `clean`, and `context-status` treat a commit as that context's marker wh
 }
 ```
 
-Each **key** becomes a **variable** name inside each generated context. Values are **path templates** containing:
+Each **key** becomes a **variable** name inside each generated context. Values are **path templates**. Every non-empty template object must have a `{PLACEHOLDER}` or `$modifier{…}` token in **every** value; otherwise config resolve fails (write a `ContextList` instead). `{}` is a valid empty plan (zero matches).
 
 - **`{PLACEHOLDER}`** — Captures a path segment from the real file tree; all placeholders in one template row must match the **same** file path for a row to contribute to a context.
 - **`$modifier{PLACEHOLDER}`** — Same capture, but the on-disk text must equal `modifier(extractedPlaceholderValue)` (used for file naming conventions).
@@ -164,21 +181,21 @@ Default modifiers shipped with the template expander:
 | `$lower` | `lowercase` |
 | `$pascal` | `PascalCase` |
 
-The **context name** is derived by concatenating every captured placeholder tuples with `-` between parts. In most cases, you will use only one placeholder.
+The **context name** is derived by concatenating every captured placeholder with `-` between parts. In most cases, you will use only one placeholder.
 
 ### External JSON file
 
-Pass `contextListJson` as a **JSON reference** path (a [JSON reference](#field-forms-conventions) string) instead of an inline object. The file must contain a JSON object of string templates.
+Pass `contextListJson` as a **JSON reference** path (a [JSON reference](#field-forms-conventions) string) instead of an inline value. The file must contain a `ContextList` array or a path-template object (not another file path).
 
 Use plain relative paths in templates—**prefer patterns without a leading `./`** (e.g. `"src/{NAME}.ts"`, not `"./src/{NAME}.ts"`).
 
-### `contextOptionsFn` (only with `contextListJson`)
+### `contextOptionsFn` (template maps only)
 
-`contextListJson` alone builds `name` and `variables` only. To add **`options`** (see [types.md](./types.md#context) — `priority`, `dependsOnContexts`) to each context, set top-level **`contextOptionsFn`** as a [function reference](#field-forms-conventions).
+A path-template object builds `name` and `variables` only. To add **`options`** (see [types.md](./types.md#context) — `priority`, `dependsOnContexts`) to each expanded context, set top-level **`contextOptionsFn`** as a [function reference](#field-forms-conventions).
 
 The function receives each context **before** `options` is set and may return a `Context['options']` object to merge, or `null` / `undefined` to return no options. Shape: [types.md](./types.md#contextoptionsfn).
 
-`contextOptionsFn` is **not** read when the context source is `getContextListFn` or `contextMatchFn` (those already attach `options` on the returned data).
+`contextOptionsFn` is ignored when `contextListJson` is a `ContextList` (put `options` on the items). It is **not** read when the context source is `getContextListFn` or `contextMatchFn`.
 
 ### Context ordering and cross-lump dependencies
 
@@ -225,7 +242,7 @@ In `config.js` / `config.ts`, `steps` itself may be a single item of any of thos
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Required on each step unless overridden inline via `commandFn` in `config.js` / `config.ts`; inherits top-level `command` when omitted. |
 | `postCommandExecFn` | [Function reference](#field-forms-conventions) | Hook called after the agent finishes. May return follow-on steps (runtime-only nesting under this leaf; see [types.md](./types.md#postcommandexecfn)) |
 | `stepVariables` | object | JSON-serializable bag passed to promptFn/command/postCommandExecFn hooks |
-| `timeoutMillis` | number | Millis cap for the agent/command process; on expiry Lumpcode terminates the process tree (SIGTERM, then SIGKILL after a grace period) and the step fails |
+| `timeoutMillis` | number | Millis cap for the agent/command process; on expiry Lumpcode terminates the process tree (SIGTERM, then SIGKILL after a grace period) and the step fails. Inherits top-level `timeoutMillis` when omitted; engine default is 30 minutes when both are omitted. |
 
 ## Prompt run history (`keepHistory`)
 

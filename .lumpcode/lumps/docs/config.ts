@@ -25,7 +25,7 @@ export default backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetS
     maximumNumberOfConcurrentBranches: 2,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'cursor-grok-4.6-high-fast' },
+    lumpVariables: { model: 'cursor-grok-4.6-high' },
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     async resolveItem() {
         return { stage: 'implementation' };

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Big agent PRs are hard to review. So I review them before they exist.</title>
+  <style>
+    body {
+      max-width: 42rem;
+      margin: 2rem auto;
+      padding: 0 1.25rem 4rem;
+      font: 18px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: #0f1419;
+    }
+    .meta {
+      margin: 0 0 1.5rem;
+      padding: 0.75rem 1rem;
+      background: #f7f9f9;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #536471;
+    }
+    .meta strong { color: #0f1419; }
+    .subtitle {
+      margin: 0 0 1.75rem;
+      font-size: 1.15rem;
+      color: #536471;
+    }
+    h2 {
+      margin: 1.75rem 0 0.75rem;
+      font-size: 1.35rem;
+      line-height: 1.3;
+    }
+    p { margin: 0 0 0.9rem; }
+    a { color: #1d9bf0; }
+    pre {
+      margin: 0 0 0.9rem;
+      padding: 0.85rem 1rem;
+      overflow-x: auto;
+      background: #f7f9f9;
+      border-radius: 8px;
+      font: 14px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    code {
+      font: 0.9em/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+    p code, li code {
+      background: #f7f9f9;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+  </style>
+</head>
+<body>
+  <p class="meta">
+    <strong>How to paste into X Articles</strong><br />
+    1. Title field: <em>Big agent PRs are hard to review. So I review them before they exist.</em><br />
+    2. Subtitle field (if present): <em>Prepare the blast. Match it. Review where it points.</em><br />
+    3. Cover: sibling <code>cover.png</code>.<br />
+    4. Select from the subtitle (or from the first body paragraph) through the last paragraph — do not select this gray box.<br />
+    5. Copy, then paste into the X article body (Cmd/Ctrl+V). Paste as rich text, not plain text.<br />
+    Alternate: copy body from <a href="https://markdown2x.com/">markdown2x.com</a>.
+  </p>
+
+  <p class="subtitle">Prepare the blast. Match it. Review where it points.</p>
+
+  <p>An agent PR that is already on the branch asks you to reconstruct intent from a finished diff. Extra files. A helper that grew. A rename you did not ask for. The review is late.</p>
+
+  <p>A big agent PR is what you get when nobody reviewed a small blast. So I review the change before any code exists.</p>
+
+  <h2>1. Write the blast first</h2>
+
+  <p>I keep a <code>blast.yml</code> with the ticket. The files that should move, a line of why, optional size, optional symbols I already know must change.</p>
+
+  <pre><code>desc: "Extract acquireLock so setup and teardown share one release callback."
+files:
+  src/lock.ts:
+    desc: "New helper: acquire and release the path lock."
+    "-": 0
+    "+": 40
+    symbols:
+      acquireLock: create
+      releaseLock: create
+  src/run.ts:
+    desc: "Call acquireLock. Drop the inlined lock block."
+    "-": 12
+    "+": 8
+    symbols:
+      run: update</code></pre>
+
+  <p>That is a simplified blast from a real Lumpcode change. Same shape, fewer files.</p>
+
+  <p>Best case: I write it. An agent can draft it, or expand a first note. A human still reviews it thoroughly before implementation. If you first see that file inside the implementation PR, you are late.</p>
+
+  <p><code>desc</code> is for humans. <code>files</code> is the blast. <code>symbols</code> are not exhaustive: <code>create</code>, <code>update</code>, or <code>delete</code> for names I already care about. <code>+</code> and <code>-</code> are expected size, not a pass or fail.</p>
+
+  <h2>2. If the blast is already big, split the ticket</h2>
+
+  <p>The file list has to fit in your head. If it does not, the PR will not either. Split until each blast is one reviewable slice. Those PRs stay small, precise, easy to review, and easy to combine.</p>
+
+  <p>That is the review you can still change. After the agent codes, you can merge, adjust, or close.</p>
+
+  <h2>3. Then let the agent code</h2>
+
+  <p>The agent implements against a blast you already reviewed. I use this blast pattern on my agentic PRs (<a href="https://github.com/lumpcode/lumpcode">created by Lumpcode</a>). The implementation prompt does not restate the plan. It points at the file:</p>
+
+  <pre><code>Read @blast.yml and try to match that blast if possible: prefer the listed files and stay close to the line estimates.</code></pre>
+
+  <h2>4. After the PR, you have a baseline</h2>
+
+  <p>The blast is also something a script can read. Flag a <code>+/-</code> that blew a 10% band. Use a tighter band on <code>src/</code> than on tests. Flag a file that was not in the blast. Flag a listed symbol that did not move. Then an agent can explain only the gaps.</p>
+
+  <p>The exact bands are a later article. This one is the habit. Prepare the change with a blast. Implement telling the agent to match it. Review with the blast telling you where to look more closely.</p>
+
+  <p>Follow along at <a href="https://x.com/ddyods">x.com/ddyods</a>.</p>
+</body>
+</html>

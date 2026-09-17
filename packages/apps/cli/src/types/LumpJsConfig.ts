@@ -1,4 +1,4 @@
-import type { LumpVariables, MaybePromise, RunLumpInput, StepVariables } from "@lumpcode/core";
+import type { ContextList, LumpVariables, MaybePromise, RunLumpInput, StepVariables } from "@lumpcode/core";
 
 import type { BaseBranchFn } from "./BaseBranchFn";
 import { LumpJsConfigStep } from "./LumpJsConfigStep";
@@ -18,6 +18,12 @@ type LumpJsConfigSoloStep<
     | LumpJsConfigStep<V, SV>
     | LumpJsConfigStep<V, SV>['promptTemplate']
     | LumpJsConfigStep<V, SV>['promptFn'];
+
+/** Variable name → path template (`src/{NAME}.ts`). */
+export type ContextListJsonTemplate = Record<string, string>;
+
+/** Inline JSON: a static list, or a path-template map. */
+export type ContextListJsonValue = ContextList | ContextListJsonTemplate;
 
 export type LumpJsConfig<
     V extends LumpVariables = LumpVariables,
@@ -48,7 +54,7 @@ export type LumpJsConfig<
      */
     discoveryBranches?: string[];
     command?: LumpJsConfigStep<V, SV>['command'];
-    contextListJson?: FilePath | Record<string, string>;
+    contextListJson?: FilePath | ContextListJsonValue;
     contextMatchFn?: FilePath | ContextMatchFn<V>;
     contextOptionsFn?: FilePath | ContextOptionsFn;
     /** Author context list fn (CLI shape with required `discoveryBranch`). */
@@ -57,6 +63,11 @@ export type LumpJsConfig<
     maximumNumberOfConcurrentBranches?: number;
     prompt?: LumpJsConfigSoloStep<V, SV>;
     steps?: LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>;
+    /**
+     * Default agent/command timeout for steps that omit `timeoutMillis`.
+     * Engine default is 30 minutes when both are omitted.
+     */
+    timeoutMillis?: number;
     /**
      * Extra command tags to pre-load before composed setup/teardown.
      * A tag top-level `command` is pre-registered automatically; list other

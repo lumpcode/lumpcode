@@ -67,7 +67,7 @@ const baseLocalConfig: LocalConfig = {
 };
 
 const baseJsConfig = {
-    contextListJson: { NAME: 'README' },
+    contextListJson: [{ name: 'README', variables: { NAME: 'README' } }],
     prompt: { promptTemplate: 'x', command: 'copilot' },
 } as LumpJsConfig;
 

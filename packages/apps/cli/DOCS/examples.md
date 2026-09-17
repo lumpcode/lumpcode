@@ -10,15 +10,15 @@ Deep references: [concepts.md](./concepts.md), [lump-config.md](./lump-config.md
 
 *When to use:* right after `lumpcode lump-create` to confirm remotes, agent command, and marker commits before you invest in a real lump.
 
-Uses a single fixed path every repo already has (`README.md`). Adjust `FILE` if your project root has no `README.md`.
+Uses a single declared context. Adjust `FILE` if your project root has no `README.md`.
 
 `.lumpcode/lumps/smokeTest/config.json`:
 
 ```json
 {
-  "contextListJson": {
-    "FILE": "README.md"
-  },
+  "contextListJson": [
+    { "name": "README", "variables": { "FILE": "README.md" } }
+  ],
   "prompt": {
     "promptTemplate": "Reply with exactly one line: smoke OK for @{FILE}. Do not edit any file.",
     "command": "copilot"

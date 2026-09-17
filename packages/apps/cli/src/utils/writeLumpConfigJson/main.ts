@@ -5,7 +5,7 @@ import { lumpDirPath } from '../lumpDirPath';
 
 /** Default runnable lump used across CLI tests and fixtures. */
 export const MINIMAL_RUNNABLE_LUMP_CONFIG = {
-    contextListJson: { NAME: 'README' },
+    contextListJson: [],
     prompt: { promptTemplate: 'E2E @{NAME}', command: 'copilot' },
 } as const;
 

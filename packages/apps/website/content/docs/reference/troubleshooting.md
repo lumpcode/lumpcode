@@ -40,7 +40,7 @@ There is no undo inside Lumpcode. Recover from git if the work was committed; if
 
 ## `local.json` missing
 
-`run` and `start` require it. Run `lumpcode project-setup` on a new repo. On a worker clone, copy the mode file by hand (`{ "mode": "dedicated" }`); do not re-run `project-setup` if `.lumpcode/` is already in git.
+`run` and `start` require it. Run `lumpcode project-setup` on a new repo. On a worker clone, run `lumpcode setup` to write `local.json`; do not re-run `project-setup` if `.lumpcode/` is already in git.
 
 ## Worker does not pick up my new lump
 

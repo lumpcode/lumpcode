@@ -18,6 +18,7 @@ import type {
     Success,
     TeardownFn,
     Context,
+    ContextList,
 } from "@lumpcode/core";
 import { execAsync, success, failure, pathExists } from "@lumpcode/core";
 import { noopLogger } from '../noopLogger';
@@ -32,6 +33,8 @@ import type {
     ContextMatchFn,
     ContextOptionsFn,
     GetContextListFn as AuthorGetContextListFn,
+    ContextListJsonTemplate,
+    ContextListJsonValue,
     LumpJsConfig,
     LumpJsConfigPostCommandExecFn,
     LumpJsConfigStep,
@@ -97,6 +100,7 @@ export async function jsConfigToRunLumpInput({
     const {
         baseBranch: lumpBaseBranchOverride,
         command: defaultCommand,
+        timeoutMillis: configTimeoutMillis,
         contextListJson,
         contextMatchFn,
         contextOptionsFn,
@@ -282,7 +286,13 @@ export async function jsConfigToRunLumpInput({
     }
 
     const stepsResult = await resolveSteps({
-        prompt, jsSteps, defaultCommand, commandModules, configPaths, fnImportOptions,
+        prompt,
+        jsSteps,
+        defaultCommand,
+        configTimeoutMillis,
+        commandModules,
+        configPaths,
+        fnImportOptions,
     });
     if (!stepsResult.success) return stepsResult;
 
@@ -522,17 +532,25 @@ async function resolveGetContextListFn({
         return success(createGetContextListFromMatchFn(matchFnResult.data, discoveryBranch));
     }
 
-    if (contextListJson) {
-        let template: Record<string, string>;
-        if (typeof contextListJson === 'object') {
-            template = contextListJson;
-        } else {
+    if (contextListJson !== undefined) {
+        let rawValue: unknown;
+        if (typeof contextListJson === 'string') {
             const resolvedPath = path.resolve(configBasePath, contextListJson);
-            const readResult = await readJsonFile<Record<string, string>>({ filePath: resolvedPath });
+            const readResult = await readJsonFile<unknown>({ filePath: resolvedPath });
             if (!readResult.success) {
                 return readResult;
             }
-            template = readResult.data;
+            rawValue = readResult.data;
+        } else {
+            rawValue = contextListJson;
+        }
+        const parsed = parseContextListJsonValue(rawValue);
+        if (!parsed.success) {
+            return parsed;
+        }
+        if (Array.isArray(parsed.data)) {
+            const list = parsed.data;
+            return success(async () => list);
         }
         let resolvedContextOptionsFn: ContextOptionsFn | undefined;
         if (contextOptionsFn) {
@@ -541,7 +559,7 @@ async function resolveGetContextListFn({
             resolvedContextOptionsFn = coResult.data;
         }
         const templateFn = makeGetContextListFnFromTemplate(
-            template,
+            parsed.data,
             undefined,
             resolvedContextOptionsFn,
         );
@@ -594,6 +612,7 @@ async function resolveSteps({
     prompt,
     jsSteps,
     defaultCommand,
+    configTimeoutMillis,
     commandModules,
     configPaths,
     fnImportOptions,
@@ -602,6 +621,7 @@ async function resolveSteps({
     prompt: LumpJsConfig['prompt'];
     jsSteps: LumpJsConfig['steps'];
     defaultCommand: LumpJsConfig['command'];
+    configTimeoutMillis: LumpJsConfig['timeoutMillis'];
     commandModules: Map<string, CommandModule>;
     configPaths: CommandConfigPaths;
     fnImportOptions: { importBasePath: string };
@@ -623,6 +643,7 @@ async function resolveSteps({
                     prompt: undefined,
                     jsSteps: resolved,
                     defaultCommand,
+                    configTimeoutMillis,
                     commandModules,
                     configPaths,
                     fnImportOptions,
@@ -640,6 +661,7 @@ async function resolveSteps({
             const resolved = await jsConfigStepToStep({
                 item: normalizedItem,
                 defaultCommand,
+                configTimeoutMillis,
                 commandModules,
                 configPaths,
                 fnImportOptions,
@@ -660,6 +682,7 @@ async function resolveSteps({
 async function jsConfigStepToStep({
     item,
     defaultCommand,
+    configTimeoutMillis,
     commandModules,
     configPaths,
     fnImportOptions,
@@ -667,12 +690,22 @@ async function jsConfigStepToStep({
 }: {
     item: LumpJsConfigStep;
     defaultCommand: LumpJsConfig['command'];
+    configTimeoutMillis: LumpJsConfig['timeoutMillis'];
     commandModules: Map<string, CommandModule>;
     configPaths: CommandConfigPaths;
     fnImportOptions: { importBasePath: string };
     inRecursiveCall?: boolean;
 }): Promise<Success<Step> | Failure<string>> {
-    const { promptTemplate, promptFn, command, postCommandExecFn, ...rest } = item;
+    const {
+        promptTemplate,
+        promptFn,
+        command,
+        postCommandExecFn,
+        timeoutMillis: stepTimeoutMillis,
+        ...rest
+    } = item;
+
+    const resolvedTimeoutMillis = stepTimeoutMillis ?? configTimeoutMillis;
 
     const promptFnResult = await resolvePromptFn({ promptFn, promptTemplate, fnImportOptions });
     if (!promptFnResult.success) return promptFnResult;
@@ -710,6 +743,7 @@ async function jsConfigStepToStep({
                 prompt: undefined,
                 jsSteps: returned,
                 defaultCommand,
+                configTimeoutMillis,
                 commandModules,
                 configPaths,
                 fnImportOptions,
@@ -725,6 +759,7 @@ async function jsConfigStepToStep({
         ...(promptFnResult.data !== undefined && { promptFn: promptFnResult.data }),
         commandFn: commandFnResult.data,
         ...(resolvedPostCommandExecFn !== undefined && { postCommandExecFn: resolvedPostCommandExecFn }),
+        ...(resolvedTimeoutMillis !== undefined && { timeoutMillis: resolvedTimeoutMillis }),
     });
 }
 
@@ -855,4 +890,110 @@ async function resolvePostWorkspaceHook<T extends Function>({
         return success(fromCommand);
     }
     return success(undefined);
+}
+
+const TEMPLATE_PLACEHOLDER_TOKEN = /\$\w+\{[^}]+\}|\{[^}]+\}/;
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function parseContextListJsonValue(
+    value: unknown,
+): Success<ContextListJsonValue> | Failure<string> {
+    if (Array.isArray(value)) {
+        return parseStaticContextList(value);
+    }
+    if (!isPlainObject(value)) {
+        return failure(
+            'contextListJson must be a ContextList array, a path-template object, or a file path',
+        );
+    }
+    const template: ContextListJsonTemplate = {};
+    for (const [key, raw] of Object.entries(value)) {
+        if (typeof raw !== 'string') {
+            return failure(`contextListJson template value for "${key}" must be a string`);
+        }
+        if (!TEMPLATE_PLACEHOLDER_TOKEN.test(raw)) {
+            return failure(
+                `contextListJson template value for "${key}" must contain a {PLACEHOLDER} or $modifier{…} token, or use a ContextList array`,
+            );
+        }
+        template[key] = raw;
+    }
+    return success(template);
+}
+
+function parseStaticContextList(value: unknown[]): Success<ContextList> | Failure<string> {
+    const list: ContextList = [];
+    for (let i = 0; i < value.length; i++) {
+        const item = value[i];
+        if (!isPlainObject(item)) {
+            return failure(`contextListJson[${i}] must be a Context object`);
+        }
+        const extraKeys = Object.keys(item).filter(
+            (key) => key !== 'name' && key !== 'variables' && key !== 'options',
+        );
+        if (extraKeys.length > 0) {
+            return failure(`contextListJson[${i}] has unknown keys: ${extraKeys.join(', ')}`);
+        }
+        if (typeof item.name !== 'string') {
+            return failure(`contextListJson[${i}].name must be a string`);
+        }
+        if (!isPlainObject(item.variables)) {
+            return failure(`contextListJson[${i}].variables must be an object`);
+        }
+        for (const [varKey, varValue] of Object.entries(item.variables)) {
+            if (
+                typeof varValue !== 'string'
+                && typeof varValue !== 'number'
+                && typeof varValue !== 'boolean'
+            ) {
+                return failure(
+                    `contextListJson[${i}].variables.${varKey} must be a string, number, or boolean`,
+                );
+            }
+        }
+        let options: Context['options'];
+        if (item.options !== undefined) {
+            if (!isPlainObject(item.options)) {
+                return failure(`contextListJson[${i}].options must be an object`);
+            }
+            const optionExtra = Object.keys(item.options).filter(
+                (key) => key !== 'priority' && key !== 'dependsOnContexts',
+            );
+            if (optionExtra.length > 0) {
+                return failure(
+                    `contextListJson[${i}].options has unknown keys: ${optionExtra.join(', ')}`,
+                );
+            }
+            if (item.options.priority !== undefined && typeof item.options.priority !== 'number') {
+                return failure(`contextListJson[${i}].options.priority must be a number`);
+            }
+            if (item.options.dependsOnContexts !== undefined) {
+                if (
+                    !Array.isArray(item.options.dependsOnContexts)
+                    || item.options.dependsOnContexts.some((dep) => typeof dep !== 'string')
+                ) {
+                    return failure(
+                        `contextListJson[${i}].options.dependsOnContexts must be an array of strings`,
+                    );
+                }
+            }
+            options = {
+                ...(item.options.priority !== undefined
+                    ? { priority: item.options.priority }
+                    : {}),
+                ...(item.options.dependsOnContexts !== undefined
+                    ? { dependsOnContexts: item.options.dependsOnContexts as string[] }
+                    : {}),
+            };
+        }
+        list.push({
+            name: item.name,
+            variables: item.variables as Context['variables'],
+            ...(options ? { options } : {}),
+        });
+    }
+    return success(list);
 }

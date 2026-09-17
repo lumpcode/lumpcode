@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "CLI for running agent loops over your codebase. Run agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
   "keywords": [
     "lumpcode",
@@ -67,7 +67,7 @@
     "install-bin:local:beta": "sh scripts/install-local.sh"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.5.0",
+    "@lumpcode/core": "^0.6.0",
     "ajv": "^8.20.0",
     "commander": "^9.5.0",
     "croner": "^9.1.0",
