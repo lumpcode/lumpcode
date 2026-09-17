@@ -1,9 +1,13 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: local-status-dashboard-mvp
 workflow: [manualReq, testImpl, impl]
+manual: true
 task: >-
-  Local web dashboard on a port showing live lump status from git (contexts in
-  flight, todo / branchPushed / finished, daemon idle vs running). Not a cloud
-  database; the remote remains source of truth. Complements the CLI
-  `cli-status-dashboard`. Definitely needs a lot of tickets, only MVP for now.
-priority: 3
+  Parked. Local web board of git context status (todo / branchPushed /
+  finished) with the remote as source of truth. Not this slice: the worker
+  operator UI is `worker-dashboard-readonly` / `worker-dashboard-controls`
+  (live daemon snapshot, not campaign progress). Unpark after that path ships
+  if a git board is still wanted. Complements parked `cli-status-dashboard`.
+priority: 31
+dependsOn:
+  - worker-dashboard-readonly

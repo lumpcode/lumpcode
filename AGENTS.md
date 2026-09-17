@@ -66,7 +66,7 @@
 
 ### CLI conventions
 
-- `setup` is the interactive first-run drive; no-op when `.lumpcode/local.json` is valid and a lump already exists (resume only fills `local.json` / first-lump holes); `project-setup` remains flag-only
+- `setup` is the interactive first-run drive (website/docs newcomer path; do not teach `project-setup` as how you create a project); no-op when `.lumpcode/local.json` is valid and a lump already exists (resume only fills `local.json` / first-lump holes); `project-setup` remains flag-only. TypeScript first-lump stub defaults to `*.ts` (not `*.js`) so installing `@lumpcode/cli-utils`/`@lumpcode/recipes` does not scan `node_modules` as contexts. Skill install (`npx skills add lumpcode/skills`) must be non-interactive (no TTY hangs); tests mock it
 - Unregistered `login`/`logout` command modules are **implementation-only** — do not document in user-facing README/DOCS (`npm login` in `DOCS/publishing.md` is npm registry auth only). `supervise` is the same: `start` launches it; do not tell operators to run it; project-wide stop is `stop --all`
 - Arguments before options in usage; long option names in camelCase (e.g. `--lumpName`, `--contextName`, `--lines`) to match Commander/schema — avoid single-char keys needing special `addCommand` handling
 - Lump-config `command` field: registered tag (`"copilot"`, `"cursor"`, …) **or** lump-relative `.ts`/`.js` path (no whitespace; same `CommandModule` exports as `commands/<name>`); never shell flags — agent flags belong in the module's `CommandFn` (`executable` + `args`)
@@ -209,7 +209,7 @@
 ### CLI framework
 
 - Global options (`--json`, `--verbose`) on root program; subcommands read via `command.parent.opts()`; `lump-status` uses `--silent` for summary-only output
-- `cliLog`: result envelope only; `--json` → one compact JSON line per invocation
+- `cliLog`: result envelope only; `--json` → one compact JSON line per invocation. Do not also `note()`/`console.log` a line returned on the command result — `cliLog` reprints the envelope and the line appears twice
 - `addCommand`: injectable `exit(1)` on handler `Failure` and Zod parse failure
 - Logger: `error` always prints (even with `--json`); `--json` suppresses other operational lines; CLI `--verbose` OR-merges lump-config `verbose`; `createCliLogger` prefixes `[lumpcode]`
 - Shell escaping: `shellSingleQuote` from `@lumpcode/core` for user-controlled values; `shellBestEffort` for best-effort fragments
