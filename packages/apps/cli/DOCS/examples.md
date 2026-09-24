@@ -59,6 +59,8 @@ Lumpcode commits each context as `LUMP: reactToVue - <ComponentName>` on `lump/r
 
 *When to use:* ordered backlog where later work must wait until earlier tickets are merged to the base branch.
 
+Tickets as folders in git (`backlogItems/todo/<name>/desc.yml`) instead of this JSON list: [backlog-recipe.md](./backlog-recipe.md).
+
 Treat a JSON ticket file as the source of truth and let `dependsOnContexts` enforce order. Subsequent tickets only become eligible once their dependency’s commit is on `origin/<baseBranch>` (i.e. merged).
 
 `.lumpcode/lumps/userProfile/config.json`:
