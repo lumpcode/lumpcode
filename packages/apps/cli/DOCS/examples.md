@@ -34,7 +34,7 @@ Run once: `lumpcode run smokeTest`, then `git log --remotes -F --grep 'LUMP:' --
 
 *When to use:* large UI migration with one reviewable PR per component.
 
-A classic refactoring lump: discover every component folder, do a multi-step migration, ship one PR per component.
+A classic AI coding refactoring lump: discover every component folder, do a multi-step migration, ship one PR per component.
 
 ```json
 {
