@@ -1,12 +1,15 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: cli-status-dashboard
 workflow: [manualReq, testImpl, impl]
+manual: true
 task: >-
-  Mini CLI dashboard: one command with a comprehensive view of which lumps are
-  running, which contexts are in flight or left, and how many have run.
-  Unified `lumpcode status` (or equivalent) covering daemon state plus per-lump
-  context summaries, so operators do not bounce between daemon-status,
-  lump-status, and context-status. Git/file-shaped (remote history + live
-  daemon meta); not a database. Supersedes IDEAS unified-status-command.
-  Complements the later local web dashboard MVP.
-priority: 2
+  Parked. Unified terminal view of git campaign status (todo / branchPushed /
+  finished, how many left) plus daemon state — one `lumpcode status` so
+  operators do not bounce between daemon-status, lump-status, and
+  context-status. Not this slice: live "what is running / next tick" is
+  `daemon-status-snapshot` then the worker dashboard. Unpark after that path
+  ships. Complements parked `local-status-dashboard-mvp` (same git board in a
+  UI). File-shaped; not a database. Supersedes IDEAS unified-status-command.
+priority: 30
+dependsOn:
+  - daemon-status-snapshot
