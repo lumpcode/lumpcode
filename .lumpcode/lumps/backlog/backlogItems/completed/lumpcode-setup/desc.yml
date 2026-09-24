@@ -1,0 +1,13 @@
+name: lumpcode-setup
+workflow:
+  - manualReq
+  - testImpl
+  - impl
+manual: true
+task: >-
+  Interactive `lumpcode setup` that walks shared or dedicated mode, writes the
+  first lump, commits, and runs on this branch (shared in-place) or can start a
+  worker (dedicated). Not only today's flag-based `project-setup`. Tickets under
+  tickets/. See requirements.md.
+priority: 1
+completedAt: '2026-09-16T17:17:11.386Z'

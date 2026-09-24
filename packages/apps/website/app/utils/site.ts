@@ -20,6 +20,7 @@ export const docs = {
   localConfig: '/docs/config/local',
   daemons: '/docs/config/daemons',
   examples: '/docs/reference/examples',
+  backlog: '/docs/author/backlog',
 } as const
 
 export const skillInstall = 'npx skills add lumpcode/skills'

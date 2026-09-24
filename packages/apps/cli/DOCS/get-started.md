@@ -2,7 +2,7 @@
 
 Readable website version: [lumpcode.com/docs/start/first-pr](https://www.lumpcode.com/docs/start/first-pr) · [docs](https://www.lumpcode.com/docs).
 
-Follow this guide in order to get started with your first `lumpcode run`. You already have a git repo; this is the short path to start AI loops for the software development life cycle on it. Links at each step point to more detail if you want it.
+Follow this guide in order to get started with your first `lumpcode run`. You already have a git repo; this is the short path to start AI loops for the software development life cycle on it. The happy path is **`lumpcode setup`**. Links at each step point to more detail if you want it.
 
 ---
 
@@ -10,10 +10,10 @@ Follow this guide in order to get started with your first `lumpcode run`. You al
 
 You only need a machine with your repo, git access, and a configured CLI agent. Install and prepare the following:
 
-1. **Lumpcode agent skill** — so your coding agent has current Lumpcode docs context (without it, the agent has no current product context): `npx skills add lumpcode/skills`.
-2. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
-3. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare (typically in `.lumpcode/project.json`, optionally overridden in gitignored `local.json`) must **already exist on `origin`** (e.g. `origin/main`): dedicated pre-flight fetch/resets to it; status reads `origin/<branch>`. Shared `run` stays on this branch (dirty allowed).
-4. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** work out of the box when `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` is on `PATH`; other agents (e.g. **`aider`**) need a custom module.
+1. **Lumpcode CLI** on your `PATH` — Install globally: `npm install -g @lumpcode/cli` (Node 22+). Details: [README.md § Install](../README.md#install).
+2. **Git** repository with **`origin`** reachable for fetch/push. The **`primaryBranch`** you'll declare must **already exist on `origin`** (e.g. `origin/main`). Shared `run` stays on this branch. Git **`user.name`** and **`user.email`** must be set so setup can commit.
+3. **CLI coding agent** installed and runnable. Lumpcode invokes the **`command`** you set in lump config by resolving a command module in this order: `.lumpcode/commands/<name>.js` (project), then `~/.lumpcode/commands/<name>.js` (global override), then shipped presets at `~/.lumpcode/commands/presets/<name>.js`. Built-in preset names **`cursor`**, **`copilot`**, **`claude-code`**, **`opencode`**, and **`codex`** work out of the box when `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` is on `PATH`; other agents (e.g. **`aider`**) need a custom module.
+4. **Lumpcode agent skill** (optional) — so your coding agent has current Lumpcode docs context: `npx skills add lumpcode/skills`. `lumpcode setup` offers this; you can also run it yourself.
 
 ---
 
@@ -38,123 +38,41 @@ cd /path/to/your/repo
 git status   # remotes should be set up and accessible
 ```
 
-You only need **`.git/`** here. The next steps create **`.lumpcode/`** in this same directory. After that, this folder is your **Lumpcode project root**.
+You only need **`.git/`** here. The next step creates **`.lumpcode/`** in this same directory. After that, this folder is your **Lumpcode project root**.
 
 ---
 
-## Step 1: Initialize the Lumpcode project
+## Step 1: Run `lumpcode setup`
 
-From the repository root:
+From the repository root, on the branch you want to rehearse on:
 
 ```bash
-lumpcode project-setup
+lumpcode setup
 ```
 
-This creates:
+Setup is interactive (needs a TTY; `--json` is rejected). It walks a fresh repo:
 
-```text
-.lumpcode/
-├── project.json      # projectName + primaryBranch (+ optional team defaults; commit this)
-├── local.json        # per-machine mode (gitignored; may override shared keys)
-├── lumps/            # one folder per lump
-└── commands/         # optional custom agent command modules (.js)
-```
+1. Preflight (git work tree, `origin`, identity, agents on `PATH`)
+2. Optional skill install
+3. Scaffold `.lumpcode/` (`project.json` committed later; `local.json` stays gitignored)
+4. First lump format: JSON, JavaScript, or TypeScript (`myFirstLump` by default). JSON is the simple path (`README.md` when that file exists). js/ts installs `@lumpcode/cli-utils` and `@lumpcode/recipes` (default yes) and writes a `contextMatchFn` stub over a file suffix
+5. Pause so you can edit the config
+6. Commit and push the allowlisted files (or print the commands)
+7. Plan, then `run` in place on this branch
 
-**`project.json`** stores **`projectName`** (letters, digits, `_`, and `-` only) and **`primaryBranch`** (from `--primaryBranch`, default `main`). If you omit **`--projectName`**, `project-setup` infers a name from **`origin`** or the directory basename and normalizes it to those rules. That same value is used for daemon filenames. You can also set team defaults such as `"command": "cursor"` here so lumps can omit top-level `command`.
+Shared success prints the current branch. Setup does not create a `lump/…` branch and does not open a pull request. Shared never starts a daemon. Dedicated can start an unfiltered worker after `run`. After the run, a TTY (not `--json`) can still show porcelain and `[c]` / `[e]` from `run`.
 
-**`local.json`** is per machine and gitignored. The default scaffold is:
+If `.lumpcode/` already has a valid `local.json` and a lump, setup does nothing. If the folder exists but `local.json` is missing, setup writes this machine’s `local.json` and skips creating another lump. `project-setup` still refuses that tree.
 
-```json
-{
-  "mode": "shared"
-}
-```
+**`--projectPath <dir>`** — Start from another directory (resolved to that git work tree).
 
-Keep `shared` on your workstation (`run` rehearses on this branch). Edit it to `"dedicated"` on a worker clone you don't develop on. `start` is dedicated-only. Full reference: [local-config.md](./local-config.md).
+### Flags-only init
 
-Optional flags:
-
-- `--projectPath <dir>` — Initialize another directory (default: current working directory).
-- `--projectName <name>` — Stored verbatim; must already satisfy the character rules (see [project-config.md](./project-config.md#projectname-rules)).
-- `--mode <shared|dedicated>` — Initial `local.json.mode` (default `shared`).
-- `--primaryBranch <branch>` — Initial `project.json.primaryBranch` (default `main`).
-
-Extra fields (`maximumNumberOfConcurrentBranches`, …): [project-config.md](./project-config.md).
+CI and other non-interactive shells should keep using **`lumpcode project-setup`** (`--mode`, `--projectName`, `--primaryBranch`, `--projectPath`). That command only writes the `.lumpcode/` tree; it does not create a lump or run. Then `lump-create` / edit / `lump-plan` / `run` stay available as the manual path.
 
 ---
 
-## Step 2: Create a lump
-
-```bash
-lumpcode lump-create myFirstLump
-```
-
-By default this writes **`.lumpcode/lumps/myFirstLump/config.json`** with a small starter config. For **`config.js`** instead:
-
-```bash
-lumpcode lump-create myFirstLump --config js
-```
-
-For **`config.ts`**:
-
-```bash
-lumpcode lump-create myFirstLump --config ts
-```
-
-`lump-create` gives you one path template plus `@{FILE}` in the prompt; Step 3 is where you reshape that for your lump.
-
----
-
-## Step 3: Define contexts
-
-`contextListJson` maps variable names to path **templates**. Lumpcode scans the repo for every value the `{NAME}` placeholder can take such that the template resolves to a real path — each match becomes one **context**. Each map **key** becomes a **`{VAR}`** you can use in `promptTemplate` (write **`@{VAR}`** for agents that treat `@path` as file context).
-
-Edit your scaffolded config (`lump-create` defaults look like this — adjust the path template and prompt to your repo):
-
-```json
-{
-  "$schema": "https://lumpcode.com/schemas/lumpConfig.schema.json",
-  "contextListJson": {
-    "FILE": "src/{NAME}.ts"
-  },
-  "prompt": {
-    "promptTemplate": "Improve the code at @{FILE}.",
-    "command": "copilot"
-  }
-}
-```
-
-The base branch comes from the merged project/local primary (`primaryBranch` or the first entry of `primaryBranches`). Add a per-lump `"baseBranch": "release/2.0"` only if this lump needs to branch off something else.
-
-A richer pattern (several files per context, naming-convention transforms) is shown in the [README's React-component example](../README.md#configjson-example-one-branch-per-react-component). More ways to define contexts — transforms, ordering and dependencies, fully custom sourcing: [lump-config.md § contextListJson](./lump-config.md#contextlistjson).
-
----
-
-## Step 4: Run once
-
-```bash
-lumpcode run myFirstLump
-```
-
-On a laptop (`mode: "shared"`), Lumpcode loads the lump, resolves contexts from remote status, and runs your agent **on this branch**. A dirty tree is allowed. It does not create `lump/myFirstLump/…` and does not commit or push. After a successful walk with contexts, a TTY (not `--json`) shows porcelain and `[c]` / `[e]`. Type `c` to stamp **`LUMP: myFirstLump - <contextName>`** markers (no push), or `e` to leave dirty and run again. Then push this branch yourself.
-
-A dedicated worker still preflights, cuts `lump/…`, commits, and pushes. Shared vs dedicated order and every hook call site: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle). Short overview: [concepts.md § One run, end to end](./concepts.md#one-run-end-to-end).
-
-**Workspace:** both modes use **this checkout**. Shared stays on `HEAD` (no reset). Dedicated pre-flights in place (destructive reset). [concepts.md § Pre-flight and modes](./concepts.md#pre-flight-and-modes) · [local-config.md](./local-config.md)
-
-**Sanity checks:**
-
-```bash
-git fetch origin
-git log --remotes -F --grep='LUMP:' --oneline
-lumpcode lump-status --lumpName myFirstLump
-```
-
-Do **not** confuse **`lump-status`** (context rows from git) with **`daemon-status`** (scheduler process)—[commands.md](./commands.md#three-commands-that-mention-status).
-
----
-
-## Step 5: Leave a worker running (optional)
+## Step 2: Leave a worker running (optional)
 
 `lumpcode start` is **dedicated-only**. On this laptop (`mode: "shared"`) it fails. Clone the repo into a folder you never edit, set `mode: "dedicated"`, then:
 
@@ -212,3 +130,4 @@ You now have your first working lump ! Browse when you need more depth:
 - [advanced-config.md](./advanced-config.md#hook-lifecycle) — Lifecycle schemas (shared / dedicated), dynamic `steps`, custom commands
 - [types.md](./types.md) — Hook parameter shapes
 - [examples.md](./examples.md) — Short smoke-test style recipes
+- [backlog-recipe.md](./backlog-recipe.md) — Folder of tickets: scaffold, one `desc.yml`, preview, run

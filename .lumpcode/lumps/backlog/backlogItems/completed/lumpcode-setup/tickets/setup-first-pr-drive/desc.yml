@@ -1,6 +1,8 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: setup-first-pr-drive
-workflow: [manualReq, testImpl, impl]
+workflow:
+  - manualReq
+  - testImpl
+  - impl
 task: >-
   `lumpcode setup` walks a new repo on the shared JSON path: preflight, optional
   skill, fresh config, first lump, commit, plan, then in-place `run` on this
@@ -8,4 +10,5 @@ task: >-
 priority: 1
 dependsOn:
   - scaffold-lumpcode-project
-  - exact-path-context-list-json
+  - static-context-list-json
+completedAt: '2026-09-16T07:22:03.137Z'

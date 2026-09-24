@@ -28,6 +28,7 @@
           <ul>
             <li><NuxtLink :to="docs.overview">Overview</NuxtLink></li>
             <li><NuxtLink :to="docs.lumpConfig">Lump config</NuxtLink></li>
+            <li><NuxtLink :to="docs.backlog">Folder backlog</NuxtLink></li>
             <li><NuxtLink :to="docs.commands">Commands</NuxtLink></li>
           </ul>
         </div>

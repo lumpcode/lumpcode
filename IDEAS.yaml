@@ -51,7 +51,7 @@
     `daemon-stop`, `daemon-restart`); today's short names stay as shorthands (`start` → `daemon-start`).
     Apply the same pattern across groups (`lump-plan` / `lump-status` / `lump-create`, `project-setup`)
     so mixed prefixes like `start` vs `daemon-status` go away. Document only the current spelling.
-    Complements `cli-status-dashboard` (one status view) — this idea is naming, not merging commands.
+    Complements parked backlog `cli-status-dashboard` (unified git+daemon view, later) — this idea is naming, not merging commands.
   priority: 25
   tags: [cli]
 - name: lump-create-from-recipe
@@ -338,16 +338,6 @@
   blocked: >-
     parked: after the current daemon-lifecycle PR (feat/better-concurrency-error-logs)
   tags: [daemon, cli, hygiene]
-- name: daemon-status-in-flight-lumps
-  task: >-
-    Extend existing `lumpcode daemon-status` so operators see which lump(s) are in flight on a
-    running daemon versus idle (none running). Today the command lists daemons (and supervisor)
-    and meta can expose a mid-run count (`inFlightLumpCount`; `busy` is deprecated), but not the
-    executing lump names. Worktree + `--maxParallelRun` can run more than one lump, so surface a
-    list. Keep it git-first / file-shaped: read live daemon meta under `~/.lumpcode/daemons/`,
-    not a new database. Complements backlog `cli-status-dashboard` (one combined view);
-    this is the existing command, not a new one.
-  tags: [cli, status, daemon]
 - name: worker-orchestration
   task: >-
     Give operators a clean way to say how a dedicated worker should spend concurrency —
@@ -363,8 +353,8 @@
     product-level orchestration surface (operator mental model + knobs), not a one-line
     Croner or cap-number change. Do not prescribe overlapping ticks, intra-lump context
     pools, fake multi-lines, or multiple `--include` daemons. Distinct from
-    `memory-pressure-run-gate` (RAM refuse-to-start),     `daemon-status-in-flight-lumps` /
-    `cli-status-dashboard` (observability), and `webhooks-imperative-started-lumps`
+    `memory-pressure-run-gate` (RAM refuse-to-start), backlog `daemon-status-snapshot` /
+    parked `cli-status-dashboard` (observability), and `webhooks-imperative-started-lumps`
     (external triggers). Complementary to backlog `git-driven-daemon-configs` (git-declared
     fleet membership); those files may later express orchestration, but that item is
     lifecycle-from-repo, not this gap.

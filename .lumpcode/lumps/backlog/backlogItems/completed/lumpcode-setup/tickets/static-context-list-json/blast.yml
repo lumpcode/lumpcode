@@ -1,0 +1,28 @@
+desc: "contextListJson accepts a ContextList array or a path-template object (or a file of either). No-placeholder templates fail at resolve; exact-path matching is removed."
+files:
+  packages/apps/cli/src/types/LumpJsConfig.ts:
+    desc: "contextListJson is FilePath | ContextList | Record<string, string>."
+    symbols:
+      ContextListJsonTemplate: create
+      ContextListJsonValue: create
+      LumpJsConfig: update
+  packages/apps/cli/src/schemas/lumpConfig.schema.json:
+    desc: "oneOf string / Context array / template object. $defs.Context."
+    symbols:
+      contextListJson: update
+  packages/apps/cli/src/utils/jsConfigToRunLumpInput/main.ts:
+    desc: "Discriminant + structural parse. Array is a literal list. Template still expands. contextOptionsFn ignored on arrays."
+    symbols:
+      resolveGetContextListFn: update
+  packages/apps/cli/src/utils/makeGetContextListFnFromTemplate/main.ts:
+    desc: "Remove exact-path match. Placeholder extractPattern only."
+    symbols:
+      makeGetContextListFnFromTemplate: update
+  packages/apps/cli/DOCS/lump-config.md:
+    desc: "Array vs template vs file. Drop exact-path."
+  packages/apps/website/content/docs/author/contexts.md:
+    desc: "Static list or path patterns."
+  packages/apps/cli/DOCS/examples.md:
+    desc: "Smoke is a one-item ContextList."
+  packages/apps/website/content/docs/reference/examples.md:
+    desc: "Same smoke ContextList."

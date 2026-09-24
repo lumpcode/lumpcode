@@ -68,6 +68,11 @@ export const docsNav: DocsNavSection[] = [
         path: '/docs/author/recipes',
         description: 'retryUntilGreen, backlogs, and other kit helpers.',
       },
+      {
+        title: 'Folder backlog',
+        path: '/docs/author/backlog',
+        description: 'Scaffold the backlog recipe, add one ticket folder, preview, then run.',
+      },
     ],
   },
   {
@@ -147,6 +152,7 @@ const docsRedirectSources: { from: string; to: string }[] = [
   { from: '/docs/prompts', to: '/docs/author/prompts' },
   { from: '/docs/agents', to: '/docs/author/agents' },
   { from: '/docs/recipes', to: '/docs/author/recipes' },
+  { from: '/docs/backlog', to: '/docs/author/backlog' },
   { from: '/docs/lump-config', to: '/docs/config/lump' },
   { from: '/docs/project-config', to: '/docs/config/project' },
   { from: '/docs/local-config', to: '/docs/config/local' },
@@ -232,14 +238,13 @@ export const docsVuePages: {
     headings: [
       { id: 'prerequisites', text: '1. Prerequisites', depth: 2 },
       { id: 'install-the-cli', text: '2. Install the CLI', depth: 2 },
-      { id: 'optional-skill', text: '2b. Optional: install the skill', depth: 2 },
-      { id: 'initialize', text: '3. Initialize a project and create a lump', depth: 2 },
-      { id: 'point-at-work', text: '4. Point the lump at real work', depth: 2 },
-      { id: 'run-once', text: '5. Preview, then run', depth: 2 },
+      { id: 'optional-skill', text: '2b. Optional: the skill', depth: 2 },
+      { id: 'initialize', text: '3. Run setup', depth: 2 },
+      { id: 'run-once', text: '4. Rehearse on this branch', depth: 2 },
       { id: 'meant-to-run', text: 'This is how Lumpcode is meant to run', depth: 2 },
     ],
     searchText:
-      'first pr tutorial get started install cli project-setup lump-create myFirstLump lump-plan --contexts primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker AI loops SDLC development life cycle AI coding refactoring existing git repo',
+      'first pr tutorial get started install cli lumpcode setup project-setup myFirstLump primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker AI loops SDLC development life cycle AI coding refactoring existing git repo',
   },
   {
     path: '/docs/start/worker',
@@ -251,6 +256,6 @@ export const docsVuePages: {
       { id: 'back-to-the-laptop', text: '4. Back to the laptop', depth: 2 },
     ],
     searchText:
-      'worker dedicated clone lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe daemon files start daemons from git rehearsal laptop campaign lump/',
+      'worker dedicated clone lumpcode setup lumpcode start daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe daemon files start daemons from git rehearsal laptop campaign lump/',
   },
 ]

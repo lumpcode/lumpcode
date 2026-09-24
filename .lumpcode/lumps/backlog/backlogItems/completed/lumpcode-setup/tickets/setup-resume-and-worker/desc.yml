@@ -1,6 +1,8 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: setup-resume-and-worker
-workflow: [manualReq, testImpl, impl]
+workflow:
+  - manualReq
+  - testImpl
+  - impl
 task: >-
   Re-running `setup` on a clone that already has `.lumpcode/` writes this
   machine’s `local.json` without rewriting `project.json` or the lump stub, and
@@ -8,3 +10,4 @@ task: >-
 priority: 2
 dependsOn:
   - setup-first-pr-drive
+completedAt: '2026-09-16T16:41:30.381Z'

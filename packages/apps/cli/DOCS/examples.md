@@ -10,15 +10,15 @@ Deep references: [concepts.md](./concepts.md), [lump-config.md](./lump-config.md
 
 *When to use:* right after `lumpcode lump-create` to confirm remotes, agent command, and marker commits before you invest in a real lump.
 
-Uses a single fixed path every repo already has (`README.md`). Adjust `FILE` if your project root has no `README.md`.
+Uses a single declared context. Adjust `FILE` if your project root has no `README.md`.
 
 `.lumpcode/lumps/smokeTest/config.json`:
 
 ```json
 {
-  "contextListJson": {
-    "FILE": "README.md"
-  },
+  "contextListJson": [
+    { "name": "README", "variables": { "FILE": "README.md" } }
+  ],
   "prompt": {
     "promptTemplate": "Reply with exactly one line: smoke OK for @{FILE}. Do not edit any file.",
     "command": "copilot"
@@ -58,6 +58,8 @@ Lumpcode commits each context as `LUMP: reactToVue - <ComponentName>` on `lump/r
 ## 2. Feature ticket queue — strict dependency order
 
 *When to use:* ordered backlog where later work must wait until earlier tickets are merged to the base branch.
+
+Tickets as folders in git (`backlogItems/todo/<name>/desc.yml`) instead of this JSON list: [backlog-recipe.md](./backlog-recipe.md).
 
 Treat a JSON ticket file as the source of truth and let `dependsOnContexts` enforce order. Subsequent tickets only become eligible once their dependency’s commit is on `origin/<baseBranch>` (i.e. merged).
 

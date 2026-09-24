@@ -141,7 +141,7 @@ describe('start command — multi discovery branches', () => {
         async () => {
             await writeMultiLocal();
             await writeMinimalLump(projectRoot, 'consumer', {
-                contextListJson: { ctx: 'README' },
+                contextListJson: [{ name: 'ctx', variables: { FILE: 'README' } }],
                 dependsOnContexts: ['provider/ctx'],
             });
             await writeMinimalLump(projectRoot, 'provider', { baseBranch: 'ver/0.0.9' });
@@ -153,6 +153,18 @@ describe('start command — multi discovery branches', () => {
 
             const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
             const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const runLumpSpy = vi
+                .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+                .mockResolvedValue(
+                    success({
+                        skipped: false,
+                        result: {
+                            branchName: '',
+                            contextNames: [],
+                            contextRunStateList: [],
+                        },
+                    }),
+                );
             try {
                 const result = await makeStartHandler(deps(), {
                     waitForShutdownOverride: async () => {},
@@ -167,6 +179,7 @@ describe('start command — multi discovery branches', () => {
                 expect(logged).toMatch(/provider/i);
                 expect(logged).toMatch(/baseBranch|branch/i);
             } finally {
+                runLumpSpy.mockRestore();
                 logSpy.mockRestore();
                 warnSpy.mockRestore();
             }

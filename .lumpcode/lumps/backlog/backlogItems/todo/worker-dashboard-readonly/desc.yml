@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: worker-dashboard-readonly
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Read-only worker dashboard: package `@lumpcode/dashboard`
+  (`packages/apps/dashboard`) and `lumpcode dashboard --port` / `--bind`
+  (default bind localhost). Dedicated-only (refuse shared). Poll
+  `daemon-status --json` about every 5s and show in-flight lumps/contexts and
+  each daemon's next tick. Foreground process; no token, no nginx, no mutations.
+  Same JSON as `daemon-status-snapshot`. Ships with published `@lumpcode/cli`.
+priority: 3
+dependsOn:
+  - daemon-status-snapshot
