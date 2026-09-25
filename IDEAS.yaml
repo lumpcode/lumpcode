@@ -482,3 +482,18 @@
     primarily `packages/apps/cli` (`runForeground.ts`, workspace/git lock wait,
     cron scheduling).
   tags: [daemon, config, workspace]
+- name: pr-comment-helper
+  task: >-
+    Recipes kit helper (same layer as `openPrPostTeardown`, not a first-class CLI
+    command) that adds comments to the GitHub pull request after a lump run.
+    Takes an optional chat session so the commenting agent can resume the same
+    preset session that implemented the work (`contextRunState` /
+    `<commandName>Setup`), rather than starting cold. Provider GitHub only for
+    now, matching today's `openPrPostTeardown({ provider: 'github' })`. Same
+    opt-in framing as opening PRs: commenting is a recipes helper, not a built-in.
+    Complementary to parked `first-class-open-pr` (that idea is opening, this is
+    commenting). Not keepHistory / transcripts.
+  blocked: >-
+    parked: needs recipe helper design (when it runs vs openPr, session resume
+    contract, GitHub-only)
+  tags: [recipes, git, presets, hooks]
