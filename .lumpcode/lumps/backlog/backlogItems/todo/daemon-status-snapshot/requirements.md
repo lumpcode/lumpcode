@@ -3,9 +3,24 @@
 | Field | Value |
 | --- | --- |
 | **Backlog** | `daemon-status-snapshot` · priority **2** · type **feature** |
-| **Status** | Pending implementation (`manualReq` → `testImpl` → `impl`) |
+| **Status** | Pending implementation · tickets under `tickets/` (parallel, no `dependsOn`) |
 | **Depends on** | — |
 | **Packages** | Primary `@lumpcode/cli`. `@lumpcode/core` unchanged. No `@lumpcode/dashboard`, no `@lumpcode/cli-utils` export in this slice. |
+
+## Tickets
+
+Ordered slices via `dependsOn` on each ticket `desc.yml` (sibling names; featureBacklog prefixes `daemon-status-snapshot-` on contexts). Shared contract is this file plus per-ticket `requirements.md` and `blast.yml`.
+
+| Order | Ticket | Blocked by | Delivers | Requirements |
+| --- | --- | --- | --- | --- |
+| 1 | `daemon-snapshot-meta-schema` | — | `readDaemonMeta` live fields, fingerprint util | `tickets/daemon-snapshot-meta-schema/requirements.md` |
+| 2 | `daemon-live-meta-core` | meta-schema | `daemonLiveMeta`, tick + lump lines in `runForeground` | `tickets/daemon-live-meta-core/requirements.md` |
+| 3 | `daemon-live-meta-context` | live-meta-core | `contextName` via lump-run hooks | `tickets/daemon-live-meta-context/requirements.md` |
+| 4 | `daemon-status-read-snapshot` | live-meta-context | `daemon-status` snapshot read path | `tickets/daemon-status-read-snapshot/requirements.md` |
+| 5a | `daemon-status-snapshot-docs` | context, reader | CLI `DOCS/` | `tickets/daemon-status-snapshot-docs/requirements.md` |
+| 5b | `daemon-snapshot-meta-deprecation` | context, reader | Drop `inFlightLumpCount` | `tickets/daemon-snapshot-meta-deprecation/requirements.md` |
+
+Docs and deprecation can run in parallel after reader. Campaign is done when all six tickets are completed.
 
 ## Problem statement and motivation
 
@@ -21,7 +36,7 @@ Operators and a future worker dashboard need a **one-shot**, file-shaped view of
 2. Daemon foreground writers persist that live state in **`.daemon.meta.json`** (same file, serialized writes).
 3. Preserve **`stop`** / **`isDaemonMidRun`** behavior during a transition that still writes deprecated **`inFlightLumpCount`** on meta.
 4. Document the **`--json`** shape as the contract for `worker-dashboard-readonly` (implemented separately).
-5. Land a **follow-up backlog item** at end of impl to stop writing `inFlightLumpCount` to meta and remove it from public JSON when safe.
+5. Ticket **`daemon-snapshot-meta-deprecation`** removes `inFlightLumpCount` from meta writes and public JSON.
 
 ## Non-goals
 
@@ -183,7 +198,7 @@ Remove **`inFlightLumpCount`** from meta writes and from `StatusData` JSON; teac
 
 7. **`daemon-status/main.ts`** — merge meta into `StatusData` per read rules; compute `localConfigStale`; update human `messages`; mark `inFlightLumpCount` deprecated in TypeScript.
 
-8. **Follow-up item** — add todo `desc.yml` (or note in PR) for meta/JSON removal of `inFlightLumpCount`.
+8. **`daemon-snapshot-meta-deprecation`** ticket (see Tickets table).
 
 ### Affected files (primary)
 
@@ -230,8 +245,8 @@ Update existing `inFlightLumpCount`-only daemon-status tests to assert `inFlight
 7. Legacy meta (count only, no array): **`snapshotIncomplete: true`**, **`inFlightRuns: []`**, no fake lump names.
 8. **`isDaemonMidRun` / `stop` default refuse** still work for mid-run meta (legacy and new shape).
 9. No second meta live writer outside **`daemonLiveMeta`**; no duplicate fingerprint logic outside **`localConfigFingerprint`**.
-10. Follow-up backlog item exists to remove **`inFlightLumpCount`** from meta write and public JSON.
-11. Docs rows in table above updated.
+10. **`daemon-snapshot-meta-deprecation`** completed (no `inFlightLumpCount` on meta or status JSON).
+11. **`daemon-status-snapshot-docs`** completed.
 
 ## Reference: legacy bridge
 
