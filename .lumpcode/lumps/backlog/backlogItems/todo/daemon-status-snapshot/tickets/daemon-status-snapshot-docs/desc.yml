@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: daemon-status-snapshot-docs
+workflow: [manualReq, impl]
+task: >-
+  CLI DOCS for daemon-status snapshot and meta live fields per parent
+  requirements.md. No code changes. Parent: daemon-status-snapshot.
+priority: 2
+dependsOn:
+  - daemon-live-meta-context
+  - daemon-status-read-snapshot

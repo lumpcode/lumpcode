@@ -1,0 +1,14 @@
+{
+  "name": "lumpcode-intro-video",
+  "private": true,
+  "type": "module",
+  "description": "Narrated intro video for new developers: HTML scenes rendered frame by frame, captions paced by macOS `say`, synthesized ambient music, ffmpeg encode",
+  "scripts": {
+    "render": "node render.mjs",
+    "render:audio": "node render.mjs --audioOnly"
+  },
+  "devDependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "playwright-core": "1.53.2"
+  }
+}

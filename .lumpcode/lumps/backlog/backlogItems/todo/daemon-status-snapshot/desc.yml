@@ -1,12 +1,10 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: daemon-status-snapshot
+manual: true
 workflow: [manualReq, testImpl, impl]
 task: >-
-  Richer `lumpcode daemon-status` snapshot (human and `--json`): which lump is
-  in flight on which daemon, which context is currently running, and when that
-  daemon's next tick is. Daemon writers must keep live runs in meta (not only
-  `inFlightLumpCount`); the command remains one-shot, not a TUI. Optional
-  stale-`local.json` flag vs the fingerprint frozen at daemon start. File-shaped;
-  this JSON is the contract for the worker dashboard. Promotes IDEAS
-  `daemon-status-in-flight-lumps`.
+  Umbrella: richer `lumpcode daemon-status` snapshot and daemon meta live
+  overlay for the worker dashboard. Implement via parallel tickets under
+  tickets/ (writer, reader, docs, meta deprecation). Global contract:
+  requirements.md.
 priority: 2

@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: daemon-snapshot-meta-schema
+workflow: [manualReq, testImpl, impl]
+task: >-
+  On-disk daemon meta contract: extend readDaemonMeta for live overlay fields,
+  isDaemonMidRun, and localConfigFingerprint util (no foreground writer yet).
+  Parent: daemon-status-snapshot.
+priority: 2

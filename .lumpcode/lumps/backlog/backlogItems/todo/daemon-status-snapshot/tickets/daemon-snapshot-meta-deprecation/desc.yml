@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: daemon-snapshot-meta-deprecation
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Remove inFlightLumpCount from meta writes and daemon-status JSON; isDaemonMidRun
+  uses inFlightRuns.length with legacy read fallback. Parent: daemon-status-snapshot.
+priority: 3
+dependsOn:
+  - daemon-live-meta-context
+  - daemon-status-read-snapshot
