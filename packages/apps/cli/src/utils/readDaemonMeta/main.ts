@@ -26,6 +26,12 @@ const daemonMetaSchema = z.object({
     daemonConfigFile: daemonConfigFileMetaSchema.optional(),
 });
 
+export type DaemonInFlightRun = {
+    lumpName: string;
+    effectiveDiscoveryBranch?: string;
+    contextName?: string;
+};
+
 export type DaemonMeta = {
     daemonId?: string;
     cronSetup?: string;
@@ -41,6 +47,10 @@ export type DaemonMeta = {
     inFlightLumpCount?: number;
     /** Present when this process was launched from a repo daemon config file. */
     daemonConfigFile?: DaemonConfigFileMeta;
+    inFlightRuns?: DaemonInFlightRun[];
+    nextTickAt?: string;
+    tickPhase?: 'idle' | 'running';
+    localConfigFingerprint?: string;
 };
 
 export type DaemonMetaReadErrorReason = 'missing' | 'invalid' | 'io';
@@ -51,7 +61,9 @@ export type DaemonMetaReadError = {
 };
 
 /** True when the daemon is mid-run (new count or legacy `busy`). */
-export function isDaemonMidRun(meta: Pick<DaemonMeta, 'busy' | 'inFlightLumpCount'>): boolean {
+export function isDaemonMidRun(
+    meta: Pick<DaemonMeta, 'busy' | 'inFlightLumpCount' | 'inFlightRuns'>,
+): boolean {
     return (meta.inFlightLumpCount ?? 0) >= 1 || meta.busy === true;
 }
 

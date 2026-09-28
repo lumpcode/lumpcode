@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { writeJsonFile } from '../writeJsonFile';
-import { readDaemonMeta } from './main';
+import { isDaemonMidRun, readDaemonMeta, type DaemonInFlightRun } from './main';
 
 describe('readDaemonMeta', () => {
     let dir: string;
@@ -219,4 +219,82 @@ describe('readDaemonMeta', () => {
         if (result.success) throw new Error('unreachable');
         expect(result.data.reason).toBe('invalid');
     });
+
+    describe.skip('live overlay fields (daemon-snapshot-meta-schema)', () => {
+        it('parses planted inFlightRuns, nextTickAt, tickPhase, and localConfigFingerprint', async () => {
+            const metaPath = path.join(dir, 'live.meta.json');
+            const inFlightRuns: DaemonInFlightRun[] = [
+                {
+                    lumpName: 'backlog',
+                    effectiveDiscoveryBranch: 'dev',
+                    contextName: 'ctx-a',
+                },
+                { lumpName: 'qol' },
+            ];
+            await writeJsonFile({
+                filePath: metaPath,
+                data: {
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'worktree',
+                    inFlightRuns: [
+                        { ...inFlightRuns[0], uuid: 'not-a-v1-field' },
+                        inFlightRuns[1],
+                    ],
+                    nextTickAt: '2026-09-28T20:00:00.000Z',
+                    tickPhase: 'running',
+                    localConfigFingerprint: 'ab'.repeat(32),
+                    inFlightLumpCount: 2,
+                },
+            });
+            const result = await readDaemonMeta(metaPath);
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.inFlightRuns).toEqual(inFlightRuns);
+            expect(result.data.nextTickAt).toBe('2026-09-28T20:00:00.000Z');
+            expect(result.data.tickPhase).toBe('running');
+            expect(result.data.localConfigFingerprint).toBe('ab'.repeat(32));
+            expect(result.data.inFlightLumpCount).toBe(2);
+            expect('uuid' in (result.data.inFlightRuns?.[0] ?? {})).toBe(false);
+        });
+
+        it('fails invalid when tickPhase or inFlightRuns are malformed', async () => {
+            const cases: unknown[] = [
+                { cronSetup: '*/5 * * * *', tickPhase: 'collecting' },
+                { cronSetup: '*/5 * * * *', inFlightRuns: 'backlog' },
+                { cronSetup: '*/5 * * * *', inFlightRuns: [{ effectiveDiscoveryBranch: 'dev' }] },
+                { cronSetup: '*/5 * * * *', inFlightRuns: [{ lumpName: '' }] },
+            ];
+            for (const [i, data] of cases.entries()) {
+                const metaPath = path.join(dir, `bad-live-${i}.meta.json`);
+                await writeJsonFile({ filePath: metaPath, data });
+                const result = await readDaemonMeta(metaPath);
+                expect(result.success).toBe(false);
+                if (result.success) throw new Error('unreachable');
+                expect(result.data.reason).toBe('invalid');
+            }
+        });
+    });
 });
+
+describe.skip('isDaemonMidRun (daemon-snapshot-meta-schema)', () => {
+    it('is true for non-empty inFlightRuns or legacy count/busy', () => {
+        expect(isDaemonMidRun({ inFlightRuns: [{ lumpName: 'backlog' }] })).toBe(true);
+        expect(isDaemonMidRun({ inFlightLumpCount: 1 })).toBe(true);
+        expect(isDaemonMidRun({ busy: true })).toBe(true);
+        expect(
+            isDaemonMidRun({
+                inFlightRuns: [{ lumpName: 'backlog' }],
+                inFlightLumpCount: 0,
+                busy: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('is false when idle', () => {
+        expect(isDaemonMidRun({})).toBe(false);
+        expect(isDaemonMidRun({ inFlightRuns: [], inFlightLumpCount: 0, busy: false })).toBe(
+            false,
+        );
+    });
+});
+
