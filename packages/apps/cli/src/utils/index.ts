@@ -57,6 +57,7 @@ export * from './jsonConfigToJsConfig';
 export * from './launchStartDaemon';
 export * from './listRemoteHeadBranches';
 export * from './listRunningProjectDaemons';
+export * from './localConfigFingerprint';
 export * from './localConfigFolderPath';
 export * from './logMessagesList';
 export * from './lumpBranchGlob';
