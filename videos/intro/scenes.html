@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lumpcode intro</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=block">
+<style>
+  :root {
+    --bg: #000514;
+    --bg-card: #0a1422;
+    --bg-elevated: #07101c;
+    --teal: #38b0ab;
+    --teal-bright: #4ec9c3;
+    --teal-dim: #247a76;
+    --text: #eef4f6;
+    --text-soft: #c5d4dc;
+    --text-muted: #8fa3b0;
+    --border: rgb(56 176 171 / 18%);
+    --border-strong: rgb(56 176 171 / 40%);
+    --amber: #e8b04b;
+    --red: #e46a6a;
+    --purple: #a78bfa;
+    --font: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1920px; height: 1080px; overflow: hidden; background: var(--bg); }
+  body {
+    font-family: var(--font);
+    color: var(--text);
+    background:
+      radial-gradient(1200px 700px at 78% 18%, rgb(56 176 171 / 11%), transparent 60%),
+      radial-gradient(900px 600px at 12% 90%, rgb(56 176 171 / 7%), transparent 60%),
+      var(--bg);
+  }
+  .scene {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 80px 150px 190px;
+    opacity: 0;
+  }
+  .kicker {
+    font-size: 26px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--teal-bright); margin-bottom: 22px;
+  }
+  h1 { font-size: 104px; line-height: 1.05; font-weight: 800; letter-spacing: -0.03em; }
+  h2 { font-size: 68px; line-height: 1.1; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 48px; }
+  .teal { color: var(--teal-bright); }
+  .muted { color: var(--text-muted); }
+  code, .mono { font-family: var(--mono); }
+
+  .row { display: flex; gap: 56px; align-items: stretch; }
+  .col { display: flex; flex-direction: column; gap: 28px; }
+
+  .window {
+    background: var(--bg-card); border: 1px solid var(--border-strong); border-radius: 18px;
+    box-shadow: 0 24px 70px rgb(0 0 0 / 45%); overflow: hidden;
+  }
+  .window-bar {
+    display: flex; align-items: center; gap: 12px; padding: 16px 22px;
+    background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 21px; color: var(--text-muted);
+  }
+  .dot { width: 14px; height: 14px; border-radius: 50%; background: #1d2b3b; }
+  .window-bar .name { margin-left: 10px; }
+  pre {
+    font-family: var(--mono); font-size: 25px; line-height: 1.6; color: var(--text);
+    padding: 26px 30px; white-space: pre;
+  }
+  .k { color: var(--teal-bright); }
+  .s { color: var(--text); }
+  .p { color: var(--text-muted); }
+  .hl { border-radius: 6px; padding: 3px 6px; margin: 0 -6px; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .hl.on { background: rgb(56 176 171 / 20%); }
+
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 18px;
+    padding: 34px 36px; font-size: 34px; font-weight: 600; line-height: 1.3;
+  }
+  .card .icon { display: block; font-size: 46px; margin-bottom: 16px; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 14px 28px; font-size: 30px; font-weight: 600; background: rgb(56 176 171 / 8%);
+  }
+
+  #caption {
+    position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%);
+    width: max-content; max-width: 1500px; text-align: center;
+    font-size: 34px; font-weight: 500; line-height: 1.35; color: var(--text-soft);
+    padding: 14px 30px; border-radius: 14px; background: rgb(0 5 20 / 72%);
+  }
+  #caption:empty { display: none; }
+
+  /* title */
+  #title { align-items: center; text-align: center; padding-bottom: 150px; }
+  #title .lockup { height: 150px; margin-bottom: 64px; }
+  #title .sub { margin-top: 40px; font-size: 34px; color: var(--text-soft); }
+
+  /* problem */
+  #problem .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+  #problem .punch { margin-top: 56px; font-size: 44px; font-weight: 700; line-height: 1.3; }
+
+  /* lump */
+  #lump .tree pre { font-size: 26px; }
+  #lump .label { font-size: 28px; color: var(--text-soft); margin-top: 26px; }
+  #lump .label strong { color: var(--teal-bright); }
+
+  /* contexts */
+  #contexts .arrow { font-size: 90px; color: var(--teal); align-self: center; }
+  .ctx {
+    border: 2px solid var(--teal); border-radius: 18px; padding: 24px 30px;
+    background: rgb(56 176 171 / 9%); min-width: 560px;
+  }
+  .ctx .tag { font-family: var(--mono); font-size: 22px; color: var(--teal-bright); letter-spacing: 0.08em; text-transform: uppercase; }
+  .ctx .nm { font-size: 38px; font-weight: 700; margin: 6px 0 12px; }
+  .ctx .f { font-family: var(--mono); font-size: 24px; color: var(--text-soft); line-height: 1.6; }
+  .ctx.more { border-style: dashed; border-color: var(--border-strong); background: transparent; }
+  .kinds { display: flex; gap: 22px; margin-top: 44px; }
+
+  /* terminal */
+  .term pre { font-size: 28px; line-height: 1.75; min-height: 360px; }
+  .prompt { color: var(--teal-bright); }
+  .ok { color: var(--teal-bright); }
+  .warn { color: var(--amber); }
+  .bad { color: var(--red); }
+  .where { font-size: 26px; color: var(--text-muted); margin-bottom: 14px; font-weight: 600; letter-spacing: 0.04em; }
+
+  /* branches */
+  .branches { padding: 16px 0; }
+  .branch {
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    padding: 16px 30px; font-family: var(--mono); font-size: 25px;
+  }
+  .state { font-family: var(--font); font-size: 21px; font-weight: 700; border-radius: 999px; padding: 6px 16px; }
+  .state.pushed { color: var(--teal-bright); background: rgb(56 176 171 / 14%); }
+  .state.running { color: var(--amber); background: rgb(232 176 75 / 14%); }
+  .state.merged { color: var(--purple); background: rgb(167 139 250 / 15%); }
+  .swap .b { display: none; }
+  .swap.on .a { display: none; }
+  .swap.on .b { display: inline; }
+  .newlump {
+    margin-top: 28px; border: 2px dashed var(--border-strong); border-radius: 16px;
+    padding: 20px 26px; font-size: 27px; color: var(--text-soft);
+  }
+  .newlump code { color: var(--teal-bright); }
+
+  /* review */
+  .pr { width: 1000px; }
+  .pr-head { padding: 26px 32px 18px; border-bottom: 1px solid var(--border); }
+  .pr-title { font-size: 36px; font-weight: 700; }
+  .pr-meta { margin-top: 10px; font-family: var(--mono); font-size: 22px; color: var(--text-muted); }
+  .diff { font-family: var(--mono); font-size: 24px; line-height: 1.7; padding: 18px 32px; }
+  .diff .del { color: var(--red); }
+  .diff .add { color: var(--teal-bright); }
+  .pr-actions { display: flex; gap: 20px; padding: 20px 32px 28px; }
+  .btn { font-size: 26px; font-weight: 700; border-radius: 12px; padding: 14px 26px; border: 1px solid var(--border-strong); }
+  .btn.merge { background: var(--teal-dim); color: #fff; border-color: var(--teal); }
+  .btn.merge.on { background: #6d4fd6; border-color: var(--purple); }
+  .never { font-size: 34px; font-weight: 700; margin-top: 8px; }
+  .compare { display: flex; flex-direction: column; gap: 24px; }
+  .cmp { border-radius: 18px; padding: 26px 30px; font-size: 30px; font-weight: 600; border: 1px solid var(--border); background: var(--bg-card); }
+  .cmp .big { display: block; font-size: 50px; font-weight: 800; margin-bottom: 6px; }
+  .cmp.good { border-color: var(--teal); }
+  .cmp.good .big { color: var(--teal-bright); }
+  .cmp.bad .big { color: var(--red); }
+
+  /* git */
+  .flow { display: flex; align-items: center; gap: 30px; margin: 20px 0 50px; }
+  .node { border: 2px solid var(--border-strong); border-radius: 18px; padding: 24px 32px; background: var(--bg-card); min-width: 330px; }
+  .node .n { font-family: var(--mono); font-size: 34px; font-weight: 600; color: var(--teal-bright); }
+  .node .d { font-size: 25px; color: var(--text-soft); margin-top: 6px; }
+  .flow .to { font-size: 26px; color: var(--text-muted); text-align: center; line-height: 1.3; }
+  .flow .to b { display: block; font-size: 52px; color: var(--teal); }
+  .left { font-size: 44px; font-weight: 700; }
+  .left .num { font-size: 96px; font-weight: 800; color: var(--teal-bright); font-variant-numeric: tabular-nums; margin-right: 18px; }
+  .nos { display: flex; gap: 20px; }
+
+  /* steps */
+  .pipe { display: flex; align-items: center; gap: 22px; flex-wrap: nowrap; }
+  .stage { border: 2px solid var(--border-strong); border-radius: 18px; padding: 26px 30px; background: var(--bg-card); font-size: 30px; font-weight: 700; }
+  .stage small { display: block; font-size: 22px; font-weight: 500; color: var(--text-muted); margin-top: 6px; font-family: var(--mono); }
+  .stage.fail { border-color: var(--red); }
+  .stage.fail .t { color: var(--red); }
+  .stage.pass { border-color: var(--teal); }
+  .stage.pass .t { color: var(--teal-bright); }
+  .pipe .ar { font-size: 48px; color: var(--teal); }
+  .retry {
+    margin-top: 40px; margin-left: 240px; width: 1120px; border: 2px dashed var(--amber); border-radius: 18px;
+    padding: 20px 28px; font-size: 28px; color: var(--text-soft);
+  }
+  .retry b { color: var(--amber); }
+
+  /* agents */
+  .agents { display: flex; flex-wrap: nowrap; gap: 20px; margin-bottom: 64px; }
+  .agents .pill { font-size: 32px; padding: 18px 30px; white-space: nowrap; }
+  .safe { display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; }
+  .safe .card { font-size: 30px; }
+  .safe .card::before { content: '✓'; display: block; color: var(--teal-bright); font-size: 40px; margin-bottom: 10px; }
+
+  /* cta */
+  #cta { align-items: center; text-align: center; }
+  #cta .lockup { height: 120px; margin-bottom: 56px; }
+  #cta .term { width: 1000px; text-align: left; }
+  #cta .term pre { min-height: 0; font-size: 32px; }
+  #cta .url { margin-top: 50px; font-size: 52px; font-weight: 800; color: var(--teal-bright); }
+  #cta .fine { margin-top: 16px; font-size: 28px; color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- 1. Title -->
+<section class="scene" id="title">
+  <img class="lockup" data-cue="0" src="../../packages/apps/website/public/logo-lockup.png" alt="">
+  <h1 data-cue="1">Your coding agent, on repeat.<br><span class="teal">One PR at a time.</span></h1>
+  <p class="sub" data-cue="1" data-at="1.2">You just need git and a CLI agent.</p>
+</section>
+
+<!-- 2. Problem -->
+<section class="scene" id="problem">
+  <h2 data-cue="0">Some work is too big for one chat.</h2>
+  <div class="cards">
+    <div class="card" data-cue="1"><span class="icon">⇄</span>A migration across 200&nbsp;files</div>
+    <div class="card" data-cue="2"><span class="icon">☰</span>A backlog of tickets</div>
+    <div class="card" data-cue="3"><span class="icon">✓</span>A test suite to build out</div>
+  </div>
+  <p class="punch" data-cue="4">Your agent handles one task. <span class="teal">Lumpcode runs the whole list.</span></p>
+</section>
+
+<!-- 3. Lump -->
+<section class="scene" id="lump">
+  <p class="kicker" data-cue="0">A lump</p>
+  <h2 data-cue="0">The whole campaign, described once in your repo.</h2>
+  <div class="window" data-cue="0" data-at="0.6">
+    <div class="window-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">.lumpcode/lumps/portToVue/config.json</span></div>
+<pre><span class="p">{</span>
+  <span class="hl" data-oncue="1"><span class="k">"contextListJson"</span><span class="p">: {</span>
+    <span class="k">"COMPONENT"</span><span class="p">:</span> <span class="s">"src/components/{NAME}/index.tsx"</span><span class="p">,</span>
+    <span class="k">"TEST"</span><span class="p">:</span> <span class="s">"src/components/{NAME}/index.test.tsx"</span>
+  <span class="p">}</span></span><span class="p">,</span>
+  <span class="k">"prompt"</span><span class="p">: {</span>
+    <span class="hl" data-oncue="2"><span class="k">"promptTemplate"</span><span class="p">:</span> <span class="s">"Port @{COMPONENT} to Vue 3 and update @{TEST}."</span></span><span class="p">,</span>
+    <span class="hl" data-oncue="3"><span class="k">"command"</span><span class="p">:</span> <span class="s">"cursor"</span></span>
+  <span class="p">}</span>
+<span class="p">}</span></pre>
+  </div>
+  <p class="label"><span data-cue="1"><strong>What to work on.</strong></span> <span data-cue="2"><strong>What to prompt.</strong></span> <span data-cue="3"><strong>Which agent.</strong></span></p>
+</section>
+
+<!-- 4. Contexts -->
+<section class="scene" id="contexts">
+  <h2 data-cue="0">Every match becomes a <span class="teal">context</span>.</h2>
+  <div class="row">
+    <div class="window tree" data-cue="0" data-at="0.4">
+      <div class="window-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">your codebase</span></div>
+<pre><span class="p">src/components/</span>
+<span class="hl" data-oncue="1">├── <span class="k">UserCard/</span>
+│   ├── index.tsx
+│   └── index.test.tsx</span>
+<span class="hl" data-oncue="1" data-onat="0.8">├── <span class="k">DataTable/</span>
+│   ├── index.tsx
+│   └── index.test.tsx</span>
+<span class="p">└── … 38 more</span></pre>
+    </div>
+    <div class="arrow" data-cue="1">→</div>
+    <div class="col" style="justify-content:center">
+      <div class="ctx" data-cue="1"><div class="tag">context</div><div class="nm">UserCard</div><div class="f">index.tsx<br>index.test.tsx</div></div>
+      <div class="ctx" data-cue="1" data-at="0.8"><div class="tag">context</div><div class="nm">DataTable</div><div class="f">index.tsx<br>index.test.tsx</div></div>
+      <div class="ctx more" data-cue="1" data-at="1.6"><div class="nm muted" style="margin:0">+ 38 more contexts</div></div>
+    </div>
+  </div>
+  <div class="kinds">
+    <span class="pill" data-cue="2">one file</span>
+    <span class="pill" data-cue="2" data-at="0.7">a group of files</span>
+    <span class="pill" data-cue="2" data-at="1.5">a ticket</span>
+  </div>
+</section>
+
+<!-- 5. Laptop run -->
+<section class="scene" id="run">
+  <p class="kicker" data-cue="0">Try it on your laptop</p>
+  <h2 data-cue="0">One run, one context.</h2>
+  <div class="window term" data-cue="0" data-at="0.3">
+    <div class="window-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">~/my-app</span></div>
+<pre><span class="prompt">$ </span><span data-cue="0" data-at="0.8" data-anim="type">lumpcode run portToVue</span>
+<span data-cue="1"><span class="muted">›</span> Next unfinished context: <span class="k">UserCard</span></span>
+<span data-cue="1" data-at="1.6"><span class="warn">●</span> Running <span class="k">cursor</span> on UserCard…</span>
+<span data-cue="2"><span class="ok">✓</span> Agent finished  <span class="muted">2 files changed</span></span>
+<span data-cue="2" data-at="1.2"><span class="muted">Review the diff, then</span> <span class="k">[c]</span> commit  <span class="k">[e]</span> leave it</span></pre>
+  </div>
+  <p class="label muted" style="font-size:30px;margin-top:30px" data-cue="3">The first result tells you if the prompt needs tweaking.</p>
+</section>
+
+<!-- 6. Worker -->
+<section class="scene" id="worker">
+  <p class="kicker" data-cue="0">Then leave a worker running</p>
+  <div class="row">
+    <div class="col" style="width:720px">
+      <div class="where" data-cue="0">A second clone you never edit</div>
+      <div class="window term" data-cue="0" data-at="0.3">
+        <div class="window-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">~/my-app-worker</span></div>
+<pre style="min-height:0"><span class="prompt">$ </span><span data-cue="0" data-at="3.0" data-anim="type">lumpcode start</span>
+<span data-cue="0" data-at="4.4"><span class="ok">●</span> worker running</span>
+<span data-cue="1"><span class="muted">›</span> 3 lumps found</span></pre>
+      </div>
+      <div class="newlump" data-cue="2"><span class="teal">+</span> You push <code>.lumpcode/lumps/deadCode/</code><br><span class="muted">Found on the next pass. Nothing to deploy.</span></div>
+    </div>
+    <div class="col" style="flex:1">
+      <div class="where" data-cue="1">Your git remote</div>
+      <div class="window" data-cue="1">
+        <div class="window-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">branches</span></div>
+        <div class="branches">
+          <div class="branch" data-cue="1" data-at="0.8"><span>lump/portToVue/UserCard</span><span class="state pushed">pushed</span></div>
+          <div class="branch" data-cue="1" data-at="1.6"><span>lump/ticketBacklog/LUMP-214</span><span class="state pushed">pushed</span></div>
+          <div class="branch" data-cue="1" data-at="2.4"><span>lump/docsSweep/cli-commands</span><span class="state pushed">pushed</span></div>
+          <div class="branch" data-cue="1" data-at="3.2"><span>lump/portToVue/DataTable</span><span class="swap" data-oncue="2"><span class="a state running">running</span><span class="b state pushed">pushed</span></span></div>
+          <div class="branch" data-cue="2" data-at="2.5"><span>lump/deadCode/formatDate</span><span class="state running">running</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7. Review -->
+<section class="scene" id="review">
+  <p class="kicker" data-cue="0">You stay in charge</p>
+  <div class="row">
+    <div class="window pr" data-cue="0">
+      <div class="pr-head">
+        <div class="pr-title">LUMP: portToVue - DataTable</div>
+        <div class="pr-meta">lump/portToVue/DataTable → main · 2 files</div>
+      </div>
+      <div class="diff">
+        <div class="del">- import { useState } from 'react'</div>
+        <div class="add">+ import { ref } from 'vue'</div>
+        <div class="del">- const [rows, setRows] = useState(data)</div>
+        <div class="add">+ const rows = ref(data)</div>
+      </div>
+      <div class="pr-actions">
+        <span class="btn" data-cue="0" data-at="2.2">Push a fix</span>
+        <span class="btn merge" data-cue="0" data-at="3.4" data-oncue="0" data-onat="4.4"><span class="swap" data-oncue="0" data-onat="4.4"><span class="a">Merge</span><span class="b">✓ Merged by you</span></span></span>
+      </div>
+    </div>
+    <div class="col" style="flex:1;justify-content:center">
+      <p class="never" data-cue="1">Lumpcode never merges.</p>
+      <div class="compare">
+        <div class="cmp good" data-cue="2"><span class="big">1 small PR</span>to adjust or close</div>
+        <div class="cmp bad" data-cue="2" data-at="2.2"><span class="big">not a 200-file diff</span>to untangle</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8. Git -->
+<section class="scene" id="git">
+  <p class="kicker" data-cue="0">Git is the memory</p>
+  <div class="nos" style="margin-bottom:46px">
+    <span class="pill" data-cue="0">No database</span>
+    <span class="pill" data-cue="0" data-at="0.8">No account</span>
+    <span class="pill" data-cue="0" data-at="1.4">Nothing to host</span>
+  </div>
+  <div class="flow">
+    <div class="node" data-cue="1"><div class="n">toDo</div><div class="d">not started yet</div></div>
+    <div class="to" data-cue="1" data-at="1.0"><b>→</b>run + push</div>
+    <div class="node" data-cue="1" data-at="1.3"><div class="n">branchPushed</div><div class="d">waiting for your review</div></div>
+    <div class="to" data-cue="1" data-at="2.3"><b>→</b>you merge</div>
+    <div class="node" data-cue="1" data-at="2.6"><div class="n">finished</div><div class="d">commit is on your remote</div></div>
+  </div>
+  <p class="left" data-cue="2"><span class="num" data-anim="count" data-from="40" data-to="38" data-cue="2" data-at="1.4">40</span>components still to go</p>
+</section>
+
+<!-- 9. Steps -->
+<section class="scene" id="steps">
+  <p class="kicker" data-cue="0">More than one prompt</p>
+  <h2 data-cue="0">Several steps per context, gated on your checks.</h2>
+  <div class="pipe">
+    <div class="stage" data-cue="0" data-at="0.6">Agent<small>port the component</small></div>
+    <span class="ar" data-cue="1">→</span>
+    <div class="stage" data-cue="1"><span class="t">Your check</span><small>npm test</small></div>
+    <span class="ar" data-cue="1" data-at="1.0">→</span>
+    <div class="stage fail" data-cue="1" data-at="1.2"><span class="t">✗ 3 failing</span><small>output captured</small></div>
+    <span class="ar" data-cue="2" data-at="1.8">→</span>
+    <div class="stage pass" data-cue="2" data-at="2.0"><span class="t">✓ green</span><small>commit</small></div>
+  </div>
+  <div class="retry" data-cue="2"><b>↺ retry</b>  the agent gets the failure output and tries again</div>
+</section>
+
+<!-- 10. Agents + safety -->
+<section class="scene" id="agents">
+  <p class="kicker" data-cue="0">Bring your own agent</p>
+  <div class="agents">
+    <span class="pill" data-cue="0" data-at="1.6">Cursor</span>
+    <span class="pill" data-cue="0" data-at="2.1">Copilot CLI</span>
+    <span class="pill" data-cue="0" data-at="2.8">Claude Code</span>
+    <span class="pill" data-cue="0" data-at="3.4">Codex</span>
+    <span class="pill" data-cue="0" data-at="3.9">OpenCode</span>
+    <span class="pill muted" data-cue="0" data-at="4.6">or your own module</span>
+  </div>
+  <p class="kicker" data-cue="1">Safe by default</p>
+  <div class="safe">
+    <div class="card" data-cue="1">Never merges anything itself</div>
+    <div class="card" data-cue="1" data-at="1.0">A worker only touches its own lump/… branches</div>
+    <div class="card" data-cue="1" data-at="2.0">One agent at a time by default</div>
+  </div>
+</section>
+
+<!-- 11. CTA -->
+<section class="scene" id="cta">
+  <img class="lockup" data-cue="0" src="../../packages/apps/website/public/logo-lockup.png" alt="">
+  <div class="window term" data-cue="0">
+    <div class="window-bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="name">terminal</span></div>
+<pre><span class="prompt">$ </span><span data-cue="0" data-at="0.3" data-anim="type">npm install -g @lumpcode/cli</span>
+<span class="prompt" data-cue="1">$ </span><span data-cue="1" data-at="0.3" data-anim="type">lumpcode setup</span></pre>
+  </div>
+  <p class="url" data-cue="2">lumpcode.com</p>
+  <p class="fine" data-cue="2" data-at="0.8">Apache 2.0 · No account needed</p>
+</section>
+
+<div id="caption"></div>
+
+<script src="narration.js"></script>
+<script>
+  // Deterministic timeline: render.mjs calls setup(timeline) then seek(t) once per frame.
+  // Opened directly in a browser, it estimates cue lengths and plays in real time.
+  const REVEAL = 0.55
+  const SCENE_FADE = 0.45
+  let timeline = null
+  let items = []
+
+  function clamp01(x) { return Math.max(0, Math.min(1, x)) }
+  function easeOut(x) { return 1 - Math.pow(1 - x, 3) }
+
+  function cueTime(sceneTl, el, cueAttr, atAttr) {
+    const cue = Number(el.getAttribute(cueAttr))
+    const at = Number(el.getAttribute(atAttr) || 0)
+    return sceneTl.start + sceneTl.cues[cue].start + at
+  }
+
+  window.setup = function setup(tl) {
+    timeline = tl
+    items = []
+    for (const sceneTl of tl.scenes) {
+      const sceneEl = document.getElementById(sceneTl.id)
+      if (!sceneEl) throw new Error(`missing scene #${sceneTl.id}`)
+      sceneTl.el = sceneEl
+      for (const el of sceneEl.querySelectorAll('[data-cue]')) {
+        const anim = el.dataset.anim || 'rise'
+        const item = { el, anim, t: cueTime(sceneTl, el, 'data-cue', 'data-at') }
+        if (anim === 'type') item.text = el.textContent
+        items.push(item)
+      }
+      for (const el of sceneEl.querySelectorAll('[data-oncue]')) {
+        items.push({ el, anim: 'on', t: cueTime(sceneTl, el, 'data-oncue', 'data-onat') })
+      }
+    }
+  }
+
+  window.seek = function seek(t) {
+    for (const s of timeline.scenes) {
+      const end = s.start + s.duration
+      const fade = Math.min(clamp01((t - s.start) / SCENE_FADE), clamp01((end - t) / SCENE_FADE))
+      s.el.style.opacity = t >= s.start && t < end ? String(fade) : '0'
+    }
+    for (const it of items) {
+      const dt = t - it.t
+      switch (it.anim) {
+        case 'rise': {
+          const p = easeOut(clamp01(dt / REVEAL))
+          it.el.style.opacity = String(p)
+          it.el.style.transform = `translateY(${(1 - p) * 26}px)`
+          break
+        }
+        case 'type': {
+          const n = Math.max(0, Math.floor(dt * 26))
+          it.el.textContent = it.text.slice(0, n)
+          break
+        }
+        case 'count': {
+          const from = Number(it.el.dataset.from)
+          const to = Number(it.el.dataset.to)
+          const p = clamp01(dt / 1.0)
+          it.el.textContent = String(Math.round(from + (to - from) * p))
+          break
+        }
+        case 'on':
+          it.el.classList.toggle('on', dt >= 0)
+          break
+        default:
+          throw new Error(`unknown anim ${it.anim}`)
+      }
+    }
+    const caption = document.getElementById('caption')
+    let text = ''
+    for (const s of timeline.scenes) {
+      s.cues.forEach((c, i) => {
+        const from = s.start + c.start
+        const until = i + 1 < s.cues.length ? s.start + s.cues[i + 1].start : s.start + s.duration - SCENE_FADE
+        if (t >= from && t < until) text = c.caption
+      })
+    }
+    if (caption.textContent !== text) caption.textContent = text
+  }
+
+  window.buildTimeline = function buildTimeline(durations, { lead, gap, tail }) {
+    let t = 0
+    const scenes = window.NARRATION.map((scene, si) => {
+      let local = lead
+      const cues = scene.cues.map((cue, ci) => {
+        const start = local
+        local += durations[si][ci] + gap
+        return { start, caption: cue.caption ?? cue.say }
+      })
+      const duration = local - gap + tail
+      const out = { id: scene.id, start: t, duration, cues }
+      t += duration
+      return out
+    })
+    return { scenes, total: t }
+  }
+
+  if (!window.__RENDER__) {
+    document.fonts.ready.then(() => {
+      const est = window.NARRATION.map(s => s.cues.map(c => c.say.split(/\s+/).length / 2.7))
+      const tl = window.buildTimeline(est, { lead: 0.6, gap: 0.45, tail: 1.1 })
+      setup(tl)
+      const t0 = performance.now()
+      const skip = Number(new URLSearchParams(location.search).get('t') || 0)
+      const loop = () => {
+        const t = skip + (performance.now() - t0) / 1000
+        seek(t % tl.total)
+        requestAnimationFrame(loop)
+      }
+      loop()
+    })
+  }
+</script>
+</body>
+</html>
