@@ -24,6 +24,7 @@ export * from './daemonConfigFile';
 export * from './daemonFileBaseName';
 export * from './daemonSchedulerFiles';
 export * from './daemonsDirPath';
+export * from './daemonLiveMeta';
 export * from './defineConfig';
 export * from './decision';
 export * from './discoverDaemonConfigFiles';
