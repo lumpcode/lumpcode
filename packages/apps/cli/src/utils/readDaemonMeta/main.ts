@@ -13,6 +13,12 @@ const daemonConfigFileMetaSchema = z.object({
     path: z.string().min(1),
 });
 
+const daemonInFlightRunSchema = z.object({
+    lumpName: z.string().min(1),
+    effectiveDiscoveryBranch: z.string().min(1).optional(),
+    contextName: z.string().min(1).optional(),
+});
+
 const daemonMetaSchema = z.object({
     daemonId: z.string().optional(),
     cronSetup: z.string().optional(),
@@ -24,7 +30,17 @@ const daemonMetaSchema = z.object({
     busy: z.boolean().optional(),
     inFlightLumpCount: z.number().int().nonnegative().optional(),
     daemonConfigFile: daemonConfigFileMetaSchema.optional(),
+    inFlightRuns: z.array(daemonInFlightRunSchema).optional(),
+    nextTickAt: z.string().min(1).optional(),
+    tickPhase: z.enum(['idle', 'running']).optional(),
+    localConfigFingerprint: z.string().min(1).optional(),
 });
+
+export type DaemonInFlightRun = {
+    lumpName: string;
+    effectiveDiscoveryBranch?: string;
+    contextName?: string;
+};
 
 export type DaemonMeta = {
     daemonId?: string;
@@ -41,6 +57,10 @@ export type DaemonMeta = {
     inFlightLumpCount?: number;
     /** Present when this process was launched from a repo daemon config file. */
     daemonConfigFile?: DaemonConfigFileMeta;
+    inFlightRuns?: DaemonInFlightRun[];
+    nextTickAt?: string;
+    tickPhase?: 'idle' | 'running';
+    localConfigFingerprint?: string;
 };
 
 export type DaemonMetaReadErrorReason = 'missing' | 'invalid' | 'io';
@@ -50,9 +70,15 @@ export type DaemonMetaReadError = {
     message: string;
 };
 
-/** True when the daemon is mid-run (new count or legacy `busy`). */
-export function isDaemonMidRun(meta: Pick<DaemonMeta, 'busy' | 'inFlightLumpCount'>): boolean {
-    return (meta.inFlightLumpCount ?? 0) >= 1 || meta.busy === true;
+/** True when the daemon is mid-run (`inFlightRuns`, count, or legacy `busy`). */
+export function isDaemonMidRun(
+    meta: Pick<DaemonMeta, 'busy' | 'inFlightLumpCount' | 'inFlightRuns'>,
+): boolean {
+    return (
+        (meta.inFlightRuns?.length ?? 0) >= 1 ||
+        (meta.inFlightLumpCount ?? 0) >= 1 ||
+        meta.busy === true
+    );
 }
 
 /** Effective include list: explicit include, else legacy lumpName. */
