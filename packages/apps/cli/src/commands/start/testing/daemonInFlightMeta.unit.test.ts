@@ -3,8 +3,10 @@ import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { failure, success } from '@lumpcode/core';
 
+import { fingerprintResolvedLocalConfig, readProjectLocalConfig } from '../../../utils';
 import {
     daemonMetaPath,
+    localConfigFolderPath,
     makePromiseGate,
     makeStartHandler,
     setupStartTestRepo,
@@ -74,6 +76,10 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
             'maxParallelRun',
             'lumpName',
             'inFlightLumpCount',
+            'inFlightRuns',
+            'nextTickAt',
+            'tickPhase',
+            'localConfigFingerprint',
         ]);
         for (const key of Object.keys(raw)) {
             expect(allowed.has(key)).toBe(true);
@@ -356,5 +362,149 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
             await startPromise?.catch(() => undefined);
             runLumpSpy.mockRestore();
         }
+    });
+
+    describe.skip('live overlay on foreground meta (daemon-live-meta-core)', () => {
+        const isoUtc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+
+        it('M1c: inFlightRuns has the active lump line without contextName; count matches length', async () => {
+            await setupForegroundProject();
+            let resolveRun!: (value: Awaited<ReturnType<typeof import('../../../utils/runLumpFromLumpName').runLumpFromLumpName>>) => void;
+            const runDeferred = new Promise<
+                Awaited<ReturnType<typeof import('../../../utils/runLumpFromLumpName').runLumpFromLumpName>>
+            >((resolve) => {
+                resolveRun = resolve;
+            });
+            const runLumpSpy = vi
+                .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+                .mockReturnValue(runDeferred);
+            let releaseShutdown!: () => void;
+            const shutdownGate = new Promise<void>((resolve) => {
+                releaseShutdown = resolve;
+            });
+            let startPromise: Promise<{ success: boolean }> | undefined;
+            try {
+                startPromise = makeStartHandler(deps(), {
+                    waitForShutdownOverride: () => shutdownGate,
+                })({
+                    options: { foreground: true, cronSetup: '*/5 * * * *' },
+                    arguments: {},
+                });
+                await vi.waitFor(async () => {
+                    const raw = await readRawMeta();
+                    const runs = raw.inFlightRuns;
+                    if (!Array.isArray(runs) || runs.length !== 1) {
+                        throw new Error(`expected one inFlightRuns row, got ${JSON.stringify(runs)}`);
+                    }
+                    expect(runs).toEqual([
+                        { lumpName: 'alpha', effectiveDiscoveryBranch: 'main' },
+                    ]);
+                    expect(raw.inFlightLumpCount).toBe(1);
+                    expect(raw.tickPhase).toBe('running');
+                    expect('busy' in raw).toBe(false);
+                }, waitForOpts);
+                resolveRun(runSuccess);
+                releaseShutdown();
+                await startPromise;
+            } finally {
+                resolveRun(runSuccess);
+                releaseShutdown();
+                await startPromise?.catch(() => undefined);
+                runLumpSpy.mockRestore();
+            }
+        });
+
+        it('M2c: after a tick, fingerprint is set, tickPhase is idle, nextTickAt is ISO UTC, runs empty', async () => {
+            await setupForegroundProject();
+            const runLumpSpy = vi
+                .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+                .mockResolvedValue(runSuccess);
+            try {
+                const result = await makeStartHandler(deps(), {
+                    waitForShutdownOverride: async () => {
+                        const raw = await readRawMeta();
+                        expect(raw.inFlightRuns).toEqual([]);
+                        expect(raw.inFlightLumpCount === 0 || raw.inFlightLumpCount === undefined).toBe(
+                            true,
+                        );
+                        expect(raw.tickPhase).toBe('idle');
+                        expect(raw.nextTickAt).toMatch(isoUtc);
+                        const resolved = await readProjectLocalConfig({
+                            localConfigFolderPath: localConfigFolderPath(projectRoot),
+                        });
+                        expect(resolved.success).toBe(true);
+                        if (!resolved.success) throw new Error('unreachable');
+                        expect(raw.localConfigFingerprint).toBe(
+                            fingerprintResolvedLocalConfig(resolved.data),
+                        );
+                        assertMetaKeysAreAllowed(raw);
+                    },
+                })({
+                    options: { foreground: true, cronSetup: '*/5 * * * *' },
+                    arguments: {},
+                });
+                expect(result.success).toBe(true);
+            } finally {
+                runLumpSpy.mockRestore();
+            }
+        });
+
+        it('M5c: parallel peak writes two inFlightRuns with distinct lump-line keys', async () => {
+            await setupForegroundProject({
+                workspaceStrategy: 'worktree',
+                maxParallelRun: 2,
+            });
+            await writeCommittedLumps(projectRoot, ['beta', 'gamma'], {}, 'add more lumps');
+            const gates = new Map<string, PromiseGate>();
+            let releaseShutdown!: () => void;
+            const shutdownGate = new Promise<void>((resolve) => {
+                releaseShutdown = resolve;
+            });
+            const runLumpSpy = vi
+                .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+                .mockImplementation(async (input) => {
+                    const gate = makePromiseGate();
+                    gates.set(input.lumpName, gate);
+                    await gate.promise;
+                    return runSuccess;
+                });
+            let startPromise: Promise<{ success: boolean }> | undefined;
+            try {
+                startPromise = makeStartHandler(deps(), {
+                    waitForShutdownOverride: () => shutdownGate,
+                })({
+                    options: { foreground: true, cronSetup: '*/5 * * * *' },
+                    arguments: {},
+                });
+                await vi.waitFor(async () => {
+                    if (gates.size < 2) throw new Error('waiting for two in-flight lumps');
+                    const raw = await readRawMeta();
+                    const runs = raw.inFlightRuns;
+                    if (!Array.isArray(runs) || runs.length !== 2) {
+                        throw new Error(`expected two inFlightRuns, got ${JSON.stringify(runs)}`);
+                    }
+                    const keys = runs.map(
+                        (row) =>
+                            `${(row as { lumpName: string }).lumpName}\0${
+                                (row as { effectiveDiscoveryBranch?: string }).effectiveDiscoveryBranch ?? ''
+                            }`,
+                    );
+                    expect(new Set(keys).size).toBe(2);
+                    expect(raw.inFlightLumpCount).toBe(2);
+                }, waitForOpts);
+                for (const gate of gates.values()) {
+                    gate.resolve();
+                }
+                releaseShutdown();
+                await startPromise;
+            } finally {
+                for (const gate of gates.values()) {
+                    gate.resolve();
+                }
+                releaseShutdown();
+                await startPromise?.catch(() => undefined);
+                runLumpSpy.mockRestore();
+            }
+        });
     });
 });
