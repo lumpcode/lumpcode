@@ -1,0 +1,13 @@
+name: daemon-live-meta-core
+workflow:
+  - manualReq
+  - testImpl
+  - impl
+task: >-
+  daemonLiveMeta writer + runForeground: inFlightRuns lump lines, tickPhase,
+  nextTickAt, fingerprint at start; transitional inFlightLumpCount. No
+  contextName telemetry yet. Parent: daemon-status-snapshot.
+priority: 2
+dependsOn:
+  - daemon-snapshot-meta-schema
+completedAt: '2026-09-29T21:17:49.568Z'

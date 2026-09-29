@@ -7,6 +7,7 @@ import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLoca
 import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
 import { claimPidAndWriteMeta, removeOwnPidArtifacts } from '../claimPidAndWriteMeta';
 import { createCliLogger } from '../createCliLogger';
+import { createDaemonLiveMetaWriter, type DaemonLiveMetaWriter } from '../daemonLiveMeta';
 import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
 import { discoverLoadableLumps } from '../discoverLoadableLumpNames';
 import { expandPrimaryBranches } from '../expandPrimaryBranches';
@@ -14,9 +15,9 @@ import { filterLumpNames } from '../filterLumpNames';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { installDaemonProcessGuards } from '../installDaemonProcessGuards';
 import { installProcessShutdown } from '../installProcessShutdown';
+import { fingerprintResolvedLocalConfig } from '../localConfigFingerprint';
 import type { LumpLine } from '../lumpLine';
-import type { DaemonMetaWrite } from '../readDaemonMeta';
-import { readDaemonMeta } from '../readDaemonMeta';
+import { readDaemonMeta, type DaemonMetaWrite } from '../readDaemonMeta';
 import { reorderDedicatedLumpLines } from '../reorderDedicatedLumpLines';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
@@ -35,46 +36,23 @@ import {
     type StartDaemonRecipe,
 } from '../startDaemonDesired';
 import { validateDaemonLaunch } from '../validateDaemonLaunch';
-import { writeJsonFile } from '../writeJsonFile';
 
 async function shouldDrainDaemon(desiredFilePath: string): Promise<boolean> {
     const desiredResult = await readStartDaemonDesired(desiredFilePath);
     return desiredResult.success && desiredResult.data?.stopping === true;
 }
 
-/** Serializes meta writes so parallel ticks do not lose increments. */
-function createInFlightMetaUpdater(
-    metaFilePath: string,
-    logger: Logger,
-    baseMeta: DaemonMetaWrite,
-): {
-    adjust: (delta: 1 | -1) => Promise<void>;
-} {
-    let chain: Promise<void> = Promise.resolve();
-    let count = 0;
-
-    const adjust = (delta: 1 | -1): Promise<void> => {
-        const run = async () => {
-            count = Math.max(0, count + delta);
-            const writeResult = await writeJsonFile({
-                filePath: metaFilePath,
-                data: { ...baseMeta, inFlightLumpCount: count },
-                trailingNewline: true,
-            });
-            if (!writeResult.success) {
-                logger.error(`Could not write inFlightLumpCount: ${writeResult.data}`);
-                throw new Error(writeResult.data);
-            }
-        };
-        const next = chain.then(run, run);
-        chain = next.then(
-            () => undefined,
-            () => undefined,
-        );
-        return next;
-    };
-
-    return { adjust };
+function nextTickAtIso(cronSetup: string, job?: Cron): string | undefined {
+    let probe: Cron | undefined;
+    try {
+        const source = job ?? (probe = new Cron(cronSetup, { paused: true, protect: true }));
+        const next = source.nextRun();
+        return next instanceof Date ? next.toISOString() : undefined;
+    } catch {
+        return undefined;
+    } finally {
+        probe?.stop();
+    }
 }
 
 type TickSession = {
@@ -89,7 +67,7 @@ type TickSession = {
     effectiveConcurrency: number;
     configuredMaxParallelRun: number;
     projectDisabled: boolean;
-    inFlightMeta: { adjust: (delta: 1 | -1) => Promise<void> };
+    liveMeta: DaemonLiveMetaWriter;
     daemonLumpAbortControllers: Set<AbortController>;
     warnings: {
         sharedMultiDiscovery: boolean;
@@ -256,7 +234,7 @@ async function runLumpLine(
     const { lumpName } = lumpLine;
     const abortController = new AbortController();
     session.daemonLumpAbortControllers.add(abortController);
-    await session.inFlightMeta.adjust(1);
+    await session.liveMeta.beginLumpLine(lumpLine);
     try {
         const jsConfForVerbose = await getJsConfigFromLumpName({
             lumpName,
@@ -308,7 +286,7 @@ async function runLumpLine(
         session.logger.error(`lump "${lumpName}": ${msg}`);
     } finally {
         session.daemonLumpAbortControllers.delete(abortController);
-        await session.inFlightMeta.adjust(-1);
+        await session.liveMeta.endLumpLine(lumpLine);
     }
 }
 
@@ -422,6 +400,15 @@ export async function runForegroundStartDaemon(
         logger.info('project disabled in local.json; skipping tick.');
     }
 
+    const liveMeta = createDaemonLiveMetaWriter({
+        metaFilePath,
+        logger,
+        baseMeta: foregroundMeta,
+    });
+    await liveMeta.writeFingerprintAtStart(fingerprintResolvedLocalConfig(frozenLocalConfig));
+    await liveMeta.setTickPhase('idle');
+    await liveMeta.setNextTickAt(nextTickAtIso(recipe.cronSetup));
+
     const shutdown = installProcessShutdown({
         logger,
         signalMessage: (signal) => `signal ${signal}; shutting down`,
@@ -444,12 +431,13 @@ export async function runForegroundStartDaemon(
         effectiveConcurrency,
         configuredMaxParallelRun,
         projectDisabled,
-        inFlightMeta: createInFlightMetaUpdater(metaFilePath, logger, foregroundMeta),
+        liveMeta,
         daemonLumpAbortControllers,
         warnings: { sharedMultiDiscovery: false, checkoutParallelism: false },
     };
 
     let ticks = 0;
+    let cronJob: Cron | undefined;
     const runTick = async (): Promise<void> => {
         logger.info(`${new Date().toISOString()} - runTick`);
         if (await shouldDrainDaemon(desiredFilePath)) {
@@ -457,6 +445,7 @@ export async function runForegroundStartDaemon(
             shutdown.shutdown();
             return;
         }
+        await liveMeta.setTickPhase('running');
         try {
             const collected = await collectTickLumpLines(session);
             switch (collected.kind) {
@@ -496,6 +485,8 @@ export async function runForegroundStartDaemon(
             const msg = e instanceof Error ? e.message : String(e);
             logger.error(`tick failed: ${msg}`);
         } finally {
+            await liveMeta.setTickPhase('idle');
+            await liveMeta.setNextTickAt(nextTickAtIso(recipe.cronSetup, cronJob));
             if (await shouldDrainDaemon(desiredFilePath)) {
                 shutdown.shutdown();
             }
@@ -507,7 +498,6 @@ export async function runForegroundStartDaemon(
     );
 
     const disposeGuards = installDaemonProcessGuards({ logger });
-    let cronJob: Cron | undefined;
     try {
         await runTick();
 
@@ -530,6 +520,7 @@ export async function runForegroundStartDaemon(
             });
         }
 
+        await liveMeta.setNextTickAt(nextTickAtIso(recipe.cronSetup, cronJob));
         await shutdown.promise;
         cronJob?.stop();
 

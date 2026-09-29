@@ -13,7 +13,7 @@ const baseMeta: DaemonMetaWrite = {
     workspaceStrategy: 'checkout',
 };
 
-describe.skip('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
+describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
     let dir: string;
     let metaFilePath: string;
     let writer: DaemonLiveMetaWriter;
@@ -119,6 +119,28 @@ describe.skip('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         expect(meta.nextTickAt).toBeUndefined();
         expect('nextTickAt' in (await readRaw())).toBe(false);
         expect(meta.daemonId).toBe('global');
+    });
+
+    it('dedupes a second beginLumpLine for the same run key and keeps contextName', async () => {
+        await writer.beginLumpLine({ lumpName: 'backlog' });
+        await writer.setContextName({ lumpName: 'backlog', contextName: 'ctx-a' });
+        await writer.beginLumpLine({ lumpName: 'backlog' });
+        const meta = await readMeta();
+        expect(meta.inFlightRuns).toEqual([{ lumpName: 'backlog', contextName: 'ctx-a' }]);
+        assertCountInvariant(meta);
+    });
+
+    it('does not commit in-flight row when begin persist fails', async () => {
+        await writer.beginLumpLine({ lumpName: 'seed' });
+        await writer.endLumpLine({ lumpName: 'seed' });
+        await fs.chmod(dir, 0o555);
+        await expect(writer.beginLumpLine({ lumpName: 'orphan' })).rejects.toThrow();
+        await fs.chmod(dir, 0o755);
+        await writer.beginLumpLine({ lumpName: 'ok' });
+        await writer.endLumpLine({ lumpName: 'ok' });
+        const meta = await readMeta();
+        expect(meta.inFlightRuns).toEqual([]);
+        assertCountInvariant(meta);
     });
 
     it('serializes overlapping begin/end so parallel lump lines keep the count invariant', async () => {
