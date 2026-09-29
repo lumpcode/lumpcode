@@ -13,7 +13,7 @@ const baseMeta: DaemonMetaWrite = {
     workspaceStrategy: 'checkout',
 };
 
-describe.skip('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
+describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
     let dir: string;
     let metaFilePath: string;
     let writer: DaemonLiveMetaWriter;
