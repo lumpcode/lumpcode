@@ -220,7 +220,7 @@ describe('readDaemonMeta', () => {
         expect(result.data.reason).toBe('invalid');
     });
 
-    describe.skip('live overlay fields (daemon-snapshot-meta-schema)', () => {
+    describe('live overlay fields (daemon-snapshot-meta-schema)', () => {
         it('parses planted inFlightRuns, nextTickAt, tickPhase, and localConfigFingerprint', async () => {
             const metaPath = path.join(dir, 'live.meta.json');
             const inFlightRuns: DaemonInFlightRun[] = [
@@ -276,7 +276,7 @@ describe('readDaemonMeta', () => {
     });
 });
 
-describe.skip('isDaemonMidRun (daemon-snapshot-meta-schema)', () => {
+describe('isDaemonMidRun (daemon-snapshot-meta-schema)', () => {
     it('is true for non-empty inFlightRuns or legacy count/busy', () => {
         expect(isDaemonMidRun({ inFlightRuns: [{ lumpName: 'backlog' }] })).toBe(true);
         expect(isDaemonMidRun({ inFlightLumpCount: 1 })).toBe(true);

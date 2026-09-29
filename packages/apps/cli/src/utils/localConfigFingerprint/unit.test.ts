@@ -42,7 +42,7 @@ function expectedFingerprint(config: ResolvedProjectLocalConfig): string {
     return createHash('sha256').update(JSON.stringify(canonicalize(config))).digest('hex');
 }
 
-describe.skip('fingerprintResolvedLocalConfig (daemon-snapshot-meta-schema)', () => {
+describe('fingerprintResolvedLocalConfig (daemon-snapshot-meta-schema)', () => {
     it('returns the same SHA-256 hex for identical configs regardless of key order', () => {
         const insertionA: ResolvedProjectLocalConfig = {
             maxParallelRun: 2,
