@@ -364,7 +364,7 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
         }
     });
 
-    describe.skip('live overlay on foreground meta (daemon-live-meta-core)', () => {
+    describe('live overlay on foreground meta (daemon-live-meta-core)', () => {
         const isoUtc = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
 
         it('M1c: inFlightRuns has the active lump line without contextName; count matches length', async () => {
@@ -491,6 +491,12 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
                     );
                     expect(new Set(keys).size).toBe(2);
                     expect(raw.inFlightLumpCount).toBe(2);
+                }, waitForOpts);
+                for (const gate of gates.values()) {
+                    gate.resolve();
+                }
+                await vi.waitFor(() => {
+                    if (gates.size < 3) throw new Error('waiting for third in-flight lump');
                 }, waitForOpts);
                 for (const gate of gates.values()) {
                     gate.resolve();
