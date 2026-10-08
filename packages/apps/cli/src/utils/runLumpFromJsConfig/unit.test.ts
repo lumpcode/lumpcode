@@ -790,4 +790,53 @@ describe('runLumpFromJsConfig', () => {
             expect(core.runLump).toHaveBeenCalledOnce();
         });
     });
+
+    /**
+     * daemon-live-meta-context: unskip when runLumpFromJsConfig forwards
+     * daemonRunTelemetry into jsConfigToRunLumpInput context-walk hooks.
+     */
+    describe.skip('daemonRunTelemetry', () => {
+        it('invokes setContextName at mocked context walk start and clear at end', async () => {
+            const setContextName = vi.fn(async () => undefined);
+            const contextList = [{ name: 'ctx1', variables: {} }];
+            vi.mocked(core.runLump).mockImplementation(async (runInput) => {
+                await runInput.setupWorkspaceFn!(defaultSetupInput);
+                await runInput.setupFn!({
+                    contextList,
+                    lumpVariables: {},
+                    currentContextIndex: 0,
+                });
+                await runInput.teardownFn!({
+                    contextList,
+                    lumpVariables: {},
+                    contextRunState: {},
+                    currentContextIndex: 0,
+                });
+                return core.success({
+                    result: {
+                        branchName: 'lump/my-lump/ctx1',
+                        contextNames: ['ctx1'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput);
+            });
+
+            const result = await callRunLumpFromJsConfig(makeJsConfig(), {
+                effectiveDiscoveryBranch: 'main',
+                daemonRunTelemetry: { setContextName },
+            } as Partial<Parameters<typeof runLumpFromJsConfig>[0]>);
+
+            expect(result.success).toBe(true);
+            expect(setContextName).toHaveBeenNthCalledWith(1, {
+                lumpName: 'my-lump',
+                effectiveDiscoveryBranch: 'main',
+                contextName: 'ctx1',
+            });
+            expect(setContextName).toHaveBeenNthCalledWith(2, {
+                lumpName: 'my-lump',
+                effectiveDiscoveryBranch: 'main',
+                contextName: null,
+            });
+        });
+    });
 });

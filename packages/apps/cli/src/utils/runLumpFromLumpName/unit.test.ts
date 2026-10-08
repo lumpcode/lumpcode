@@ -232,4 +232,50 @@ describe('runLumpFromLumpName', () => {
             expect(core.runLump).not.toHaveBeenCalled();
         });
     });
+
+    /**
+     * daemon-live-meta-context: unskip when runLumpFromLumpName forwards
+     * daemonRunTelemetry into runLumpFromJsConfig.
+     */
+    describe.skip('daemonRunTelemetry forwarding', () => {
+        it('passes daemonRunTelemetry through to runLumpFromJsConfig', async () => {
+            await writeMinimalLump(projectRoot, 'my-lump');
+            const daemonRunTelemetry = {
+                setContextName: vi.fn(async () => undefined),
+            };
+            vi.mocked(core.runLump).mockResolvedValue(
+                core.success({
+                    result: {
+                        branchName: 'lump/my-lump/ctx',
+                        contextNames: ['ctx'],
+                        contextRunStateList: [],
+                    },
+                } as unknown as core.RunLumpOutput),
+            );
+            const phase2Spy = vi.spyOn(
+                await import('../runLumpFromJsConfig'),
+                'runLumpFromJsConfig',
+            );
+            try {
+                const result = await runLumpFromLumpName({
+                    lumpName: 'my-lump',
+                    localConfigFolderPath,
+                    globalConfigFolderPath,
+                    sourceProjectRoot: projectRoot,
+                    logger: noopLogger,
+                    daemonRunTelemetry,
+                } as Parameters<typeof runLumpFromLumpName>[0] & {
+                    daemonRunTelemetry: typeof daemonRunTelemetry;
+                });
+                expect(result.success).toBe(true);
+                expect(phase2Spy).toHaveBeenCalled();
+                const phase2Arg = phase2Spy.mock.calls[0]?.[0] as {
+                    daemonRunTelemetry?: typeof daemonRunTelemetry;
+                };
+                expect(phase2Arg.daemonRunTelemetry).toBe(daemonRunTelemetry);
+            } finally {
+                phase2Spy.mockRestore();
+            }
+        });
+    });
 });
