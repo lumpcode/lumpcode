@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { shellSingleQuote } from '@lumpcode/core';
+import { shellSingleQuote, type SetupFn, type TeardownFn } from '@lumpcode/core';
 
 import { shellBestEffort } from '../../shellBestEffort';
 import { LUMP_BRANCH_PREFIX, LUMP_COMMIT_PREFIX } from '../../../consts';
@@ -18,6 +18,7 @@ import {
     DEFAULT_TEST_WORKSPACE,
     makeConfig,
     resolveJsConf,
+    type DaemonRunTelemetry,
 } from './testHelpers';
 
 describe('jsConfigToRunLumpInput', () => {
@@ -363,6 +364,82 @@ describe('jsConfigToRunLumpInput', () => {
             expect(pushResult.data).toBeUndefined();
 
             expect(execGit('log -1 --pretty=%s', projectRoot)).not.toBe('LUMP:my-lump - ctx');
+        });
+    });
+
+    /**
+     * daemon-live-meta-context: unskip when jsConfigToRunLumpInput wraps context walk
+     * start/end with optional daemonRunTelemetry.setContextName.
+     */
+    describe.skip('daemonRunTelemetry context walk hooks', () => {
+        const contextList = [{ name: 'ctx1', variables: { FILE: 'a.ts' } }];
+        const setupInput = {
+            contextList,
+            lumpVariables: {},
+            currentContextIndex: 0,
+        };
+        const teardownInput = {
+            ...setupInput,
+            contextRunState: {},
+        };
+
+        it('sets contextName at setupFn start and clears it after user teardownFn', async () => {
+            const order: string[] = [];
+            const setContextName = vi.fn(
+                async (input: Parameters<DaemonRunTelemetry['setContextName']>[0]) => {
+                    order.push(input.contextName ?? 'clear');
+                },
+            );
+            const userSetupFn: SetupFn = async () => {
+                order.push('user-setup');
+                return { contextRunState: { userKey: 'ok' } };
+            };
+            const userTeardownFn: TeardownFn = async () => {
+                order.push('user-teardown');
+            };
+            const data = assertSuccess(
+                await resolveJsConf(
+                    { setupFn: userSetupFn, teardownFn: userTeardownFn },
+                    {
+                        lumpName: 'my-lump',
+                        effectiveDiscoveryBranch: 'main',
+                        daemonRunTelemetry: { setContextName },
+                    },
+                ),
+            );
+
+            const setupResult = await data.setupFn!(setupInput);
+            expect(setupResult?.contextRunState).toEqual({ userKey: 'ok' });
+            await data.teardownFn!(teardownInput);
+
+            expect(order).toEqual(['ctx1', 'user-setup', 'user-teardown', 'clear']);
+            expect(setContextName).toHaveBeenNthCalledWith(1, {
+                lumpName: 'my-lump',
+                effectiveDiscoveryBranch: 'main',
+                contextName: 'ctx1',
+            });
+            expect(setContextName).toHaveBeenNthCalledWith(2, {
+                lumpName: 'my-lump',
+                effectiveDiscoveryBranch: 'main',
+                contextName: null,
+            });
+        });
+
+        it('omits effectiveDiscoveryBranch on the reporter when the lump line has none', async () => {
+            const setContextName = vi.fn(async () => undefined);
+            const data = assertSuccess(
+                await resolveJsConf({}, { daemonRunTelemetry: { setContextName } }),
+            );
+            await data.setupFn!(setupInput);
+            await data.teardownFn!(teardownInput);
+            expect(setContextName.mock.calls[0]?.[0]).toEqual({
+                lumpName: 'my-lump',
+                contextName: 'ctx1',
+            });
+            expect(setContextName.mock.calls[1]?.[0]).toEqual({
+                lumpName: 'my-lump',
+                contextName: null,
+            });
         });
     });
 });
