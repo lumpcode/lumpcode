@@ -10,7 +10,7 @@ import { coerceResolvedProjectLocalConfig } from '../coerceResolvedProjectLocalC
 import type { GitCommonDirLockContext } from '../gitCommonDirLock';
 import { getExecutionWorkspacePath } from '../getExecutionWorkspacePath';
 import { getProjectName } from '../getProjectName';
-import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
+import { jsConfigToRunLumpInput, type DaemonRunTelemetry } from '../jsConfigToRunLumpInput';
 import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { runProjectPreflight } from '../runProjectPreflight';
 import { updateContextStatusRecord } from '../updateContextStatusRecord';
@@ -67,6 +67,8 @@ export async function runLumpFromJsConfig(input: {
     signal?: AbortSignal;
     /** Concrete discovery branch from phase 1 / CLI flag (dedicated). */
     effectiveDiscoveryBranch?: string;
+    /** Daemon tick only: report the active context on the in-flight lump line. */
+    daemonRunTelemetry?: DaemonRunTelemetry;
 }): Promise<Success<RunLumpFromJsConfigSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         jsConfig,
@@ -81,6 +83,7 @@ export async function runLumpFromJsConfig(input: {
         releaseLock,
         signal,
         effectiveDiscoveryBranch,
+        daemonRunTelemetry,
     } = input;
 
     const session = createWorkspaceLockSession();
@@ -143,6 +146,7 @@ export async function runLumpFromJsConfig(input: {
             localConfig,
             effectiveDiscoveryBranch,
             gitLock,
+            daemonRunTelemetry,
         });
 
         if (!runLumpInputResult.success) return failure(toRunLumpMessageFailure(runLumpInputResult.data));

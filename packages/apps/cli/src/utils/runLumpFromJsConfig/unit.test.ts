@@ -795,7 +795,7 @@ describe('runLumpFromJsConfig', () => {
      * daemon-live-meta-context: unskip when runLumpFromJsConfig forwards
      * daemonRunTelemetry into jsConfigToRunLumpInput context-walk hooks.
      */
-    describe.skip('daemonRunTelemetry', () => {
+    describe('daemonRunTelemetry', () => {
         it('invokes setContextName at mocked context walk start and clear at end', async () => {
             const setContextName = vi.fn(async () => undefined);
             const contextList = [{ name: 'ctx1', variables: {} }];

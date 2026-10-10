@@ -60,6 +60,37 @@ async function writeFakeBin(binDir: string, name: string) {
     await fs.writeFile(path.join(binDir, name), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
 }
 
+function resolveOnPath(name: string): string | undefined {
+    if (name === 'node') return process.execPath;
+    try {
+        return execSync(process.platform === 'win32' ? `where ${name}` : `command -v ${name}`, {
+            encoding: 'utf-8',
+        })
+            .split(/\r?\n/)[0]
+            ?.trim();
+    } catch {
+        return undefined;
+    }
+}
+
+/** PATH dir with only the named tools, so sibling agent bins (e.g. opencode next to node) stay off PATH. */
+async function writeToolShims(binDir: string, names: string[]) {
+    await fs.mkdir(binDir, { recursive: true });
+    for (const name of names) {
+        const target = resolveOnPath(name);
+        if (!target) continue;
+        if (process.platform === 'win32') {
+            await fs.writeFile(path.join(binDir, `${name}.cmd`), `@echo off\r\n"${target}" %*\r\n`);
+            continue;
+        }
+        await fs.writeFile(
+            path.join(binDir, name),
+            `#!/bin/sh\nexec ${JSON.stringify(target)} "$@"\n`,
+            { mode: 0o755 },
+        );
+    }
+}
+
 function planOk(
     projectRoot: string,
     contexts: typeof README_CONTEXT[],
@@ -201,8 +232,9 @@ describe('setup command', () => {
         });
 
         it('retries a custom tag until getCommandPath hits a command file', async () => {
-            process.env.PATH = isolatedPath(path.join(projectRoot, '.empty-bins'));
-            await fs.mkdir(path.join(projectRoot, '.empty-bins'));
+            const emptyBins = path.join(projectRoot, '.empty-bins');
+            await writeToolShims(emptyBins, ['git', 'node']);
+            process.env.PATH = emptyBins;
             let tagAsks = 0;
             const result = await runSetup(
                 defaultPrompter({

@@ -10,6 +10,7 @@ import { lumpImportBasePath } from '../lumpDirPath';
 import { preflightDiscoveryBranchWithLock } from '../preflightDiscoveryBranchWithLock';
 import { resolveEffectiveDiscoveryBranch } from '../resolveEffectiveDiscoveryBranch';
 import { resolveLumpDisabled } from '../resolveLumpDisabled';
+import type { DaemonRunTelemetry } from '../jsConfigToRunLumpInput';
 import {
     runLumpFromJsConfig,
     toRunLumpMessageFailure,
@@ -48,6 +49,8 @@ export async function runLumpFromLumpName(input: {
     discoveryBranchOpt?: string;
     /** When aborted, in-flight commands are killed and the lump run stops. */
     signal?: AbortSignal;
+    /** Daemon tick only: report the active context on the in-flight lump line. */
+    daemonRunTelemetry?: DaemonRunTelemetry;
 }): Promise<Success<RunLumpFromLumpNameSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         lumpName,
@@ -61,6 +64,7 @@ export async function runLumpFromLumpName(input: {
         effectiveDiscoveryBranch: providedDiscoveryBranch,
         discoveryBranchOpt,
         signal: providedSignal,
+        daemonRunTelemetry,
     } = input;
     const signal = providedSignal ?? new AbortController().signal;
 
@@ -117,6 +121,7 @@ export async function runLumpFromLumpName(input: {
             logger,
             localConfig,
             signal,
+            daemonRunTelemetry,
         });
     }
 
@@ -211,5 +216,6 @@ export async function runLumpFromLumpName(input: {
         releaseLock,
         signal,
         effectiveDiscoveryBranch,
+        daemonRunTelemetry,
     });
 }

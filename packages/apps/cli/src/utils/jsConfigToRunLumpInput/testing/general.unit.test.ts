@@ -371,7 +371,7 @@ describe('jsConfigToRunLumpInput', () => {
      * daemon-live-meta-context: unskip when jsConfigToRunLumpInput wraps context walk
      * start/end with optional daemonRunTelemetry.setContextName.
      */
-    describe.skip('daemonRunTelemetry context walk hooks', () => {
+    describe('daemonRunTelemetry context walk hooks', () => {
         const contextList = [{ name: 'ctx1', variables: { FILE: 'a.ts' } }];
         const setupInput = {
             contextList,
