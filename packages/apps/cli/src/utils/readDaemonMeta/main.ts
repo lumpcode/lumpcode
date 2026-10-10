@@ -51,9 +51,9 @@ export type DaemonMeta = {
     exclude?: string[];
     maxParallelRun?: number;
     workspaceStrategy: WorkspaceStrategy;
-    /** @deprecated Writers use `inFlightLumpCount`; kept for upgrade-safety reads. */
+    /** @deprecated Writers use `inFlightRuns`; kept for upgrade-safety reads. */
     busy?: boolean;
-    /** Number of lump runs currently in flight; `0` when idle. */
+    /** @deprecated Writers omit this; kept for upgrade-safety reads of older meta files. */
     inFlightLumpCount?: number;
     /** Present when this process was launched from a repo daemon config file. */
     daemonConfigFile?: DaemonConfigFileMeta;
@@ -70,15 +70,14 @@ export type DaemonMetaReadError = {
     message: string;
 };
 
-/** True when the daemon is mid-run (`inFlightRuns`, count, or legacy `busy`). */
+/** True when the daemon is mid-run (`inFlightRuns`, or legacy count/`busy` on disk). */
 export function isDaemonMidRun(
     meta: Pick<DaemonMeta, 'busy' | 'inFlightLumpCount' | 'inFlightRuns'>,
 ): boolean {
-    return (
-        (meta.inFlightRuns?.length ?? 0) >= 1 ||
-        (meta.inFlightLumpCount ?? 0) >= 1 ||
-        meta.busy === true
-    );
+    if ((meta.inFlightRuns?.length ?? 0) >= 1) {
+        return true;
+    }
+    return (meta.inFlightLumpCount ?? 0) >= 1 || meta.busy === true;
 }
 
 /** Effective include list: explicit include, else legacy lumpName. */
