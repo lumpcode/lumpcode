@@ -262,6 +262,9 @@ async function runLumpLine(
             logger: lumpLogger,
             effectiveDiscoveryBranch: lumpLine.effectiveDiscoveryBranch,
             signal: abortController.signal,
+            daemonRunTelemetry: {
+                setContextName: session.liveMeta.setContextName,
+            },
         });
         if (!runLumpRes.success) {
             session.logger.error(
