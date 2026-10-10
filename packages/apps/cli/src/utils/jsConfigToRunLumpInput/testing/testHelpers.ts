@@ -20,6 +20,15 @@ export const stubCommandFn: CommandFn = () => ({ executable: 'test-cli', args: [
 export const stubGetContextListFn: GetContextListFn = () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }];
 export const stubPromptFn: PromptFn = () => 'do something';
 
+/** CLI-only reporter forwarded into jsConfigToRunLumpInput (daemon-live-meta-context). */
+export type DaemonRunTelemetry = {
+    setContextName: (input: {
+        lumpName: string;
+        effectiveDiscoveryBranch?: string;
+        contextName: string | null;
+    }) => void | Promise<void>;
+};
+
 export function initTestGitRepo(projectRoot: string) {
     execSync(
         'git init && git config user.email "test@test.com" && git config user.name "Test" && git commit --allow-empty -m "init"',
@@ -49,9 +58,17 @@ export function resolveJsConf(
         /** Post-impl: plan path skips composing post workspace hooks. */
         skipPostWorkspaceHooks?: boolean;
         localConfig?: LocalConfig;
+        /** Post-impl: daemon context-walk reporter (set / clear contextName). */
+        daemonRunTelemetry?: DaemonRunTelemetry;
     } = {},
 ) {
-    const { effectiveDiscoveryBranch, skipPostWorkspaceHooks, localConfig, ...restOpts } = opts;
+    const {
+        effectiveDiscoveryBranch,
+        skipPostWorkspaceHooks,
+        localConfig,
+        daemonRunTelemetry,
+        ...restOpts
+    } = opts;
     return jsConfigToRunLumpInput({
         config: makeConfig(configOverrides),
         lumpName: restOpts.lumpName ?? 'my-lump',
@@ -63,9 +80,11 @@ export function resolveJsConf(
         ...(effectiveDiscoveryBranch !== undefined ? { effectiveDiscoveryBranch } : {}),
         ...(skipPostWorkspaceHooks !== undefined ? { skipPostWorkspaceHooks } : {}),
         ...(localConfig !== undefined ? { localConfig } : {}),
+        ...(daemonRunTelemetry !== undefined ? { daemonRunTelemetry } : {}),
     } as Parameters<typeof jsConfigToRunLumpInput>[0] & {
         effectiveDiscoveryBranch?: string;
         skipPostWorkspaceHooks?: boolean;
+        daemonRunTelemetry?: DaemonRunTelemetry;
     });
 }
 

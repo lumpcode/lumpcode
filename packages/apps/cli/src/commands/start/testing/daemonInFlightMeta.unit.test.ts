@@ -513,4 +513,111 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
             }
         });
     });
+
+    /**
+     * daemon-live-meta-context: unskip when runForeground passes daemonRunTelemetry
+     * into runLumpFromLumpName and context walk set/clears contextName on the row.
+     */
+    describe.skip('contextName on inFlightRuns (daemon-live-meta-context)', () => {
+        type RunLumpInput = Parameters<
+            typeof import('../../../utils/runLumpFromLumpName').runLumpFromLumpName
+        >[0];
+        type DaemonRunTelemetry = {
+            setContextName: (input: {
+                lumpName: string;
+                effectiveDiscoveryBranch?: string;
+                contextName: string | null;
+            }) => void | Promise<void>;
+        };
+
+        function telemetryFromRunInput(input: RunLumpInput): DaemonRunTelemetry {
+            const telemetry = (input as RunLumpInput & { daemonRunTelemetry?: DaemonRunTelemetry })
+                .daemonRunTelemetry;
+            expect(telemetry?.setContextName).toEqual(expect.any(Function));
+            return telemetry as DaemonRunTelemetry;
+        }
+
+        it('M1ctx: contextName appears during a mocked walk and is cleared between contexts', async () => {
+            await setupForegroundProject();
+            const duringA = makePromiseGate();
+            const between = makePromiseGate();
+            const duringB = makePromiseGate();
+            let releaseShutdown!: () => void;
+            const shutdownGate = new Promise<void>((resolve) => {
+                releaseShutdown = resolve;
+            });
+            const runLumpSpy = vi
+                .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+                .mockImplementation(async (input) => {
+                    const telemetry = telemetryFromRunInput(input);
+                    const line = {
+                        lumpName: input.lumpName,
+                        effectiveDiscoveryBranch: input.effectiveDiscoveryBranch,
+                    };
+                    await telemetry.setContextName({ ...line, contextName: 'ctx-a' });
+                    await duringA.promise;
+                    await telemetry.setContextName({ ...line, contextName: null });
+                    await between.promise;
+                    await telemetry.setContextName({ ...line, contextName: 'ctx-b' });
+                    await duringB.promise;
+                    await telemetry.setContextName({ ...line, contextName: null });
+                    return runSuccess;
+                });
+            let startPromise: Promise<{ success: boolean }> | undefined;
+            try {
+                startPromise = makeStartHandler(deps(), {
+                    waitForShutdownOverride: () => shutdownGate,
+                })({
+                    options: { foreground: true, cronSetup: '*/5 * * * *' },
+                    arguments: {},
+                });
+                await vi.waitFor(async () => {
+                    const raw = await readRawMeta();
+                    const runs = raw.inFlightRuns;
+                    if (!Array.isArray(runs) || runs.length !== 1) {
+                        throw new Error(`expected one inFlightRuns row, got ${JSON.stringify(runs)}`);
+                    }
+                    expect(runs[0]).toEqual({
+                        lumpName: 'alpha',
+                        effectiveDiscoveryBranch: 'main',
+                        contextName: 'ctx-a',
+                    });
+                }, waitForOpts);
+                duringA.resolve();
+                await vi.waitFor(async () => {
+                    const runs = (await readRawMeta()).inFlightRuns as object[];
+                    if (!Array.isArray(runs) || runs.length !== 1) {
+                        throw new Error(`expected one inFlightRuns row, got ${JSON.stringify(runs)}`);
+                    }
+                    expect(runs[0]).toEqual({
+                        lumpName: 'alpha',
+                        effectiveDiscoveryBranch: 'main',
+                    });
+                    expect('contextName' in runs[0]).toBe(false);
+                }, waitForOpts);
+                between.resolve();
+                await vi.waitFor(async () => {
+                    const runs = (await readRawMeta()).inFlightRuns as object[];
+                    if (!Array.isArray(runs) || runs.length !== 1) {
+                        throw new Error(`expected one inFlightRuns row, got ${JSON.stringify(runs)}`);
+                    }
+                    expect(runs[0]).toEqual({
+                        lumpName: 'alpha',
+                        effectiveDiscoveryBranch: 'main',
+                        contextName: 'ctx-b',
+                    });
+                }, waitForOpts);
+                duringB.resolve();
+                releaseShutdown();
+                await startPromise;
+            } finally {
+                duringA.resolve();
+                between.resolve();
+                duringB.resolve();
+                releaseShutdown();
+                await startPromise?.catch(() => undefined);
+                runLumpSpy.mockRestore();
+            }
+        });
+    });
 });
