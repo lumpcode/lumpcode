@@ -209,8 +209,7 @@ describe('daemon-status command', () => {
         });
     });
 
-    // Unskip in daemon-status-read-snapshot impl.
-    describe.skip('snapshot contract (daemon-status-read-snapshot)', () => {
+    describe('snapshot contract (daemon-status-read-snapshot)', () => {
         type SnapshotStatus = {
             running: boolean;
             inFlightRuns?: DaemonInFlightRun[];
