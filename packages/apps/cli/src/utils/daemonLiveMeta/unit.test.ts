@@ -39,21 +39,15 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         return JSON.parse(await fs.readFile(metaFilePath, 'utf8')) as Record<string, unknown>;
     }
 
-    function assertCountInvariant(meta: DaemonMeta) {
-        expect(meta.inFlightLumpCount).toBe(meta.inFlightRuns?.length ?? 0);
-    }
-
-    it('begin/end push and pop lump lines and keep inFlightLumpCount === inFlightRuns.length', async () => {
+    it('begin/end push and pop lump lines', async () => {
         await writer.beginLumpLine({ lumpName: 'backlog' });
         let meta = await readMeta();
         expect(meta.inFlightRuns).toEqual([{ lumpName: 'backlog' }]);
-        assertCountInvariant(meta);
         expect('contextName' in ((await readRaw()).inFlightRuns as object[])[0]).toBe(false);
 
         await writer.endLumpLine({ lumpName: 'backlog' });
         meta = await readMeta();
         expect(meta.inFlightRuns).toEqual([]);
-        assertCountInvariant(meta);
         expect(meta.daemonId).toBe('global');
         expect(meta.cronSetup).toBe('*/5 * * * *');
     });
@@ -66,19 +60,16 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' },
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature/x' },
         ]);
-        assertCountInvariant(meta);
 
         await writer.endLumpLine({ lumpName: 'backlog' });
         meta = await readMeta();
         expect(meta.inFlightRuns).toHaveLength(2);
-        assertCountInvariant(meta);
 
         await writer.endLumpLine({ lumpName: 'backlog', effectiveDiscoveryBranch: 'dev' });
         meta = await readMeta();
         expect(meta.inFlightRuns).toEqual([
             { lumpName: 'backlog', effectiveDiscoveryBranch: 'feature/x' },
         ]);
-        assertCountInvariant(meta);
     });
 
     it('setContextName sets and clears contextName on the matching row (writer API only)', async () => {
@@ -100,7 +91,6 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         const rawRuns = (await readRaw()).inFlightRuns as object[];
         expect(rawRuns).toEqual([{ lumpName: 'qol', effectiveDiscoveryBranch: 'dev' }]);
         expect('contextName' in rawRuns[0]).toBe(false);
-        assertCountInvariant(await readMeta());
     });
 
     it('writes tickPhase, nextTickAt, and localConfigFingerprint; omits nextTickAt when cleared', async () => {
@@ -127,7 +117,6 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         await writer.beginLumpLine({ lumpName: 'backlog' });
         const meta = await readMeta();
         expect(meta.inFlightRuns).toEqual([{ lumpName: 'backlog', contextName: 'ctx-a' }]);
-        assertCountInvariant(meta);
     });
 
     it('does not commit in-flight row when begin persist fails', async () => {
@@ -140,17 +129,15 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         await writer.endLumpLine({ lumpName: 'ok' });
         const meta = await readMeta();
         expect(meta.inFlightRuns).toEqual([]);
-        assertCountInvariant(meta);
     });
 
-    it('serializes overlapping begin/end so parallel lump lines keep the count invariant', async () => {
+    it('serializes overlapping begin/end so parallel lump lines keep distinct rows', async () => {
         await Promise.all([
             writer.beginLumpLine({ lumpName: 'alpha' }),
             writer.beginLumpLine({ lumpName: 'beta', effectiveDiscoveryBranch: 'main' }),
         ]);
         let meta = await readMeta();
         expect(meta.inFlightRuns).toHaveLength(2);
-        assertCountInvariant(meta);
 
         await Promise.all([
             writer.endLumpLine({ lumpName: 'alpha' }),
@@ -158,6 +145,15 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         ]);
         meta = await readMeta();
         expect(meta.inFlightRuns).toEqual([]);
-        assertCountInvariant(meta);
+    });
+
+    /**
+     * daemon-snapshot-meta-deprecation: unskip when persist omits inFlightLumpCount.
+     */
+    it.skip('does not persist inFlightLumpCount on begin/end writes (daemon-snapshot-meta-deprecation)', async () => {
+        await writer.beginLumpLine({ lumpName: 'backlog' });
+        expect(Object.hasOwn(await readRaw(), 'inFlightLumpCount')).toBe(false);
+        await writer.endLumpLine({ lumpName: 'backlog' });
+        expect(Object.hasOwn(await readRaw(), 'inFlightLumpCount')).toBe(false);
     });
 });

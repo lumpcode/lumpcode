@@ -122,8 +122,88 @@ describe('daemon-status command', () => {
         });
     });
 
-    describe('inFlightLumpCount surface (parallel-global-daemon-worktree D*)', () => {
-        it('D1: JSON status includes inFlightLumpCount when running', async () => {
+    it('reports metaStatus when PID is alive but meta is missing', async () => {
+        await withAliveDaemon({
+            ...aliveDaemonDeps(),
+            forceStop: true,
+            run: async ({ metaFilePath }) => {
+                await removeDaemonMetaUntilGone(metaFilePath);
+
+                const statusResult = await makeDaemonStatusHandler()({
+                    options: { json: true, daemonId: 'global' },
+                    arguments: {},
+                });
+                expect(statusResult.success).toBe(true);
+                if (!statusResult.success) throw new Error('unreachable');
+                const data = statusResult.data.data as {
+                    running: boolean;
+                    metaStatus?: string;
+                    inFlightLumpCount?: number;
+                    workspaceStrategy?: string;
+                };
+                expect(data.running).toBe(true);
+                expect(data.metaStatus).toBe('missing');
+                expect(data.inFlightLumpCount).toBeUndefined();
+                expect(data.workspaceStrategy).toBeUndefined();
+                expect(statusResult.data.messages.join('\n')).toMatch(/meta|--force/i);
+            },
+        });
+    });
+
+    /**
+     * daemon-snapshot-meta-deprecation: unskip when daemon-status JSON/human output
+     * drop inFlightLumpCount (use inFlightRuns.length / per-run lines instead).
+     */
+    describe.skip('inFlightLumpCount omitted from daemon-status (daemon-snapshot-meta-deprecation)', () => {
+        it('JSON single-daemon and list-all omit inFlightLumpCount; no count-only human line', async () => {
+            await withAliveDaemon({
+                ...aliveDaemonDeps(),
+                forceStop: true,
+                run: async ({ metaFilePath }) => {
+                    await writeDaemonMetaSticky({
+                        filePath: metaFilePath,
+                        data: {
+                            cronSetup: '15 * * * *',
+                            workspaceStrategy: 'checkout',
+                            inFlightRuns: [
+                                { lumpName: 'backlog', contextName: 'ctx-a' },
+                                { lumpName: 'qol' },
+                            ],
+                        },
+                    });
+
+                    const statusResult = await makeDaemonStatusHandler()({
+                        options: { json: true, daemonId: 'global' },
+                        arguments: {},
+                    });
+                    expect(statusResult.success).toBe(true);
+                    if (!statusResult.success) throw new Error('unreachable');
+                    const data = statusResult.data.data as Record<string, unknown>;
+                    expect(data.running).toBe(true);
+                    expect(Object.hasOwn(data, 'inFlightLumpCount')).toBe(false);
+                    expect(data.inFlightRuns).toEqual([
+                        { lumpName: 'backlog', contextName: 'ctx-a' },
+                        { lumpName: 'qol' },
+                    ]);
+                    expect(statusResult.data.messages.join('\n')).not.toMatch(
+                        /In-flight lump runs:\s*\d/,
+                    );
+
+                    const listed = await makeDaemonStatusHandler()({
+                        options: { json: true },
+                        arguments: {},
+                    });
+                    expect(listed.success).toBe(true);
+                    if (!listed.success) throw new Error('unreachable');
+                    const listedDaemon = (
+                        listed.data.data as { daemons: Array<Record<string, unknown>> }
+                    ).daemons[0]!;
+                    expect(Object.hasOwn(listedDaemon, 'inFlightLumpCount')).toBe(false);
+                },
+            });
+        });
+
+        it('JSON omits inFlightLumpCount for legacy count-only meta', async () => {
             await withAliveDaemon({
                 ...aliveDaemonDeps(),
                 forceStop: true,
@@ -136,74 +216,16 @@ describe('daemon-status command', () => {
                             inFlightLumpCount: 2,
                         },
                     });
-
                     const statusResult = await makeDaemonStatusHandler()({
                         options: { json: true, daemonId: 'global' },
                         arguments: {},
                     });
                     expect(statusResult.success).toBe(true);
                     if (!statusResult.success) throw new Error('unreachable');
-                    expect((statusResult.data.data as { running: boolean }).running).toBe(true);
-                    expect(
-                        (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
-                    ).toBe(2);
-                    expect(statusResult.data.messages.join('\n')).toMatch(/in[- ]?flight|2/i);
-                },
-            });
-        });
-
-        it('D2: idle running daemon surfaces inFlightLumpCount 0', async () => {
-            await withAliveDaemon({
-                ...aliveDaemonDeps(),
-                forceStop: true,
-                run: async ({ metaFilePath }) => {
-                    await writeDaemonMetaSticky({
-                        filePath: metaFilePath,
-                        data: {
-                            cronSetup: '15 * * * *',
-                            workspaceStrategy: 'checkout',
-                            inFlightLumpCount: 0,
-                        },
-                    });
-
-                    const statusResult = await makeDaemonStatusHandler()({
-                        options: { json: true, daemonId: 'global' },
-                        arguments: {},
-                    });
-                    expect(statusResult.success).toBe(true);
-                    if (!statusResult.success) throw new Error('unreachable');
-                    expect((statusResult.data.data as { running: boolean }).running).toBe(true);
-                    expect(
-                        (statusResult.data.data as { inFlightLumpCount?: number }).inFlightLumpCount,
-                    ).toBe(0);
-                },
-            });
-        });
-
-        it('reports metaStatus when PID is alive but meta is missing', async () => {
-            await withAliveDaemon({
-                ...aliveDaemonDeps(),
-                forceStop: true,
-                run: async ({ metaFilePath }) => {
-                    await removeDaemonMetaUntilGone(metaFilePath);
-
-                    const statusResult = await makeDaemonStatusHandler()({
-                        options: { json: true, daemonId: 'global' },
-                        arguments: {},
-                    });
-                    expect(statusResult.success).toBe(true);
-                    if (!statusResult.success) throw new Error('unreachable');
-                    const data = statusResult.data.data as {
-                        running: boolean;
-                        metaStatus?: string;
-                        inFlightLumpCount?: number;
-                        workspaceStrategy?: string;
-                    };
-                    expect(data.running).toBe(true);
-                    expect(data.metaStatus).toBe('missing');
-                    expect(data.inFlightLumpCount).toBeUndefined();
-                    expect(data.workspaceStrategy).toBeUndefined();
-                    expect(statusResult.data.messages.join('\n')).toMatch(/meta|--force/i);
+                    const data = statusResult.data.data as Record<string, unknown>;
+                    expect(Object.hasOwn(data, 'inFlightLumpCount')).toBe(false);
+                    expect(data.snapshotIncomplete).toBe(true);
+                    expect(data.inFlightRuns).toEqual([]);
                 },
             });
         });
@@ -217,7 +239,6 @@ describe('daemon-status command', () => {
             tickPhase?: 'idle' | 'running';
             localConfigStale?: boolean;
             snapshotIncomplete?: boolean;
-            inFlightLumpCount?: number;
         };
 
         const inFlightRuns: DaemonInFlightRun[] = [
@@ -235,7 +256,7 @@ describe('daemon-status command', () => {
             return result;
         }
 
-        it('new-writer JSON keeps inFlightRuns, matching deprecated count, and list-all fields', async () => {
+        it('new-writer JSON keeps inFlightRuns and list-all fields', async () => {
             await withAliveDaemon({
                 ...aliveDaemonDeps(),
                 forceStop: true,
@@ -249,7 +270,6 @@ describe('daemon-status command', () => {
                             cronSetup: '15 * * * *',
                             workspaceStrategy: 'checkout',
                             inFlightRuns,
-                            inFlightLumpCount: 2,
                             nextTickAt: '2026-10-10T21:00:00.000Z',
                             tickPhase: 'running',
                             localConfigFingerprint: fingerprintResolvedLocalConfig(resolved.data),
@@ -261,7 +281,6 @@ describe('daemon-status command', () => {
                     expect(data.running).toBe(true);
                     expect(Object.hasOwn(data, 'inFlightRuns')).toBe(true);
                     expect(data.inFlightRuns).toEqual(inFlightRuns);
-                    expect(data.inFlightLumpCount).toBe(2);
                     expect(data.nextTickAt).toBe('2026-10-10T21:00:00.000Z');
                     expect(data.tickPhase).toBe('running');
                     expect(data.snapshotIncomplete).toBeUndefined();
@@ -273,7 +292,6 @@ describe('daemon-status command', () => {
 
                     const listed = (await statusJson()).data.data as { daemons: SnapshotStatus[] };
                     expect(listed.daemons[0]!.inFlightRuns).toEqual(inFlightRuns);
-                    expect(listed.daemons[0]!.inFlightLumpCount).toBe(2);
                     expect(listed.daemons[0]!.tickPhase).toBe('running');
                 },
             });
@@ -296,7 +314,6 @@ describe('daemon-status command', () => {
                     const data = statusResult.data.data as SnapshotStatus;
                     expect(data.inFlightRuns).toEqual([]);
                     expect(data.snapshotIncomplete).toBe(true);
-                    expect(data.inFlightLumpCount).toBe(2);
                     expect(statusResult.data.messages.join('\n')).toMatch(/without detail|upgrade/i);
                 },
             });
@@ -357,7 +374,7 @@ describe('daemon-status command', () => {
             await fs.writeFile(path.join(daemonsDir, `${projectName}.global.daemon.pid`), '999999999\n');
             await writeJsonFile({
                 filePath: path.join(daemonsDir, `${projectName}.global.daemon.meta.json`),
-                data: { cronSetup: '0 * * * *', inFlightRuns, inFlightLumpCount: 2, tickPhase: 'running' },
+                data: { cronSetup: '0 * * * *', inFlightRuns, tickPhase: 'running' },
                 trailingNewline: true,
             });
             const stopped = (await statusJson('global')).data.data as SnapshotStatus;
@@ -365,7 +382,7 @@ describe('daemon-status command', () => {
             expect(stopped.inFlightRuns).toBeUndefined();
             expect(stopped.snapshotIncomplete).toBeUndefined();
             expect(stopped.localConfigStale).toBeUndefined();
-            expect(stopped.inFlightLumpCount).toBeUndefined();
+            expect(Object.hasOwn(stopped, 'inFlightLumpCount')).toBe(false);
         });
     });
 });

@@ -28,6 +28,11 @@ describe('stop command', () => {
             daemonId: 'global',
         });
     const pidPath = () => schedulerFiles().pidFilePath;
+
+    function metaInFlightRuns(count: number) {
+        return Array.from({ length: count }, (_, i) => ({ lumpName: `in-flight-${i + 1}` }));
+    }
+
     beforeEach(async () => {
         ({ projectRoot, globalConfigFolderPath, localConfigFolderPath } = await createDaemonCommandTestProject({ prefix: 'lump-stop-', projectName }));
     });
@@ -145,6 +150,21 @@ describe('stop command', () => {
         }
 
         async function writeInFlightMeta(
+            inFlightRunCount: number,
+            overrides: Record<string, unknown> = {},
+        ) {
+            await writeDaemonMetaSticky({
+                filePath: metaPath(),
+                data: {
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    inFlightRuns: metaInFlightRuns(inFlightRunCount),
+                    ...overrides,
+                },
+            });
+        }
+
+        async function writeLegacyCountMeta(
             inFlightLumpCount: number,
             overrides: Record<string, unknown> = {},
         ) {
@@ -205,6 +225,7 @@ describe('stop command', () => {
                 data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
+                    inFlightRuns: [],
                     inFlightLumpCount: 0,
                 },
                 trailingNewline: true,
@@ -216,7 +237,7 @@ describe('stop command', () => {
             return { pid, childPids };
         }
 
-        it('K1: refuses when inFlightLumpCount >= 1 (parallel-global-daemon-worktree)', async () => {
+        it('K1: refuses when inFlightRuns is non-empty (parallel-global-daemon-worktree)', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             const pid = await readDaemonPid();
@@ -248,7 +269,7 @@ describe('stop command', () => {
             await expect(fs.access(pidPath())).resolves.toBeUndefined();
         });
 
-        it('K6: busy true with inFlightLumpCount 0 still refuses (parallel-global-daemon-worktree)', async () => {
+        it('K6: busy true with empty inFlightRuns still refuses (parallel-global-daemon-worktree)', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
             await writeInFlightMeta(0, { busy: true });
@@ -259,10 +280,10 @@ describe('stop command', () => {
             expect(result.data.data?.code).toBe('daemonBusy');
         });
 
-        it('K7: inFlightLumpCount 1 with busy false refuses (parallel-global-daemon-worktree)', async () => {
+        it('K7: legacy inFlightLumpCount 1 with busy false refuses (parallel-global-daemon-worktree)', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
-            await writeInFlightMeta(1, { busy: false });
+            await writeLegacyCountMeta(1, { busy: false });
 
             const result = await makeStopHandler()({ options: { json: true }, arguments: {} });
             expect(result.success).toBe(false);
@@ -431,7 +452,7 @@ describe('stop command', () => {
         const metaPath = () => schedulerFiles().metaFilePath;
 
         async function writeInFlightMeta(
-            inFlightLumpCount: number,
+            inFlightRunCount: number,
             overrides: Record<string, unknown> = {},
         ) {
             await writeDaemonMetaSticky({
@@ -439,7 +460,7 @@ describe('stop command', () => {
                 data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
-                    inFlightLumpCount,
+                    inFlightRuns: metaInFlightRuns(inFlightRunCount),
                     ...overrides,
                 },
             });
@@ -513,6 +534,7 @@ describe('stop command', () => {
                 data: {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
+                    inFlightRuns: [],
                     inFlightLumpCount: 0,
                 },
                 trailingNewline: true,
@@ -609,7 +631,7 @@ describe('stop command', () => {
                     cronSetup: '*/5 * * * *',
                     workspaceStrategy: 'checkout',
                     lumpName: 'alpha',
-                    inFlightLumpCount: 1,
+                    inFlightRuns: [{ lumpName: 'alpha' }],
                 },
             });
 
