@@ -46,12 +46,30 @@ export async function createTempTestDirs<const I extends CreateTempTestDirsInput
     return { projectRoot, localConfigFolderPath, remoteDir, globalConfigFolderPath } as TempTestDirsFor<I>;
 }
 
+async function rmRecursiveForce(dirPath: string): Promise<void> {
+    const attempts = 5;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+            await fs.rm(dirPath, { recursive: true, force: true });
+            return;
+        } catch (error: unknown) {
+            const code = (error as NodeJS.ErrnoException).code;
+            if (attempt === attempts || (code !== 'ENOTEMPTY' && code !== 'EBUSY')) {
+                throw error;
+            }
+            await new Promise((resolve) => {
+                setTimeout(resolve, 50 * attempt);
+            });
+        }
+    }
+}
+
 export async function removeTempTestDirs(
     dirs: Pick<TempTestDirs, 'projectRoot' | 'remoteDir' | 'globalConfigFolderPath'>,
 ): Promise<void> {
     await Promise.all(
         [dirs.projectRoot, dirs.remoteDir, dirs.globalConfigFolderPath]
             .filter((p): p is string => p !== undefined)
-            .map((p) => fs.rm(p, { recursive: true, force: true })),
+            .map((p) => rmRecursiveForce(p)),
     );
 }

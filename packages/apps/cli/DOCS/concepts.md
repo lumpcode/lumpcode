@@ -180,8 +180,6 @@ Live overlay on `.daemon.meta.json` (read by [`lumpcode daemon-status`](./comman
 - **`nextTickAt`:** next cron fire, ISO-8601 UTC.
 - **`tickPhase`:** `running` during a tick, `idle` between ticks.
 - **`localConfigFingerprint`:** fingerprint of merged project/local config at start. Status sets `localConfigStale` when the live files differ; restart the daemon to apply.
-- **`inFlightLumpCount`:** **deprecated** count; current writers keep it equal to `inFlightRuns.length`.
-
 
 Supervisor files live under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.log`, `.meta.json`), not under `daemons/` and not as a daemon id. `lumpcode start` starts `lumpcode supervise --foreground` if that PID is dead. On a dedicated clone you can also use **`lumpcode start --superviseOnly`** so only the supervisor stays up and repo recipes under `.lumpcode/daemons/` can start schedulers (see [Repo daemon config files](#repo-daemon-config-files)).
 

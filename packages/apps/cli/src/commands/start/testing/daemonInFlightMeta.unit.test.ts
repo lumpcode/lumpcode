@@ -512,11 +512,7 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
         });
     });
 
-    /**
-     * daemon-snapshot-meta-deprecation: unskip when createDaemonLiveMetaWriter stops
-     * persisting inFlightLumpCount (inFlightRuns.length is the mid-run signal).
-     */
-    describe.skip('inFlightLumpCount omitted from meta writes (daemon-snapshot-meta-deprecation)', () => {
+    describe('inFlightLumpCount omitted from meta writes (daemon-snapshot-meta-deprecation)', () => {
         it('does not persist inFlightLumpCount while a lump run is in flight', async () => {
             await setupForegroundProject();
             let resolveRun!: (value: Awaited<ReturnType<typeof import('../../../utils/runLumpFromLumpName').runLumpFromLumpName>>) => void;

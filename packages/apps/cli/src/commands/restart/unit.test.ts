@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     aliveDaemonSpawnFn,
     createDaemonCommandTestProject,
-    waitForDaemonMetaFile,
+    waitForAliveDaemonChildMeta,
     waitForDaemonPidFile,
     writeDaemonMetaSticky,
     writeLocalJson,
@@ -98,7 +98,7 @@ describe('restart command', () => {
         const originalCron = '*/7 * * * *';
         await runStart(aliveDaemonSpawnFn, { cronSetup: originalCron });
         await waitForDaemonPidFile(pidPath());
-        await waitForDaemonMetaFile(metaPath());
+        await waitForAliveDaemonChildMeta(metaPath());
 
         const initialRaw = await fs.readFile(pidPath(), 'utf8');
         const initialPid = Number.parseInt(initialRaw.trim(), 10);
@@ -131,6 +131,7 @@ describe('restart command', () => {
         expect(restartSpawnFn).toHaveBeenCalledOnce();
 
         await waitForDaemonPidFile(pidPath());
+        await waitForAliveDaemonChildMeta(metaPath());
         const finalPid = Number.parseInt((await fs.readFile(pidPath(), 'utf8')).trim(), 10);
         expect(Number.isNaN(finalPid)).toBe(false);
         expect(finalPid).not.toBe(initialPid);
@@ -149,7 +150,7 @@ describe('restart command', () => {
     it('preserves cron from desired.json when meta is missing', async () => {
         await runStart(aliveDaemonSpawnFn, { cronSetup: '*/9 * * * *' });
         await waitForDaemonPidFile(pidPath());
-        await waitForDaemonMetaFile(metaPath());
+        await waitForAliveDaemonChildMeta(metaPath());
 
         await fs.unlink(metaPath());
 
@@ -188,7 +189,7 @@ describe('restart command', () => {
     it('fails when desired.json and meta are both missing', async () => {
         await runStart(aliveDaemonSpawnFn, { cronSetup: '*/9 * * * *' });
         await waitForDaemonPidFile(pidPath());
-        await waitForDaemonMetaFile(metaPath());
+        await waitForAliveDaemonChildMeta(metaPath());
         await fs.unlink(metaPath());
         await fs.unlink(desiredPath());
 

@@ -150,11 +150,7 @@ describe('daemon-status command', () => {
         });
     });
 
-    /**
-     * daemon-snapshot-meta-deprecation: unskip when daemon-status JSON/human output
-     * drop inFlightLumpCount (use inFlightRuns.length / per-run lines instead).
-     */
-    describe.skip('inFlightLumpCount omitted from daemon-status (daemon-snapshot-meta-deprecation)', () => {
+    describe('inFlightLumpCount omitted from daemon-status (daemon-snapshot-meta-deprecation)', () => {
         it('JSON single-daemon and list-all omit inFlightLumpCount; no count-only human line', async () => {
             await withAliveDaemon({
                 ...aliveDaemonDeps(),

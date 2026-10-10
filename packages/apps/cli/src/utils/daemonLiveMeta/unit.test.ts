@@ -147,10 +147,7 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         expect(meta.inFlightRuns).toEqual([]);
     });
 
-    /**
-     * daemon-snapshot-meta-deprecation: unskip when persist omits inFlightLumpCount.
-     */
-    it.skip('does not persist inFlightLumpCount on begin/end writes (daemon-snapshot-meta-deprecation)', async () => {
+    it('does not persist inFlightLumpCount on begin/end writes (daemon-snapshot-meta-deprecation)', async () => {
         await writer.beginLumpLine({ lumpName: 'backlog' });
         expect(Object.hasOwn(await readRaw(), 'inFlightLumpCount')).toBe(false);
         await writer.endLumpLine({ lumpName: 'backlog' });

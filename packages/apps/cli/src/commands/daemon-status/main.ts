@@ -64,8 +64,6 @@ export type StatusData = {
     tickPhase?: TickPhase;
     localConfigStale?: boolean;
     snapshotIncomplete?: boolean;
-    /** @deprecated Prefer inFlightRuns.length. */
-    inFlightLumpCount?: number;
     /** Present when this process was launched from a repo `.lumpcode/daemons/` recipe. */
     daemonConfigFile?: DaemonConfigFileMeta;
     stalePidFile?: boolean;
@@ -116,7 +114,6 @@ async function localConfigStaleFromMeta(input: {
 
 function snapshotFromMeta(meta: DaemonMeta): {
     inFlightRuns: DaemonInFlightRun[];
-    inFlightLumpCount: number;
     snapshotIncomplete?: true;
     nextTickAt?: string;
     tickPhase?: TickPhase;
@@ -126,7 +123,6 @@ function snapshotFromMeta(meta: DaemonMeta): {
     const snapshotIncomplete = !hasRunsArray && (meta.inFlightLumpCount ?? 0) > 0;
     return {
         inFlightRuns,
-        inFlightLumpCount: hasRunsArray ? inFlightRuns.length : (meta.inFlightLumpCount ?? 0),
         ...(snapshotIncomplete ? { snapshotIncomplete: true as const } : {}),
         ...(meta.nextTickAt !== undefined ? { nextTickAt: meta.nextTickAt } : {}),
         ...(meta.tickPhase !== undefined ? { tickPhase: meta.tickPhase } : {}),
@@ -234,7 +230,6 @@ async function toStatusData(input: {
     if (meta.exclude?.length) {
         messages.push(`Exclude: ${meta.exclude.join(', ')}`);
     }
-    messages.push(`In-flight lump runs: ${snapshot.inFlightLumpCount}`);
     for (const run of snapshot.inFlightRuns) {
         messages.push(formatInFlightRunLine(run));
     }
@@ -266,7 +261,6 @@ async function toStatusData(input: {
             maxParallelRun: meta.maxParallelRun,
             workspaceStrategy: meta.workspaceStrategy,
             inFlightRuns: snapshot.inFlightRuns,
-            inFlightLumpCount: snapshot.inFlightLumpCount,
             lumpName: meta.lumpName ?? lumpNameDeprecated,
             ...(snapshot.nextTickAt !== undefined ? { nextTickAt: snapshot.nextTickAt } : {}),
             ...(snapshot.tickPhase !== undefined ? { tickPhase: snapshot.tickPhase } : {}),

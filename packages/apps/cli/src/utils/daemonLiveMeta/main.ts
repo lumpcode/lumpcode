@@ -85,7 +85,6 @@ export function createDaemonLiveMetaWriter(
         const data: Record<string, unknown> = {
             ...baseMeta,
             inFlightRuns: runs.map(serializeInFlightRun),
-            inFlightLumpCount: runs.length,
         };
         if (fingerprint !== undefined) {
             data.localConfigFingerprint = fingerprint;
