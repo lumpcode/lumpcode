@@ -1,0 +1,32 @@
+desc: "Daemon meta live-field schema and local.json fingerprint util; no foreground writer."
+files:
+  packages/apps/cli/src/utils/localConfigFingerprint/main.ts:
+    desc: "fingerprintResolvedLocalConfig (SHA-256, canonical sorted JSON)."
+    "-": 0
+    "+": 55
+    symbols:
+      fingerprintResolvedLocalConfig: create
+  packages/apps/cli/src/utils/localConfigFingerprint/index.ts:
+    desc: "Barrel-export."
+    "-": 0
+    "+": 2
+  packages/apps/cli/src/utils/localConfigFingerprint/unit.test.ts:
+    desc: "Hash stability across key order."
+    "-": 0
+    "+": 70
+  packages/apps/cli/src/utils/readDaemonMeta/main.ts:
+    desc: "Zod + DaemonMeta + DaemonInFlightRun; isDaemonMidRun uses inFlightRuns.length."
+    "-": 8
+    "+": 45
+    symbols:
+      DaemonMeta: update
+      DaemonInFlightRun: create
+      isDaemonMidRun: update
+  packages/apps/cli/src/utils/readDaemonMeta/unit.test.ts:
+    desc: "Parse live fields; isDaemonMidRun legacy and runs array."
+    "-": 0
+    "+": 50
+  packages/apps/cli/src/utils/index.ts:
+    desc: "Export localConfigFingerprint."
+    "-": 0
+    "+": 2

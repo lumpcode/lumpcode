@@ -1,0 +1,13 @@
+desc: "daemon-status merges meta into StatusData snapshot fields and localConfigStale at read time."
+files:
+  packages/apps/cli/src/commands/daemon-status/main.ts:
+    desc: "StatusData snapshot merge, snapshotIncomplete, localConfigStale, human lines."
+    "-": 15
+    "+": 95
+    symbols:
+      StatusData: update
+      toStatusData: update
+  packages/apps/cli/src/commands/daemon-status/unit.test.ts:
+    desc: "JSON contract and legacy incomplete path."
+    "-": 5
+    "+": 90

@@ -440,6 +440,9 @@ describe('run command abort signal wiring (W2)', () => {
         const callArg = spy.mock.calls[0]?.[0] as { signal?: AbortSignal };
         expect(callArg.signal).toBeInstanceOf(AbortSignal);
         expect(callArg.signal?.aborted).toBe(false);
+        expect(
+            (callArg as { daemonRunTelemetry?: unknown }).daemonRunTelemetry,
+        ).toBeUndefined();
     });
 });
 
