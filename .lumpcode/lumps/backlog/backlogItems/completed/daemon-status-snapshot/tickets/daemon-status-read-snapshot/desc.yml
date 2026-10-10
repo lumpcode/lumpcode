@@ -1,10 +1,14 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: daemon-status-read-snapshot
-workflow: [manualReq, testImpl, impl]
+workflow:
+  - manualReq
+  - testImpl
+  - impl
 task: >-
   `lumpcode daemon-status` exposes the snapshot contract (inFlightRuns,
   nextTickAt, tickPhase, localConfigStale, snapshotIncomplete, deprecated
-  inFlightLumpCount) from meta + live local.json. Parent: daemon-status-snapshot.
+  inFlightLumpCount) from meta + live local.json. Parent:
+  daemon-status-snapshot.
 priority: 2
 dependsOn:
   - daemon-live-meta-context
+completedAt: '2026-10-10T21:43:24.030Z'
