@@ -124,7 +124,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
-    it('G2: meta inFlightLumpCount peaks at 2 and has no busy key', async () => {
+    it('G2: meta inFlightRuns peaks at 2 and has no busy key', async () => {
         await writeLocal({ maxParallelRun: 2 });
         await writeLumps(['a', 'b', 'c']);
 
@@ -154,8 +154,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             await vi.waitFor(async () => {
                 if (gates.size < 2) throw new Error('waiting for two gates');
                 const raw = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
-                if (raw.inFlightLumpCount !== 2) {
-                    throw new Error(`expected inFlightLumpCount 2, got ${String(raw.inFlightLumpCount)}`);
+                const runs = raw.inFlightRuns;
+                if (!Array.isArray(runs) || runs.length !== 2) {
+                    throw new Error(`expected inFlightRuns length 2, got ${JSON.stringify(runs)}`);
                 }
                 expect('busy' in raw).toBe(false);
             }, waitForOpts);
@@ -167,8 +168,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             releaseAllGates(gates);
             await vi.waitFor(async () => {
                 const raw = JSON.parse(await fs.readFile(metaPath(), 'utf8')) as Record<string, unknown>;
-                if (raw.inFlightLumpCount !== 0) {
-                    throw new Error(`expected drained 0, got ${String(raw.inFlightLumpCount)}`);
+                const runs = raw.inFlightRuns;
+                if (!Array.isArray(runs) || runs.length !== 0) {
+                    throw new Error(`expected drained inFlightRuns, got ${JSON.stringify(runs)}`);
                 }
             }, waitForOpts);
             releaseShutdown();
