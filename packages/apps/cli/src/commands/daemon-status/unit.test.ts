@@ -7,9 +7,17 @@ import {
     removeDaemonMetaUntilGone,
     withAliveDaemon,
     writeDaemonMetaSticky,
+    writeLocalJson,
 } from '../../testing';
 import { command as daemonStatusCommand } from './main';
-import { writeJsonFile, createTempTestDirs, removeTempTestDirs } from '../../utils';
+import {
+    createTempTestDirs,
+    fingerprintResolvedLocalConfig,
+    readProjectLocalConfig,
+    removeTempTestDirs,
+    writeJsonFile,
+    type DaemonInFlightRun,
+} from '../../utils';
 
 describe('daemon-status command', () => {
     let projectRoot: string;
@@ -198,6 +206,167 @@ describe('daemon-status command', () => {
                     expect(statusResult.data.messages.join('\n')).toMatch(/meta|--force/i);
                 },
             });
+        });
+    });
+
+    // Unskip in daemon-status-read-snapshot impl.
+    describe.skip('snapshot contract (daemon-status-read-snapshot)', () => {
+        type SnapshotStatus = {
+            running: boolean;
+            inFlightRuns?: DaemonInFlightRun[];
+            nextTickAt?: string;
+            tickPhase?: 'idle' | 'running';
+            localConfigStale?: boolean;
+            snapshotIncomplete?: boolean;
+            inFlightLumpCount?: number;
+        };
+
+        const inFlightRuns: DaemonInFlightRun[] = [
+            { lumpName: 'backlog', effectiveDiscoveryBranch: 'dev', contextName: 'ctx-a' },
+            { lumpName: 'qol' },
+        ];
+
+        async function statusJson(daemonId?: string) {
+            const result = await makeDaemonStatusHandler()({
+                options: { json: true, ...(daemonId !== undefined ? { daemonId } : {}) },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            return result;
+        }
+
+        it('new-writer JSON keeps inFlightRuns, matching deprecated count, and list-all fields', async () => {
+            await withAliveDaemon({
+                ...aliveDaemonDeps(),
+                forceStop: true,
+                run: async ({ metaFilePath }) => {
+                    const resolved = await readProjectLocalConfig({ localConfigFolderPath });
+                    expect(resolved.success).toBe(true);
+                    if (!resolved.success) throw new Error('unreachable');
+                    await writeDaemonMetaSticky({
+                        filePath: metaFilePath,
+                        data: {
+                            cronSetup: '15 * * * *',
+                            workspaceStrategy: 'checkout',
+                            inFlightRuns,
+                            inFlightLumpCount: 2,
+                            nextTickAt: '2026-10-10T21:00:00.000Z',
+                            tickPhase: 'running',
+                            localConfigFingerprint: fingerprintResolvedLocalConfig(resolved.data),
+                        },
+                    });
+
+                    const statusResult = await statusJson('global');
+                    const data = statusResult.data.data as SnapshotStatus;
+                    expect(data.running).toBe(true);
+                    expect(Object.hasOwn(data, 'inFlightRuns')).toBe(true);
+                    expect(data.inFlightRuns).toEqual(inFlightRuns);
+                    expect(data.inFlightLumpCount).toBe(2);
+                    expect(data.nextTickAt).toBe('2026-10-10T21:00:00.000Z');
+                    expect(data.tickPhase).toBe('running');
+                    expect(data.snapshotIncomplete).toBeUndefined();
+                    expect(data.localConfigStale).not.toBe(true);
+                    const human = statusResult.data.messages.join('\n');
+                    expect(human).toMatch(/backlog[\s\S]*ctx-a|ctx-a[\s\S]*backlog/i);
+                    expect(human).toMatch(/qol/);
+                    expect(human).toMatch(/no context/i);
+
+                    const listed = (await statusJson()).data.data as { daemons: SnapshotStatus[] };
+                    expect(listed.daemons[0]!.inFlightRuns).toEqual(inFlightRuns);
+                    expect(listed.daemons[0]!.inFlightLumpCount).toBe(2);
+                    expect(listed.daemons[0]!.tickPhase).toBe('running');
+                },
+            });
+        });
+
+        it('legacy count-only meta yields empty inFlightRuns and snapshotIncomplete', async () => {
+            await withAliveDaemon({
+                ...aliveDaemonDeps(),
+                forceStop: true,
+                run: async ({ metaFilePath }) => {
+                    await writeDaemonMetaSticky({
+                        filePath: metaFilePath,
+                        data: {
+                            cronSetup: '15 * * * *',
+                            workspaceStrategy: 'checkout',
+                            inFlightLumpCount: 2,
+                        },
+                    });
+                    const statusResult = await statusJson('global');
+                    const data = statusResult.data.data as SnapshotStatus;
+                    expect(data.inFlightRuns).toEqual([]);
+                    expect(data.snapshotIncomplete).toBe(true);
+                    expect(data.inFlightLumpCount).toBe(2);
+                    expect(statusResult.data.messages.join('\n')).toMatch(/without detail|upgrade/i);
+                },
+            });
+        });
+
+        it('omits invented nextTickAt and localConfigStale unless fingerprint differs', async () => {
+            await withAliveDaemon({
+                ...aliveDaemonDeps(),
+                forceStop: true,
+                run: async ({ metaFilePath }) => {
+                    await writeDaemonMetaSticky({
+                        filePath: metaFilePath,
+                        data: {
+                            cronSetup: '15 * * * *',
+                            workspaceStrategy: 'checkout',
+                            inFlightRuns: [],
+                            inFlightLumpCount: 0,
+                            tickPhase: 'idle',
+                        },
+                    });
+                    let data = (await statusJson('global')).data.data as SnapshotStatus;
+                    expect(data.inFlightRuns).toEqual([]);
+                    expect(data.nextTickAt).toBeUndefined();
+                    expect(data.snapshotIncomplete).toBeUndefined();
+                    expect(data.localConfigStale).toBeUndefined();
+
+                    const resolved = await readProjectLocalConfig({ localConfigFolderPath });
+                    expect(resolved.success).toBe(true);
+                    if (!resolved.success) throw new Error('unreachable');
+                    await writeDaemonMetaSticky({
+                        filePath: metaFilePath,
+                        data: {
+                            cronSetup: '15 * * * *',
+                            workspaceStrategy: 'checkout',
+                            inFlightRuns: [],
+                            localConfigFingerprint: fingerprintResolvedLocalConfig(resolved.data),
+                        },
+                    });
+                    await writeLocalJson(localConfigFolderPath, {
+                        mode: 'dedicated',
+                        primaryBranch: 'main',
+                        maxParallelRun: 3,
+                    });
+                    const staleResult = await statusJson('global');
+                    expect((staleResult.data.data as SnapshotStatus).localConfigStale).toBe(true);
+                    expect(staleResult.data.messages.join('\n')).toMatch(/restart/i);
+
+                    await fs.unlink(path.join(localConfigFolderPath, 'local.json'));
+                    data = (await statusJson('global')).data.data as SnapshotStatus;
+                    expect(data.localConfigStale).toBeUndefined();
+                },
+            });
+        });
+
+        it('omits snapshot fields when not running', async () => {
+            const daemonsDir = path.join(globalConfigFolderPath, 'daemons');
+            await fs.mkdir(daemonsDir, { recursive: true });
+            await fs.writeFile(path.join(daemonsDir, `${projectName}.global.daemon.pid`), '999999999\n');
+            await writeJsonFile({
+                filePath: path.join(daemonsDir, `${projectName}.global.daemon.meta.json`),
+                data: { cronSetup: '0 * * * *', inFlightRuns, inFlightLumpCount: 2, tickPhase: 'running' },
+                trailingNewline: true,
+            });
+            const stopped = (await statusJson('global')).data.data as SnapshotStatus;
+            expect(stopped.running).toBe(false);
+            expect(stopped.inFlightRuns).toBeUndefined();
+            expect(stopped.snapshotIncomplete).toBeUndefined();
+            expect(stopped.localConfigStale).toBeUndefined();
+            expect(stopped.inFlightLumpCount).toBeUndefined();
         });
     });
 });
