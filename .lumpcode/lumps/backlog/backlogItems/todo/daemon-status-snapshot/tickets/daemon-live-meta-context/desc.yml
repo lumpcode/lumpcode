@@ -1,9 +1,0 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
-name: daemon-live-meta-context
-workflow: [manualReq, testImpl, impl]
-task: >-
-  Wire contextName on inFlightRuns via lump-run telemetry hooks
-  (runLumpFromJsConfig / jsConfigToRunLumpInput). Parent: daemon-status-snapshot.
-priority: 2
-dependsOn:
-  - daemon-live-meta-core
