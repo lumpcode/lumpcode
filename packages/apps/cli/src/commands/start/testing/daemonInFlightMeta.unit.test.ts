@@ -518,7 +518,7 @@ describe('start command — daemon inFlightLumpCount meta (parallel-global-daemo
      * daemon-live-meta-context: unskip when runForeground passes daemonRunTelemetry
      * into runLumpFromLumpName and context walk set/clears contextName on the row.
      */
-    describe.skip('contextName on inFlightRuns (daemon-live-meta-context)', () => {
+    describe('contextName on inFlightRuns (daemon-live-meta-context)', () => {
         type RunLumpInput = Parameters<
             typeof import('../../../utils/runLumpFromLumpName').runLumpFromLumpName
         >[0];

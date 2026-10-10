@@ -237,7 +237,7 @@ describe('runLumpFromLumpName', () => {
      * daemon-live-meta-context: unskip when runLumpFromLumpName forwards
      * daemonRunTelemetry into runLumpFromJsConfig.
      */
-    describe.skip('daemonRunTelemetry forwarding', () => {
+    describe('daemonRunTelemetry forwarding', () => {
         it('passes daemonRunTelemetry through to runLumpFromJsConfig', async () => {
             await writeMinimalLump(projectRoot, 'my-lump');
             const daemonRunTelemetry = {
