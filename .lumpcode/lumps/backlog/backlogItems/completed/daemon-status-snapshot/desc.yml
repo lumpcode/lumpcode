@@ -1,0 +1,13 @@
+name: daemon-status-snapshot
+manual: true
+workflow:
+  - manualReq
+  - testImpl
+  - impl
+task: >-
+  Umbrella: richer `lumpcode daemon-status` snapshot and daemon meta live
+  overlay for the worker dashboard. Implement via parallel tickets under
+  tickets/ (writer, reader, docs, meta deprecation). Global contract:
+  requirements.md.
+priority: 2
+completedAt: '2026-10-11T07:37:20.861Z'

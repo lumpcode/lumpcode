@@ -1,6 +1,6 @@
 <script setup lang="ts">
 useHead({
-  title: 'Lumpcode — run your coding agent across a whole codebase',
+  title: siteTitle,
   titleTemplate: '%s',
 })
 </script>
@@ -58,7 +58,10 @@ useHead({
     </section>
 
     <section class="wrap band">
-      <p class="band-line">{{ positioningLine }}</p>
+      <div>
+        <p class="band-line">{{ positioningLine }}</p>
+        <p class="band-line band-line-sub">{{ sdlcLine }}</p>
+      </div>
       <div class="use-when">
         <p class="use-when-label">Use it when</p>
         <ul class="use-when-pills">

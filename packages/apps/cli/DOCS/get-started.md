@@ -2,7 +2,7 @@
 
 Readable website version: [lumpcode.com/docs/start/first-pr](https://www.lumpcode.com/docs/start/first-pr) · [docs](https://www.lumpcode.com/docs).
 
-Follow this guide in order to get started with your first `lumpcode run`. The happy path is **`lumpcode setup`**. Links at each step point to more detail if you want it.
+Follow this guide in order to get started with your first `lumpcode run`. You already have a git repo; this is the short path to start AI loops for the software development life cycle on it. The happy path is **`lumpcode setup`**. Links at each step point to more detail if you want it.
 
 ---
 
@@ -130,3 +130,4 @@ You now have your first working lump ! Browse when you need more depth:
 - [advanced-config.md](./advanced-config.md#hook-lifecycle) — Lifecycle schemas (shared / dedicated), dynamic `steps`, custom commands
 - [types.md](./types.md) — Hook parameter shapes
 - [examples.md](./examples.md) — Short smoke-test style recipes
+- [backlog-recipe.md](./backlog-recipe.md) — Folder of tickets: scaffold, one `desc.yml`, preview, run

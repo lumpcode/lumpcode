@@ -34,7 +34,7 @@ Run once: `lumpcode run smokeTest`, then `git log --remotes -F --grep 'LUMP:' --
 
 *When to use:* large UI migration with one reviewable PR per component.
 
-A classic refactoring lump: discover every component folder, do a multi-step migration, ship one PR per component.
+A classic AI coding refactoring lump: discover every component folder, do a multi-step migration, ship one PR per component.
 
 ```json
 {
@@ -58,6 +58,8 @@ Lumpcode commits each context as `LUMP: reactToVue - <ComponentName>` on `lump/r
 ## 2. Feature ticket queue — strict dependency order
 
 *When to use:* ordered backlog where later work must wait until earlier tickets are merged to the base branch.
+
+Tickets as folders in git (`backlogItems/todo/<name>/desc.yml`) instead of this JSON list: [backlog-recipe.md](./backlog-recipe.md).
 
 Treat a JSON ticket file as the source of truth and let `dependsOnContexts` enforce order. Subsequent tickets only become eligible once their dependency’s commit is on `origin/<baseBranch>` (i.e. merged).
 

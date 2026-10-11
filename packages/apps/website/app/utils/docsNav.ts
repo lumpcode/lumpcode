@@ -16,12 +16,12 @@ export const docsNav: DocsNavSection[] = [
       {
         title: 'Overview',
         path: '/docs/start/overview',
-        description: 'What Lumpcode is, and how to read these docs.',
+        description: 'What Lumpcode is: AI loops for the SDLC on an existing git repo, and how to read these docs.',
       },
       {
         title: 'First PR',
         path: '/docs/start/first-pr',
-        description: 'Install the CLI and run one campaign by hand.',
+        description: 'Start AI loops on an existing git repo. Install the CLI and run one campaign by hand.',
       },
       {
         title: 'Worker',
@@ -67,6 +67,11 @@ export const docsNav: DocsNavSection[] = [
         title: 'Recipes',
         path: '/docs/author/recipes',
         description: 'retryUntilGreen, backlogs, and other kit helpers.',
+      },
+      {
+        title: 'Folder backlog',
+        path: '/docs/author/backlog',
+        description: 'Scaffold the backlog recipe, add one ticket folder, preview, then run.',
       },
     ],
   },
@@ -147,6 +152,7 @@ const docsRedirectSources: { from: string; to: string }[] = [
   { from: '/docs/prompts', to: '/docs/author/prompts' },
   { from: '/docs/agents', to: '/docs/author/agents' },
   { from: '/docs/recipes', to: '/docs/author/recipes' },
+  { from: '/docs/backlog', to: '/docs/author/backlog' },
   { from: '/docs/lump-config', to: '/docs/config/lump' },
   { from: '/docs/project-config', to: '/docs/config/project' },
   { from: '/docs/local-config', to: '/docs/config/local' },
@@ -238,7 +244,7 @@ export const docsVuePages: {
       { id: 'meant-to-run', text: 'This is how Lumpcode is meant to run', depth: 2 },
     ],
     searchText:
-      'first pr tutorial get started install cli lumpcode setup project-setup myFirstLump primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker',
+      'first pr tutorial get started install cli lumpcode setup project-setup myFirstLump primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker AI loops SDLC development life cycle AI coding refactoring existing git repo',
   },
   {
     path: '/docs/start/worker',

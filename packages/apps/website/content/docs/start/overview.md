@@ -1,9 +1,11 @@
 ---
 title: Overview
-description: Lumpcode runs your coding agent through a campaign too big for one chat, one reviewable branch at a time. These pages are the operator manual.
+description: Lumpcode runs AI loops for the SDLC on an existing git repo. Campaigns too big for one chat, one reviewable branch at a time. These pages are the operator manual.
 ---
 
 A **lump** is that campaign: a folder in your repo that names the work, the prompt, and the agent. On the laptop, `run` rehearses on this branch; you push yourself. A worker still pushes a `lump/…` branch. You open that pull request, adjust it if needed, and merge. The next run skips what already landed.
+
+It is the clean, easy-to-set-up way to start AI loops for the development life cycle on a repo you already have, including AI coding refactoring, migrations, and ticket campaigns. JSON is enough to begin; TypeScript, retries, and a worker are there when the campaign grows.
 
 You just need git and a CLI agent. There is no account and no database. Finished work is a commit on your git remote.
 
@@ -16,7 +18,7 @@ You just need git and a CLI agent. There is no account and no database. Finished
 
 ## How to read these pages
 
-Start with [core terms](/docs/start/terms) if the words are new, then [how a run works](/docs/start/run). Authoring lives under **Write a lump**, **Contexts**, and **Prompts**. Config reference is for when you already know the shape and need a field. [Daemon files](/docs/config/daemons) is the committed `.lumpcode/daemons/` recipe. [Types](/docs/config/types) is the hook signatures. [Commands](/docs/reference/commands) is the CLI map. [Troubleshooting](/docs/reference/troubleshooting) is for the surprises git status can throw.
+Start with [core terms](/docs/start/terms) if the words are new, then [how a run works](/docs/start/run). Authoring lives under **Write a lump**, **Contexts**, and **Prompts**. Tickets as folders in git: [Folder backlog](/docs/author/backlog). Config reference is for when you already know the shape and need a field. [Daemon files](/docs/config/daemons) is the committed `.lumpcode/daemons/` recipe. [Types](/docs/config/types) is the hook signatures. [Commands](/docs/reference/commands) is the CLI map. [Troubleshooting](/docs/reference/troubleshooting) is for the surprises git status can throw.
 
 The tutorials at [Get started](/docs/start/first-pr) are the shortest path to a real branch. These docs are what you open the week after, when the campaign is real.
 

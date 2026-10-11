@@ -6,7 +6,7 @@ Lumpcode is a **CLI for running agent loops** over your codebase. It runs on a m
 
 A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every component to Vue"): context discovery, prompt(s), and an agent command under `.lumpcode/lumps/<lumpName>/`. It spans many **contexts**, not a single chat session. Each finished context gets a **marker commit** containing `LUMP: <lumpName> - <contextName>`, so repeated runs are **resumable** from remote git history after you merge PRs.
 
-**Use Lumpcode when** you have many similar edits (migrations, tests, docs), an ordered ticket queue, or a long-running refactor you want to tick forward on a schedule.
+**Use Lumpcode when** you want AI loops for the SDLC on an existing git repo: AI coding refactoring across many files, an ordered ticket queue, or a long-running campaign you want to tick forward on a schedule.
 
 **New here?** The manual is [lumpcode.com/docs](https://www.lumpcode.com/docs). Tutorial: [first PR](https://www.lumpcode.com/docs/start/first-pr).
 
@@ -124,6 +124,7 @@ Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`con
 | [DOCS/lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md)         | `config.json` / `config.js` / `config.ts` fields                                   |
 | [DOCS/advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md) | Hooks, dynamic `steps`, custom commands                                      |
 | [DOCS/examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md)               | Ready-made lump shapes (smoke test, migration, tickets, codemods, docs, …)         |
+| [DOCS/backlog-recipe.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/backlog-recipe.md)   | Folder of tickets: scaffold the backlog recipe, add one item, preview, run         |
 | [DOCS/types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md)                     | Hook and JSON type shapes                                                          |
 
 ## Related packages
@@ -132,6 +133,7 @@ Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`con
 | ------- | --- | ---- |
 | `@lumpcode/core` | [npm](https://www.npmjs.com/package/@lumpcode/core) | Engine API (`runLump`) |
 | `@lumpcode/cli-types` | [npm](https://www.npmjs.com/package/@lumpcode/cli-types) | Typed `config.ts` / `config.js` and command-module helpers |
+| `@lumpcode/recipes` | [npm](https://www.npmjs.com/package/@lumpcode/recipes) | Retry loops, folder backlogs, `openPrPostTeardown` |
 | `lumpcode` | [npm](https://www.npmjs.com/package/lumpcode) | Unscoped npm alias for `@lumpcode/cli` |
 
 ## Development

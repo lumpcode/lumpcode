@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: daemon-live-meta-subscribe
+workflow: [manualReq, testImpl, impl]
+task: >-
+  DaemonLiveMetaWriter grows a subscribe hook so listeners see each live-meta
+  handler after that handler successfully updates .daemon.meta.json. JSON stays
+  the source of truth; no persist means no event. Logging unification is a
+  later ticket.
+priority: 4
+dependsOn:
+  - daemon-status-snapshot

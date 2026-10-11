@@ -96,4 +96,4 @@ CLI defaults you should not repeat unless you mean to change them:
 
 `baseBranch` belongs on the lump only when this campaign should branch off something other than the project primary.
 
-Next: [contexts](/docs/author/contexts), or skip ahead to [examples](/docs/reference/examples).
+Next: [contexts](/docs/author/contexts), a [folder backlog](/docs/author/backlog), or [examples](/docs/reference/examples).

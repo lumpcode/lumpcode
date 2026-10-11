@@ -1,0 +1,33 @@
+desc: "Drop inFlightLumpCount from meta writes and daemon-status JSON; isDaemonMidRun from inFlightRuns."
+files:
+  packages/apps/cli/src/utils/daemonLiveMeta/main.ts:
+    desc: "Stop writing inFlightLumpCount key."
+    "-": 12
+    "+": 4
+    symbols:
+      createDaemonLiveMetaWriter: update
+  packages/apps/cli/src/utils/readDaemonMeta/main.ts:
+    desc: "isDaemonMidRun prefers inFlightRuns; legacy count fallback on read only."
+    "-": 5
+    "+": 12
+    symbols:
+      isDaemonMidRun: update
+  packages/apps/cli/src/commands/daemon-status/main.ts:
+    desc: "Remove inFlightLumpCount from StatusData and human count-only lines."
+    "-": 25
+    "+": 8
+    symbols:
+      StatusData: update
+      toStatusData: update
+  packages/apps/cli/src/commands/daemon-status/unit.test.ts:
+    desc: "Drop assertions on inFlightLumpCount JSON field."
+    "-": 40
+    "+": 15
+  packages/apps/cli/src/commands/stop/unit.test.ts:
+    desc: "Mid-run meta fixtures use inFlightRuns without count."
+    "-": 15
+    "+": 20
+  packages/apps/cli/src/commands/start/testing/daemonInFlightMeta.unit.test.ts:
+    desc: "Meta must not require inFlightLumpCount key."
+    "-": 20
+    "+": 15

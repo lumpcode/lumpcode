@@ -1,0 +1,10 @@
+desc: "Document daemon-status snapshot JSON and meta live overlay in CLI DOCS."
+files:
+  packages/apps/cli/DOCS/commands.md:
+    desc: "daemon-status section: inFlightRuns, nextTickAt, tickPhase, localConfigStale, snapshotIncomplete."
+    "-": 8
+    "+": 28
+  packages/apps/cli/DOCS/concepts.md:
+    desc: "Daemon meta table live overlay fields."
+    "-": 3
+    "+": 12

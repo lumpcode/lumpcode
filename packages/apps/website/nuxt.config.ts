@@ -2,6 +2,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { docsPrerenderRoutes, docsRedirects } from './app/utils/docsNav'
+import { siteDescription, siteTitle } from './app/utils/site'
 
 const websiteRoot = dirname(fileURLToPath(import.meta.url))
 const siteUrl = 'https://www.lumpcode.com'
@@ -31,9 +32,8 @@ writeFileSync(
   join(websiteRoot, 'public/_redirects'),
   `${docsRedirects.map(({ from, to }) => `${from} ${to} 301`).join('\n')}\n`,
 )
-const title = 'Lumpcode — run your coding agent across a whole codebase'
-const description =
-  'Lumpcode is an open-source CLI that runs your coding agent over a list of files or tickets, giving each one its own branch and pull request. Everything it needs lives in git.'
+const title = siteTitle
+const description = siteDescription
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-08-29',

@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: worker-dashboard-controls
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Operator controls on the worker dashboard: stop a daemon, force-stop, stop
+  all, start supervisor only (`lumpcode start --superviseOnly` — no
+  `--daemonId`/`--include` start form), edit only `.lumpcode/local.json`, and
+  offer restart after save. Warn when `local.json` changes while daemons are
+  running. No other gitignored or committed files. Same snapshot JSON as the
+  read-only dashboard.
+priority: 4
+dependsOn:
+  - worker-dashboard-readonly

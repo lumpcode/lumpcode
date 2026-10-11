@@ -52,10 +52,12 @@ These return a full lump config. They need `configUrl: import.meta.url` so the r
 
 | Recipe | For |
 | --- | --- |
-| `backlog` | Folder items plus a typed stage map you define. |
+| `backlog` | Folder items plus a typed stage map you define. [Scaffold → one item → run](/docs/author/backlog). |
 | `featureBacklog` | Feature campaign with a `workflow` array (`req` / `manualReq`, `testPlan`, `testImpl`, `impl` / `directImpl`), tickets. |
 | `abstractionFinder` | One ephemeral context per pass that files a backlog item while `todo/` is under a cap. |
 | `abstractionBacklog` | Implement those items with verify-until-green, then move to completed. |
+
+`backlog` is the unopinionated folder: you declare stages and `resolveItem`. One stage is enough. [Folder backlog](/docs/author/backlog) is the walkthrough.
 
 `featureBacklog` is opinionated: omit `workflow` means `[req, testPlan, testImpl]` then `impl`. Put `req` in the array to let the lump write requirements. Put `manualReq` in the array to wait for a human `requirements.md` (a gate, not an agent context). If both are listed, `manualReq` wins. Omitting both still waits before `testPlan` / `testImpl` / default `impl`. `directImpl` may implement from `desc.yml` alone. `manual: true` skips the item. Optional `promptFns` replaces the main prompt for a stage. Do not pass `discoveryBranch` / `discoveryBranches`; the recipe emits them from `primaryDiscoveryBranch` / `itemDiscoveryBranchPrefix` (defaults `dev` / `feature`). Tickets live at `todo/<parent>/tickets/<ticket>/` and do not run on the primary. After every ticket finishes, one parent `completion` context (no agent) depends on all ticket impl names and moves the parent folder into `completed/`.
 

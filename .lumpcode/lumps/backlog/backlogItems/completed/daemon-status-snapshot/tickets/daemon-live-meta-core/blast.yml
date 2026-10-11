@@ -1,0 +1,31 @@
+desc: "daemonLiveMeta + runForeground lump lines, tick schedule, fingerprint at start."
+files:
+  packages/apps/cli/src/utils/daemonLiveMeta/main.ts:
+    desc: "Serialized writer: inFlightRuns lump lines, tickPhase, nextTickAt, setContextName API, transitional count."
+    "-": 0
+    "+": 130
+    symbols:
+      createDaemonLiveMetaWriter: create
+      DaemonLiveMetaWriter: create
+  packages/apps/cli/src/utils/daemonLiveMeta/index.ts:
+    desc: "Barrel-export."
+    "-": 0
+    "+": 2
+  packages/apps/cli/src/utils/daemonLiveMeta/unit.test.ts:
+    desc: "Lump line push/pop; count invariant; setContextName on writer (unit only)."
+    "-": 0
+    "+": 120
+  packages/apps/cli/src/utils/index.ts:
+    desc: "Export daemonLiveMeta."
+    "-": 0
+    "+": 2
+  packages/apps/cli/src/utils/launchStartDaemon/runForeground.ts:
+    desc: "Replace createInFlightMetaUpdater; Croner fields; fingerprint at start; runLumpLine begin/end."
+    "-": 45
+    "+": 55
+    symbols:
+      runLumpLine: update
+  packages/apps/cli/src/commands/start/testing/daemonInFlightMeta.unit.test.ts:
+    desc: "Meta includes inFlightRuns; allowed keys."
+    "-": 25
+    "+": 35

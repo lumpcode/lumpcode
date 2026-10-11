@@ -28,7 +28,7 @@ lumpcode lump-status --lumpName smokeTest
 
 ## One component per branch
 
-Migration campaign. Several files share one context because they share `{COMPONENT_NAME}`.
+AI coding refactoring as a migration campaign. Several files share one context because they share `{COMPONENT_NAME}`.
 
 ```json .lumpcode/lumps/portToVue/config.json
 {
@@ -92,6 +92,8 @@ export default function getContextListFn() {
 ```
 
 Pair with a [worker](/docs/start/worker). Each pass picks the next eligible ticket.
+
+Tickets as folders in git (`backlogItems/todo/<name>/desc.yml`), not a JSON list: [Folder backlog](/docs/author/backlog).
 
 ## Coverage sweep
 

@@ -1,0 +1,30 @@
+desc: "Daemon lump-run hooks set and clear contextName on inFlightRuns rows."
+files:
+  packages/apps/cli/src/utils/jsConfigToRunLumpInput/main.ts:
+    desc: "Optional daemon context telemetry at context walk start/end."
+    "-": 5
+    "+": 45
+    symbols:
+      jsConfigToRunLumpInput: update
+  packages/apps/cli/src/utils/runLumpFromJsConfig/main.ts:
+    desc: "Optional daemonRunTelemetry into jsConfigToRunLumpInput."
+    "-": 0
+    "+": 25
+    symbols:
+      runLumpFromJsConfig: update
+  packages/apps/cli/src/utils/runLumpFromLumpName/main.ts:
+    desc: "Forward telemetry from daemon runLumpLine."
+    "-": 0
+    "+": 22
+    symbols:
+      runLumpFromLumpName: update
+  packages/apps/cli/src/utils/launchStartDaemon/runForeground.ts:
+    desc: "Pass daemonLiveMeta reporter into runLumpFromLumpName."
+    "-": 0
+    "+": 15
+    symbols:
+      runLumpLine: update
+  packages/apps/cli/src/commands/start/testing/daemonInFlightMeta.unit.test.ts:
+    desc: "Assert contextName on meta during mocked context walk when applicable."
+    "-": 0
+    "+": 25

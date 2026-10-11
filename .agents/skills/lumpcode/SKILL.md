@@ -41,6 +41,7 @@ Canonical docs (GitHub). Fetch the page that matches the question:
 | [advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md) | Hooks, dynamic `steps`, custom commands |
 | [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md) | Hook and JSON type shapes |
 | [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md) | Ready-made lump shapes |
+| [backlog-recipe.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/backlog-recipe.md) | Folder of tickets: scaffold the backlog recipe, add `desc.yml`, preview, run |
 
 ## Operate an existing lump
 

@@ -2,7 +2,7 @@
 
 Readable website version: [lumpcode.com/docs](https://www.lumpcode.com/docs).
 
-This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (called **lumps**), contexts, status, how one run flows through git, and when to use `lumpcode run` vs `lumpcode start`. If you think of working this way as **loop engineering** (designing the loop that prompts your agent instead of prompting it yourself), a lump is one such loop, configured declaratively. Agent work is reviewed through PR merge. Tutorial: [get-started.md](./get-started.md). Field reference: [lump-config.md](./lump-config.md). Commands: [commands.md](./commands.md).
+This page is the **mental model** for Lumpcode CLI: **agent loop campaigns** (called **lumps**), contexts, status, how one run flows through git, and when to use `lumpcode run` vs `lumpcode start`. If you think of working this way as **loop engineering** (designing the loop that prompts your agent instead of prompting it yourself), a lump is one such loop, configured declaratively. Agent work is reviewed through PR merge. It is the clean way to start AI loops for the SDLC on an existing git repo. Tutorial: [get-started.md](./get-started.md). Field reference: [lump-config.md](./lump-config.md). Commands: [commands.md](./commands.md).
 
 ## Core terms
 
@@ -171,9 +171,15 @@ Useful pairings on a server:
 | ------------------------------------ | -------------------------------------------------- |
 | `<projectName>.<daemonId>.daemon.pid` | PID of the foreground scheduler child             |
 | `<projectName>.<daemonId>.daemon.log` | Child stdout/stderr                               |
-| `<projectName>.<daemonId>.daemon.meta.json` | `daemonId`, `cronSetup`, filters, `workspaceStrategy`, `inFlightLumpCount`, optional `daemonConfigFile` when started from a repo recipe |
+| `<projectName>.<daemonId>.daemon.meta.json` | Spawn identity (`daemonId`, `cronSetup`, filters, `workspaceStrategy`, optional `daemonConfigFile`) plus live overlay written by the scheduler |
 | `<projectName>.<daemonId>.daemon.desired.json` | Spawn recipe for the supervisor (`projectRoot`, `cronSetup`, filters). `stopping: true` means drain, not respawn. |
 
+Live overlay on `.daemon.meta.json` (read by [`lumpcode daemon-status`](./commands.md#ref-cmd-daemon-status)):
+
+- **`inFlightRuns`:** active lump lines (`lumpName`, optional `effectiveDiscoveryBranch`, optional `contextName` while that context is walking).
+- **`nextTickAt`:** next cron fire, ISO-8601 UTC.
+- **`tickPhase`:** `running` during a tick, `idle` between ticks.
+- **`localConfigFingerprint`:** fingerprint of merged project/local config at start. Status sets `localConfigStale` when the live files differ; restart the daemon to apply.
 
 Supervisor files live under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.log`, `.meta.json`), not under `daemons/` and not as a daemon id. `lumpcode start` starts `lumpcode supervise --foreground` if that PID is dead. On a dedicated clone you can also use **`lumpcode start --superviseOnly`** so only the supervisor stays up and repo recipes under `.lumpcode/daemons/` can start schedulers (see [Repo daemon config files](#repo-daemon-config-files)).
 

@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: lump-plan-git-worktree
+workflow: [directImpl]
+task: >-
+  lump-plan (and other commands that call validateCurrentLumpProjectRoot) fail
+  when cwd is a git linked worktree: .git is a file (gitdir: …), not a
+  directory, so validation reports ".git exists but is not a directory". lumpcode
+  run does not use that helper and can work from the same cwd. Treat a checkout
+  as a valid Lumpcode project root when .lumpcode is present and git
+  rev-parse --git-dir succeeds from cwd (file or directory .git). Add a unit
+  test with a second worktree fixture.
+priority: 1

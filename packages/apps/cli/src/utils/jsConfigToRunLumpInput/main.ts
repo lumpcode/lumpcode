@@ -62,7 +62,13 @@ import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { lumpBranchName } from '../lumpBranchName';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { lumpHistoryFilePath } from '../lumpHistoryFilePath';
+import type { LumpLine } from '../lumpLine';
 import { normalizeSteps } from './normalizeSteps';
+
+/** CLI-only reporter: set / clear `contextName` on the active daemon lump line. */
+export type DaemonRunTelemetry = {
+    setContextName: (input: LumpLine & { contextName: string | null }) => void | Promise<void>;
+};
 
 export async function jsConfigToRunLumpInput({
     config,
@@ -77,6 +83,7 @@ export async function jsConfigToRunLumpInput({
     effectiveDiscoveryBranch: providedEffectiveDiscoveryBranch,
     gitLock,
     skipPostWorkspaceHooks = false,
+    daemonRunTelemetry,
 }: {
     config: LumpJsConfig;
     lumpName: string;
@@ -96,6 +103,8 @@ export async function jsConfigToRunLumpInput({
     gitLock?: GitCommonDirLockContext;
     /** Plan path: skip composing postSetup/postTeardown (no invoke, no command splice). */
     skipPostWorkspaceHooks?: boolean;
+    /** Daemon tick only: report the active context on the in-flight lump line. */
+    daemonRunTelemetry?: DaemonRunTelemetry;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
         baseBranch: lumpBaseBranchOverride,
@@ -309,6 +318,14 @@ export async function jsConfigToRunLumpInput({
         projectRoot,
     });
 
+    const { setupFn, teardownFn } = withDaemonContextTelemetry({
+        setupFn: composeSetupFn({ userSetupFn: resolvedUserSetupFn, commandModules }),
+        teardownFn: composeTeardownFn({ userTeardownFn: resolvedUserTeardownFn, commandModules }),
+        daemonRunTelemetry,
+        lumpName,
+        effectiveDiscoveryBranch: providedEffectiveDiscoveryBranch,
+    });
+
     const retConf: RunLumpInput = {
         ...rest,
         baseBranch,
@@ -319,8 +336,8 @@ export async function jsConfigToRunLumpInput({
         ...(gatedGitFns ?? {}),
         ...(refreshRemoteTrackingRefsFn ? { refreshRemoteTrackingRefsFn } : {}),
         steps: stepsResult.data,
-        setupFn: composeSetupFn({ userSetupFn: resolvedUserSetupFn, commandModules }),
-        teardownFn: composeTeardownFn({ userTeardownFn: resolvedUserTeardownFn, commandModules }),
+        setupFn,
+        teardownFn,
         setupWorkspaceFn,
         teardownWorkspaceFn,
         getKeepHistoryFilePathFn,
@@ -451,6 +468,47 @@ function composeTeardownFn({
             }
         }
         await userTeardownFn?.(params);
+    };
+}
+
+function withDaemonContextTelemetry({
+    setupFn,
+    teardownFn,
+    daemonRunTelemetry,
+    lumpName,
+    effectiveDiscoveryBranch,
+}: {
+    setupFn: SetupFn;
+    teardownFn: TeardownFn;
+    daemonRunTelemetry: DaemonRunTelemetry | undefined;
+    lumpName: string;
+    effectiveDiscoveryBranch?: string;
+}): { setupFn: SetupFn; teardownFn: TeardownFn } {
+    if (daemonRunTelemetry === undefined) {
+        return { setupFn, teardownFn };
+    }
+    const line: LumpLine = {
+        lumpName,
+        ...(effectiveDiscoveryBranch !== undefined ? { effectiveDiscoveryBranch } : {}),
+    };
+    const reportContextName = async (contextName: string | null) => {
+        await daemonRunTelemetry.setContextName({ ...line, contextName });
+    };
+    return {
+        setupFn: async (params) => {
+            const contextName = params.contextList[params.currentContextIndex]?.name;
+            if (contextName !== undefined) {
+                await reportContextName(contextName);
+            }
+            return setupFn(params);
+        },
+        teardownFn: async (params) => {
+            try {
+                await teardownFn(params);
+            } finally {
+                await reportContextName(null);
+            }
+        },
     };
 }
 

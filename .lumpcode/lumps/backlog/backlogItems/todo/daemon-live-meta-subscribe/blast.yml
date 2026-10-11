@@ -1,0 +1,16 @@
+desc: "createDaemonLiveMetaWriter returns subscribe; listeners fire only after a successful meta JSON persist."
+files:
+  packages/apps/cli/src/utils/daemonLiveMeta/main.ts:
+    desc: "Tuple return [writer, subscribe]. DaemonLiveMetaEvent is the handler methods as data. Notify after persist succeeds, on the existing serial queue."
+    "-": 4
+    "+": 55
+    symbols:
+      createDaemonLiveMetaWriter: update
+      DaemonLiveMetaEvent: create
+      DaemonLiveMetaSubscribe: create
+  packages/apps/cli/src/utils/daemonLiveMeta/unit.test.ts:
+    desc: "Subscribe after persist; no event on skipped or failed persist; unsubscribe and listener throw."
+    "-": 8
+    "+": 90
+    symbols:
+      createDaemonLiveMetaWriter: update

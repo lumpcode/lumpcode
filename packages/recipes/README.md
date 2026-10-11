@@ -21,6 +21,8 @@ npm install @lumpcode/recipes
 
 Recipe factories and variable-carrying kit helpers accept the same dual generics as `defineConfig` from `@lumpcode/cli-utils`: `<V extends LumpVariables, SV extends StepVariables>`, with defaults equal to the unbound bags. Pass explicit type args when refining preset contracts; omit them for classic untyped configs.
 
+Walk through `backlog` from scaffold to one `desc.yml` to `run`: [Folder backlog](https://www.lumpcode.com/docs/author/backlog) ([CLI DOCS](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/backlog-recipe.md)).
+
 ## Backlog layout
 
 The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a folder backlog under `backlogItems/`:
@@ -80,7 +82,7 @@ export default featureBacklog({
 
 ## Generic backlog stage map
 
-Consumers declare every legal stage key and how each stage completes:
+The [folder backlog tutorial](https://www.lumpcode.com/docs/author/backlog) uses one `implement` stage. Here, consumers declare every legal stage key and how each stage completes:
 
 ```ts
 import { backlog } from '@lumpcode/recipes';
