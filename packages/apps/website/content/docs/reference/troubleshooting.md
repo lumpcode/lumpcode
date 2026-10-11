@@ -21,7 +21,7 @@ That pushes an empty marker commit on the base branch. Use sparingly.
 
 | Command | Question |
 | --- | --- |
-| `daemon-status` | Is that daemon running? |
+| `daemon-status` | Is that daemon running? Which lump lines are in flight, when is the next tick, did `local.json` change? |
 | `lump-status` | What is each context’s git state? |
 
 They do not answer each other. [Commands](/docs/reference/commands#three-commands-named-status).
@@ -41,6 +41,10 @@ There is no undo inside Lumpcode. Recover from git if the work was committed; if
 ## `local.json` missing
 
 `run` and `start` require it. Run `lumpcode project-setup` on a new repo. On a worker clone, run `lumpcode setup` to write `local.json`; do not re-run `project-setup` if `.lumpcode/` is already in git.
+
+## Worker ignored my `local.json` edit
+
+`start` freezes project and local config. `lumpcode daemon-status --json` sets `localConfigStale: true` until you `lumpcode restart`. The running daemon still uses the old settings.
 
 ## Worker does not pick up my new lump
 

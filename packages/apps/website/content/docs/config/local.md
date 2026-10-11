@@ -21,7 +21,7 @@ Worker clone:
 }
 ```
 
-There is no `--mode` on `run` or `start`. Change this file (and restart the worker) instead.
+There is no `--mode` on `run` or `start`. Change this file (and restart the worker) instead. Until you restart, `lumpcode daemon-status` reports `localConfigStale`.
 
 ## Modes
 
