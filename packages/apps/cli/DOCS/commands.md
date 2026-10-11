@@ -299,7 +299,7 @@ With **`--json`**, all the logs even the ones of the deamon will be with json ou
 
 The per-project **supervisor** lives under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.log`, `.meta.json`). It is not a daemon id.
 
-Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `workspaceStrategy`, optional `include` / `exclude` / `maxParallelRun`, and `inFlightLumpCount`.
+Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `workspaceStrategy`, optional `include` / `exclude` / `maxParallelRun`, and live overlay `inFlightRuns`.
 
 **Collision rules:**
 
@@ -342,9 +342,9 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 
 **Behavior:** Reads the scoped PID file under `~/.lumpcode/daemons/` and daemon meta.
 
-When the daemon is **idle** (`inFlightLumpCount` is `0` or absent, and legacy `busy` is not `true`), marks desired `stopping`, sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID, meta, and desired files on success.
+When the daemon is **idle** (`inFlightRuns` is empty or absent, legacy `inFlightLumpCount` is `0` or absent, and legacy `busy` is not `true`), marks desired `stopping`, sends **SIGTERM**, waits up to **5 seconds** for exit, then deletes PID, meta, and desired files on success.
 
-When the daemon is **mid-run** (`inFlightLumpCount >= 1`, or legacy `busy: true` from an older CLI), default stop **refuses** (non-zero; with `--json`, `data.code: "daemonBusy"`) and suggests **`--force`**. Artifacts, desired.json, and the process are left alone so in-flight work can finish.
+When the daemon is **mid-run** (`inFlightRuns.length >= 1`, legacy `inFlightLumpCount >= 1`, or legacy `busy: true` from an older CLI), default stop **refuses** (non-zero; with `--json`, `data.code: "daemonBusy"`) and suggests **`--force`**. Artifacts, desired.json, and the process are left alone so in-flight work can finish.
 
 When the PID is alive but daemon **meta is missing or invalid**, default stop **refuses** (non-zero; with `--json`, `data.code: "daemonMetaCorrupt"`) and suggests **`--force`**. Do not invent idle or checkout state from a missing file.
 
@@ -415,8 +415,20 @@ There is no `lumpcode supervise-install`. `stop --all` stops the supervisor afte
 
 **Output highlights:**
 
-- With no flags: every alive daemon id for the project (plus pid / running summary) and a `supervisor` object (`running`, optional `pid`)
-- With `--daemonId`: single-daemon detail (paths, stale PID, cron, filters, `inFlightLumpCount`, `metaStatus` when corrupt)
+- With no flags: every alive daemon id for the project (plus pid / running summary) and a `supervisor` object (`running`, optional `pid`). List-all `--json` is `{ projectName, daemons[], supervisor }`; each `daemons[]` entry uses the same per-daemon fields as `--daemonId`.
+- With `--daemonId`: single-daemon detail (paths, stale PID, cron, filters, live snapshot, `metaStatus` when corrupt)
+
+**Live snapshot** (`running: true` and valid meta). `--json` `data` includes:
+
+| Field | Meaning |
+| ----- | ------- |
+| `inFlightRuns` | Array of in-flight lump lines. Always present (empty when idle). Each entry has `lumpName`, optional `effectiveDiscoveryBranch`, and optional `contextName` while that context walk is in progress (omitted before the first context or between contexts). |
+| `nextTickAt` | Next cron fire as ISO-8601 UTC, when the daemon wrote it. Not derived from `cronSetup` on read. Omitted when unknown. |
+| `tickPhase` | `running` during a tick, `idle` while waiting for the next fire. Omitted when the daemon did not write it. |
+| `localConfigStale` | `true` when merged `project.json` / `local.json` changed since this daemon started. Omitted when the daemon has no fingerprint or live config cannot be read. Restart the daemon to apply. |
+| `snapshotIncomplete` | `true` when an older CLI reported in-flight work as a count only. `inFlightRuns` is then `[]`; names are not invented. |
+
+Human output lists each in-flight line (`backlog / ctx-a`, or `backlog (no context yet)` when `contextName` is omitted) and notes when `localConfigStale` or `snapshotIncomplete` is set. Stopped daemons and invalid/missing meta omit the snapshot keys.
 
 **See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon) (daemon files table).
 
@@ -557,6 +569,6 @@ Do not confuse the **three CLI subcommands** below with the three per-context **
 
 | Command | What it checks |
 |--------|----------------|
-| **`lumpcode daemon-status`** | Is the **background daemon process** running? PID file, log path, `cronSetup` from meta. |
+| **`lumpcode daemon-status`** | Is the **background daemon process** running? PID, log path, cron, in-flight lump lines, next tick, stale `local.json`. |
 | **`lumpcode lump-status`** | For each lump, **recompute** `contextStatusRecord.json` from **remote git** (per-context `toDo` / `branchPushed` / `finished`). |
 | **`lumpcode context-status`** | One **context** row after refresh; optional `--setToFinished` to push a marker on `baseBranch`. |

@@ -8,16 +8,19 @@ import {
     createCliLogger,
     daemonMetaInclude,
     daemonsDirPath,
+    fingerprintResolvedLocalConfig,
     getProjectName,
     hasRunningDaemonMeta,
     listRunningProjectDaemons,
     readDaemonMeta,
     readDaemonPidIfAlive,
+    readProjectLocalConfig,
     resolveDaemonCommandScope,
     resolveDaemonPaths,
     supervisorLogPath,
     supervisorPidPath,
     type DaemonConfigFileMeta,
+    type DaemonInFlightRun,
     type DaemonMeta,
     type DaemonMetaReadErrorReason,
     type DaemonPidReadResult,
@@ -39,6 +42,8 @@ const inputSchema = z.object({
 
 export type Input = z.infer<typeof inputSchema>;
 
+export type TickPhase = 'idle' | 'running';
+
 export type StatusData = {
     running: boolean;
     projectName: string;
@@ -54,7 +59,11 @@ export type StatusData = {
     /** @deprecated */
     lumpName?: string;
     workspaceStrategy?: string;
-    inFlightLumpCount?: number;
+    inFlightRuns?: DaemonInFlightRun[];
+    nextTickAt?: string;
+    tickPhase?: TickPhase;
+    localConfigStale?: boolean;
+    snapshotIncomplete?: boolean;
     /** Present when this process was launched from a repo `.lumpcode/daemons/` recipe. */
     daemonConfigFile?: DaemonConfigFileMeta;
     stalePidFile?: boolean;
@@ -80,7 +89,47 @@ export interface Injections {
     globalConfigFolderPath: string;
 }
 
-function toStatusData(input: {
+function formatInFlightRunLine(run: DaemonInFlightRun): string {
+    const line =
+        run.effectiveDiscoveryBranch !== undefined
+            ? `${run.lumpName} (${run.effectiveDiscoveryBranch})`
+            : run.lumpName;
+    return run.contextName !== undefined ? `${line} / ${run.contextName}` : `${line} (no context yet)`;
+}
+
+async function localConfigStaleFromMeta(input: {
+    localConfigFolderPath: string;
+    fingerprint: string | undefined;
+}): Promise<true | undefined> {
+    const { localConfigFolderPath, fingerprint } = input;
+    if (fingerprint === undefined) {
+        return undefined;
+    }
+    const live = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!live.success) {
+        return undefined;
+    }
+    return fingerprintResolvedLocalConfig(live.data) === fingerprint ? undefined : true;
+}
+
+function snapshotFromMeta(meta: DaemonMeta): {
+    inFlightRuns: DaemonInFlightRun[];
+    snapshotIncomplete?: true;
+    nextTickAt?: string;
+    tickPhase?: TickPhase;
+} {
+    const inFlightRuns = meta.inFlightRuns ?? [];
+    const hasRunsArray = meta.inFlightRuns !== undefined;
+    const snapshotIncomplete = !hasRunsArray && (meta.inFlightLumpCount ?? 0) > 0;
+    return {
+        inFlightRuns,
+        ...(snapshotIncomplete ? { snapshotIncomplete: true as const } : {}),
+        ...(meta.nextTickAt !== undefined ? { nextTickAt: meta.nextTickAt } : {}),
+        ...(meta.tickPhase !== undefined ? { tickPhase: meta.tickPhase } : {}),
+    };
+}
+
+async function toStatusData(input: {
     projectName: string;
     daemonId: string;
     files: Pick<DaemonSchedulerFiles, 'pidFilePath' | 'logFilePath' | 'metaFilePath'>;
@@ -88,8 +137,18 @@ function toStatusData(input: {
     meta: DaemonMeta | undefined;
     metaReason?: DaemonMetaReadErrorReason;
     lumpNameDeprecated?: string;
-}): { messages: string[]; data: StatusData } {
-    const { projectName, daemonId, files, pidAlive, meta, metaReason, lumpNameDeprecated } = input;
+    localConfigFolderPath: string;
+}): Promise<{ messages: string[]; data: StatusData }> {
+    const {
+        projectName,
+        daemonId,
+        files,
+        pidAlive,
+        meta,
+        metaReason,
+        lumpNameDeprecated,
+        localConfigFolderPath,
+    } = input;
     const { pidFilePath, logFilePath, metaFilePath } = files;
     const scopeLabel = ` daemon "${daemonId}"`;
     const baseData = {
@@ -153,6 +212,11 @@ function toStatusData(input: {
         };
     }
 
+    const snapshot = snapshotFromMeta(meta);
+    const localConfigStale = await localConfigStaleFromMeta({
+        localConfigFolderPath,
+        fingerprint: meta.localConfigFingerprint,
+    });
     const messages: string[] = [
         `Lumpcode background daemon "${daemonId}" is running for "${projectName}" (pid ${pid}).`,
         `Log file: ${logFilePath}`,
@@ -166,7 +230,19 @@ function toStatusData(input: {
     if (meta.exclude?.length) {
         messages.push(`Exclude: ${meta.exclude.join(', ')}`);
     }
-    messages.push(`In-flight lump runs: ${meta.inFlightLumpCount ?? 0}`);
+    for (const run of snapshot.inFlightRuns) {
+        messages.push(formatInFlightRunLine(run));
+    }
+    if (snapshot.snapshotIncomplete === true) {
+        messages.push(
+            'In-flight lump run(s) reported without detail; upgrade/restart the daemon after CLI update.',
+        );
+    }
+    if (localConfigStale === true) {
+        messages.push(
+            'Note: local.json changed since this daemon started; restart the daemon to apply.',
+        );
+    }
     if (meta.daemonConfigFile !== undefined) {
         messages.push(
             `Repo recipe: ${meta.daemonConfigFile.path} (${meta.daemonConfigFile.discoveryBranch})`,
@@ -184,8 +260,12 @@ function toStatusData(input: {
             exclude: meta.exclude,
             maxParallelRun: meta.maxParallelRun,
             workspaceStrategy: meta.workspaceStrategy,
-            inFlightLumpCount: meta.inFlightLumpCount ?? 0,
+            inFlightRuns: snapshot.inFlightRuns,
             lumpName: meta.lumpName ?? lumpNameDeprecated,
+            ...(snapshot.nextTickAt !== undefined ? { nextTickAt: snapshot.nextTickAt } : {}),
+            ...(snapshot.tickPhase !== undefined ? { tickPhase: snapshot.tickPhase } : {}),
+            ...(snapshot.snapshotIncomplete === true ? { snapshotIncomplete: true } : {}),
+            ...(localConfigStale === true ? { localConfigStale: true } : {}),
             ...(meta.daemonConfigFile !== undefined
                 ? { daemonConfigFile: meta.daemonConfigFile }
                 : {}),
@@ -231,7 +311,7 @@ async function statusForDaemonId(input: {
     }
     const metaResult = await readDaemonMeta(metaFilePath);
     return success(
-        toStatusData({
+        await toStatusData({
             projectName,
             daemonId,
             files: { pidFilePath, logFilePath, metaFilePath },
@@ -241,6 +321,7 @@ async function statusForDaemonId(input: {
                 : undefined,
             metaReason: metaResult.success ? undefined : metaResult.data.reason,
             lumpNameDeprecated: input.lumpNameDeprecated,
+            localConfigFolderPath: input.localConfigFolderPath,
         }),
     );
 }
@@ -285,15 +366,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         const messages: string[] = [`Lumpcode daemons for "${projectName}":`];
         for (const daemonId of daemonIds) {
             const info = runningResult.data[daemonId]!;
-            const entry = toStatusData({
-                projectName,
-                daemonId,
-                files: info,
-                pidAlive: { status: 'alive', pid: info.pid },
-                ...(hasRunningDaemonMeta(info)
-                    ? { meta: info.meta }
-                    : { meta: undefined, metaReason: info.metaStatus }),
-            }).data;
+            const entry = (
+                await toStatusData({
+                    projectName,
+                    daemonId,
+                    files: info,
+                    pidAlive: { status: 'alive', pid: info.pid },
+                    ...(hasRunningDaemonMeta(info)
+                        ? { meta: info.meta }
+                        : { meta: undefined, metaReason: info.metaStatus }),
+                    localConfigFolderPath,
+                })
+            ).data;
             daemons.push(entry);
             messages.push(`- ${daemonId}: running=${entry.running} pid=${entry.pid ?? 'n/a'}`);
         }

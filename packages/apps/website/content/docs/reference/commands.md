@@ -82,7 +82,7 @@ Detach a daemon (omit `--foreground` to background). Dedicated-only (`sharedMode
 | `--maxParallelRun` | Worktree only. Overrides `local.json`. |
 | `--superviseOnly` | Start or adopt the project supervisor and exit. No daemon spawn, no `desired.json`. On a dedicated worker, committed [`.lumpcode/daemons/`](/docs/config/daemons) files can then start those daemons. Cannot combine with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. |
 
-Project and local config are frozen at start; restart to pick up edits. Empty include match still stays up. Overlapping filtered daemons are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
+Project and local config are frozen at start; restart to pick up edits. `daemon-status` sets `localConfigStale` when those files changed. Empty include match still stays up. Overlapping filtered daemons are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
 
 A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). Several names or globs get `d-` plus 6 hex.
 
@@ -102,7 +102,19 @@ Stop then start from `desired.json`. Mid-run still refuses unless you force-stop
 
 ### `lumpcode daemon-status [--daemonId]`
 
-No flags: list daemons plus whether the supervisor is running. With id: one daemon’s cron, filters, in-flight count.
+No flags: list daemons plus whether the supervisor is running. With id: one daemon’s paths, cron, filters, and live snapshot (`metaStatus` when corrupt).
+
+When `running: true` and meta is valid, `--json` always includes `inFlightRuns` (empty when idle). Each row is a lump line: `lumpName`, optional discovery branch, optional `contextName` while that context is walking (omitted before the first context or between contexts).
+
+| Field | Meaning |
+| --- | --- |
+| `inFlightRuns` | In-flight lump lines. Always present when running. |
+| `nextTickAt` | Next cron fire, ISO-8601 UTC, when the daemon wrote it. Not derived from `cronSetup` on read. |
+| `tickPhase` | `running` during a tick, `idle` while waiting. |
+| `localConfigStale` | `true` when merged `project.json` / `local.json` changed since this daemon started. Restart to apply. |
+| `snapshotIncomplete` | `true` when an older CLI reported in-flight work as a count only. `inFlightRuns` is then `[]`; names are not invented. |
+
+Human output names each line (`backlog / ctx-a`, or `backlog (no context yet)`). Stopped daemons and invalid/missing meta omit the snapshot keys.
 
 ### `lumpcode daemon-log`
 
@@ -131,6 +143,6 @@ Do not mix these up with the three **context** states (`toDo`, `branchPushed`, `
 
 | Command | Answers |
 | --- | --- |
-| `daemon-status` | Is that daemon up? |
+| `daemon-status` | Is that daemon up? In-flight lump lines, next tick, stale `local.json`. |
 | `lump-status` | Per-context git status for a lump. |
 | `context-status` | One context row; optional force-finished. |

@@ -38,7 +38,7 @@ toDo ──run + push──► branchPushed ──you merge──► finished
 
 Companion commands: `daemon-status`, `daemon-log`, `stop`, `restart`. Project-wide stop is `stop --all`. `start` also keeps a supervisor process up; you do not run that yourself.
 
-Daemon process files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json`, `desired.json` (spawn recipe; `stopping: true` means drain). Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
+Daemon process files under `~/.lumpcode/daemons/<project>.<id>.daemon.*`: `pid`, `log`, `meta.json` (spawn identity plus live overlay: in-flight lump lines, next tick, config fingerprint), `desired.json` (spawn recipe; `stopping: true` means drain). `lumpcode daemon-status` reads that overlay. Supervisor files: `~/.lumpcode/supervisor/<project>.{pid,log,meta.json}`.
 
 ## Daemon files from git
 
