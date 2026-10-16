@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: live-step-transcripts
+workflow: [manualReq, testPlan, testImpl, impl]
+task: >-
+  Stream every step as it runs. lumpcode run prints that feed in the terminal.
+  A daemon writes one gitignored transcript per lump line per tick, beside
+  history. Agent presets present the full session. Raw command output still
+  feeds history and retry.
+priority: 0
