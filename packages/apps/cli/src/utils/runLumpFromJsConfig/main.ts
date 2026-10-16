@@ -69,6 +69,8 @@ export async function runLumpFromJsConfig(input: {
     effectiveDiscoveryBranch?: string;
     /** Daemon tick only: report the active context on the in-flight lump line. */
     daemonRunTelemetry?: DaemonRunTelemetry;
+    /** When set, step output is written here as it arrives. */
+    liveStepWrite?: (text: string) => void;
 }): Promise<Success<RunLumpFromJsConfigSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         jsConfig,
@@ -84,6 +86,7 @@ export async function runLumpFromJsConfig(input: {
         signal,
         effectiveDiscoveryBranch,
         daemonRunTelemetry,
+        liveStepWrite,
     } = input;
 
     const session = createWorkspaceLockSession();
@@ -147,6 +150,7 @@ export async function runLumpFromJsConfig(input: {
             effectiveDiscoveryBranch,
             gitLock,
             daemonRunTelemetry,
+            liveStepWrite,
         });
 
         if (!runLumpInputResult.success) return failure(toRunLumpMessageFailure(runLumpInputResult.data));

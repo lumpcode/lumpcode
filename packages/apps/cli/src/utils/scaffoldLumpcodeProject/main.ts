@@ -8,6 +8,7 @@ import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
 import { appendMissingGitignoreLines } from '../appendMissingGitignoreLines';
 import { localConfigFolderPath } from '../localConfigFolderPath';
 import { lumpsDirPath } from '../lumpDirPath';
+import { TRANSCRIPTS_GITIGNORE_LINE } from '../lumpTranscriptFilePath';
 import { projectJsonPath } from '../projectJsonPath';
 import { LOCAL_CONFIG_FILE_NAME } from '../readLocalConfig';
 import { writeJsonFile } from '../writeJsonFile';
@@ -81,6 +82,7 @@ export async function scaffoldLumpcodeProject(
         lines: [
             CONTEXT_STATUS_RECORD_GITIGNORE_LINE,
             HISTORY_GITIGNORE_LINE,
+            TRANSCRIPTS_GITIGNORE_LINE,
             WORKTREES_GITIGNORE_LINE,
             CACHE_GITIGNORE_LINE,
             LOCAL_CONFIG_GITIGNORE_LINE,

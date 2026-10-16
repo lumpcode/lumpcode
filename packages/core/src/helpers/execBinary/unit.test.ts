@@ -59,13 +59,53 @@ describe('execBinary', () => {
         }
     });
 
+    it('reports stdout and stderr chunks as they arrive and still returns the full buffers', async () => {
+        const chunks: Array<{ stream: string; chunk: string }> = [];
+        let sawChunkBeforeExit = false;
+        let settled = false;
+        const resultPromise = execBinary({
+            binaryPath: 'node',
+            args: ['-e', 'process.stdout.write("aaa"); process.stderr.write("bbb"); setTimeout(() => {}, 300);'],
+            timeoutMillis: 5000,
+            onChunk: (input) => {
+                sawChunkBeforeExit = true;
+                chunks.push(input);
+            },
+        }).finally(() => {
+            settled = true;
+        });
+        const deadline = Date.now() + 2000;
+        while (!sawChunkBeforeExit && Date.now() < deadline) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        expect(sawChunkBeforeExit).toBe(true);
+        expect(settled).toBe(false);
+        const result = await resultPromise;
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        const stdout = chunks.filter((entry) => entry.stream === 'stdout').map((entry) => entry.chunk).join('');
+        const stderr = chunks.filter((entry) => entry.stream === 'stderr').map((entry) => entry.chunk).join('');
+        expect(stdout).toBe('aaa');
+        expect(stderr).toBe('bbb');
+        expect(result.data.stdout).toBe(stdout);
+        expect(result.data.stderr).toBe(stderr);
+    });
+
     it('should return failure for a non-zero exit code', async () => {
-        const result = await execBinary({ binaryPath: 'node', args: ['-e', 'process.exit(1)'] });
+        const stderrBody = `session output\n${'x'.repeat(400)}`;
+        const result = await execBinary({
+            binaryPath: 'node',
+            args: ['-e', `process.stderr.write(${JSON.stringify(stderrBody)}); process.exit(1)`],
+        });
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.data.code).toBe(1);
             expect(result.data.binaryPath).toBe('node');
             expect(result.data.reason).toBe('exit');
+            expect(result.data.message).toBe(
+                `Process exited with code 1: ${stderrBody.slice(0, 300)}…`,
+            );
+            expect(result.data.stderr).toBe(stderrBody);
         }
     });
 

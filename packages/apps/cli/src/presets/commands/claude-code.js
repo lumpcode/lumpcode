@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { resolveClaudeCodeArgs } from './utils/resolveClaudeCodeArgs.js';
+import { createNdjsonPresenter } from './utils/presentNdjson.js';
+import { presentClaudeCodeEvent } from './utils/presentClaudeCodeLine.js';
 
 export const command = (async ({
     prompt,
@@ -48,6 +50,9 @@ export const command = (async ({
         args: [
             '-p',
             trimmedPrompt,
+            '--output-format',
+            'stream-json',
+            '--verbose',
             '--session-id',
             chatId,
             ...permissionArgs,
@@ -71,3 +76,5 @@ export const setup = (({}) => {
 export const teardown = ((() => {
     return;
 }));
+
+export const presentOutput = () => createNdjsonPresenter(presentClaudeCodeEvent);

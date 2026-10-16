@@ -5,6 +5,18 @@ import { failure, killProcessTree, resolveSpawnExecutable, success } from '../..
 
 export type ExecBinaryFailureReason = 'timeout' | 'aborted' | 'exit' | 'spawn';
 
+const STDERR_MESSAGE_PREVIEW_CHARS = 300;
+
+function stderrMessagePreview(stderr: string): string {
+    if (stderr.length <= STDERR_MESSAGE_PREVIEW_CHARS) return stderr;
+    return `${stderr.slice(0, STDERR_MESSAGE_PREVIEW_CHARS)}…`;
+}
+
+export type ExecBinaryChunk = {
+    stream: 'stdout' | 'stderr';
+    chunk: string;
+};
+
 export type ExecBinaryInput = {
     binaryPath: string;
     args: string[];
@@ -15,6 +27,8 @@ export type ExecBinaryInput = {
     signal?: AbortSignal;
     /** Grace before SIGKILL after SIGTERM on cancel/timeout. Default 5000. */
     killGraceMs?: number;
+    /** Invoked from the stdout/stderr listeners while those listeners still concatenate. */
+    onChunk?: (input: ExecBinaryChunk) => void;
 };
 
 export type ExecBinaryFailure = {
@@ -39,6 +53,7 @@ export function execBinary(
         stdio,
         signal,
         killGraceMs = 5000,
+        onChunk,
     } = input;
 
     return new Promise((resolve) => {
@@ -116,8 +131,14 @@ export function execBinary(
             }, timeoutMillis);
         });
 
-        child.stdout?.on('data', (data) => { stdout += data; });
-        child.stderr?.on('data', (data) => { stderr += data; });
+        const appendChunk = (stream: 'stdout' | 'stderr', data: unknown) => {
+            const chunk = typeof data === 'string' ? data : Buffer.from(data as Uint8Array).toString('utf8');
+            if (stream === 'stdout') stdout += chunk;
+            else stderr += chunk;
+            onChunk?.({ stream, chunk });
+        };
+        child.stdout?.on('data', (data) => { appendChunk('stdout', data); });
+        child.stderr?.on('data', (data) => { appendChunk('stderr', data); });
         child.on('error', (err) => {
             if (settled || canceling) return;
             finish(failure({
@@ -135,8 +156,11 @@ export function execBinary(
                 finish(success({ stdout, stderr }));
                 return;
             }
+            const preview = stderrMessagePreview(stderr);
             finish(failure({
-                message: `Process exited with code ${code}: ${stderr}`,
+                message: preview
+                    ? `Process exited with code ${code}: ${preview}`
+                    : `Process exited with code ${code}`,
                 binaryPath,
                 args,
                 code: code ?? undefined,

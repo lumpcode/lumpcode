@@ -49,6 +49,7 @@ describe('project-setup command', () => {
             const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
             expect(gitignore).toContain('.lumpcode/**/contextStatusRecord.json');
             expect(gitignore).toContain('.lumpcode/**/history/');
+            expect(gitignore).toContain('.lumpcode/**/transcripts/');
             expect(gitignore).toContain('.lumpcode/worktrees/');
             expect(gitignore).toContain('.lumpcode/local.json');
             expect(gitignore).toContain('.lumpcode/.cache/');

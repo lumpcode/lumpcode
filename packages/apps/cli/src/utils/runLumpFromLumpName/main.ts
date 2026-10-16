@@ -51,6 +51,8 @@ export async function runLumpFromLumpName(input: {
     signal?: AbortSignal;
     /** Daemon tick only: report the active context on the in-flight lump line. */
     daemonRunTelemetry?: DaemonRunTelemetry;
+    /** When set, step output is written here as it arrives. */
+    liveStepWrite?: (text: string) => void;
 }): Promise<Success<RunLumpFromLumpNameSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         lumpName,
@@ -65,6 +67,7 @@ export async function runLumpFromLumpName(input: {
         discoveryBranchOpt,
         signal: providedSignal,
         daemonRunTelemetry,
+        liveStepWrite,
     } = input;
     const signal = providedSignal ?? new AbortController().signal;
 
@@ -122,6 +125,7 @@ export async function runLumpFromLumpName(input: {
             localConfig,
             signal,
             daemonRunTelemetry,
+            liveStepWrite,
         });
     }
 
@@ -217,5 +221,6 @@ export async function runLumpFromLumpName(input: {
         signal,
         effectiveDiscoveryBranch,
         daemonRunTelemetry,
+        liveStepWrite,
     });
 }

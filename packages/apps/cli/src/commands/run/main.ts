@@ -104,6 +104,9 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             effectiveDiscoveryBranch: discoveryResult.data,
             discoveryBranchOpt,
             signal: abortController.signal,
+            liveStepWrite: (text) => {
+                process.stdout.write(text);
+            },
         });
         if (!runLumpRes.success) {
             const errData = runLumpRes.data;

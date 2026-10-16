@@ -12,7 +12,7 @@ try {
 } catch {
     // Fallback for development (when running ts-node or without build)
     const { config } = require('dotenv');
-    config();
+    config({ quiet: true });
     envValue = process.env.ENV?.toString() || '';
     apiUrl = process.env.API_URL?.toString() || '';
 }

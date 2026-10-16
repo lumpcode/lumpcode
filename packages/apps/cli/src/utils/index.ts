@@ -65,6 +65,7 @@ export * from './lumpBranchGlob';
 export * from './lumpBranchName';
 export * from './lumpDirPath';
 export * from './lumpHistoryFilePath';
+export * from './lumpTranscriptFilePath';
 export * from './lumpLine';
 export * from './makeGatedGitFns';
 export * from './makeGetContextListFnFromTemplate';

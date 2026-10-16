@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Load environment variables from .env
-require('dotenv').config();
+require('dotenv').config({ quiet: true });
 
 const isDev = process.argv.includes('--dev');
 

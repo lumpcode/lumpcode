@@ -1,6 +1,8 @@
 import { execSync } from 'node:child_process';
+import { cp, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import * as path from 'node:path';
-import { expect } from 'vitest';
+import { expect, onTestFinished } from 'vitest';
 
 import type { CommandFn, GetContextListFn, PromptFn } from '@lumpcode/core';
 
@@ -88,14 +90,22 @@ export function resolveJsConf(
     });
 }
 
-export function resolveWithFixtures(
+/** Copy the committed global-config fixture to a temp dir so preset install cannot write into the repo. */
+export async function seedGlobalConfigFixture(): Promise<string> {
+    const dest = await mkdtemp(path.join(tmpdir(), 'lumpcode-global-config-'));
+    await cp(GLOBAL_CONFIG_PATH, dest, { recursive: true });
+    onTestFinished(() => rm(dest, { recursive: true, force: true }));
+    return dest;
+}
+
+export async function resolveWithFixtures(
     configOverrides: Partial<LumpJsConfig>,
     opts: { lumpName?: string } = {},
 ) {
     return resolveJsConf(configOverrides, {
         ...opts,
         localConfigFolderPath: LOCAL_CONFIG_PATH,
-        globalConfigFolderPath: GLOBAL_CONFIG_PATH,
+        globalConfigFolderPath: await seedGlobalConfigFixture(),
     });
 }
 

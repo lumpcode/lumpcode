@@ -45,7 +45,7 @@ Shared shape: [live-step-output-requirements.md](../../../live-step-output-requi
 
 ### Core hook
 
-`execBinary` accepts optional `onChunk({ stream, chunk })` and still resolves `{ stdout, stderr }` as today. `executeStepsForContextList` is the only caller that forwards chunks. It also emits `start` before spawn and `end` after the command settles, including when the command returns no chunks and when the command fails.
+`execBinary` accepts optional `onChunk({ stream, chunk })` and still resolves `{ stdout, stderr }` as today. `chunk` is the UTF-8 string appended to those buffers. `executeStepsForContextList` is the only caller that forwards chunks. It emits `start` before spawn and `end` after the command settles, including when the command returns no chunks and when the command fails. `start.commandName` is `commandFn.commandName` when that string is set. A null command emits no events.
 
 `RunLumpInput.onCommandOutput` is optional. Omitting it keeps today's buffering behavior for callers that do not care.
 
@@ -53,9 +53,9 @@ Shared shape: [live-step-output-requirements.md](../../../live-step-output-requi
 
 One helper, used by `run` and by the daemon lump line. It owns header lines and presenter calls. `run` and `runForeground` must not write the feed themselves.
 
-On `start`, write one header line containing the lump name, context name, step index, and executable.
+On `start`, write one header line: `--- <lumpName> <contextName> <stepIndex> <executable>`. Nested `stepIndex` is joined with `.`.
 
-On `chunk`, if that command's module exports `presentOutput`, call the function returned by invoking the factory at `start`, with `outputDetail: 'loud'`. Write the returned string. If the factory is absent, write the chunk. If the presenter throws, log a warning and write the raw chunk.
+On `chunk`, look up `commandName` in the modules loaded for this run. `loadCommandModule` is the only copier of `presentOutput` onto that map. If the module exports `presentOutput`, call the function returned by invoking the factory at `start`, with `outputDetail: 'loud'`. Write the returned string. `undefined` or `''` writes nothing. If the factory is absent, write the chunk. If the factory or the presenter throws, log a warning and write the raw chunk.
 
 On `end`, write nothing required. The next `start` is the next header.
 
@@ -78,7 +78,7 @@ Owner: `lumpTranscriptFilePath({ projectRoot, lumpName, discoveryBranch, tickSta
 
 Example: branch `feature/foo`, tick `2026-10-16T07:28:00.000Z` → `.lumpcode/lumps/myLump/transcripts/feature/foo/2026-10-16T07-28-00.000Z.log`.
 
-Create the file when the lump line starts, before the first step. Two lines in one tick (different lump or different branch) are two files. The same line does not run twice in one tick.
+Create the file on the first step header, not when the line is picked. A line with no steps leaves no file. Two lines in one tick (different lump or different branch) are two files. The same line does not run twice in one tick. A path-helper `Failure` logs a warning and that line still runs, with no transcript file.
 
 ### Gitignore
 
@@ -95,9 +95,9 @@ Constant `TRANSCRIPTS_GITIGNORE_LINE = '.lumpcode/**/transcripts/'` lives next t
 | Step | Owner | What changes |
 | --- | --- | --- |
 | 1 | `execBinary` | Optional `onChunk` beside the existing concatenate listeners. |
-| 2 | `executeStepsForContextList` | Emit `start` / `chunk` / `end` on `RunLumpInput.onCommandOutput`. Do not format. |
+| 2 | `executeStepsForContextList` | Emit `start` / `chunk` / `end` on `RunLumpInput.onCommandOutput`. Copy `commandName`. Do not format. |
 | 3 | `lumpTranscriptFilePath` | Path, stamp, branch-segment check, gitignore constant. |
-| 4 | CLI sink helper | Headers, presenter, terminal vs file. Sole writer. |
+| 4 | CLI sink helper | Headers, presenter lookup by `commandName`, terminal vs file. Sole writer. `loadCommandModule` keeps `presentOutput`. |
 | 5 | `run` | Register the sink to stdout. Do not open a transcript file. |
 | 6 | `runTick` / lump line | Capture one tick timestamp. Register the sink to that line's file. |
 | 7 | Shipped presets | `presentOutput` factory and whatever argv that factory requires. |
