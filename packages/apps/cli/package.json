@@ -51,9 +51,9 @@
   },
   "scripts": {
     "clean": "rm -rf dist && rm -f bin/lumpcode-darwin-* bin/lumpcode-linux-* bin/lumpcode-windows-* bin/esbuild bin/esbuild.exe && rm -rf bin/schemas bin/presets",
-    "prebuild:bundle": "npm run build -w=@lumpcode/core",
+    "prebuild:bundle": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/dashboard",
     "build:bundle": "node scripts/build.js",
-    "build:dev": "node scripts/build.js --dev",
+    "build:dev": "npm run build -w=@lumpcode/dashboard && node scripts/build.js --dev",
     "build:npm": "npm run build:bundle",
     "build:sea": "npm run build:bundle && bash scripts/build-sea.sh",
     "build:sea:windows": "npm run build:bundle && powershell -ExecutionPolicy Bypass -File scripts/build-sea.ps1",
@@ -80,6 +80,7 @@
     "node-machine-id": "^1.1.12"
   },
   "devDependencies": {
+    "@lumpcode/dashboard": "*",
     "@types/lodash": "^4.17.24",
     "@vercel/ncc": "^0.38.4",
     "postject": "^1.0.0-alpha.6",

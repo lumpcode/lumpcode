@@ -7,7 +7,7 @@ Run `lumpcode` from the repo root that contains `.lumpcode/` and `.git/`. Comman
 
 **`--json`** — one envelope: `{ "messages": ["…"], "data": { } }`. Success on stdout, failure on stderr (non-zero exit). Operational `info` / `warn` / `verbose` are suppressed; operational `error` still prints.
 
-**`--verbose`** — extra engine detail on `run` / `start` (OR-merged with lump `verbose`). Tick summaries and lock waits still print at `info` without the flag. Other commands accept the flag and ignore it.
+**`--verbose`** — extra engine detail on `run` / `start` (OR-merged with lump `verbose`). Tick summaries and lock waits still print at `info` without the flag. `lumpcode dashboard` uses it to log failed status reads. Other commands accept the flag and ignore it.
 
 ## Everyday
 
@@ -122,6 +122,21 @@ Follows the log by default. `--noFollow` prints and exits. `--lines` limits the 
 
 > [!NOTE]
 > Verbose lump logs can grow without bound. `stop --all` deletes them as part of teardown.
+
+### `lumpcode dashboard`
+
+One read-only page of the list-all `daemon-status` snapshot for this project. Dedicated-only (`sharedModeNoDaemon` on a shared checkout). Stays in the foreground until Ctrl+C or SIGTERM. Does not open a browser.
+
+| Option | Default | Role |
+| --- | --- | --- |
+| `--port` | `4747` | Port from 1 through 65535. A taken port fails with `portInUse`. |
+| `--bind` | `127.0.0.1` | Address to listen on. |
+
+Prints `Dashboard: http://<bind>:<port>` (IPv6 hosts are bracketed). Loopback binds (`127.0.0.1`, `::1`, `[::1]`, `localhost`) do not warn. Any other bind prints that the page has no authentication, then still serves.
+
+The page shows this project's daemons, the supervisor, in-flight lump lines, and the next tick. It refreshes about every 5 seconds from the same list-all snapshot as `daemon-status` with no flags. A failed read keeps the last good snapshot. A snapshot at least 30 seconds old shows a warning. Nothing on the page stops, starts, or restarts a daemon.
+
+With `--json`, startup is one object that includes `url` and, when the warning applies, `bindWarning`. Refreshes do not print another JSON line. `--verbose` logs failed status reads.
 
 ## Repair
 

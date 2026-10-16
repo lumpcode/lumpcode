@@ -96,6 +96,18 @@ describe('addCommand', () => {
         expect(cliLog).not.toHaveBeenCalled();
     });
 
+    it('does not reprint a JSON envelope the handler already printed', async () => {
+        const handler = vi.fn().mockResolvedValue(
+            success({
+                messages: ['Dashboard: http://127.0.0.1:4747'],
+                data: { url: 'http://127.0.0.1:4747' },
+                printed: true,
+            }),
+        );
+        await addDemoCommandAndRunIt(['alpha', '--json'], handler);
+        expect(cliLog).not.toHaveBeenCalled();
+    });
+
     it('exits with code 1 when the handler returns Failure', async () => {
         const exit = vi.fn((code: number) => {
             throw new Error(`exit:${code}`);
