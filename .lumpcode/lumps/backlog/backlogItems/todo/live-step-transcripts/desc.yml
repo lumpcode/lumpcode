@@ -7,3 +7,4 @@ task: >-
   history. Agent presets present the full session. Raw command output still
   feeds history and retry.
 priority: 0
+manual: true
