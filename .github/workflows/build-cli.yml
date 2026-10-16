@@ -8,6 +8,7 @@ on:
     branches: [main, dev]
     paths:
       - 'packages/apps/cli/**'
+      - 'packages/apps/dashboard/**'
       - 'packages/core/**'
       - 'packages/recipes/**'
       - 'scripts/**'
@@ -45,6 +46,9 @@ jobs:
 
       - name: Unit tests (@lumpcode/core)
         run: npm run test -w=@lumpcode/core
+
+      - name: Unit tests (@lumpcode/dashboard)
+        run: npm run test -w=@lumpcode/dashboard
 
       - name: Unit tests (@lumpcode/cli-utils)
         run: npm run test -w=@lumpcode/cli-utils

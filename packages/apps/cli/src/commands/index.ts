@@ -42,6 +42,12 @@ export {
     Injections as DaemonStatusInjections,
 } from './daemon-status';
 export {
+    command as dashboard,
+    Input as DashboardInput,
+    Output as DashboardOutput,
+    Injections as DashboardInjections,
+} from './dashboard';
+export {
     command as daemonLog,
     Input as DaemonLogInput,
     Output as DaemonLogOutput,
