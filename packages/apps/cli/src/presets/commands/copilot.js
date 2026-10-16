@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { resolveCopilotToolArgs } from './utils/resolveCopilotToolArgs.js';
+import { createNdjsonPresenter } from './utils/presentNdjson.js';
+import { presentCopilotEvent } from './utils/presentCopilotLine.js';
 
 export const command = (async ({ 
     prompt, 
@@ -48,8 +50,9 @@ export const command = (async ({
         args: [
             '-p',
             trimmedPrompt,
+            '--output-format',
+            'json',
             '--no-ask-user',
-            '--silent',
             ...permissionArgs,
             '--model',
             model,
@@ -75,3 +78,5 @@ export const setup = (({}) => {
 export const teardown = ((() => {
     return;
 }));
+
+export const presentOutput = () => createNdjsonPresenter(presentCopilotEvent);

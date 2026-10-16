@@ -1,4 +1,4 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData, CommandOutputEvent } from "../../types";
 import { createConsoleLogger, set, success } from "../../utils";
 import { 
     getToDoContextList,
@@ -34,6 +34,7 @@ Failure<ExecuteStepsFailureData>
         logger: loggerInput,
         signal,
         refreshRemoteTrackingRefsFn,
+        onCommandOutput,
     } = input;
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -95,6 +96,7 @@ Failure<ExecuteStepsFailureData>
         logger,
         getKeepHistoryFilePathFn,
         signal,
+        onCommandOutput,
     });
 
     if (!executeStepsResult.success) {
@@ -137,6 +139,8 @@ export interface RunLumpInput<
      * Defaults to unlocked core `refreshRemoteTrackingRefs` inside getToDoContextList.
      */
     refreshRemoteTrackingRefsFn?: RefreshRemoteTrackingRefsFn;
+    /** Live step feed. Omitted callers keep today's buffered command output. */
+    onCommandOutput?: (event: CommandOutputEvent) => void;
 }
 
 export interface RunLumpOutput {

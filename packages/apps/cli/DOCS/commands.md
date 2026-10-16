@@ -436,7 +436,7 @@ Human output lists each in-flight line (`backlog / ctx-a`, or `backlog (no conte
 
 ### `lumpcode daemon-log`
 
-**Description:** Tail a background daemon log file. **Follows live by default** (`tail -f`); pass **`--noFollow`** to print and exit.
+**Description:** Tail a background daemon log file. **Follows live by default** (`tail -f`); pass **`--noFollow`** to print and exit. This is the operational log. A daemon's step session is `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log`, not this file.
 
 **Usage:** `lumpcode daemon-log [options]`
 

@@ -9,6 +9,7 @@ Each lump lives under:
 │   or config.ts         # TypeScript default export (typed dynamic logic)
 ├── contextStatusRecord.json   # auto-maintained status cache
 ├── history/                   # optional per-context prompt run logs (when keepHistory is true)
+├── transcripts/               # daemon step feed, gitignored, not gated on keepHistory
 └── … templates, prompt files, hook modules …
 ```
 
@@ -246,7 +247,7 @@ In `config.js` / `config.ts`, `steps` itself may be a single item of any of thos
 
 ## Prompt run history (`keepHistory`)
 
-By default, Lumpcode does **not** write prompt or agent output to disk. Set **`"keepHistory": true`** on a lump (in `config.json`, `config.js`, or `config.ts`) to record each prompt step locally.
+By default, Lumpcode does **not** write prompt or agent output to disk. Set **`"keepHistory": true`** on a lump (in `config.json`, `config.js`, or `config.ts`) to record each prompt step locally. History is the after-the-fact record. A daemon also writes a live transcript under `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` while steps run. That file is gitignored and is not gated on `keepHistory`. `lumpcode run` prints the same feed in the terminal and does not write it.
 
 ### File layout
 

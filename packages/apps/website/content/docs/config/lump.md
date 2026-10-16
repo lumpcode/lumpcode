@@ -13,7 +13,8 @@ Preview with `lumpcode lump-plan <lumpName>` before you spend tokens.
 │   or config.js
 │   or config.json            # static only
 ├── contextStatusRecord.json  # cache, refreshed from git
-└── history/                  # optional, gitignored, keepHistory
+├── history/                  # optional, gitignored, keepHistory
+└── transcripts/              # daemon step feed, gitignored, not gated on keepHistory
 ```
 
 Load precedence: **`config.ts` > `config.js` > `config.json`**. `lump-create --config ts|js|json` scaffolds one of them (default JSON).
@@ -134,7 +135,9 @@ Not configurable, so `clean` and status stay aligned. Matched **anywhere in the 
 
 ## History
 
-`"keepHistory": true` appends one YAML object per step to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored). Written after the command, before `postCommandExecFn`. Not written when `commandFn` skips. Fields match that hook: `prompt`, `commandResult`, `commandSucceeded`, `context`, `stepIndex`, `contextRunState`, `lumpVariables`, `stepVariables`, `projectRoot`. Agent output can contain secrets.
+`"keepHistory": true` appends one YAML object per step to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored). Written after the command, before `postCommandExecFn`. Not written when `commandFn` skips. Fields match that hook: `prompt`, `commandResult`, `commandSucceeded`, `context`, `stepIndex`, `contextRunState`, `lumpVariables`, `stepVariables`, `projectRoot`. Agent output can contain secrets. History is the after-the-fact record.
+
+A daemon writes the live step feed to `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` (gitignored, beside `history/`). That file is not gated on `keepHistory`. `lumpcode run` prints the same feed in the terminal and does not write a transcript.
 
 ```yaml history/foo.yaml
 - prompt: Add an explicit return type…

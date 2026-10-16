@@ -5,11 +5,11 @@ import type { CommandFn, GetContextListFn, Step } from '@lumpcode/core';
 
 import type { LumpJsConfig, LumpJsConfigStep } from '../../types';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
+import { seedGlobalConfigFixture } from './testing/testHelpers';
 import { jsConfigToRunLumpInput } from './main';
 
 const FIXTURES_DIR = path.resolve(__dirname, '__fixtures__');
 const LOCAL_CONFIG_PATH = path.join(FIXTURES_DIR, 'local-config');
-const GLOBAL_CONFIG_PATH = path.join(FIXTURES_DIR, 'global-config');
 const DEFAULT_TEST_WORKSPACE = path.join('/tmp', 'project');
 const DEFAULT_TEST_PROJECT_BASE_BRANCH = 'main';
 
@@ -34,7 +34,7 @@ function makeConfig(overrides: Partial<LumpJsConfig> = {}): LumpJsConfig {
     } as LumpJsConfig;
 }
 
-function resolveWithFixtures(
+async function resolveWithFixtures(
     configOverrides: Partial<LumpJsConfig>,
     opts: { lumpName?: string } = {},
 ) {
@@ -42,7 +42,7 @@ function resolveWithFixtures(
         config: makeConfig(configOverrides),
         lumpName: opts.lumpName ?? 'my-lump',
         localConfigFolderPath: LOCAL_CONFIG_PATH,
-        globalConfigFolderPath: GLOBAL_CONFIG_PATH,
+        globalConfigFolderPath: await seedGlobalConfigFixture(),
         projectBaseBranch: DEFAULT_TEST_PROJECT_BASE_BRANCH,
         executionWorkspacePath: DEFAULT_TEST_WORKSPACE,
         workspaceStrategy: 'checkout',
@@ -161,7 +161,7 @@ describe('jsConfigToRunLumpInput TypeScript file-backed hooks', () => {
             config: cfg,
             lumpName: 'json-ts-hooks',
             localConfigFolderPath: LOCAL_CONFIG_PATH,
-            globalConfigFolderPath: GLOBAL_CONFIG_PATH,
+            globalConfigFolderPath: await seedGlobalConfigFixture(),
             projectBaseBranch: DEFAULT_TEST_PROJECT_BASE_BRANCH,
             executionWorkspacePath: DEFAULT_TEST_WORKSPACE,
             workspaceStrategy: 'checkout',

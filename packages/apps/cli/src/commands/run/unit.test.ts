@@ -161,8 +161,22 @@ describe('run command — multi discovery branches', () => {
                 sourceProjectRoot: projectRoot,
                 lumpName: 'releaseLine',
                 effectiveDiscoveryBranch: 'ver/0.0.9',
+                liveStepWrite: expect.any(Function),
             }),
         );
+    });
+
+    it('streams step output to stdout and does not create a transcript file', async () => {
+        await setupMultiBranchLocal();
+        const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
+        await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'releaseLine' },
+        });
+        expect(runLumpSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ liveStepWrite: expect.any(Function) }),
+        );
+        await expect(fs.access(path.join(projectRoot, '.lumpcode', 'lumps', 'releaseLine', 'transcripts'))).rejects.toThrow();
     });
 
     it('pre-flights to resolvedBaseBranch for LUMP-SPLIT (discovery on main, execution on ver/0.0.9)', async () => {

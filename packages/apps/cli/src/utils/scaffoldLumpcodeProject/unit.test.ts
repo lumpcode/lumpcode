@@ -3,11 +3,13 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
+import { TRANSCRIPTS_GITIGNORE_LINE } from '../lumpTranscriptFilePath';
 import { scaffoldLumpcodeProject } from './main';
 
 const GITIGNORE_LINES = [
     '.lumpcode/**/contextStatusRecord.json',
     '.lumpcode/**/history/',
+    TRANSCRIPTS_GITIGNORE_LINE,
     '.lumpcode/worktrees/',
     '.lumpcode/.cache/',
     '.lumpcode/local.json',
@@ -30,7 +32,7 @@ describe('scaffoldLumpcodeProject', () => {
         await removeTempTestDirs({ projectRoot });
     });
 
-    it('writes a fresh .lumpcode tree with mode-only local.json and the five gitignore lines', async () => {
+    it('writes a fresh .lumpcode tree with mode-only local.json and the gitignore lines', async () => {
         const result = await scaffoldLumpcodeProject({
             projectRoot,
             project: { projectName: 'my-app', primaryBranch: 'main' },

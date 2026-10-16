@@ -3,6 +3,8 @@
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { createOpenCodeSession } from './utils/createOpenCodeSession.js';
 import { resolveOpenCodeArgs } from './utils/resolveOpenCodeArgs.js';
+import { createNdjsonPresenter } from './utils/presentNdjson.js';
+import { presentOpenCodeEvent } from './utils/presentOpenCodeLine.js';
 
 export const command = (async ({
     prompt,
@@ -46,6 +48,8 @@ export const command = (async ({
         executable: 'opencode',
         args: [
             'run',
+            '--format',
+            'json',
             trimmedPrompt,
             '-s',
             chatId,
@@ -72,3 +76,5 @@ export const setup = (async ({ lumpVariables = {} }) => {
 export const teardown = ((() => {
     return;
 }));
+
+export const presentOutput = () => createNdjsonPresenter(presentOpenCodeEvent);

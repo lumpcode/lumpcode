@@ -3,6 +3,8 @@
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { createCodexSession } from './utils/createCodexSession.js';
 import { resolveCodexArgs } from './utils/resolveCodexArgs.js';
+import { createNdjsonPresenter } from './utils/presentNdjson.js';
+import { presentCodexEvent } from './utils/presentCodexLine.js';
 
 export const command = (async ({
     prompt,
@@ -72,3 +74,5 @@ export const setup = (async ({ lumpVariables = {} }) => {
 export const teardown = ((() => {
     return;
 }));
+
+export const presentOutput = () => createNdjsonPresenter(presentCodexEvent);

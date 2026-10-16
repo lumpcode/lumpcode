@@ -118,7 +118,7 @@ Human output names each line (`backlog / ctx-a`, or `backlog (no context yet)`).
 
 ### `lumpcode daemon-log`
 
-Follows the log by default. `--noFollow` prints and exits. `--lines` limits the initial tail. `--daemonId` default `global`. `--json` with `--noFollow` prints `{ logFilePath, lines, … }`. Fails if the log file is missing.
+Follows the operational log by default. `--noFollow` prints and exits. `--lines` limits the initial tail. `--daemonId` default `global`. `--json` with `--noFollow` prints `{ logFilePath, lines, … }`. Fails if the log file is missing. The step session from a daemon tick is `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log`, not this log.
 
 > [!NOTE]
 > Verbose lump logs can grow without bound. `stop --all` deletes them as part of teardown.

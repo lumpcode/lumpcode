@@ -30,6 +30,7 @@ export * from './Mode';
 export * from './PostSetupWorkspaceFn';
 export * from './PostSetupWorkspaceFnInput';
 export * from './PostTeardownWorkspaceFn';
+export * from './PresentOutputFn';
 export * from './ProjectConfig';
 export * from './ProjectJsonConfig';
 export * from './ResolvedProjectLocalConfig';

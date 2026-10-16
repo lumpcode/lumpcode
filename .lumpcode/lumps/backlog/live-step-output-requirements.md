@@ -33,10 +33,12 @@ One pipe. `@lumpcode/core` emits raw chunks and still returns the full stdout an
 
 ```ts
 type CommandOutputEvent =
-  | { kind: 'start'; contextName: string; stepIndex: number | number[]; executable: string }
+  | { kind: 'start'; contextName: string; stepIndex: number | number[]; executable: string; commandName?: string }
   | { kind: 'chunk'; contextName: string; stepIndex: number | number[]; stream: 'stdout' | 'stderr'; chunk: string }
   | { kind: 'end'; contextName: string; stepIndex: number | number[]; succeeded: boolean };
 ```
+
+`commandName` is copied from `commandFn.commandName` when that string is set. Inline command functions omit it. `chunk` is a UTF-8 string. A command that returns null emits no events.
 
 `RunLumpInput.onCommandOutput?: (event: CommandOutputEvent) => void`. Owner of the call: `executeStepsForContextList`. Owner of the bytes: `execBinary`, via an optional `onChunk` invoked from the existing `data` listeners, while those listeners still concatenate `stdout` and `stderr`. No second reader of the pipes.
 
@@ -67,7 +69,7 @@ Transcript path, owned by `lumpTranscriptFilePath` in `@lumpcode/cli`:
 - Stamp: the tick's start time, ISO-8601 UTC, `:` replaced by `-` (example `2026-10-16T07-28-00.000Z`). One stamp per `runTick`, shared by every line in that tick.
 - Gitignore line `.lumpcode/**/transcripts/`, exported beside `lumpTranscriptFilePath`. `scaffoldLumpcodeProject` and the first transcript write (`appendMissingGitignoreLines`) both use that constant.
 
-Header on each `start` event: lump name, context name, step index, executable. Then the presented chunks. Create the file at line start so a quiet run still leaves a file.
+Header on each `start` event, one line: `--- <lumpName> <contextName> <stepIndex> <executable>`. Nested `stepIndex` is joined with `.`. Then the presented chunks. Create the file on the first step header. A step that prints nothing still leaves that header. A line with no steps leaves no file. A path-helper `Failure` logs a warning and the lump line still runs, with no transcript file.
 
 Shipped presets `cursor`, `copilot`, `claude-code`, `codex`, and `opencode` export `presentOutput`. At `loud` the text includes assistant messages and tool activity (tool name and the file or command). It does not include raw protocol frames. Each preset owns the argv that makes its CLI emit a stream it can present.
 
@@ -75,11 +77,12 @@ Shipped presets `cursor`, `copilot`, `claude-code`, `codex`, and `opencode` expo
 
 | Order | Ticket | Delivers | Requirements |
 | --- | --- | --- | --- |
-| 1 | `live-step-transcripts` | Stream every step. Terminal on `run`. Daemon file per lump line per tick. Presets present the full session. | `backlogItems/todo/live-step-transcripts/requirements.md` |
+| 1 | `live-step-transcripts` | Stream every step. Terminal on `run`. Daemon file per lump line per tick. Presets present the full session. | `backlogItems/completed/live-step-transcripts/requirements.md` |
 | 2 | `rotate-lumpcode-logs` | `local.json` `logRetention` deletes old transcripts, history, and trims daemon and supervisor logs. | `backlogItems/todo/rotate-lumpcode-logs/requirements.md` |
 | 3 | `preset-output-loudness` | `outputDetail` on lump and step variables. `quiet` drops tool activity from the sink. | `backlogItems/todo/preset-output-loudness/requirements.md` |
+| 4 | `transcript-command` | `lumpcode transcript` prints or follows a daemon transcript file; `--list` catalogs stamps and branches. | `backlogItems/todo/transcript-command/requirements.md` |
 
-Tickets 2 and 3 both depend on ticket 1. They do not depend on each other.
+Tickets 2, 3, and 4 all depend on ticket 1. They do not depend on each other.
 
 ## Acceptance criteria
 

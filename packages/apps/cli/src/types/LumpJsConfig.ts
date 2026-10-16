@@ -41,6 +41,7 @@ export type LumpJsConfig<
     | 'gitPushFn'
     | 'getContextListFn'
     | 'refreshRemoteTrackingRefsFn'
+    | 'onCommandOutput'
 >, {
     /**
      * Execution integration branch. Exact string, `BaseBranchFn`, or FilePath to a module.
