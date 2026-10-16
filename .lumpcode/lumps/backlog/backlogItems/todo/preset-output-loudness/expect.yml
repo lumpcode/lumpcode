@@ -1,0 +1,102 @@
+desc: "Resolve outputDetail from lump and step variables and honor quiet in the live presenter."
+files:
+  packages/apps/cli/src/types/OutputDetail.ts:
+    desc: "Export OutputDetail and the optional lump/step bag. Not a core type, not per-preset."
+    "-": 0
+    "+": 8
+    symbols:
+      OutputDetail: create
+      OutputDetailVariables: create
+  packages/apps/cli/src/types/PresentOutputFn.ts:
+    desc: "Use OutputDetail on the presenter input instead of an inline union."
+    "-": 1
+    "+": 2
+    symbols:
+      PresentOutputFn: update
+  packages/apps/cli/src/types/index.ts:
+    desc: "Barrel-export OutputDetail."
+    "-": 0
+    "+": 1
+  packages/apps/cli/cli-types/src/types.ts:
+    desc: "Re-export OutputDetail and OutputDetailVariables. cli-utils already re-exports cli-types."
+    "-": 0
+    "+": 2
+    symbols:
+      OutputDetail: create
+      OutputDetailVariables: create
+  packages/apps/cli/src/utils/lumpTranscriptFilePath/resolveOutputDetail.ts:
+    desc: "Step-over-lump resolve. Omitted is loud. Invalid value throws and names the key."
+    "-": 0
+    "+": 35
+    symbols:
+      resolveOutputDetail: create
+  packages/apps/cli/src/utils/lumpTranscriptFilePath/resolveOutputDetail.unit.test.ts:
+    desc: "Omitted is loud. Step overrides lump. Invalid value throws and the message names the value."
+    "-": 0
+    "+": 50
+  packages/apps/cli/src/utils/lumpTranscriptFilePath/liveStepOutput.ts:
+    desc: "On start with a presenter, resolve once and pass that level. Do not catch the throw. No presenter skips the resolver."
+    "-": 5
+    "+": 22
+    symbols:
+      createLiveStepOutput: update
+  packages/apps/cli/src/utils/lumpTranscriptFilePath/liveStepOutput.unit.test.ts:
+    desc: "Presenter gets the resolved level. Quiet from lump, loud from step. No presenter stays raw and does not call the resolver. Invalid throws. Chunks stay raw."
+    "-": 8
+    "+": 55
+  packages/apps/cli/src/presets/commands/utils/presentNdjson.js:
+    desc: "Pass outputDetail from the presenter input into presentEvent."
+    "-": 2
+    "+": 4
+    symbols:
+      createNdjsonPresenter: update
+  packages/apps/cli/src/presets/commands/utils/presentCursorLine.js:
+    desc: "Keep assistant text at both levels. Drop tool activity when quiet."
+    "-": 2
+    "+": 8
+    symbols:
+      presentCursorEvent: update
+  packages/apps/cli/src/presets/commands/utils/presentClaudeCodeLine.js:
+    desc: "Keep assistant text at both levels. Drop tool_use when quiet. Mixed assistant+tool events still keep the text."
+    "-": 2
+    "+": 10
+    symbols:
+      presentClaudeCodeEvent: update
+  packages/apps/cli/src/presets/commands/utils/presentCopilotLine.js:
+    desc: "Keep assistant text at both levels. Drop tool activity when quiet."
+    "-": 2
+    "+": 8
+    symbols:
+      presentCopilotEvent: update
+  packages/apps/cli/src/presets/commands/utils/presentCodexLine.js:
+    desc: "Keep assistant text at both levels. Drop command_execution, file_change, and mcp_tool_call when quiet."
+    "-": 2
+    "+": 10
+    symbols:
+      presentCodexEvent: update
+  packages/apps/cli/src/presets/commands/utils/presentOpenCodeLine.js:
+    desc: "Keep assistant text at both levels. Drop tool_use when quiet."
+    "-": 2
+    "+": 8
+    symbols:
+      presentOpenCodeEvent: update
+  packages/apps/cli/src/presets/commands/presentOutput.unit.test.ts:
+    desc: "Same recorded fixtures: loud includes a tool line, quiet does not, both include assistant text, neither includes the raw frame."
+    "-": 10
+    "+": 70
+  packages/apps/cli/DOCS/lump-config.md:
+    desc: "outputDetail on lumpVariables and stepVariables. loud default, quiet drops tool activity, step wins, live feed only."
+    "-": 2
+    "+": 14
+  packages/apps/cli/DOCS/concepts.md:
+    desc: "One sentence on live-feed loudness, pointing at outputDetail."
+    "-": 1
+    "+": 2
+  packages/apps/website/content/docs/author/agents.md:
+    desc: "outputDetail next to model and agentPermissions. Step wins."
+    "-": 2
+    "+": 12
+  packages/apps/website/content/docs/config/lump.md:
+    desc: "Same key on the lumpVariables row."
+    "-": 1
+    "+": 2

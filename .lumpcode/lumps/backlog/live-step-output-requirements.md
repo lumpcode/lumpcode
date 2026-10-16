@@ -80,8 +80,9 @@ Shipped presets `cursor`, `copilot`, `claude-code`, `codex`, and `opencode` expo
 | 1 | `live-step-transcripts` | Stream every step. Terminal on `run`. Daemon file per lump line per tick. Presets present the full session. | `backlogItems/completed/live-step-transcripts/requirements.md` |
 | 2 | `rotate-lumpcode-logs` | `local.json` `logRetention` deletes old transcripts, history, and trims daemon and supervisor logs. | `backlogItems/todo/rotate-lumpcode-logs/requirements.md` |
 | 3 | `preset-output-loudness` | `outputDetail` on lump and step variables. `quiet` drops tool activity from the sink. | `backlogItems/todo/preset-output-loudness/requirements.md` |
+| 4 | `transcript-command` | `lumpcode transcript` prints or follows a daemon transcript file; `--list` catalogs stamps and branches. | `backlogItems/todo/transcript-command/requirements.md` |
 
-Tickets 2 and 3 both depend on ticket 1. They do not depend on each other.
+Tickets 2, 3, and 4 all depend on ticket 1. They do not depend on each other.
 
 ## Acceptance criteria
 

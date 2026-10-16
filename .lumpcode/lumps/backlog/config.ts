@@ -15,11 +15,11 @@ import {
 
 const projectRoot = projectRootFromConfigUrl(import.meta.url);
 
-async function existingBlastPath(itemDir: string): Promise<string | undefined> {
+async function existingExpectPath(itemDir: string): Promise<string | undefined> {
     if (!itemDir) {
         return undefined;
     }
-    const relativePath = `${itemDir}/blast.yml`;
+    const relativePath = `${itemDir}/expect.yml`;
     try {
         await access(path.join(projectRoot, relativePath));
         return relativePath;
@@ -28,20 +28,20 @@ async function existingBlastPath(itemDir: string): Promise<string | undefined> {
     }
 }
 
-async function withBlastMatch(
+async function withExpectMatch(
     base: typeof defaultTestImplPrompt,
     input: Parameters<typeof defaultTestImplPrompt>[0],
 ) {
     const prompt = await base(input);
-    const blastPath = await existingBlastPath(
+    const expectPath = await existingExpectPath(
         String(input.context.variables.BACKLOG_ITEM_DIR ?? ''),
     );
-    if (!blastPath) {
+    if (!expectPath) {
         return prompt;
     }
     return `${prompt}
 
-Read @${blastPath} and try to match that blast if possible: prefer the listed files and stay close to the line estimates.`;
+Read @${expectPath} and try to match that expectation if possible: prefer the listed files and stay close to the line estimates.`;
 }
 
 export default featureBacklog<
@@ -61,7 +61,7 @@ export default featureBacklog<
     ].join(' && '),
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     promptFns: {
-        testImpl: (input) => withBlastMatch(defaultTestImplPrompt, input),
-        impl: (input) => withBlastMatch(defaultImplPrompt, input),
+        testImpl: (input) => withExpectMatch(defaultTestImplPrompt, input),
+        impl: (input) => withExpectMatch(defaultImplPrompt, input),
     },
 });
