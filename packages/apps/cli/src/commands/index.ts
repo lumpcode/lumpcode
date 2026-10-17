@@ -53,6 +53,12 @@ export {
     Output as DaemonLogOutput,
     Injections as DaemonLogInjections,
 } from './daemon-log';
+export {
+    command as transcript,
+    Input as TranscriptInput,
+    Output as TranscriptOutput,
+    Injections as TranscriptInjections,
+} from './transcript';
 export { command as stop, Input as StopInput, Output as StopOutput, Injections as StopInjections } from './stop';
 export { command as restart, Input as RestartInput, Output as RestartOutput, Injections as RestartInjections } from './restart';
 export {

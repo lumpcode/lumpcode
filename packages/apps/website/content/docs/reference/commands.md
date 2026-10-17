@@ -118,10 +118,14 @@ Human output names each line (`backlog / ctx-a`, or `backlog (no context yet)`).
 
 ### `lumpcode daemon-log`
 
-Follows the operational log by default. `--noFollow` prints and exits. `--lines` limits the initial tail. `--daemonId` default `global`. `--json` with `--noFollow` prints `{ logFilePath, lines, … }`. Fails if the log file is missing. The step session from a daemon tick is `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log`, not this log.
+Follows the operational log by default. `--noFollow` prints and exits. `--lines` omitted is last 10; `--lines 0` is the whole file. `--daemonId` default `global`. `--json` with `--noFollow` prints `{ logFilePath, lines, … }`. Fails if the log file is missing. Use `lumpcode transcript` for the step session from a daemon tick.
 
 > [!NOTE]
 > Verbose lump logs can grow without bound. `stop --all` deletes them as part of teardown.
+
+### `lumpcode transcript`
+
+Print or follow a daemon session file, not the operational log. `--lumpName` is required unless `--list`. Follows live by default (last 10 lines, then live). `--noFollow` prints and exits. `--lines` omitted is 10; `0` is the whole file. `--json` print requires `--noFollow`. `--list` catalogs stamps and discovery branches, newest stamp first (`<stamp>  <lumpName>  <discoveryBranch>`). `--json --list` is allowed. `--list` cannot combine with `--stamp`, `--lines`, or `--noFollow`. Same newest stamp on two branches needs `--discoveryBranch`. Empty catalog is success. Missing file fails and points at `--list`.
 
 ### `lumpcode dashboard`
 

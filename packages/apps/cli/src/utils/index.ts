@@ -116,6 +116,7 @@ export * from './spawnDetachedLumpcodeWithPidFile';
 export * from './startDaemonDesired';
 export * from './stopDaemon';
 export * from './supervisorPaths';
+export * from './tailFile';
 export * from './transpileTypeScriptToCachedMjs';
 export * from './unlinkBestEffort';
 export * from './updateContextStatusRecord';

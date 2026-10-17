@@ -10,7 +10,7 @@ This page documents every `lumpcode` subcommand and its options.
 
 **[Run](#ref-section-run)** — [`lumpcode run`](#ref-cmd-run) · [`lumpcode lump-plan`](#ref-cmd-lump-plan)
 
-**[Daemon](#ref-daemon)** — [`lumpcode start`](#ref-cmd-start) · [`lumpcode stop`](#ref-cmd-stop) · [`lumpcode restart`](#ref-cmd-restart) · [`lumpcode supervise`](#ref-cmd-supervise) · [`lumpcode daemon-status`](#ref-cmd-daemon-status) · [`lumpcode daemon-log`](#ref-cmd-daemon-log) · [`lumpcode dashboard`](#ref-cmd-dashboard)
+**[Daemon](#ref-daemon)** — [`lumpcode start`](#ref-cmd-start) · [`lumpcode stop`](#ref-cmd-stop) · [`lumpcode restart`](#ref-cmd-restart) · [`lumpcode supervise`](#ref-cmd-supervise) · [`lumpcode daemon-status`](#ref-cmd-daemon-status) · [`lumpcode daemon-log`](#ref-cmd-daemon-log) · [`lumpcode transcript`](#ref-cmd-transcript) · [`lumpcode dashboard`](#ref-cmd-dashboard)
 
 **[Status & cleanup](#ref-status-cleanup)** — [`lumpcode lump-status`](#ref-cmd-lump-status) · [`lumpcode context-status`](#ref-cmd-context-status) · [`lumpcode clean`](#ref-cmd-clean) · [`lumpcode reset-presets`](#ref-cmd-reset-presets)
 
@@ -436,7 +436,7 @@ Human output lists each in-flight line (`backlog / ctx-a`, or `backlog (no conte
 
 ### `lumpcode daemon-log`
 
-**Description:** Tail a background daemon log file. **Follows live by default** (`tail -f`); pass **`--noFollow`** to print and exit. This is the operational log. A daemon's step session is `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log`, not this file.
+**Description:** Tail a background daemon log file. **Follows live by default**; pass **`--noFollow`** to print and exit. This is the operational log. Use [`lumpcode transcript`](#ref-cmd-transcript) for a daemon step session (`.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log`).
 
 **Usage:** `lumpcode daemon-log [options]`
 
@@ -444,18 +444,51 @@ Human output lists each in-flight line (`backlog / ctx-a`, or `backlog (no conte
 | ------------ | ------- | -------- | --------------------------------------------------------------------------- |
 | `--daemonId` | string  | No       | Log for this daemon id (default: `global`)                                  |
 | `--lumpName` | string  | No       | **Deprecated.** Treated as `--daemonId`                                     |
-| `--lines`    | number  | No       | Number of initial lines to show (with follow, uses `tail -n N -f`)            |
+| `--lines`    | number  | No       | Initial lines. Omitted = last 10. `0` = whole file.                         |
 | `--noFollow` | flag    | No       | Print lines and exit instead of following live                              |
 | `--json`     | flag    | No       | With `--noFollow`, output structured JSON (`logFilePath`, `lines`, …)       |
 
 **Behavior:**
 
-- Default: `tail -f` on the scoped log file until Ctrl+C / SIGTERM.
-- With `--lines N` (no `--noFollow`): `tail -n N -f` — show the last *N* lines, then keep following.
-- With `--noFollow`: print and exit (`tail` or `tail -n N` when `--lines` is set).
+- Default: last 10 lines, then follow until Ctrl+C / SIGTERM.
+- With `--lines N` (N > 0, no `--noFollow`): last *N* lines, then keep following.
+- With `--lines 0`: the whole file (with follow, from the start, then keep following).
+- With `--noFollow`: print and exit.
 - Does not require the daemon to be running; fails if the log file does not exist for that scope.
 
-**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon) (daemon files table).
+**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon) (daemon files table). [`lumpcode transcript`](#ref-cmd-transcript).
+
+<a id="ref-cmd-transcript"></a>
+
+### `lumpcode transcript`
+
+**Description:** Print or follow a daemon transcript file. **Follows live by default**; pass **`--noFollow`** to print and exit. This is the step session for one lump line, not the operational log (`daemon-log`).
+
+**Usage:**
+
+```text
+lumpcode transcript --lumpName <name> [--discoveryBranch <branch>] [--stamp <stamp>] [--lines <n>] [--noFollow]
+lumpcode transcript --list [--lumpName <name>] [--discoveryBranch <branch>]
+```
+
+| Option              | Print                         | `--list`                                      |
+| ------------------- | ----------------------------- | --------------------------------------------- |
+| `--lumpName`        | Required                      | Optional (omit = every lump that has a `.log`) |
+| `--discoveryBranch` | Optional exact branch         | Optional exact branch (not a prefix)          |
+| `--stamp`           | Optional filename token without `.log` | Invalid                              |
+| `--lines`           | Integer ≥ 0. Omitted = 10. `0` = whole file. | Invalid                          |
+| `--noFollow`        | Print and exit                | Invalid                                       |
+| `--json`            | Only with `--noFollow`        | Allowed                                       |
+
+**Behavior:**
+
+- Newest **stamp** wins. The same stamp on two discovery branches without `--discoveryBranch` fails; pass the branch.
+- `--stamp` that does not exist fails; it does not fall back to another stamp. Missing file fails and points at `--list`. Does not wait for a file to appear.
+- `--list` prints `<stamp>  <lumpName>  <discoveryBranch>`, newest stamp first. Empty catalog is success (no lines).
+- `--json --noFollow` includes `lumpName`, `discoveryBranch`, `stamp`, `filePath`, and `lines`. `--json --list` includes `transcripts`.
+- Does not require a running daemon. `lumpcode run` still does not write a transcript file.
+
+**See also:** [`lumpcode daemon-log`](#ref-cmd-daemon-log). [concepts.md](./concepts.md#one-run-end-to-end).
 
 <a id="ref-cmd-dashboard"></a>
 

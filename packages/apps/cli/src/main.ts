@@ -110,6 +110,10 @@ export async function main() {
                 localConfigFolderPath,
                 globalConfigFolderPath,
             },
+            transcript: {
+                projectRoot: process.cwd(),
+                localConfigFolderPath,
+            },
             resetPresets: {
                 globalConfigFolderPath,
             },
