@@ -248,6 +248,8 @@ describe('installed preset command resolution', () => {
                 args: [
                     '-p',
                     'hello',
+                    '--output-format',
+                    'stream-json',
                     '--force',
                     '--trust',
                     '--workspace',
@@ -296,6 +298,8 @@ describe('installed preset command resolution', () => {
                 args: [
                     '-p',
                     'hello',
+                    '--output-format',
+                    'stream-json',
                     '--force',
                     '--trust',
                     '--workspace',
@@ -335,8 +339,9 @@ describe('installed preset command resolution', () => {
                 args: [
                     '-p',
                     'hello',
+                    '--output-format',
+                    'json',
                     '--no-ask-user',
-                    '--silent',
                     '--allow-all-tools',
                     '--deny-tool=shell(git commit)',
                     '--deny-tool=shell(git push)',
@@ -387,8 +392,9 @@ describe('installed preset command resolution', () => {
                 args: [
                     '-p',
                     'hello',
+                    '--output-format',
+                    'json',
                     '--no-ask-user',
-                    '--silent',
                     '--allow-tool=read',
                     '--allow-tool=write(packages/core/src/**)',
                     '--allow-tool=shell(*)',

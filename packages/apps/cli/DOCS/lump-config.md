@@ -9,6 +9,7 @@ Each lump lives under:
 │   or config.ts         # TypeScript default export (typed dynamic logic)
 ├── contextStatusRecord.json   # auto-maintained status cache
 ├── history/                   # optional per-context prompt run logs (when keepHistory is true)
+├── transcripts/               # daemon step feed, gitignored, gated on writeTranscripts
 └── … templates, prompt files, hook modules …
 ```
 
@@ -47,7 +48,7 @@ Minimal shape:
 
 The base branch comes from the merged **project/local** primary (`primaryBranch` or the first entry of `primaryBranches`) by default — set `baseBranch` here only when this specific lump should run against a different branch. Workspace setup (in-place vs. on a copy) is per machine (`local.json.mode`) — see [local-config.md](./local-config.md).
 
-Top-level **`command`**, **`maximumNumberOfConcurrentBranches`**, **`keepHistory`**, and **`verbose`** may be omitted here and inherited from `project.json` / `local.json` (lump > local > project; `verbose` is local-only). See [project-config.md § Merge and lump defaults](./project-config.md#merge-and-lump-defaults).
+Top-level **`command`**, **`maximumNumberOfConcurrentBranches`**, **`keepHistory`**, **`writeTranscripts`**, and **`verbose`** may be omitted here and inherited from `project.json` / `local.json` (lump > local > project; `verbose` is local-only). See [project-config.md § Merge and lump defaults](./project-config.md#merge-and-lump-defaults).
 
 Everything else (`command` at top level when using shorthand strings, hooks, etc.) is optional — see [Optional top-level fields](#optional-top-level-fields).
 
@@ -116,7 +117,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `disabled` | boolean \| DisabledFn \| FilePath | When truthy / returns `true`, soft-skips the lump on both `lumpcode start` ticks and manual `lumpcode run` (`skipped: true`, reason `disabled`, exit 0). |
 | `maximumNumberOfConcurrentBranches` | number | If set (≥ 0), `run` / daemon tick **skips** when open `lump/<lumpName>/*` branches on `origin` ≥ limit (local-only branches are not counted) |
 | `numberOfContextsPerBranch` | number | How many contexts share one branch (default `1`) |
-| `lumpVariables` | object | Arbitrary JSON passed into hooks and prompt functions as `lumpVariables` |
+| `lumpVariables` | object | Arbitrary JSON passed into hooks and prompt functions as `lumpVariables`. Optional `outputDetail`: `loud` (default) or `quiet`. Step `outputDetail` overrides this. |
 | `verbose` | boolean | Extra engine operational logging (`verbose` level). Also enabled for an invocation when you pass **`lumpcode run … --verbose`** or **`lumpcode start --verbose`** (OR-merge with this field) |
 | `registerCommands` | string[] | Pre-load extra command tags before resolving dynamic `steps`. The lump `command` tag is pre-loaded automatically; list other tags that appear only in function returns |
 | `setupFn` / `teardownFn` | [Function reference](#field-forms-conventions) | Per-context lifecycle hooks |
@@ -126,6 +127,7 @@ In `promptTemplate` (and string shorthand prompts), the engine substitutes **onl
 | `postTeardownWorkspaceCommand` | string | Shell fragment in the branch workspace before generated git teardown. Mutually exclusive with `postTeardownWorkspaceFn`. |
 | `contextOptionsFn` | [Function reference](#field-forms-conventions) | **Only with a path-template `contextListJson`:** set per-context `options` (`priority`, `dependsOnContexts`) after template expansion. See [contextOptionsFn](#contextoptionsfn-template-maps-only) and [Context ordering](#context-ordering-and-cross-lump-dependencies) |
 | `keepHistory` | boolean | When `true`, append one YAML mapping per prompt step (after the agent command) to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` |
+| `writeTranscripts` | boolean | Daemon only. When `false`, skip the transcript file for this lump. Omit or `true` writes it. Lump > local > project. Does not affect `lumpcode run` stdout. |
 
 Workspace preparation (fetch / switch / hard-reset / branch) is generated for you from `local.json` and the resolved `baseBranch`—there are no `workspaceSetup`, `setupWorkspaceFn`, or `teardownWorkspaceFn` knobs. Compose extra prep with `postSetupWorkspaceFn` / `postSetupWorkspaceCommand` (and the teardown twins). `lump-plan` does not invoke these hooks or run their commands. Do not put git mutations in post-setup (not covered by `gitCommonDirLock`). When each hook runs: [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle).
 
@@ -241,12 +243,14 @@ In `config.js` / `config.ts`, `steps` itself may be a single item of any of thos
 | `promptFn` | [Function reference](#field-forms-conventions) | Optional. Returns prompt text dynamically. Mutually exclusive with `promptTemplate` on the same step. |
 | `command` | [Command tag or file path](#command-names-and-file-paths) | Required on each step unless overridden inline via `commandFn` in `config.js` / `config.ts`; inherits top-level `command` when omitted. |
 | `postCommandExecFn` | [Function reference](#field-forms-conventions) | Hook called after the agent finishes. May return follow-on steps (runtime-only nesting under this leaf; see [types.md](./types.md#postcommandexecfn)) |
-| `stepVariables` | object | JSON-serializable bag passed to promptFn/command/postCommandExecFn hooks |
+| `stepVariables` | object | JSON-serializable bag passed to promptFn/command/postCommandExecFn hooks. Optional `outputDetail` overrides the lump value for that step. |
 | `timeoutMillis` | number | Millis cap for the agent/command process; on expiry Lumpcode terminates the process tree (SIGTERM, then SIGKILL after a grace period) and the step fails. Inherits top-level `timeoutMillis` when omitted; engine default is 30 minutes when both are omitted. |
 
 ## Prompt run history (`keepHistory`)
 
-By default, Lumpcode does **not** write prompt or agent output to disk. Set **`"keepHistory": true`** on a lump (in `config.json`, `config.js`, or `config.ts`) to record each prompt step locally.
+By default, Lumpcode does **not** write prompt or agent output to disk. Set **`"keepHistory": true`** on a lump (in `config.json`, `config.js`, or `config.ts`) to record each prompt step locally. History is the after-the-fact record. A daemon also writes a live transcript under `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` while steps run. That file is gitignored and is gated on **`writeTranscripts`**, not `keepHistory`. Omit `writeTranscripts` (or set `true`) to write the file. Set **`"writeTranscripts": false`** to skip it. `lumpcode run` prints the same feed in the terminal and does not write a transcript file.
+
+`outputDetail` on `lumpVariables` or `stepVariables` selects how much of an agent session that live feed shows. Omit it, or set `loud`, for assistant text and tool activity. `quiet` keeps assistant text and drops tool activity. Step overrides lump. An invalid value fails that step before the agent starts. History `commandResult` and retry still receive the raw process output. Commands with no `presentOutput` stay raw at either setting.
 
 ### File layout
 

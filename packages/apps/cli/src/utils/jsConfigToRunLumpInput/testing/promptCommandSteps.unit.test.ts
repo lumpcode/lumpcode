@@ -9,7 +9,7 @@ import {
     assertSuccess,
     commandFnCallArgs,
     FIXTURES_DIR,
-    GLOBAL_CONFIG_PATH,
+    seedGlobalConfigFixture,
     LOCAL_CONFIG_PATH,
     promptFnInput,
     resolveJsConf,
@@ -140,7 +140,7 @@ describe('jsConfigToRunLumpInput prompt, command, and steps', () => {
         it('should fall back to the global command when local is missing', async () => {
             const data = assertSuccess(await resolveJsConf(
                 { command: 'test-agent', prompt: 'Do something' },
-                { localConfigFolderPath: path.join(FIXTURES_DIR, 'nonexistent-local'), globalConfigFolderPath: GLOBAL_CONFIG_PATH },
+                { localConfigFolderPath: path.join(FIXTURES_DIR, 'nonexistent-local'), globalConfigFolderPath: await seedGlobalConfigFixture() },
             ));
             expect(await (data.steps[0] as Step).commandFn?.(commandFnCallArgs)).toEqual({ executable: 'global-agent', args: ['--global'] });
         });

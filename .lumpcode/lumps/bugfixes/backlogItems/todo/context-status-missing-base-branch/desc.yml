@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: context-status-missing-base-branch
+workflow: [manualReq, directImpl]
+task: >-
+  lumpcode context-status (including --setToFinished) fails with 'Lump
+  "<name>" is missing baseBranch in its config' when the lump omits
+  baseBranch, which is the usual case for featureBacklog lumps such as
+  backlog. Resolve the execution base the same way lump-status does
+  (lump baseBranch, else concrete discovery, else local.json
+  primaryBranch) so inspect and --setToFinished work without requiring
+  baseBranch on the lump. Cover a lump with no baseBranch in the
+  context-status unit tests.
+priority: 0

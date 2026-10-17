@@ -9,7 +9,8 @@
       "@lumpcode/core": ["../../core/src/index.ts"],
       "@lumpcode/core/*": ["../../core/src/*"],
       "@lumpcode/cli-types": ["./cli-types/src/index.ts"],
-      "@lumpcode/cli-utils": ["./cli-utils/src/index.ts"]
+      "@lumpcode/cli-utils": ["./cli-utils/src/index.ts"],
+      "@lumpcode/dashboard": ["../dashboard/src/index.ts"]
     }
   },
   "include": [

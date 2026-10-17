@@ -42,6 +42,7 @@ describe('readProjectJson (clean-local-project-json-config)', () => {
             command: 'cursor',
             maximumNumberOfConcurrentBranches: 2,
             keepHistory: true,
+            writeTranscripts: false,
         });
         const result = await readProjectJson({ localConfigFolderPath: dir });
         expect(result.success).toBe(true);
@@ -52,6 +53,7 @@ describe('readProjectJson (clean-local-project-json-config)', () => {
             command: 'cursor',
             maximumNumberOfConcurrentBranches: 2,
             keepHistory: true,
+            writeTranscripts: false,
         });
         expect(result.data).not.toHaveProperty('mode');
         expect(result.data).not.toHaveProperty('verbose');
@@ -138,10 +140,14 @@ describe('readProjectJson (clean-local-project-json-config)', () => {
         expect(result.data.command).toBe('cursor');
     });
 
-    it('P12: keepHistory / cap type errors', async () => {
+    it('P12: keepHistory / writeTranscripts / cap type errors', async () => {
         await writeProject({ projectName: 'x', keepHistory: 'yes' });
         const keepHistory = await readProjectJson({ localConfigFolderPath: dir });
         expect(keepHistory.success).toBe(false);
+
+        await writeProject({ projectName: 'x', writeTranscripts: 'yes' });
+        const writeTranscripts = await readProjectJson({ localConfigFolderPath: dir });
+        expect(writeTranscripts.success).toBe(false);
 
         await writeProject({ projectName: 'x', maximumNumberOfConcurrentBranches: '2' });
         const cap = await readProjectJson({ localConfigFolderPath: dir });

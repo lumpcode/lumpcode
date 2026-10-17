@@ -1,0 +1,12 @@
+name: preset-output-loudness
+workflow:
+  - manualReq
+  - impl
+task: >-
+  Let a lump or step set outputDetail. loud (the default) keeps the full session
+  view. quiet keeps assistant text and drops tool activity from the live feed.
+  Raw command output is unchanged.
+priority: 2
+dependsOn:
+  - live-step-transcripts
+completedAt: '2026-10-17T10:44:37.158Z'

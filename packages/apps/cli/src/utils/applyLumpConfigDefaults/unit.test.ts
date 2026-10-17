@@ -16,6 +16,7 @@ describe('applyLumpConfigDefaults (clean-local-project-json-config)', () => {
         command: 'cursor',
         maximumNumberOfConcurrentBranches: 2,
         keepHistory: true,
+        writeTranscripts: true,
         verbose: true,
     };
 
@@ -28,6 +29,7 @@ describe('applyLumpConfigDefaults (clean-local-project-json-config)', () => {
         expect(result.command).toBe('cursor');
         expect(result.maximumNumberOfConcurrentBranches).toBe(2);
         expect(result.keepHistory).toBe(true);
+        expect(result.writeTranscripts).toBe(true);
         expect(result.verbose).toBe(true);
     });
 
@@ -39,6 +41,20 @@ describe('applyLumpConfigDefaults (clean-local-project-json-config)', () => {
     it('D3: lump keepHistory false not overridden', () => {
         const result = apply({ keepHistory: false });
         expect(result.keepHistory).toBe(false);
+    });
+
+    it('lump writeTranscripts false is kept', () => {
+        const result = apply({ writeTranscripts: false });
+        expect(result.writeTranscripts).toBe(false);
+    });
+
+    it('lump writeTranscripts true is kept when resolved is false', () => {
+        const resolved: ResolvedProjectLocalConfig = {
+            ...baseResolved,
+            writeTranscripts: false,
+        };
+        const result = apply({ writeTranscripts: true }, resolved);
+        expect(result.writeTranscripts).toBe(true);
     });
 
     it('D4: lump cap 0 not overridden', () => {

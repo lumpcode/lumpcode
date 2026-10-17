@@ -1,0 +1,9 @@
+name: write-transcripts-switch
+workflow:
+  - manualReq
+  - impl
+task: >-
+  Add writeTranscripts (lump > local > project). Omitted means on. false skips
+  the daemon transcript file for that lump. lumpcode run is unchanged.
+priority: 0
+completedAt: '2026-10-17T19:01:17.861Z'

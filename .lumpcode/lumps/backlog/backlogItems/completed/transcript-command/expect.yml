@@ -1,0 +1,85 @@
+desc: "Add lumpcode transcript to print or follow a daemon session file, and share tailFile so daemon-log gets --lines 0 / default 10."
+files:
+  packages/apps/cli/src/utils/lumpTranscriptFilePath/main.ts:
+    desc: "Add listLumpTranscriptFiles and resolveLumpTranscriptFile. Path template and prepareLumpTranscriptFile stay."
+    "-": 0
+    "+": 90
+    symbols:
+      LumpTranscriptFile: create
+      listLumpTranscriptFiles: create
+      resolveLumpTranscriptFile: create
+  packages/apps/cli/src/utils/lumpTranscriptFilePath/unit.test.ts:
+    desc: "Nested branch reconstruction, exact discoveryBranch, stamp-desc sort, latest, ambiguous stamp, missing stamp, empty tree."
+    "-": 0
+    "+": 90
+  packages/apps/cli/src/utils/tailFile/main.ts:
+    desc: "Only tail / whole-file reader. lines 0 is from start, never tail -n 0. Caller always passes a number."
+    "-": 0
+    "+": 100
+    symbols:
+      tailFile: create
+  packages/apps/cli/src/utils/tailFile/index.ts:
+    desc: "Barrel export."
+    "-": 0
+    "+": 2
+  packages/apps/cli/src/utils/tailFile/unit.test.ts:
+    desc: "10, N, 0 noFollow is the whole file, 0 follow starts at the beginning. Never tail -n 0."
+    "-": 0
+    "+": 80
+  packages/apps/cli/src/utils/index.ts:
+    desc: "Barrel-export tailFile."
+    "-": 0
+    "+": 1
+  packages/apps/cli/src/commands/daemon-log/main.ts:
+    desc: "Call tailFile. Drop buildTailArgs and inlined spawn. --lines integer ≥ 0; omitted becomes 10 before the call."
+    "-": 70
+    "+": 20
+    symbols:
+      buildTailArgs: delete
+      command: update
+  packages/apps/cli/src/commands/daemon-log/unit.test.ts:
+    desc: "Drop buildTailArgs cases. --lines 0 is the whole log. Omitted --lines still last 10. Default follow argv is -n 10 -f."
+    "-": 25
+    "+": 35
+  packages/apps/cli/src/commands/transcript/main.ts:
+    desc: "Print vs --list flag matrix. Resolve/list via lumpTranscriptFilePath, tail via tailFile. No daemon log path."
+    "-": 0
+    "+": 150
+    symbols:
+      command: create
+  packages/apps/cli/src/commands/transcript/index.ts:
+    desc: "Barrel export."
+    "-": 0
+    "+": 2
+  packages/apps/cli/src/commands/transcript/unit.test.ts:
+    desc: "lumpName required unless --list; --list rejects stamp/lines/noFollow; --json print needs --noFollow; missing file mentions --list."
+    "-": 0
+    "+": 140
+  packages/apps/cli/src/commands/index.ts:
+    desc: "Export transcript + Input/Output/Injections."
+    "-": 0
+    "+": 8
+    symbols:
+      transcript: create
+  packages/apps/cli/src/main.ts:
+    desc: "Register transcript injections (projectRoot, localConfigFolderPath, spawnFn)."
+    "-": 0
+    "+": 6
+    symbols:
+      makeProgram: update
+  packages/apps/cli/DOCS/commands.md:
+    desc: "New transcript section under Daemon. daemon-log --lines omitted = 10, 0 = whole file, point at transcript for the session."
+    "-": 8
+    "+": 45
+  packages/apps/cli/DOCS/concepts.md:
+    desc: "Live-feed sentence names lumpcode transcript as how to read the daemon file."
+    "-": 1
+    "+": 2
+  packages/apps/website/content/docs/reference/commands.md:
+    desc: "Same transcript command and daemon-log --lines contract."
+    "-": 4
+    "+": 22
+  packages/apps/website/content/docs/config/lump.md:
+    desc: "One line: read daemon transcripts with lumpcode transcript."
+    "-": 1
+    "+": 2

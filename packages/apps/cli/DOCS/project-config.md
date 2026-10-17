@@ -19,7 +19,8 @@ With lump defaults:
   "primaryBranch": "dev",
   "command": "cursor",
   "maximumNumberOfConcurrentBranches": 2,
-  "keepHistory": true
+  "keepHistory": true,
+  "writeTranscripts": true
 }
 ```
 
@@ -38,6 +39,7 @@ With lump defaults:
 | `command` | no | Lump default; **tag shape only** (not a `.ts`/`.js` path) |
 | `maximumNumberOfConcurrentBranches` | no | Lump default |
 | `keepHistory` | no | Lump default |
+| `writeTranscripts` | no | Lump default; omit = on |
 | `refreshCommand` | no | Dedicated daemon tick only; local wins; ignored by shared mode and `lumpcode run` |
 
 Not allowed here: `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, `verbose`. Unknown keys hard-fail.
@@ -48,7 +50,7 @@ Not allowed here: `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, `ve
 
 **Primary branch:** after merge, require a non-empty primary source (`primaryBranches` non-empty, or `primaryBranch`, or deprecated `projectBaseBranch`). Either file may supply it.
 
-**Lump defaults** (`command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `verbose`):
+**Lump defaults** (`command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `writeTranscripts`, `verbose`):
 
 Precedence where the field exists on that layer: **lump > local > project**. Inherit only when the lump value is `undefined`. Values such as `false` or `0` are not overridden. `verbose` never comes from `project.json`.
 

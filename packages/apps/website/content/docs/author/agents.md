@@ -35,18 +35,18 @@ Presets run headless. Copilot and Claude Code deny agent `git commit` / `git pus
 
 ## `model` and permissions
 
-Presets read `lumpVariables` and `stepVariables`. **Step overrides lump.** Closed types: `CursorPresetLumpVariables`, `CopilotAgentPermissions`, … on `@lumpcode/cli-utils`. Step-only session keys: `newChat`, `chatIdIndex`.
+Presets read `lumpVariables` and `stepVariables`. **Step overrides lump.** Closed types: `CursorPresetLumpVariables`, `CopilotAgentPermissions`, … on `@lumpcode/cli-utils`. Step-only session keys: `newChat`, `chatIdIndex`. `outputDetail` is the same bags and override: `loud` (default) is assistant text and tool activity; `quiet` keeps assistant text and drops tool activity from the live feed only. History and retry still get the raw command output.
 
 ```ts config.ts
 import { defineConfig } from '@lumpcode/cli-utils'
 
 export default defineConfig({
   command: 'cursor',
-  lumpVariables: { model: 'auto' },
+  lumpVariables: { model: 'auto', outputDetail: 'quiet' },
   steps: [
     {
       promptTemplate: 'Analyze @{FILE}. Do not edit.',
-      stepVariables: { model: 'composer-2' },
+      stepVariables: { model: 'composer-2', outputDetail: 'loud' },
     },
     { promptTemplate: 'Apply the safe fixes to @{FILE}.' },
   ],

@@ -17,6 +17,7 @@ import * as commitSharedRunReviewModule from '../../utils/commitSharedRunReview'
 import * as installRunAbortHandlersModule from '../../utils/installRunAbortHandlers';
 import * as promptSharedRunReviewModule from '../../utils/promptSharedRunReview';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
+import * as retainLumpcodeLogsModule from '../../utils/retainLumpcodeLogs';
 import * as runLumpFromLumpNameModule from '../../utils/runLumpFromLumpName';
 import { command } from './main';
 import { createTempTestDirs, removeTempTestDirs } from '../../utils';
@@ -147,6 +148,48 @@ describe('run command — multi discovery branches', () => {
         expect(gitCurrentBranch(projectRoot)).toBe('main');
     });
 
+    it('calls retainLumpcodeLogs once before the lump starts', async () => {
+        await setupMultiBranchLocal();
+        const retainSpy = vi.spyOn(retainLumpcodeLogsModule, 'retainLumpcodeLogs');
+        const runSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'releaseLine' },
+        });
+
+        expect(result.success).toBe(true);
+        expect(retainSpy).toHaveBeenCalledTimes(1);
+        expect(retainSpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectRoot,
+                projectName: 'run-cmd-test',
+                globalConfigFolderPath,
+            }),
+        );
+        expect(retainSpy.mock.invocationCallOrder[0]).toBeLessThan(runSpy.mock.invocationCallOrder[0]!);
+    });
+
+    it('warns when log retention fails and still runs the lump', async () => {
+        await setupMultiBranchLocal();
+        vi.spyOn(retainLumpcodeLogsModule, 'retainLumpcodeLogs').mockResolvedValue(
+            core.failure('disk full'),
+        );
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const runSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
+
+        const result = await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'releaseLine' },
+        });
+
+        expect(result.success).toBe(true);
+        expect(runSpy).toHaveBeenCalled();
+        expect(warnSpy.mock.calls.some((call) => String(call[0]).includes('log retention failed'))).toBe(
+            true,
+        );
+    });
+
     it('loads config in phase 1 before calling runLumpFromJsConfig', async () => {
         await setupMultiBranchLocal();
         const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
@@ -161,8 +204,22 @@ describe('run command — multi discovery branches', () => {
                 sourceProjectRoot: projectRoot,
                 lumpName: 'releaseLine',
                 effectiveDiscoveryBranch: 'ver/0.0.9',
+                liveStepWrite: expect.any(Function),
             }),
         );
+    });
+
+    it('streams step output to stdout and does not create a transcript file', async () => {
+        await setupMultiBranchLocal();
+        const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
+        await makeHandler()({
+            options: {},
+            arguments: { lumpName: 'releaseLine' },
+        });
+        expect(runLumpSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ liveStepWrite: expect.any(Function) }),
+        );
+        await expect(fs.access(path.join(projectRoot, '.lumpcode', 'lumps', 'releaseLine', 'transcripts'))).rejects.toThrow();
     });
 
     it('pre-flights to resolvedBaseBranch for LUMP-SPLIT (discovery on main, execution on ver/0.0.9)', async () => {

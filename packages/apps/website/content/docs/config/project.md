@@ -23,6 +23,7 @@ description: .lumpcode/project.json is committed. It names the project and can s
 | `command` | no | Lump default. Tag only, not a `.ts` path. |
 | `maximumNumberOfConcurrentBranches` | no | Lump default. |
 | `keepHistory` | no | Lump default. |
+| `writeTranscripts` | no | Lump default. Omit means on. |
 | `refreshCommand` | no | Dedicated worker only. Shell to run after fetch on each scan branch before lumps load (submodules, codegen). Local wins. Ignored by `run` and by shared mode. |
 
 Unknown keys fail. Do not put `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, or `verbose` here. Those are [local](/docs/config/local).
@@ -33,7 +34,7 @@ Unknown keys fail. Do not put `mode`, `workspaceStrategy`, `disabled`, `maxParal
 
 Shared keys present on both project and local: **local wins**. After merge, a primary source is required.
 
-Lump defaults (`command`, `maximumNumberOfConcurrentBranches`, `keepHistory`): **lump > local > project**, only when the lump leaves the field undefined.
+Lump defaults (`command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `writeTranscripts`): **lump > local > project**, only when the lump leaves the field undefined.
 
 A worker process reads this merge **once** at `start`. Restart the worker after you change either file.
 
