@@ -1,6 +1,7 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: transcript-command
-workflow: [manualReq, impl]
+workflow:
+  - manualReq
+  - impl
 task: >-
   Add a CLI command that prints a daemon transcript. The file is
   .lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log, written by a
@@ -9,3 +10,4 @@ task: >-
 priority: 3
 dependsOn:
   - live-step-transcripts
+completedAt: '2026-10-17T15:17:16.773Z'
