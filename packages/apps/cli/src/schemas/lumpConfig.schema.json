@@ -202,6 +202,11 @@
       "description": "When true, append one YAML entry per prompt step (prompt text, agent output, context, step index) to '.lumpcode/lumps/<lumpName>/history/<contextName>.yaml'. History files are gitignored by project-setup; intended for local debugging and inspection.",
       "default": false
     },
+    "writeTranscripts": {
+      "type": "boolean",
+      "description": "Daemon only. When false, skip the transcript file for this lump. Omit or true writes it (today's default). Lump wins over local.json and project.json. Does not affect lumpcode run stdout.",
+      "default": true
+    },
     "registerCommands": {
       "type": "array",
       "items": {

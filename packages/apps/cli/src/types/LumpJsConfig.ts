@@ -76,6 +76,7 @@ export type LumpJsConfig<
      */
     registerCommands?: string[];
     keepHistory?: boolean;
+    writeTranscripts?: boolean;
     verbose?: boolean;
     /**
      * After generated checkout/worktree setup. Mutually exclusive with

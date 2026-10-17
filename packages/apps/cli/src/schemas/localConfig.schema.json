@@ -59,6 +59,10 @@
       "type": "boolean",
       "description": "Default for lump `keepHistory` when the lump omits it. Local wins over project; lump wins over both."
     },
+    "writeTranscripts": {
+      "type": "boolean",
+      "description": "Default for lump `writeTranscripts` when the lump omits it. Omit means on. Local wins over project; lump wins over both."
+    },
     "verbose": {
       "type": "boolean",
       "description": "Default for lump `verbose` when the lump omits it. Local-only (not allowed on project.json)."

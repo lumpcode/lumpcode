@@ -14,7 +14,7 @@ Preview with `lumpcode lump-plan <lumpName>` before you spend tokens.
 │   or config.json            # static only
 ├── contextStatusRecord.json  # cache, refreshed from git
 ├── history/                  # optional, gitignored, keepHistory
-└── transcripts/              # daemon step feed, gitignored, not gated on keepHistory
+└── transcripts/              # daemon step feed, gitignored, gated on writeTranscripts
 ```
 
 Load precedence: **`config.ts` > `config.js` > `config.json`**. `lump-create --config ts|js|json` scaffolds one of them (default JSON).
@@ -81,6 +81,7 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `lumpVariables` | Bag for hooks and preset options (`model`, `agentPermissions`, `outputDetail`). |
 | `verbose` | Extra engine logs. Also on with `lumpcode run --verbose`. |
 | `keepHistory` | Write prompt/output YAML per context. Gitignored. |
+| `writeTranscripts` | Daemon only. Omit or `true` writes the transcript file. `false` skips it. Lump > local > project. |
 | `registerCommands` | Extra command tags that appear only inside dynamic `steps`. |
 | `branchFn` | Custom work-branch name. Default `lump/<lumpName>/<contexts…>`. |
 | `setupFn` / `teardownFn` | Per-context hooks. Teardown always runs; failures are logged and do not block git. |
@@ -118,7 +119,7 @@ Not configurable, so `clean` and status stay aligned. Matched **anywhere in the 
 
 ## Defaults from project / local
 
-`command`, `maximumNumberOfConcurrentBranches`, `keepHistory`: **lump > local.json > project.json**. `verbose` is local-only (plus the CLI flag). A lump value of `false` or `0` is kept; only `undefined` inherits.
+`command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `writeTranscripts`: **lump > local.json > project.json**. `verbose` is local-only (plus the CLI flag). A lump value of `false` or `0` is kept; only `undefined` inherits.
 
 ## Status cache
 
@@ -137,7 +138,7 @@ Not configurable, so `clean` and status stay aligned. Matched **anywhere in the 
 
 `"keepHistory": true` appends one YAML object per step to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored). Written after the command, before `postCommandExecFn`. Not written when `commandFn` skips. Fields match that hook: `prompt`, `commandResult`, `commandSucceeded`, `context`, `stepIndex`, `contextRunState`, `lumpVariables`, `stepVariables`, `projectRoot`. Agent output can contain secrets. History is the after-the-fact record.
 
-A daemon writes the live step feed to `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` (gitignored, beside `history/`). That file is not gated on `keepHistory`. Read it with `lumpcode transcript`, not by opening the path by hand. `lumpcode run` prints the same feed in the terminal and does not write a transcript.
+A daemon writes the live step feed to `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` (gitignored, beside `history/`). That file is gated on `writeTranscripts` (omit = on), not `keepHistory`. Read it with `lumpcode transcript`, not by opening the path by hand. `lumpcode run` prints the same feed in the terminal and does not write a transcript.
 
 ```yaml history/foo.yaml
 - prompt: Add an explicit return type…

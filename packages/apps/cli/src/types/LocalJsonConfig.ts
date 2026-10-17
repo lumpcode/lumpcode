@@ -16,6 +16,7 @@ export type LocalJsonConfig = Pick<
     | 'command'
     | 'maximumNumberOfConcurrentBranches'
     | 'keepHistory'
+    | 'writeTranscripts'
     | 'verbose'
     | 'refreshCommand'
     | 'logRetention'
