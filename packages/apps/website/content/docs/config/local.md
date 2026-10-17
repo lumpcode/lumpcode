@@ -55,7 +55,7 @@ Use on a [worker](/docs/start/worker) you do not develop in.
 | `primaryBranch` / `primaryBranches` | Override the committed primary. Local wins. |
 | `logRetention` | `{ "maxAgeDays": n }`. Omitted: keep 14 days. `0` keeps everything. Deletes old transcript and history files and trims this project’s daemon and supervisor logs on `run` and each worker tick. Restart the worker to pick it up for ticks. |
 
-`command`, `maximumNumberOfConcurrentBranches`, and `keepHistory` may also live here as lump defaults (`command` is a tag only, not a `.ts` path). Deprecated `projectBaseBranch` is accepted as a primary alias (warns once). `discoveryBranch` / `discoveryBranches` are rejected here; those belong on the lump.
+`command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, and `writeTranscripts` may also live here as lump defaults (`command` is a tag only, not a `.ts` path). Omit `writeTranscripts` means on. Deprecated `projectBaseBranch` is accepted as a primary alias (warns once). `discoveryBranch` / `discoveryBranches` are rejected here; those belong on the lump.
 
 Misplaced keys such as `projectName` fail the parse. Unknown keys fail.
 

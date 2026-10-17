@@ -48,6 +48,7 @@ const sharedLumpDefaultFields = {
     command: tagCommandSchema.optional(),
     maximumNumberOfConcurrentBranches: z.number().optional(),
     keepHistory: z.boolean().optional(),
+    writeTranscripts: z.boolean().optional(),
 } as const;
 
 const sharedRefreshCommandField = {

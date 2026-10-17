@@ -548,6 +548,79 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         }
     });
 
+    it('omitted writeTranscripts still passes liveStepWrite', async () => {
+        await writeLocal();
+        await writeLumps(['alpha']);
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async () => runSuccess);
+
+        try {
+            const result = await makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            expect(runLumpSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ liveStepWrite: expect.any(Function) }),
+            );
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('overlaid writeTranscripts false omits liveStepWrite', async () => {
+        await writeLocal({ writeTranscripts: false });
+        await writeLumps(['alpha']);
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async () => runSuccess);
+
+        try {
+            const result = await makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            expect(runLumpSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ lumpName: 'alpha' }),
+            );
+            expect(runLumpSpy.mock.calls[0]?.[0].liveStepWrite).toBeUndefined();
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
+    it('lump writeTranscripts true wins over local false', async () => {
+        await writeLocal({ writeTranscripts: false });
+        await writeLumps(['alpha'], { writeTranscripts: true });
+
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async () => runSuccess);
+
+        try {
+            const result = await makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            expect(runLumpSpy).toHaveBeenCalledWith(
+                expect.objectContaining({ liveStepWrite: expect.any(Function) }),
+            );
+        } finally {
+            runLumpSpy.mockRestore();
+        }
+    });
+
     it('disabled lump still reaches runLumpFromLumpName (phase-1 soft skip)', async () => {
         await writeLocal();
         await writeMinimalLump(projectRoot, 'alpha', { disabled: true });

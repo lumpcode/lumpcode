@@ -243,20 +243,23 @@ async function runLumpLine(
             lumpName,
             localConfigFolderPath: session.localConfigFolderPath,
         });
-        const effectiveForVerbose = jsConfForVerbose.success
+        const overlaidLumpConfig = jsConfForVerbose.success
             ? applyLumpConfigDefaults({
                   jsConfig: jsConfForVerbose.data,
                   resolved: session.frozenLocalConfig,
               })
             : undefined;
         const lumpLogger = createCliLogger({
-            verbose: !!session.cliVerbose || !!effectiveForVerbose?.verbose,
+            verbose: !!session.cliVerbose || !!overlaidLumpConfig?.verbose,
             json: !!session.json,
             prefix: '[lumpcode start]',
         });
         let liveStepWrite: ((text: string) => void) | undefined;
         const discoveryBranch = lumpLine.effectiveDiscoveryBranch;
-        if (discoveryBranch) {
+        const writeTranscripts =
+            overlaidLumpConfig?.writeTranscripts ??
+            session.frozenLocalConfig.writeTranscripts;
+        if (discoveryBranch && writeTranscripts !== false) {
             const prepared = await prepareLumpTranscriptFile({
                 projectRoot: session.recipe.projectRoot,
                 lumpName,

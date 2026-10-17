@@ -78,6 +78,7 @@ describe('readLocalConfig', () => {
                     command: 'cursor',
                     maximumNumberOfConcurrentBranches: 2,
                     keepHistory: true,
+                    writeTranscripts: false,
                     verbose: true,
                 },
             });
@@ -87,6 +88,7 @@ describe('readLocalConfig', () => {
             expect(result.data.command).toBe('cursor');
             expect(result.data.maximumNumberOfConcurrentBranches).toBe(2);
             expect(result.data.keepHistory).toBe(true);
+            expect(result.data.writeTranscripts).toBe(false);
             expect(result.data.verbose).toBe(true);
         });
 
