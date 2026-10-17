@@ -1,0 +1,92 @@
+desc: "Add writeTranscripts overlay (lump > local > project, omit = on) and skip the daemon transcript file when false."
+files:
+  packages/apps/cli/src/utils/projectLocalConfigSchema/main.ts:
+    desc: "Add writeTranscripts to sharedLumpDefaultFields next to keepHistory."
+    "-": 0
+    "+": 1
+    symbols:
+      sharedLumpDefaultFields: update
+  packages/apps/cli/src/utils/readProjectLocalConfig/main.ts:
+    desc: "Add writeTranscripts to SHARED_KEYS."
+    "-": 0
+    "+": 1
+    symbols:
+      SHARED_KEYS: update
+  packages/apps/cli/src/utils/applyLumpConfigDefaults/main.ts:
+    desc: "Add writeTranscripts to LUMP_DEFAULT_KEYS."
+    "-": 0
+    "+": 1
+    symbols:
+      LUMP_DEFAULT_KEYS: update
+  packages/apps/cli/src/utils/applyLumpConfigDefaults/unit.test.ts:
+    desc: "Inherit when lump omits. Lump false and lump true are kept."
+    "-": 0
+    "+": 25
+  packages/apps/cli/src/types/LumpJsConfig.ts:
+    desc: "Optional writeTranscripts boolean."
+    "-": 0
+    "+": 1
+    symbols:
+      LumpJsConfig: update
+  packages/apps/cli/src/types/LocalJsonConfig.ts:
+    desc: "Pick writeTranscripts."
+    "-": 0
+    "+": 1
+    symbols:
+      LocalJsonConfig: update
+  packages/apps/cli/src/types/ProjectJsonConfig.ts:
+    desc: "Pick writeTranscripts."
+    "-": 0
+    "+": 1
+    symbols:
+      ProjectJsonConfig: update
+  packages/apps/cli/src/schemas/lumpConfig.schema.json:
+    desc: "Optional boolean. Omit means on. Lump wins over local and project."
+    "-": 0
+    "+": 6
+  packages/apps/cli/src/schemas/localConfig.schema.json:
+    desc: "Default for lump writeTranscripts when the lump omits it."
+    "-": 0
+    "+": 5
+  packages/apps/cli/src/schemas/projectConfig.schema.json:
+    desc: "Same default field as local. Overridden by local.json or the lump."
+    "-": 1
+    "+": 6
+  packages/apps/cli/src/utils/launchStartDaemon/runForeground.ts:
+    desc: "Skip prepareLumpTranscriptFile when overlaid writeTranscripts is false. If lump config fails to load, use frozen local."
+    "-": 4
+    "+": 12
+    symbols:
+      runLumpLine: update
+  packages/apps/cli/src/commands/start/testing/parallelGlobalDaemon.unit.test.ts:
+    desc: "False omits liveStepWrite. Omitted still passes it. Lump true wins over local false."
+    "-": 0
+    "+": 80
+  packages/apps/cli/DOCS/lump-config.md:
+    desc: "writeTranscripts field. Transcripts gated on it, not keepHistory. Omit = on."
+    "-": 2
+    "+": 8
+  packages/apps/cli/DOCS/local-config.md:
+    desc: "Row next to keepHistory."
+    "-": 0
+    "+": 1
+  packages/apps/cli/DOCS/project-config.md:
+    desc: "Lump-defaults list includes writeTranscripts."
+    "-": 2
+    "+": 4
+  packages/apps/cli/DOCS/concepts.md:
+    desc: "One sentence: off via writeTranscripts false."
+    "-": 1
+    "+": 2
+  packages/apps/website/content/docs/config/lump.md:
+    desc: "Same overlay and omit = on as CLI lump-config."
+    "-": 2
+    "+": 6
+  packages/apps/website/content/docs/config/local.md:
+    desc: "Mention writeTranscripts with the other lump defaults."
+    "-": 1
+    "+": 2
+  packages/apps/website/content/docs/config/project.md:
+    desc: "Field row and lump-defaults list."
+    "-": 1
+    "+": 3

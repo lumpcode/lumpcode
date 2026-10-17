@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: write-transcripts-switch
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Add writeTranscripts (lump > local > project). Omitted means on. false
+  skips the daemon transcript file for that lump. lumpcode run is unchanged.
+priority: 0
