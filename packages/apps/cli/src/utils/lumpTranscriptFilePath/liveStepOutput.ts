@@ -1,7 +1,9 @@
 import type { CommandOutputEvent, Logger } from '@lumpcode/core';
 
 import type { CommandModule } from '../../types/CommandModule';
+import type { OutputDetail } from '../../types/OutputDetail';
 import type { PresentOutputFn } from '../../types/PresentOutputFn';
+import { resolveOutputDetail } from './resolveOutputDetail';
 
 export function formatLiveStepHeader({
     lumpName,
@@ -32,6 +34,7 @@ export function createLiveStepOutput({
 } {
     let modules: ReadonlyMap<string, CommandModule> = new Map();
     let presenter: PresentOutputFn | undefined;
+    let outputDetail: OutputDetail = 'loud';
 
     const safeWrite = (text: string) => {
         if (!text) return;
@@ -55,6 +58,11 @@ export function createLiveStepOutput({
             const commandName = event.commandName;
             const factory = commandName ? modules.get(commandName)?.presentOutput : undefined;
             if (!factory) return;
+            outputDetail = resolveOutputDetail({
+                lumpVariables: event.lumpVariables ?? {},
+                ...(event.stepVariables !== undefined ? { stepVariables: event.stepVariables } : {}),
+                logger,
+            });
             try {
                 presenter = factory({
                     lumpVariables: event.lumpVariables ?? {},
@@ -85,7 +93,7 @@ export function createLiveStepOutput({
             const presented = presenter({
                 stream: event.stream,
                 chunk: event.chunk,
-                outputDetail: 'loud',
+                outputDetail,
             });
             if (typeof presented === 'string') safeWrite(presented);
         } catch (error: unknown) {

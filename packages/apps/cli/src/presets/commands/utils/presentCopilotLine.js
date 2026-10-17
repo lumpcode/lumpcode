@@ -15,12 +15,13 @@ function toolFrom(event) {
     return toolLine(name, target);
 }
 
-export function presentCopilotEvent(event) {
+export function presentCopilotEvent(event, outputDetail) {
     if (!event || typeof event !== 'object') return '';
     if (event.type === 'assistant.message' || event.type === 'assistant.message_delta') {
         const text = textFrom(event.data);
         return text ? `${text}\n` : '';
     }
+    if (outputDetail === 'quiet') return '';
     if (event.type === 'tool.execution_start') return toolFrom(event);
     return '';
 }

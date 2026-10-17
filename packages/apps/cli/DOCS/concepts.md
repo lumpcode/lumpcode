@@ -139,7 +139,7 @@ Order notes:
 
 When a lump sets **`keepHistory: true`**, each prompt step appends prompt text and agent output to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` on disk (gitignored by `project-setup`). That file is written after the command exits. See [lump-config.md § Prompt run history](./lump-config.md#prompt-run-history-keephistory).
 
-While a step is still running, `lumpcode run` prints that step's output in the terminal. A daemon writes the same feed to `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` (gitignored, one file per lump line per tick). Use `lumpcode transcript` to read that file. The daemon log stays the operational log. Transcripts are not gated on `keepHistory`.
+While a step is still running, `lumpcode run` prints that step's output in the terminal. A daemon writes the same feed to `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` (gitignored, one file per lump line per tick). Use `lumpcode transcript` to read that file. The daemon log stays the operational log. Transcripts are not gated on `keepHistory`. The live feed's loudness is `outputDetail` on lump and step variables. See [lump-config.md](./lump-config.md).
 
 ## Status lifecycle
 

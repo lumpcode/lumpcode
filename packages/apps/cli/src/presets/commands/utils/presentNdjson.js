@@ -10,7 +10,7 @@ function classifyLine(line) {
 
 export function createNdjsonPresenter(presentEvent) {
     const buffers = { stdout: '', stderr: '' };
-    return ({ stream, chunk }) => {
+    return ({ stream, chunk, outputDetail }) => {
         const key = stream === 'stderr' ? 'stderr' : 'stdout';
         buffers[key] += chunk;
         const lines = buffers[key].split('\n');
@@ -23,7 +23,7 @@ export function createNdjsonPresenter(presentEvent) {
                 out += `${classified.text}\n`;
                 continue;
             }
-            const presented = presentEvent(classified.value);
+            const presented = presentEvent(classified.value, outputDetail);
             if (presented) out += presented;
         }
         return out || undefined;
