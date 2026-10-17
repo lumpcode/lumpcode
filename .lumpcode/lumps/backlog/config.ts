@@ -64,4 +64,5 @@ export default featureBacklog<
         testImpl: (input) => withExpectMatch(defaultTestImplPrompt, input),
         impl: (input) => withExpectMatch(defaultImplPrompt, input),
     },
+    timeoutMillis: 1000 * 60 * 60 * 4, // 4 hours
 });
