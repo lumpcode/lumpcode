@@ -145,7 +145,8 @@ export function addCommand<
                 }
             }
             const handlerResult = await handler(validatedInput.data);
-            const skipReprint = handlerResult.success && !parsedOpts.json && handlerResult.data.printed === true;
+            // The handler already wrote stdout, including a JSON envelope when --json is set.
+            const skipReprint = handlerResult.success && handlerResult.data.printed === true;
             if (!skipReprint) {
                 cliLog(handlerResult.data, !!parsedOpts.json, !handlerResult.success);
             }

@@ -5,12 +5,11 @@ import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import { LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing/tsLumpFixtures';
+import { seedGlobalConfigFixture } from '../jsConfigToRunLumpInput/testing/testHelpers';
 import { planLumpFromJsConfig } from './main';
 import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { writeJsonFile } from '../writeJsonFile';
-
-const FIXTURES_GLOBAL = path.resolve(__dirname, '../jsConfigToRunLumpInput/__fixtures__/global-config');
 
 const LUMP_CONFIG_JS = `export default {
   getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
@@ -31,7 +30,7 @@ describe('planLumpFromJsConfig', () => {
         projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-util-'));
         remoteDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-plan-util-remote-'));
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
-        globalConfigFolderPath = FIXTURES_GLOBAL;
+        globalConfigFolderPath = await seedGlobalConfigFixture();
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'preview-lump'), { recursive: true });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'local.json'), data: { mode: 'dedicated', primaryBranch: 'main' } });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'preview-project' } });

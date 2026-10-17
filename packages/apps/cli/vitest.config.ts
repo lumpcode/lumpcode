@@ -5,6 +5,7 @@ export default defineConfig({
     resolve: {
         alias: {
             esbuild: path.resolve(__dirname, 'src/testing/esbuildVitestShim.ts'),
+            '@lumpcode/dashboard': path.resolve(__dirname, '../dashboard/src/index.ts'),
         },
     },
     test: {

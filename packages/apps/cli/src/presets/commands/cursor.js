@@ -5,6 +5,8 @@ import { promisify } from 'node:util';
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { resolveCursorConfigDir } from './utils/resolveCursorConfigDir.js';
+import { createNdjsonPresenter } from './utils/presentNdjson.js';
+import { presentCursorEvent } from './utils/presentCursorLine.js';
 
 const execAsync = promisify(exec);
 
@@ -67,6 +69,8 @@ export const command = (async ({
         args: [
             '-p',
             trimmedPrompt,
+            '--output-format',
+            'stream-json',
             '--force',
             '--trust',
             '--workspace',
@@ -97,3 +101,5 @@ export const setup = (async ({}) => {
 export const teardown = ((() => {
     return;
 }));
+
+export const presentOutput = () => createNdjsonPresenter(presentCursorEvent);

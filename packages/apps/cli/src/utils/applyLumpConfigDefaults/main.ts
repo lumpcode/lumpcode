@@ -5,6 +5,7 @@ const LUMP_DEFAULT_KEYS = [
     'command',
     'maximumNumberOfConcurrentBranches',
     'keepHistory',
+    'writeTranscripts',
     'verbose',
 ] as const satisfies ReadonlyArray<keyof LumpJsConfig & keyof ResolvedProjectLocalConfig>;
 

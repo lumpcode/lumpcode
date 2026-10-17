@@ -22,6 +22,8 @@ import { reorderDedicatedLumpLines } from '../reorderDedicatedLumpLines';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
 import { runLumpFromLumpName } from '../runLumpFromLumpName';
+import { prepareLumpTranscriptFile } from '../lumpTranscriptFilePath';
+import { retainLumpcodeLogs } from '../retainLumpcodeLogs';
 import { runLumpLinesWithConcurrency } from '../runLumpLinesWithConcurrency';
 import {
     scoreDedicatedLumpLineSnapshots,
@@ -230,6 +232,7 @@ async function collectTickLumpLines(session: TickSession): Promise<CollectTickLu
 async function runLumpLine(
     session: TickSession,
     lumpLine: LumpLine,
+    tickStartedAt: string,
 ): Promise<void> {
     const { lumpName } = lumpLine;
     const abortController = new AbortController();
@@ -240,17 +243,37 @@ async function runLumpLine(
             lumpName,
             localConfigFolderPath: session.localConfigFolderPath,
         });
-        const effectiveForVerbose = jsConfForVerbose.success
+        const overlaidLumpConfig = jsConfForVerbose.success
             ? applyLumpConfigDefaults({
                   jsConfig: jsConfForVerbose.data,
                   resolved: session.frozenLocalConfig,
               })
             : undefined;
         const lumpLogger = createCliLogger({
-            verbose: !!session.cliVerbose || !!effectiveForVerbose?.verbose,
+            verbose: !!session.cliVerbose || !!overlaidLumpConfig?.verbose,
             json: !!session.json,
             prefix: '[lumpcode start]',
         });
+        let liveStepWrite: ((text: string) => void) | undefined;
+        const discoveryBranch = lumpLine.effectiveDiscoveryBranch;
+        const writeTranscripts =
+            overlaidLumpConfig?.writeTranscripts ??
+            session.frozenLocalConfig.writeTranscripts;
+        if (discoveryBranch && writeTranscripts !== false) {
+            const prepared = await prepareLumpTranscriptFile({
+                projectRoot: session.recipe.projectRoot,
+                lumpName,
+                discoveryBranch,
+                tickStartedAt,
+            });
+            if (!prepared.success) {
+                session.logger.warn(
+                    `lump "${lumpName}": transcript not written: ${prepared.data}`,
+                );
+            } else {
+                liveStepWrite = prepared.data.write;
+            }
+        }
         const runLumpRes = await runLumpFromLumpName({
             lumpName,
             localConfigFolderPath: session.localConfigFolderPath,
@@ -265,6 +288,7 @@ async function runLumpLine(
             daemonRunTelemetry: {
                 setContextName: session.liveMeta.setContextName,
             },
+            liveStepWrite,
         });
         if (!runLumpRes.success) {
             session.logger.error(
@@ -442,7 +466,8 @@ export async function runForegroundStartDaemon(
     let ticks = 0;
     let cronJob: Cron | undefined;
     const runTick = async (): Promise<void> => {
-        logger.info(`${new Date().toISOString()} - runTick`);
+        const tickStartedAt = new Date().toISOString();
+        logger.info(`${tickStartedAt} - runTick`);
         if (await shouldDrainDaemon(desiredFilePath)) {
             logger.info('desired.json is stopping; draining and skipping tick.');
             shutdown.shutdown();
@@ -450,6 +475,21 @@ export async function runForegroundStartDaemon(
         }
         await liveMeta.setTickPhase('running');
         try {
+            try {
+                const retainResult = await retainLumpcodeLogs({
+                    projectRoot: recipe.projectRoot,
+                    projectName,
+                    globalConfigFolderPath,
+                    maxAgeDays: frozenLocalConfig.logRetention?.maxAgeDays,
+                    logger,
+                });
+                if (!retainResult.success) {
+                    logger.warn(`log retention failed: ${retainResult.data}`);
+                }
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                logger.warn(`log retention failed: ${message}`);
+            }
             const collected = await collectTickLumpLines(session);
             switch (collected.kind) {
                 case 'noop':
@@ -475,7 +515,7 @@ export async function runForegroundStartDaemon(
                     await runLumpLinesWithConcurrency({
                         items: collected.items,
                         concurrency: effectiveConcurrency,
-                        runLumpLine: (line) => runLumpLine(session, line),
+                        runLumpLine: (line) => runLumpLine(session, line, tickStartedAt),
                     });
                     break;
                 }

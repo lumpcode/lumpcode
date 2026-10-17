@@ -137,7 +137,9 @@ Order notes:
 2. Context discovery and the status-driven todo list run **before** branch workspace setup. Author hooks (`setupFn`, `promptFn`, …) sit inside the per-context loop after setup; details only in [advanced-config.md](./advanced-config.md#hook-lifecycle). Shared review (`c` / `e`) runs in `commands/run` after a successful walk, not in the engine.
 3. Execution workspace is this checkout in both modes. See [Three workspaces](#three-workspaces).
 
-When a lump sets **`keepHistory: true`**, each prompt step appends prompt text and agent output to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` on disk (gitignored by `project-setup`). See [lump-config.md § Prompt run history](./lump-config.md#prompt-run-history-keephistory).
+When a lump sets **`keepHistory: true`**, each prompt step appends prompt text and agent output to `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` on disk (gitignored by `project-setup`). That file is written after the command exits. See [lump-config.md § Prompt run history](./lump-config.md#prompt-run-history-keephistory).
+
+While a step is still running, `lumpcode run` prints that step's output in the terminal. A daemon writes the same feed to `.lumpcode/lumps/<lumpName>/transcripts/<branch>/<stamp>.log` (gitignored, one file per lump line per tick). Use `lumpcode transcript` to read that file. The daemon log stays the operational log. Transcripts are gated on `writeTranscripts` (omit = on), not `keepHistory`. Set `writeTranscripts: false` to skip the file. The live feed's loudness is `outputDetail` on lump and step variables. See [lump-config.md](./lump-config.md).
 
 ## Status lifecycle
 

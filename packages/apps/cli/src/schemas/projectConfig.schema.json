@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "projectConfig.schema.json",
   "title": "Lumpcode project configuration",
-  "description": "Schema for committed `.lumpcode/project.json`. Holds projectName plus optional shared team defaults (primary branch, default agent command, open-branch cap, keepHistory). Local.json overrides shared keys on this machine. See DOCS/project-config.md.",
+  "description": "Schema for committed `.lumpcode/project.json`. Holds projectName plus optional shared team defaults (primary branch, default agent command, open-branch cap, keepHistory, writeTranscripts). Local.json overrides shared keys on this machine. See DOCS/project-config.md.",
   "type": "object",
   "required": ["projectName"],
   "additionalProperties": false,
@@ -43,6 +43,10 @@
     "keepHistory": {
       "type": "boolean",
       "description": "Default for lump `keepHistory` when the lump omits it. Overridden by local.json or the lump."
+    },
+    "writeTranscripts": {
+      "type": "boolean",
+      "description": "Default for lump `writeTranscripts` when the lump omits it. Omit means on. Overridden by local.json or the lump."
     },
     "refreshCommand": {
       "type": "string",

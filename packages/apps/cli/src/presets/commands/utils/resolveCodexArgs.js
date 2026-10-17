@@ -1,6 +1,6 @@
 export function resolveCodexArgs({ agentPermissions = {}, model }) {
     // `codex exec` options (before the `resume` subcommand).
-    const execArgs = [];
+    const execArgs = ['--json'];
     const sandbox = agentPermissions.sandbox ?? 'workspace-write';
     execArgs.push('--sandbox', sandbox);
 

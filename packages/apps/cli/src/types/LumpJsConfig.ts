@@ -41,6 +41,7 @@ export type LumpJsConfig<
     | 'gitPushFn'
     | 'getContextListFn'
     | 'refreshRemoteTrackingRefsFn'
+    | 'onCommandOutput'
 >, {
     /**
      * Execution integration branch. Exact string, `BaseBranchFn`, or FilePath to a module.
@@ -75,6 +76,7 @@ export type LumpJsConfig<
      */
     registerCommands?: string[];
     keepHistory?: boolean;
+    writeTranscripts?: boolean;
     verbose?: boolean;
     /**
      * After generated checkout/worktree setup. Mutually exclusive with

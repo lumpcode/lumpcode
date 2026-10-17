@@ -62,6 +62,7 @@ import { resolvePrimaryBranch } from '../resolvePrimaryBranches';
 import { lumpBranchName } from '../lumpBranchName';
 import { lumpImportBasePath } from '../lumpDirPath';
 import { lumpHistoryFilePath } from '../lumpHistoryFilePath';
+import { createLiveStepOutput } from '../lumpTranscriptFilePath';
 import type { LumpLine } from '../lumpLine';
 import { normalizeSteps } from './normalizeSteps';
 
@@ -84,6 +85,7 @@ export async function jsConfigToRunLumpInput({
     gitLock,
     skipPostWorkspaceHooks = false,
     daemonRunTelemetry,
+    liveStepWrite,
 }: {
     config: LumpJsConfig;
     lumpName: string;
@@ -105,6 +107,8 @@ export async function jsConfigToRunLumpInput({
     skipPostWorkspaceHooks?: boolean;
     /** Daemon tick only: report the active context on the in-flight lump line. */
     daemonRunTelemetry?: DaemonRunTelemetry;
+    /** When set, step output is written here as it arrives. */
+    liveStepWrite?: (text: string) => void;
 }): Promise<Success<RunLumpInput> | Failure<string>> {
     const {
         baseBranch: lumpBaseBranchOverride,
@@ -326,6 +330,11 @@ export async function jsConfigToRunLumpInput({
         effectiveDiscoveryBranch: providedEffectiveDiscoveryBranch,
     });
 
+    const liveStep = liveStepWrite
+        ? createLiveStepOutput({ lumpName, write: liveStepWrite, logger })
+        : undefined;
+    liveStep?.setCommandModules(commandModules);
+
     const retConf: RunLumpInput = {
         ...rest,
         baseBranch,
@@ -342,6 +351,7 @@ export async function jsConfigToRunLumpInput({
         teardownWorkspaceFn,
         getKeepHistoryFilePathFn,
         logger,
+        ...(liveStep ? { onCommandOutput: liveStep.onCommandOutput } : {}),
     };
 
     return success(retConf);
@@ -927,6 +937,7 @@ async function loadCommandModule({
         command: modData.command,
         setup: modData.setup,
         teardown: modData.teardown,
+        ...(modData.presentOutput ? { presentOutput: modData.presentOutput } : {}),
     });
     return success(undefined);
 }

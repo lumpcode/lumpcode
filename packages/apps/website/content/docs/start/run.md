@@ -9,7 +9,7 @@ description: Lumpcode takes the next unfinished context, runs your agent, commit
 
 1. Load the lump config. Soft-skip if the lump is `disabled`.
 2. Resolve the context list, then ask git which of those names are still `toDo`.
-3. Run the agent on this checkout. A dirty tree is allowed. No `lump/…` branch. The walk does not commit or push.
+3. Run the agent on this checkout. Each step's output prints while the command is still running. A dirty tree is allowed. No `lump/…` branch. The walk does not commit or push.
 4. After a successful walk with contexts, a TTY (not `--json`) shows porcelain and `[c]` / `[e]`. `c` stamps LUMP markers (no push). `e` leaves the tree dirty.
 
 Each worker pass (`mode: "dedicated"`) still cuts `lump/myLump/…`, commits markers, and pushes. Lumpcode never merges. You open that pushed branch as a pull request, change it if the agent missed, and merge when it looks right.

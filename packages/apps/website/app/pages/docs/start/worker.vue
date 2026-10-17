@@ -83,6 +83,7 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         </p>
         <p>
           Later: <code>lumpcode daemon-status</code>, <code>lumpcode daemon-log</code>, <code>lumpcode stop</code>.
+          Once the worker is running, <code>lumpcode dashboard</code> shows the live snapshot.
         </p>
         <p>
           Writing TypeScript lumps? Add <code>@lumpcode/cli-utils</code> and <code>@lumpcode/recipes</code> to this project's <code>package.json</code> on the laptop, then <code>npm install</code> here. The global CLI does not provide those packages.

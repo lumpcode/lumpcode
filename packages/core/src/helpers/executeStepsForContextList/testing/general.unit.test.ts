@@ -1085,3 +1085,106 @@ describe('executeStepsForContextList setupWorkspaceFn.afterExec', () => {
         expect(hookCalls).toEqual([]);
     });
 });
+
+describe('executeStepsForContextList command output events', () => {
+    let projectRoot: string;
+
+    beforeEach(async () => {
+        projectRoot = await mkdtemp(join(tmpdir(), 'live-step-'));
+        initTestGitRepo(projectRoot);
+    });
+
+    afterEach(async () => {
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    function runEvents(steps: Steps) {
+        const events: Array<{ kind: string; stepIndex?: number | number[]; commandName?: string; chunk?: string; succeeded?: boolean }> = [];
+        const result = executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps,
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => join(projectRoot, 'history.yaml'),
+            onCommandOutput: (event) => {
+                events.push({
+                    kind: event.kind,
+                    stepIndex: event.stepIndex,
+                    commandName: event.kind === 'start' ? event.commandName : undefined,
+                    chunk: event.kind === 'chunk' ? event.chunk : undefined,
+                    succeeded: event.kind === 'end' ? event.succeeded : undefined,
+                });
+            },
+        });
+        return { events, result };
+    }
+
+    it('emits start, raw chunks, then end, and history keeps the raw commandResult', async () => {
+        const namedEcho: typeof echoCommandFn = () => ({ executable: 'echo', args: ['ok'] });
+        namedEcho.commandName = 'echo-agent';
+        const { events, result } = runEvents([{
+            promptFn: () => 'say ok',
+            commandFn: namedEcho,
+        }]);
+        const settled = await result;
+        expect(settled.success).toBe(true);
+        expect(events.map((event) => event.kind)).toEqual(['start', 'chunk', 'end']);
+        expect(events[0]?.commandName).toBe('echo-agent');
+        expect(events[1]?.chunk).toContain('ok');
+        expect(events[2]?.succeeded).toBe(true);
+
+        const history = loadYaml(await readFile(join(projectRoot, 'history.yaml'), 'utf-8')) as Array<{ commandResult: string }>;
+        expect(history[0]?.commandResult).toContain('ok');
+        expect(history[0]?.commandResult).not.toContain('---');
+    });
+
+    it('emits start and end when the command prints nothing', async () => {
+        const { events, result } = runEvents([{
+            promptFn: () => 'quiet',
+            commandFn: () => ({ executable: process.execPath, args: ['-e', 'process.exit(0)'] }),
+        }]);
+        expect((await result).success).toBe(true);
+        expect(events.map((event) => event.kind)).toEqual(['start', 'end']);
+        expect(events[0]?.commandName).toBeUndefined();
+        expect(events[1]?.succeeded).toBe(true);
+    });
+
+    it('emits end with succeeded false when the command fails', async () => {
+        const { events, result } = runEvents([{
+            promptFn: () => 'fail',
+            commandFn: () => ({ executable: process.execPath, args: ['-e', 'process.exit(1)'] }),
+        }]);
+        expect((await result).success).toBe(false);
+        expect(events.map((event) => event.kind)).toEqual(['start', 'end']);
+        expect(events[1]?.succeeded).toBe(false);
+    });
+
+    it('emits nothing when the command is skipped', async () => {
+        const { events, result } = runEvents([{
+            promptFn: () => 'skip',
+            commandFn: () => null,
+        }]);
+        expect((await result).success).toBe(true);
+        expect(events).toEqual([]);
+    });
+
+    it('keeps a nested step index on the start event', async () => {
+        const { events, result } = runEvents([
+            () => [{
+                promptFn: () => 'nested',
+                commandFn: () => ({ executable: process.execPath, args: ['-e', 'process.exit(0)'] }),
+            }],
+        ]);
+        expect((await result).success).toBe(true);
+        expect(events[0]?.stepIndex).toEqual([0, 0]);
+    });
+});

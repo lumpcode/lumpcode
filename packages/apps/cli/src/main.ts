@@ -100,10 +100,19 @@ export async function main() {
                 localConfigFolderPath,
                 globalConfigFolderPath,
             },
+            dashboard: {
+                projectRoot: process.cwd(),
+                localConfigFolderPath,
+                globalConfigFolderPath,
+            },
             daemonLog: {
                 projectRoot: process.cwd(),
                 localConfigFolderPath,
                 globalConfigFolderPath,
+            },
+            transcript: {
+                projectRoot: process.cwd(),
+                localConfigFolderPath,
             },
             resetPresets: {
                 globalConfigFolderPath,

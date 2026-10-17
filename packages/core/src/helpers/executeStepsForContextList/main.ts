@@ -149,6 +149,7 @@ export type ExecuteStepsForContextListParams<
     logger?: Logger;
     /** When aborted, in-flight commands are killed and the step walk stops (ignores continueOnError). */
     signal?: AbortSignal;
+    onCommandOutput?: RunLumpInput<V, SV>['onCommandOutput'];
 }
 
 export async function executeStepsForContextList<
@@ -171,6 +172,7 @@ export async function executeStepsForContextList<
     getKeepHistoryFilePathFn,
     logger: loggerInput,
     signal,
+    onCommandOutput,
 }: ExecuteStepsForContextListParams<V, SV>) {
     const logger = loggerInput ?? createConsoleLogger({});
     const contextNames = contextList.map(context => context.name);
@@ -330,6 +332,19 @@ export async function executeStepsForContextList<
                             }
                             logger.verbose(`workspacePath ${workspacePath}`);
 
+                            const commandName = 'commandName' in commandFn && typeof commandFn.commandName === 'string'
+                                ? commandFn.commandName
+                                : undefined;
+                            onCommandOutput?.({
+                                kind: 'start',
+                                contextName: context.name,
+                                stepIndex: compositeStepIndex,
+                                executable,
+                                lumpVariables,
+                                ...(stepVariables !== undefined ? { stepVariables } : {}),
+                                ...(commandName ? { commandName } : {}),
+                            });
+
                             const commandExec = await execBinary({
                                 binaryPath: executable,
                                 args,
@@ -338,6 +353,25 @@ export async function executeStepsForContextList<
                                 cwd: workspacePath,
                                 signal,
                                 ...(env != null ? { env: { ...process.env, ...env } } : {}),
+                                ...(onCommandOutput
+                                    ? {
+                                        onChunk: ({ stream, chunk }) => {
+                                            onCommandOutput({
+                                                kind: 'chunk',
+                                                contextName: context.name,
+                                                stepIndex: compositeStepIndex,
+                                                stream,
+                                                chunk,
+                                            });
+                                        },
+                                    }
+                                    : {}),
+                            });
+                            onCommandOutput?.({
+                                kind: 'end',
+                                contextName: context.name,
+                                stepIndex: compositeStepIndex,
+                                succeeded: commandExec.success,
                             });
                             logger.verbose(`commandExec ${JSON.stringify(commandExec)}`);
 

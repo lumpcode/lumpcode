@@ -22,6 +22,7 @@ export type {
 } from '../../src/types/GetContextListFn';
 export type { LocalConfig } from '../../src/types/LocalConfig';
 export type { Mode } from '../../src/types/Mode';
+export type { OutputDetail, OutputDetailVariables } from '../../src/types/OutputDetail';
 export type { ProjectConfig } from '../../src/types/ProjectConfig';
 export type { PostSetupWorkspaceFn } from '../../src/types/PostSetupWorkspaceFn';
 export type { PostSetupWorkspaceFnInput } from '../../src/types/PostSetupWorkspaceFnInput';

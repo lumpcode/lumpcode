@@ -40,8 +40,10 @@ Machine overrides and lump defaults:
 | `command` | no | Lump default (tag shape only); local > project; lump > both |
 | `maximumNumberOfConcurrentBranches` | no | Lump default; same precedence |
 | `keepHistory` | no | Lump default; same precedence |
+| `writeTranscripts` | no | Lump default; omit = on for daemon transcripts; same precedence |
 | `verbose` | no | Lump default; **local-only** (not on `project.json`) |
 | `refreshCommand` | no | Shared with `project.json`; **local wins**; dedicated daemon tick only |
+| `logRetention` | no | Local-only. `{ "maxAgeDays": n }` with `n` an integer ≥ 0. Omitted: 14 days. `0` keeps everything. Deletes old transcript and history files and trims this project's daemon and supervisor logs on `lumpcode run` and each daemon tick. Restart the worker to change tick retention. |
 
 Misplaced keys (for example `projectName`) and unknown keys **hard-fail**. `command` must be a registered tag, not a `.ts`/`.js` file path.
 

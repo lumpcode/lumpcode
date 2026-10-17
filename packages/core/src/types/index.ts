@@ -2,6 +2,7 @@ export * from './ArrayPaths';
 export * from './BranchFn';
 export * from './CodeBasePath';
 export * from './CommandFn';
+export * from './CommandOutputEvent';
 export * from './Context';
 export * from './ContextList';
 export * from './ContextRunState';
