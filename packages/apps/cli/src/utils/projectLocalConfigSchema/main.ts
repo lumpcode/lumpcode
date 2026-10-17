@@ -54,6 +54,18 @@ const sharedRefreshCommandField = {
     refreshCommand: z.string().min(1).optional(),
 } as const;
 
+const logRetentionField = {
+    logRetention: z
+        .object({
+            maxAgeDays: z
+                .number({ error: 'maxAgeDays must be an integer ≥ 0' })
+                .int({ error: 'maxAgeDays must be an integer ≥ 0' })
+                .min(0, { error: 'maxAgeDays must be an integer ≥ 0' }),
+        })
+        .strict()
+        .optional(),
+} as const;
+
 export const projectJsonConfigSchema = z
     .object({
         projectName: z
@@ -84,6 +96,7 @@ export const localJsonConfigSchema = z
         ...sharedLumpDefaultFields,
         ...sharedRefreshCommandField,
         verbose: z.boolean().optional(),
+        ...logRetentionField,
     })
     .strict();
 
@@ -121,6 +134,7 @@ export const resolvedProjectLocalConfigSchema = z
         ...sharedLumpDefaultFields,
         ...sharedRefreshCommandField,
         verbose: z.boolean().optional(),
+        ...logRetentionField,
     })
     .strict()
     .superRefine((value, ctx) => {

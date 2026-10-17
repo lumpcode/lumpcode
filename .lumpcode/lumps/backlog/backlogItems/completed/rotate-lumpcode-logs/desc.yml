@@ -1,6 +1,7 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: rotate-lumpcode-logs
-workflow: [manualReq, impl]
+workflow:
+  - manualReq
+  - impl
 task: >-
   Delete old transcript and history files, and trim this project's daemon and
   supervisor logs, using logRetention in local.json. Omitted means 14 days.
@@ -8,3 +9,4 @@ task: >-
 priority: 1
 dependsOn:
   - live-step-transcripts
+completedAt: '2026-10-17T10:25:41.681Z'

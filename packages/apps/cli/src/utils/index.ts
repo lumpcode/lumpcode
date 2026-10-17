@@ -100,6 +100,7 @@ export * from './resolveLumpBranches';
 export * from './resolveTargetLumpNames';
 export * from './preflightDiscoveryBranchWithLock';
 export * from './resolveEffectiveDiscoveryBranch';
+export * from './retainLumpcodeLogs';
 export * from './runLumpFromJsConfig';
 export * from './runLumpFromLumpName';
 export * from './runLumpLinesWithConcurrency';

@@ -18,7 +18,7 @@ export type DaemonSchedulerFiles = {
     desiredFilePath: string;
 };
 
-export type DaemonSchedulerFileKind = 'pid' | 'desired';
+export type DaemonSchedulerFileKind = 'pid' | 'desired' | 'log';
 
 type SchedulerPathInput = {
     daemonsDir: string;
@@ -65,6 +65,8 @@ function suffixForKind(kind: DaemonSchedulerFileKind): string {
             return DAEMON_PID_FILE_SUFFIX;
         case 'desired':
             return DAEMON_DESIRED_FILE_SUFFIX;
+        case 'log':
+            return DAEMON_LOG_FILE_SUFFIX;
         default: {
             const _exhaustive: never = kind;
             return _exhaustive;

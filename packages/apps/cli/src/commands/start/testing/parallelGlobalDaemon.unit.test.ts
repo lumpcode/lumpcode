@@ -449,6 +449,45 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         expect(JSON.stringify(result.data)).toContain('sharedModeNoDaemon');
     });
 
+    it('calls retainLumpcodeLogs once before lump lines and continues when it fails', async () => {
+        await writeLocal();
+        await writeLumps(['alpha']);
+
+        const retainSpy = vi
+            .spyOn(await import('../../../utils/retainLumpcodeLogs'), 'retainLumpcodeLogs')
+            .mockResolvedValue(failure('disk full'));
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const started: string[] = [];
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockImplementation(async (input) => {
+                started.push(input.lumpName);
+                return runSuccess;
+            });
+
+        try {
+            const result = await makeStartHandler(deps(), {
+                waitForShutdownOverride: async () => {},
+            })({
+                options: { foreground: true, cronSetup: '*/5 * * * *' },
+                arguments: {},
+            });
+            expect(result.success).toBe(true);
+            expect(retainSpy).toHaveBeenCalledTimes(1);
+            expect(retainSpy.mock.invocationCallOrder[0]).toBeLessThan(
+                runLumpSpy.mock.invocationCallOrder[0]!,
+            );
+            expect(started).toEqual(['alpha']);
+            expect(
+                warnSpy.mock.calls.some((call) => String(call[0]).includes('log retention failed')),
+            ).toBe(true);
+        } finally {
+            retainSpy.mockRestore();
+            runLumpSpy.mockRestore();
+            warnSpy.mockRestore();
+        }
+    });
+
     it('S1: single-include filtered daemon runs only that lump', async () => {
         await writeLocal({ maxParallelRun: 3 });
         await writeLumps(['alpha', 'beta', 'gamma']);

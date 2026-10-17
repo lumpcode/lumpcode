@@ -23,6 +23,7 @@ import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
 import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
 import { runLumpFromLumpName } from '../runLumpFromLumpName';
 import { prepareLumpTranscriptFile } from '../lumpTranscriptFilePath';
+import { retainLumpcodeLogs } from '../retainLumpcodeLogs';
 import { runLumpLinesWithConcurrency } from '../runLumpLinesWithConcurrency';
 import {
     scoreDedicatedLumpLineSnapshots,
@@ -471,6 +472,21 @@ export async function runForegroundStartDaemon(
         }
         await liveMeta.setTickPhase('running');
         try {
+            try {
+                const retainResult = await retainLumpcodeLogs({
+                    projectRoot: recipe.projectRoot,
+                    projectName,
+                    globalConfigFolderPath,
+                    maxAgeDays: frozenLocalConfig.logRetention?.maxAgeDays,
+                    logger,
+                });
+                if (!retainResult.success) {
+                    logger.warn(`log retention failed: ${retainResult.data}`);
+                }
+            } catch (error: unknown) {
+                const message = error instanceof Error ? error.message : String(error);
+                logger.warn(`log retention failed: ${message}`);
+            }
             const collected = await collectTickLumpLines(session);
             switch (collected.kind) {
                 case 'noop':
