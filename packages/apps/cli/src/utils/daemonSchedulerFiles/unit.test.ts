@@ -61,6 +61,20 @@ describe('listDaemonIds', () => {
         if (!desiredResult.success) throw new Error('unreachable');
         expect(desiredResult.data).toEqual(['global']);
     });
+
+    it('captures ids from daemon log files', async () => {
+        await fs.writeFile(path.join(dir, 'demo.global.daemon.log'), 'x', 'utf8');
+        await fs.writeFile(path.join(dir, 'demo.agents.daemon.log'), 'y', 'utf8');
+        await fs.writeFile(path.join(dir, 'other.global.daemon.log'), 'z', 'utf8');
+        const result = await listDaemonIds({
+            dir,
+            projectName: 'demo',
+            kind: 'log',
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.sort()).toEqual(['agents', 'global']);
+    });
 });
 
 describe('legacyGlobalDaemonSchedulerFiles', () => {

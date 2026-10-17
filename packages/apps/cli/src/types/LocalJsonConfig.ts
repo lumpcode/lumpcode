@@ -18,4 +18,5 @@ export type LocalJsonConfig = Pick<
     | 'keepHistory'
     | 'verbose'
     | 'refreshCommand'
+    | 'logRetention'
 >;

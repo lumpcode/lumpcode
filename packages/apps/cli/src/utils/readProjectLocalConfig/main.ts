@@ -41,6 +41,7 @@ export function mergeProjectAndLocalConfig(input: {
     if (local.disabled !== undefined) merged.disabled = local.disabled;
     if (local.maxParallelRun !== undefined) merged.maxParallelRun = local.maxParallelRun;
     if (local.verbose !== undefined) merged.verbose = local.verbose;
+    if (local.logRetention !== undefined) merged.logRetention = local.logRetention;
 
     for (const key of SHARED_KEYS) {
         if (local[key] !== undefined) {

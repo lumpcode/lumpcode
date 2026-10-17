@@ -125,6 +125,17 @@ describe('readProjectLocalConfig (clean-local-project-json-config)', () => {
         expect(result.data.maxParallelRun).toBe(3);
     });
 
+    it('M9b: local-only logRetention is present after merge', async () => {
+        await writePair(
+            { projectName: 'demo', primaryBranch: 'main' },
+            { mode: 'dedicated', logRetention: { maxAgeDays: 7 } },
+        );
+        const result = await readProjectLocalConfig({ localConfigFolderPath: dir });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.logRetention).toEqual({ maxAgeDays: 7 });
+    });
+
     it('M10: propagates underlying file Failure', async () => {
         await writePair({ projectName: 'x', mode: 'shared' }, { mode: 'shared', primaryBranch: 'main' });
         const badProject = await readProjectLocalConfig({ localConfigFolderPath: dir });

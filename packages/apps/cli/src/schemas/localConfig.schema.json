@@ -67,6 +67,19 @@
       "type": "string",
       "minLength": 1,
       "description": "Dedicated daemon only: shell command run after each scan-branch checkout and before lump discovery (e.g. npm i). Local wins over project. Ignored in shared mode and by manual run. Frozen at daemon start; restart to pick up changes."
+    },
+    "logRetention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maxAgeDays"],
+      "description": "How long this machine keeps Lumpcode transcript files, history files, and this project's daemon and supervisor logs. Omitted: 14 days. Applied on `lumpcode run` and each daemon tick. Restart the worker to change tick retention.",
+      "properties": {
+        "maxAgeDays": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Delete transcript and history files older than this many days, and trim daemon and supervisor log lines with a leading ISO-8601 timestamp older than this window. `0` keeps everything."
+        }
+      }
     }
   }
 }

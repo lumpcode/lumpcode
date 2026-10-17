@@ -134,6 +134,32 @@ describe('readLocalConfig', () => {
             expect(result.data.command).toBe('copilot');
         });
 
+        it('accepts logRetention.maxAgeDays', async () => {
+            await writeJsonFile({
+                filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                data: {
+                    mode: 'dedicated',
+                    primaryBranch: 'main',
+                    logRetention: { maxAgeDays: 0 },
+                },
+            });
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.logRetention).toEqual({ maxAgeDays: 0 });
+        });
+
+        it('rejects logRetention without maxAgeDays', async () => {
+            await writeJsonFile({
+                filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                data: { mode: 'shared', primaryBranch: 'main', logRetention: {} },
+            });
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toMatch(/maxAgeDays/i);
+        });
+
         it('L9: invalid verbose type', async () => {
             await writeJsonFile({
                 filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME),

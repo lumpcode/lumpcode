@@ -13,6 +13,7 @@ import {
     promptSharedRunReview,
     readProjectLocalConfig,
     resolveEffectiveDiscoveryBranch,
+    retainLumpcodeLogs,
     runLumpFromJsConfigFailureMessage,
     runLumpFromLumpName,
     shouldPromptSharedRunReview,
@@ -93,6 +94,22 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             abortController,
             logger,
         });
+
+        try {
+            const retainResult = await retainLumpcodeLogs({
+                projectRoot,
+                projectName: localConfig.projectName,
+                globalConfigFolderPath,
+                maxAgeDays: localConfig.logRetention?.maxAgeDays,
+                logger,
+            });
+            if (!retainResult.success) {
+                logger.warn(`log retention failed: ${retainResult.data}`);
+            }
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : String(error);
+            logger.warn(`log retention failed: ${message}`);
+        }
 
         const runLumpRes = await runLumpFromLumpName({
             lumpName,
