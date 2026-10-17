@@ -1,9 +1,11 @@
 import { LumpVariables, StepVariables } from '@lumpcode/core';
 
+import type { OutputDetail } from './OutputDetail';
+
 export type PresentOutputFn = (input: {
     stream: 'stdout' | 'stderr';
     chunk: string;
-    outputDetail: 'loud' | 'quiet';
+    outputDetail: OutputDetail;
 }) => string | undefined;
 
 export type PresentOutputFnFactoryInput<

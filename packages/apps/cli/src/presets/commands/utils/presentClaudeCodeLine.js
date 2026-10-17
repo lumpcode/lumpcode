@@ -5,7 +5,7 @@ function targetFrom(input) {
     return input.file_path || input.path || input.filePath || input.command || '';
 }
 
-export function presentClaudeCodeEvent(event) {
+export function presentClaudeCodeEvent(event, outputDetail) {
     if (!event || event.type !== 'assistant') return '';
     const content = event.message?.content;
     if (typeof content === 'string') return content ? `${content}\n` : '';
@@ -14,7 +14,7 @@ export function presentClaudeCodeEvent(event) {
     for (const block of content) {
         if (!block || typeof block !== 'object') continue;
         if (block.type === 'text' && block.text) out += `${block.text}\n`;
-        if (block.type === 'tool_use' && block.name) {
+        if (outputDetail !== 'quiet' && block.type === 'tool_use' && block.name) {
             out += toolLine(block.name, targetFrom(block.input));
         }
     }

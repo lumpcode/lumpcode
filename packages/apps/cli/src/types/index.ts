@@ -27,6 +27,7 @@ export * from './LumpJsonConfig';
 export * from './LumpJsonConfigStep';
 export * from './MergeObjs';
 export * from './Mode';
+export * from './OutputDetail';
 export * from './PostSetupWorkspaceFn';
 export * from './PostSetupWorkspaceFnInput';
 export * from './PostTeardownWorkspaceFn';

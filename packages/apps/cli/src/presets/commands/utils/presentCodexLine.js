@@ -5,13 +5,14 @@ function fileChangeTarget(item) {
     return change?.path || item.path || '';
 }
 
-export function presentCodexEvent(event) {
+export function presentCodexEvent(event, outputDetail) {
     if (!event || typeof event !== 'object') return '';
     const item = event.item;
     if (!item || typeof item !== 'object') return '';
     if (event.type === 'item.completed' && item.type === 'agent_message' && item.text) {
         return `${item.text}\n`;
     }
+    if (outputDetail === 'quiet') return '';
     if (event.type === 'item.started' && item.type === 'command_execution') {
         return toolLine('command_execution', item.command || '');
     }

@@ -20,12 +20,13 @@ function cursorTool(toolCall) {
     return { name: key.replace(/ToolCall$/, ''), target };
 }
 
-export function presentCursorEvent(event) {
+export function presentCursorEvent(event, outputDetail) {
     if (!event || typeof event !== 'object') return '';
     if (event.type === 'assistant') {
         const text = assistantText(event);
         return text ? `${text}\n` : '';
     }
+    if (outputDetail === 'quiet') return '';
     if (event.type === 'tool_call' && event.subtype === 'started') {
         const tool = cursorTool(event.tool_call);
         return tool ? toolLine(tool.name, tool.target) : '';
