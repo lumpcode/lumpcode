@@ -3,7 +3,7 @@ title: Commands
 description: Every lumpcode subcommand, grouped by what you are trying to do. Flags use camelCase. Arguments come before options.
 ---
 
-Run `lumpcode` from the repo root that contains `.lumpcode/` and `.git/`. Commands that need a project fail if either folder is missing. Boolean flags are presence-only. `--help` works on every command. PowerShell: quote cron as `--cronSetup '*/10 * * * *'`.
+Run `lumpcode` from the repo root that contains `.lumpcode/` and a git checkout (`.git/` or a linked-worktree `.git` file). Commands that need a project fail if `.lumpcode/` is missing or `git rev-parse --git-dir` fails. Boolean flags are presence-only. `--help` works on every command. PowerShell: quote cron as `--cronSetup '*/10 * * * *'`.
 
 **`--json`** — one envelope: `{ "messages": ["…"], "data": { } }`. Success on stdout, failure on stderr (non-zero exit). Operational `info` / `warn` / `verbose` are suppressed; operational `error` still prints.
 
