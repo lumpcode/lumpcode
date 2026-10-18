@@ -35,23 +35,18 @@ From the root of a git repository you can push to **`origin`**.
 **Prerequisites:** git `origin` push access, a CLI agent on `PATH`, and awareness that `run` invokes your agent (LLM cost). Details: [DOCS/get-started.md § Prerequisites](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md#prerequisites).
 
 ```bash
-lumpcode project-setup
-lumpcode lump-create myFirstLump
+lumpcode setup
 ```
 
-Edit `.lumpcode/lumps/myFirstLump/config.json` (see the [React-component example below](#configjson-example-one-branch-per-react-component)), then:
+Setup scaffolds `.lumpcode/`, writes a first lump, then runs in place on this branch. A dirty tree is allowed. There is no `lump/…` branch and no auto commit or push. Verify the updates, type `c` to stamp `LUMP: myFirstLump - …` markers (still no push) or `e` to leave the tree dirty, then push this branch yourself.
 
-```bash
-lumpcode run myFirstLump
-```
+Step-by-step: [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md). Website: [first PR](https://www.lumpcode.com/docs/start/first-pr). Run flow diagram: [DOCS/concepts.md § One run, end to end](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#one-run-end-to-end).
 
-This runs your agent on **one** context, commits a `LUMP: myFirstLump - …` marker, and pushes a `lump/myFirstLump/…` branch to `origin` for you to open as a PR.
+CI and scripts that cannot prompt should keep using flags-only `lumpcode project-setup`, then `lump-create` / edit / `lump-plan` / `run`.
 
-Step-by-step: [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md). Run flow diagram: [DOCS/concepts.md § One run, end to end](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#one-run-end-to-end).
+### Leave a worker running
 
-### Run continuously as a daemon
-
-Once a one-off `run` works end to end, have a background daemon tick every lump on a cron (default: every 5 minutes):
+`lumpcode start` is **dedicated-only**. After the laptop rehearsal, clone the repo into a folder you never edit, set `mode: "dedicated"` in that clone's `.lumpcode/local.json` (or run `lumpcode setup` there), then:
 
 ```bash
 lumpcode start          # detached background daemon
@@ -117,8 +112,8 @@ Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`con
 
 | Doc                                                | Contents                                                                           |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [DOCS/concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md)               | Project, lump, context, branch, context status; `run` vs `start`; workspace copies |
-| [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md)         | Zero → first successful `lumpcode run`                                             |
+| [DOCS/concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md)               | Project, lump, context, branch, context status; `run` vs `start`; laptop vs worker |
+| [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md)         | Laptop rehearsal: zero → first `lumpcode run` on this branch                       |
 | [DOCS/commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md)               | Every subcommand and flag                                                          |
 | [DOCS/project-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/project-config.md)   | `.lumpcode/project.json`                                                           |
 | [DOCS/lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md)         | `config.json` / `config.js` / `config.ts` fields                                   |

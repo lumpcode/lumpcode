@@ -1,6 +1,6 @@
 ---
 title: How a run works
-description: Lumpcode takes the next unfinished context, runs your agent, commits a marker, and pushes a branch. Git is how it remembers.
+description: Laptop run rehearses on this branch. A worker still commits a marker and pushes lump/…. Git is how it remembers.
 ---
 
 ## One context, end to end

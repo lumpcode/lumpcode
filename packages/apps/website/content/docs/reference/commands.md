@@ -19,7 +19,7 @@ One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: 
 | --- | --- |
 | `--discoveryBranch` | Concrete discovery branch. Required when the lump’s rules are pattern-only. Ignored by `run` in shared mode (warned). |
 
-Success includes a skipped run (`disabled`, or too many open `lump/<name>/*` branches on a dedicated worker). Busy workspace: fails with `workspacePathBusy`. After a dedicated manual run, the checkout is switched back to the branch you were on. Shared `run` does not restore a copy or auto-push `lump/…`.
+Success includes a skipped run (`disabled`, or too many open `lump/<name>/*` branches on a dedicated worker). Busy workspace: fails with `workspacePathBusy`. After a dedicated manual run, the checkout is switched back to the branch you were on. Shared `run` stays on this checkout and does not auto-push `lump/…`.
 
 ### `lumpcode lump-plan <lumpName>`
 

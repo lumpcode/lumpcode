@@ -10,7 +10,7 @@ It is the clean, easy-to-set-up way to start AI loops for the development life c
 You just need git and a CLI agent. There is no account and no database. Finished work is a commit on your git remote.
 
 <div class="docs-cards">
-<a class="docs-card" href="/docs/start/first-pr"><strong>First PR</strong>Install the CLI and run one campaign by hand on your laptop.</a>
+<a class="docs-card" href="/docs/start/first-pr"><strong>First PR</strong>Laptop rehearsal on this checkout. Install the CLI and run one campaign on this branch.</a>
 <a class="docs-card" href="/docs/start/worker"><strong>Leave a worker running</strong>A second clone you never edit. Branches keep arriving while you merge.</a>
 <a class="docs-card" href="/docs/author/write-a-lump"><strong>Write a lump</strong>Two required pieces: what to work on, and what to prompt.</a>
 <a class="docs-card" href="/docs/reference/examples"><strong>Examples</strong>Migrations, ticket queues, coverage sweeps, and retry-until-green.</a>

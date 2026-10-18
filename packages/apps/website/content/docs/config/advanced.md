@@ -20,7 +20,7 @@ Teardown still runs if the step walk fails. A failed walk skips git for that con
 
 `lump-plan` does not run post-setup / post-teardown commands. `--prompts` / `--plan` may execute `promptFn` and dynamic `steps` so the preview is honest; they still do not spawn the agent or mutate git.
 
-**Shared** discovers from the source checkout and pre-flights only the copy. **Dedicated** locked-preflights the clone to the scan branch before load (allowlist), then pre-flights `baseBranch` for the run. `commandFn` returning nothing still runs `postCommandExecFn`. Signatures: [types](/docs/config/types).
+**Shared** loads and runs on this checkout (no pre-flight). **Dedicated** locked-preflights the clone to the scan branch before load (allowlist), then pre-flights `baseBranch` for the run. `commandFn` returning nothing still runs `postCommandExecFn`. Signatures: [types](/docs/config/types).
 
 ## `contextRunState`
 

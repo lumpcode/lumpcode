@@ -53,7 +53,7 @@ A classic AI coding refactoring lump: discover every component folder, do a mult
 }
 ```
 
-Lumpcode commits each context as `LUMP: reactToVue - <ComponentName>` on `lump/reactToVue/<ComponentName>` and pushes. Already-migrated components are skipped automatically on subsequent runs.
+On a worker, Lumpcode commits each context as `LUMP: reactToVue - <ComponentName>` on `lump/reactToVue/<ComponentName>` and pushes. On the laptop, `run` writes on this branch; you type `c` if you want those markers, then push yourself. Already-migrated components are skipped automatically on subsequent runs.
 
 ## 2. Feature ticket queue — strict dependency order
 

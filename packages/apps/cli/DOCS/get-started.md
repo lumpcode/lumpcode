@@ -2,7 +2,7 @@
 
 Readable website version: [lumpcode.com/docs/start/first-pr](https://www.lumpcode.com/docs/start/first-pr) · [docs](https://www.lumpcode.com/docs).
 
-Follow this guide in order to get started with your first `lumpcode run`. You already have a git repo; this is the short path to start AI loops for the software development life cycle on it. The happy path is **`lumpcode setup`**. Links at each step point to more detail if you want it.
+Follow this guide in order to get started with your first `lumpcode run`. You already have a git repo; this is the short path to start AI loops for the software development life cycle on it. The happy path is **`lumpcode setup`**, then a rehearsal **on this checkout**. The [worker](https://www.lumpcode.com/docs/start/worker) is a second clone after that. Links at each step point to more detail if you want it.
 
 ---
 
@@ -60,7 +60,7 @@ Setup is interactive (needs a TTY; `--json` is rejected). It walks a fresh repo:
 6. Commit and push the allowlisted files (or print the commands)
 7. Plan, then `run` in place on this branch
 
-Shared success prints the current branch. Setup does not create a `lump/…` branch and does not open a pull request. Shared never starts a daemon. Dedicated can start an unfiltered worker after `run`. After the run, a TTY (not `--json`) can still show porcelain and `[c]` / `[e]` from `run`.
+Shared success prints the current branch. Setup does not create a `lump/…` branch and does not open a pull request. Shared never starts a daemon. Dedicated can start an unfiltered worker after `run`. Review (`c` / `e`) is the next step.
 
 If `.lumpcode/` already has a valid `local.json` and a lump, setup does nothing. If the folder exists but `local.json` is missing, setup writes this machine’s `local.json` and skips creating another lump. `project-setup` still refuses that tree.
 
@@ -72,7 +72,30 @@ CI and other non-interactive shells should keep using **`lumpcode project-setup`
 
 ---
 
-## Step 2: Leave a worker running (optional)
+## Step 2: Review on this branch
+
+The agent writes in this folder, on the branch you are on. A dirty tree is allowed. There is no `lump/…` branch and no auto commit or push.
+
+`.lumpcode/local.json` on this machine (gitignored):
+
+```json
+{
+  "mode": "shared"
+}
+```
+
+After a successful walk with contexts, a TTY (not `--json`) shows porcelain and `[c]` / `[e]`:
+
+- **`c`** — stamp `LUMP: <lumpName> - <contextName>` markers (`git add .`, no push)
+- **`e`** or Ctrl+C — leave the tree dirty (exit 0)
+
+Then push this branch yourself. Non-TTY / `--json` is implicit `e`. If you already have a lump, another rehearsal is `lumpcode run myFirstLump`.
+
+`lumpcode start` / `restart` / `start --superviseOnly` fail here (`sharedModeNoDaemon`). This laptop is not a worker.
+
+---
+
+## Step 3: Leave a worker running (optional)
 
 `lumpcode start` is **dedicated-only**. On this laptop (`mode: "shared"`) it fails. Clone the repo into a folder you never edit, set `mode: "dedicated"`, then:
 
@@ -123,6 +146,7 @@ Commit `.lumpcode/` if you want lump definitions and status tracked in git; omit
 
 You now have your first working lump ! Browse when you need more depth:
 
+- [Leave a worker running](https://www.lumpcode.com/docs/start/worker) — Second clone; `lumpcode start`
 - [concepts.md](./concepts.md) — Lifecycle diagrams and workspace details
 - [commands.md](./commands.md) — Every subcommand and flag
 - [local-config.md](./local-config.md) — `.lumpcode/local.json` (`mode`, `primaryBranch`)

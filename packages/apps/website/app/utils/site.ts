@@ -96,7 +96,7 @@ export const safetyLabel = 'Safe by default'
 export const trustPoints = [
   'Works only on its own lump/… branches',
   'Never merges anything itself',
-  'Copies the repo instead of editing your checkout',
+  'A worker clone you never develop in',
   'Runs one agent at a time by default',
 ] as const
 

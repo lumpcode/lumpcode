@@ -3,7 +3,7 @@ title: Examples
 description: Copy a shape, change the paths and the prompt, preview with lump-plan. Mix sources and steps; these are starting points, not a closed list.
 ---
 
-Each example is a drop-in `.lumpcode/lumps/<name>/` config. After a run, Lumpcode has pushed a branch. You open the pull request.
+Each example is a drop-in `.lumpcode/lumps/<name>/` config. On the laptop, `run` writes on this branch and you push. A worker still pushes `lump/…`; you open that pull request.
 
 ## Smoke test
 

@@ -21,7 +21,7 @@ export const docsNav: DocsNavSection[] = [
       {
         title: 'First PR',
         path: '/docs/start/first-pr',
-        description: 'Start AI loops on an existing git repo. Install the CLI and run one campaign by hand.',
+        description: 'Laptop rehearsal on this checkout. Install the CLI and run one campaign on this branch.',
       },
       {
         title: 'Worker',
@@ -244,7 +244,7 @@ export const docsVuePages: {
       { id: 'meant-to-run', text: 'This is how Lumpcode is meant to run', depth: 2 },
     ],
     searchText:
-      'first pr tutorial get started install cli lumpcode setup project-setup myFirstLump primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c LUMP marker AI loops SDLC development life cycle AI coding refactoring existing git repo',
+      'first pr tutorial get started install cli lumpcode setup project-setup myFirstLump primaryBranch commit .lumpcode smoke test cursor copilot skill npm install-g worker git user.name user.email rehearse this branch dirty c e LUMP marker local.json mode shared laptop rehearsal no auto push start dedicated-only AI loops SDLC development life cycle AI coding refactoring existing git repo',
   },
   {
     path: '/docs/start/worker',

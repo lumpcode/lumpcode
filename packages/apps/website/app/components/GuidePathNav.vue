@@ -12,7 +12,7 @@ defineProps<{
       :class="{ 'is-current': current === 'run' }"
     >
       <strong>First PR</strong>
-      <span>One campaign on the laptop, by hand.</span>
+      <span>Rehearse on this branch, then push.</span>
     </NuxtLink>
     <span class="path-nav-arrow" aria-hidden="true">→</span>
     <NuxtLink
