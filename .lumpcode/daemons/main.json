@@ -1,0 +1,4 @@
+{
+  "discoveryBranch": "dev",
+  "exclude": ["presetSmoke", "ideasToBacklog"]
+}
