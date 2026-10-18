@@ -70,6 +70,27 @@ describe('runProjectPreflight', () => {
         ).rejects.toBeDefined();
     });
 
+    it('succeeds in shared mode when the source working tree is dirty and does not copy or reset', async () => {
+        await writeLocalJson(localConfigFolderPath, { mode: 'shared', primaryBranch: 'main' });
+        const dirtyPath = path.join(projectRoot, 'DIRTY.txt');
+        await fs.writeFile(dirtyPath, 'uncommitted\n', 'utf-8');
+        const branchBefore = gitCurrentBranch(projectRoot);
+
+        const result = await runProjectPreflight({
+            sourceProjectRoot: projectRoot,
+            localConfigFolderPath,
+            globalConfigFolderPath,
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.executionWorkspacePath).toBe(projectRoot);
+        expect(await fs.readFile(dirtyPath, 'utf-8')).toBe('uncommitted\n');
+        expect(gitCurrentBranch(projectRoot)).toBe(branchBefore);
+        await expect(
+            fs.access(path.join(globalConfigFolderPath, 'project-copies', 'run-project-preflight')),
+        ).rejects.toBeDefined();
+    });
+
     it('uses frozen localConfig instead of re-reading local.json from disk', async () => {
         await writeLocalJsonDedicated();
         await writeJsonFile({

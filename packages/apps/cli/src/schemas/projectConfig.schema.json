@@ -10,7 +10,7 @@
     "projectName": {
       "type": "string",
       "pattern": "^[a-zA-Z0-9_-]+$",
-      "description": "Project identity for daemon filenames and ~/.lumpcode/project-copies/<projectName>/. Letters, digits, underscore, and hyphen only."
+      "description": "Project identity for daemon filenames under ~/.lumpcode/daemons/. Letters, digits, underscore, and hyphen only."
     },
     "primaryBranch": {
       "type": "string",
