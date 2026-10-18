@@ -12,7 +12,7 @@ description: .lumpcode/local.json is per machine and gitignored. run and start r
 }
 ```
 
-Worker clone:
+Worker clone (prefer `worktree` when this repo can use linked git worktrees). Setup: [Leave a worker running](/docs/start/worker).
 
 ```json .lumpcode/local.json
 {
@@ -44,6 +44,8 @@ Use on a [worker](/docs/start/worker) you do not develop in.
 | --- | --- |
 | `checkout` (default) | Switch the execution workspace onto the lump branch, then back. Sequential. |
 | `worktree` | Agent runs in `.lumpcode/worktrees/<branch>/` (slash segments become folders). Needed for `maxParallelRun` > 1. |
+
+On a [worker](/docs/start/worker), prefer `worktree` when this repo can use linked git worktrees. Use `checkout` if worktrees fail for this tree, or you only ever run one lump.
 
 `maxParallelRun` in this file (or `--maxParallelRun` on `start`) only applies with `worktree` on a dedicated worker. Passing the flag with `checkout` fails. Checkout always runs one lump at a time. Shared `run` ignores `workspaceStrategy` and `maxParallelRun` (one checkout).
 

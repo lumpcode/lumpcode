@@ -53,14 +53,14 @@ Setup scaffolds `.lumpcode/`, writes a first lump, then runs in place on this br
 
 `lumpcode start` is dedicated-only. After this rehearsal, leave a worker running on a second clone you never edit.
 
-**Full walkthrough:** [Getting started](packages/apps/cli/DOCS/get-started.md) · **Website:** [first PR](https://www.lumpcode.com/docs/start/first-pr) · **Concepts:** [concepts.md](packages/apps/cli/DOCS/concepts.md) · **Config examples & worker:** [CLI README](packages/apps/cli/README.md)
+**Full walkthrough:** [Getting started](packages/apps/cli/DOCS/get-started.md) · **Website:** [first PR](https://www.lumpcode.com/docs/start/first-pr) · **Worker:** [Leave a worker running](packages/apps/cli/DOCS/get-started.md#step-3-leave-a-worker-running-optional) · **Concepts:** [concepts.md](packages/apps/cli/DOCS/concepts.md) · **Config examples:** [CLI README](packages/apps/cli/README.md)
 
 ## Documentation
 
 
 | Doc                                                      | Contents                               |
 | -------------------------------------------------------- | -------------------------------------- |
-| [Getting started](packages/apps/cli/DOCS/get-started.md) | Laptop rehearsal: zero → first `lumpcode run` on this branch |
+| [Getting started](packages/apps/cli/DOCS/get-started.md) | Laptop rehearsal: zero → first `lumpcode run` on this branch, then a worker |
 | [CLI README](packages/apps/cli/README.md)                | Config examples, worker, doc index     |
 | [Command reference](packages/apps/cli/DOCS/commands.md)  | Every subcommand and flag              |
 | [Core README](packages/core/README.md)                   | `@lumpcode/core` engine API            |

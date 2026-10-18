@@ -26,7 +26,7 @@ export const docsNav: DocsNavSection[] = [
       {
         title: 'Worker',
         path: '/docs/start/worker',
-        description: 'Leave a second clone running so branches keep arriving.',
+        description: 'A second clone you never edit. Prefer worktree. Branches keep arriving.',
       },
       {
         title: 'Core terms',
@@ -253,9 +253,10 @@ export const docsVuePages: {
       { id: 'first-pr-already-done', text: '1. First PR already done', depth: 2 },
       { id: 'a-second-clone', text: '2. A second clone', depth: 2 },
       { id: 'start-it', text: '3. Start it', depth: 2 },
+      { id: 'worktree-or-checkout', text: 'Worktree or checkout', depth: 3 },
       { id: 'back-to-the-laptop', text: '4. Back to the laptop', depth: 2 },
     ],
     searchText:
-      'worker dedicated clone lumpcode setup lumpcode start lumpcode dashboard daemon-status daemon-log stop local.json mode dedicated second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe daemon files start daemons from git rehearsal laptop campaign lump/',
+      'worker dedicated clone lumpcode setup lumpcode start lumpcode dashboard daemon-status daemon-log stop local.json mode dedicated workspaceStrategy worktree checkout maxParallelRun second clone leave a worker running git user.name user.email recipes cli-utils package.json npm install wipe daemon files start daemons from git rehearsal laptop campaign lump/ global',
   },
 ]

@@ -323,7 +323,7 @@ Default unfiltered id is `global`. Meta JSON includes `daemonId`, `cronSetup`, `
 
 **Fails if:** `local.json` `mode` is `shared` (`sharedModeNoDaemon`), invalid cron, daemon id already in use / corrupt peer meta, `--maxParallelRun` with checkout, cannot write PID/log/meta, or `local.json` missing/invalid. Empty filter matches warn and still start.
 
-**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (daemon tick wrappers), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-2-leave-a-worker-running-optional).
+**See also:** [concepts.md](./concepts.md#when-to-use-run-vs-start-daemon), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (daemon tick wrappers), [concepts.md § Concurrency and locks](./concepts.md#concurrency-and-locks), [get-started.md](./get-started.md#step-3-leave-a-worker-running-optional).
 
 <a id="ref-cmd-stop"></a>
 

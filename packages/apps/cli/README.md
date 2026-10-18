@@ -8,7 +8,7 @@ A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every comp
 
 **Use Lumpcode when** you want AI loops for the SDLC on an existing git repo: AI coding refactoring across many files, an ordered ticket queue, or a long-running campaign you want to tick forward on a schedule.
 
-**New here?** The manual is [lumpcode.com/docs](https://www.lumpcode.com/docs). Tutorial: [first PR](https://www.lumpcode.com/docs/start/first-pr).
+**New here?** The manual is [lumpcode.com/docs](https://www.lumpcode.com/docs). Tutorial: [first PR](https://www.lumpcode.com/docs/start/first-pr). Intended run: [Leave a worker running](https://www.lumpcode.com/docs/start/worker).
 
 ## Install
 
@@ -46,17 +46,19 @@ CI and scripts that cannot prompt should keep using flags-only `lumpcode project
 
 ### Leave a worker running
 
-`lumpcode start` is **dedicated-only**. After the laptop rehearsal, clone the repo into a folder you never edit, set `mode: "dedicated"` in that clone's `.lumpcode/local.json` (or run `lumpcode setup` there), then:
+`lumpcode start` is **dedicated-only**. After the laptop rehearsal, clone the repo into a folder you never edit. That machine needs git `origin` access and a CLI agent. Set `mode: "dedicated"` (prefer `"workspaceStrategy": "worktree"` when the repo can use linked git worktrees), then:
 
 ```bash
-lumpcode start          # detached background daemon
+lumpcode start          # detached; default daemon id is global
 lumpcode daemon-status  # is it running?
 lumpcode stop           # SIGTERM + cleanup
 ```
 
-Because the daemon keeps invoking your agent on every tick, **cap open branches** with `maximumNumberOfConcurrentBranches` (per lump or in `project.json`) and set `"disabled": true` on a lump to take it out of the rotation without stopping the scheduler. With `"workspaceStrategy": "worktree"` and `"maxParallelRun"` in `.lumpcode/local.json` (or `--maxParallelRun` on `start`), a daemon can run multiple matching lumps concurrently in one tick. Use `--include` / `--exclude` (and `--daemonId`) to run filtered schedulers alongside the default `global` daemon.
+On the work repo you only add or update lumps. The worker fetches the primary branch on its next tick. You do not restart for new lumps.
 
-Sporadic `run` vs sustained `start`: [DOCS/concepts.md#when-to-use-run-vs-start-daemon](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#when-to-use-run-vs-start-daemon).
+Because the worker keeps invoking your agent, **cap open branches** with `maximumNumberOfConcurrentBranches` (per lump or in `project.json`) and set `"disabled": true` on a lump to take it out of the rotation without stopping the scheduler. With `"workspaceStrategy": "worktree"` and `"maxParallelRun"` in `.lumpcode/local.json` (or `--maxParallelRun` on `start`), a worker can run multiple matching lumps concurrently. Use `--include` / `--exclude` (and `--daemonId`) to run filtered schedulers alongside the default `global` daemon.
+
+Walkthrough: [DOCS/get-started.md § Leave a worker running](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md#step-3-leave-a-worker-running-optional) · website: [Leave a worker running](https://www.lumpcode.com/docs/start/worker). `run` vs `start`: [DOCS/concepts.md#when-to-use-run-vs-start-daemon](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#when-to-use-run-vs-start-daemon).
 
 ## `config.json` example: one branch per React component
 
@@ -113,7 +115,7 @@ Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`con
 | Doc                                                | Contents                                                                           |
 | -------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | [DOCS/concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md)               | Project, lump, context, branch, context status; `run` vs `start`; laptop vs worker |
-| [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md)         | Laptop rehearsal: zero → first `lumpcode run` on this branch                       |
+| [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md)         | Laptop rehearsal: zero → first `lumpcode run` on this branch, then a worker        |
 | [DOCS/commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md)               | Every subcommand and flag                                                          |
 | [DOCS/project-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/project-config.md)   | `.lumpcode/project.json`                                                           |
 | [DOCS/lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md)         | `config.json` / `config.js` / `config.ts` fields                                   |

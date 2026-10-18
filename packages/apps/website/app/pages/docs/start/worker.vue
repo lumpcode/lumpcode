@@ -9,13 +9,24 @@ useHead({
     {
       name: 'description',
       content:
-        'In the morning, branches are waiting. You merge, you push a new lump, the worker picks it up. Nothing to deploy.',
+        'A second clone with git access and an agent CLI. Prefer worktree, start once, then add lumps on the laptop. The worker picks them up.',
+    },
+    {
+      property: 'og:title',
+      content: 'Leave a worker running · Lumpcode',
+    },
+    {
+      property: 'og:description',
+      content:
+        'A second clone with git access and an agent CLI. Prefer worktree, start once, then add lumps on the laptop. The worker picks them up.',
     },
   ],
 })
 
 const workerLocal = `{
-  "mode": "dedicated"
+  "mode": "dedicated",
+  "workspaceStrategy": "worktree",
+  "maxParallelRun": 2
 }`
 
 const workerStart = `npm install -g @lumpcode/cli
@@ -28,7 +39,7 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
 <template>
   <DocsPageShell
     title="Leave a worker running"
-    description="In the morning, branches are waiting. You merge, you push a new lump, the worker picks it up. Nothing to deploy."
+    description="A second clone with git access and an agent CLI. Prefer worktree, start once, then add lumps on the laptop. The worker picks them up."
     :path="docs.worker"
     :headings="page?.headings ?? []"
     :source-path="page?.sourcePath"
@@ -62,6 +73,9 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         <p>
           Clone the same repo into a folder you never edit. Another directory on this laptop is enough, for example <code>~/lumpcode-worker</code>. A small always-on box is later, not required.
         </p>
+        <p>
+          That machine needs only the clone, git <code>origin</code> fetch and push, Node.js 22+, and a CLI agent on <code>PATH</code> (already logged in). Also set git <code>user.name</code> and <code>user.email</code>. No extra service or deploy step.
+        </p>
       </section>
 
       <section id="start-it" class="guide-step">
@@ -69,17 +83,27 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
         <p>
           <code>.lumpcode/</code> is already in the repo, so do not run <code>project-setup</code> on the worker.
           Put the CLI on this clone, install project deps, then run <code>lumpcode setup</code>.
+          Setup asks which mode this machine should use. Pick dedicated, then the workspace strategy.
           It writes this machine’s <code>local.json</code> and can start the unfiltered worker.
-          If <code>local.json</code> and a lump are already there, setup does nothing; run <code>lumpcode start</code> instead.
-          The worker also needs Node.js 22+, git <code>user.name</code> and <code>user.email</code>, git <code>origin</code> fetch and push, and a CLI agent on <code>PATH</code> (already logged in).
+          If <code>local.json</code> and a lump are already there, setup does nothing; edit <code>local.json</code> if needed and run <code>lumpcode start</code> instead.
         </p>
         <CodeWindow filename=".lumpcode/local.json" :code="workerLocal" />
         <p class="callout-warn">
           <code>mode: dedicated</code> wipes uncommitted work on this clone. Do not pick it for a checkout you also edit.
         </p>
+        <h3 id="worktree-or-checkout">Worktree or checkout</h3>
+        <p>
+          Prefer <code>worktree</code> when this repo can use linked git worktrees. The agent runs in <code>.lumpcode/worktrees/&lt;branch&gt;/</code> (slash segments become folders), so the main tree can stay on the primary branch. That is also what lets <code>maxParallelRun</code> be greater than 1.
+        </p>
+        <p>
+          <code>checkout</code> is the default if you omit the field. This folder switches onto the lump branch, then back. One lump at a time. Use it if worktrees fail for this tree, or you only ever run one lump.
+        </p>
+        <p>
+          <code>maxParallelRun</code> (this file, or <code>--maxParallelRun</code> on <code>start</code>) is how many lumps the worker runs at once. It applies only with <code>worktree</code>. Checkout stays sequential; passing the flag with checkout fails. Omit it or use <code>1</code> until this machine can run two agent sessions. <code>2</code> in the snippet is an example.
+        </p>
         <CodeWindow filename="terminal" :code="workerStart" />
         <p>
-          <code>lumpcode setup</code> offers <code>lumpcode start</code> with no filters. That daemon discovers every lump on a schedule. You do not restart for new lumps.
+          <code>lumpcode setup</code> offers <code>lumpcode start</code> with no filters. That daemon id is <code>global</code>. It discovers every lump on a schedule. You do not restart for new lumps.
         </p>
         <p>
           Later: <code>lumpcode daemon-status</code>, <code>lumpcode daemon-log</code>, <code>lumpcode stop</code>.
@@ -93,9 +117,8 @@ const page = docsVuePages.find((item) => item.path === docs.worker)
       <section id="back-to-the-laptop" class="guide-step">
         <h2>4. Back to the laptop</h2>
         <p>
-          Author as in <NuxtLink :to="docs.firstPr">the first PR</NuxtLink>.
-          Preview with <code>lumpcode lump-plan &lt;lumpName&gt;</code>.
-          Commit, push, and merge to the primary branch. The worker fetches that branch on its next pass.
+          Day to day you stay on the work repo. Add or update lumps there. Preview with <code>lumpcode lump-plan &lt;lumpName&gt;</code>.
+          Commit, push, and merge to the primary branch. The worker fetches that branch on its next pass. Nothing to deploy or register.
         </p>
         <ul>
           <li>
