@@ -89,27 +89,5 @@ describe('runPreflight', () => {
             expect(result.data.executionWorkspacePath).toBe(projectRoot);
             await expect(fs.access(expectedCopy)).rejects.toBeDefined();
         });
-
-        it('succeeds when the source working tree is dirty and does not copy or reset', async () => {
-            const projectName = 'preflight-shared-dirty';
-            const expectedCopy = path.join(globalConfigFolderPath, 'project-copies', projectName);
-            const dirtyPath = path.join(projectRoot, 'DIRTY.txt');
-            await fs.writeFile(dirtyPath, 'uncommitted\n', 'utf-8');
-            const branchBefore = execGit('rev-parse --abbrev-ref HEAD', projectRoot);
-
-            const result = await runPreflight({
-                mode: 'shared',
-                projectBaseBranch: 'main',
-                sourceProjectRoot: projectRoot,
-                globalConfigFolderPath,
-                projectName,
-            });
-            expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(result.data.executionWorkspacePath).toBe(projectRoot);
-            expect(await fs.readFile(dirtyPath, 'utf-8')).toBe('uncommitted\n');
-            expect(execGit('rev-parse --abbrev-ref HEAD', projectRoot)).toBe(branchBefore);
-            await expect(fs.access(expectedCopy)).rejects.toBeDefined();
-        });
     });
 });
