@@ -1,0 +1,11 @@
+name: resolvePresetChatSession
+task: >-
+  Extract the duplicated resumable-chat session block (trim prompt, look up
+  setupChatId / chatsIds[chatIdIndex], create a new chat on newChat, seed
+  setup() contextRunState) from the five CLI preset commands into
+  resolvePresetChatSession plus initialPresetChatRunState. Lives next to
+  sibling preset utils (not src/utils) because presets are copied as
+  standalone ESM to ~/.lumpcode/commands/presets/. Affected:
+  presets/commands/{claude-code,codex,copilot,cursor,opencode}.js and the
+  jsConfigToRunLumpInput fixture mirrors of claude-code, codex, and opencode.
+priority: 1
