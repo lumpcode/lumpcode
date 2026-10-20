@@ -10,7 +10,7 @@
     "mode": {
       "type": "string",
       "enum": ["shared", "dedicated"],
-      "description": "How Lumpcode handles the current checkout. `shared`: day-to-day clone; runs in ~/.lumpcode/project-copies/<projectName>/. `dedicated`: Lumpcode-owned clone (typical daemon machine); destructive reset on the target branch before each tick."
+      "description": "How Lumpcode handles the current checkout. `shared`: day-to-day clone; `run` rehearses in place on the current named branch (dirty allowed, no project copy). `dedicated`: Lumpcode-owned clone (typical daemon machine); destructive reset on the target branch before each tick."
     },
     "primaryBranch": {
       "type": "string",
