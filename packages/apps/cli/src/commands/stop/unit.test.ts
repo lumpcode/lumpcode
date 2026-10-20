@@ -8,6 +8,7 @@ import {
     aliveDaemonSpawnFn,
     createDaemonCommandTestProject,
     removeDaemonMetaUntilGone,
+    waitForAliveDaemonChildMeta,
     waitForDaemonPidFile,
     writeDaemonMetaSticky,
 } from '../../testing';
@@ -75,6 +76,7 @@ describe('stop command', () => {
     it('stops the daemon started by the start command and removes the PID file', async () => {
         await runStart(aliveDaemonSpawnFn);
         await waitForDaemonPidFile(pidPath());
+        await waitForAliveDaemonChildMeta(schedulerFiles().metaFilePath);
         const raw = await fs.readFile(pidPath(), 'utf8');
         const pid = Number.parseInt(raw.trim(), 10);
         expect(Number.isNaN(pid)).toBe(false);
@@ -104,6 +106,7 @@ describe('stop command', () => {
     it('stop --all stops a running daemon and removes desired.json', async () => {
         await runStart(aliveDaemonSpawnFn);
         await waitForDaemonPidFile(pidPath());
+        await waitForAliveDaemonChildMeta(schedulerFiles().metaFilePath);
         const desiredPath = path.join(
             globalConfigFolderPath,
             'daemons',
@@ -386,10 +389,14 @@ describe('stop command', () => {
         it('still SIGTERM-stops an idle daemon within 5s', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
+            await waitForAliveDaemonChildMeta(metaPath());
             const pid = await readDaemonPid();
 
             const result = await makeStopHandler()({ options: {}, arguments: {} });
-            expect(result.success).toBe(true);
+            expect(
+                result.success,
+                result.success ? '' : result.data.messages.join(' '),
+            ).toBe(true);
             if (!result.success) throw new Error('unreachable');
             await expect(fs.access(pidPath())).rejects.toMatchObject({ code: 'ENOENT' });
             try {
@@ -403,6 +410,7 @@ describe('stop command', () => {
         it('stop --force succeeds when the daemon is idle', async () => {
             await runStart(aliveDaemonSpawnFn);
             await waitForDaemonPidFile(pidPath());
+            await waitForAliveDaemonChildMeta(metaPath());
             const pid = await readDaemonPid();
 
             const result = await makeStopHandler()({
