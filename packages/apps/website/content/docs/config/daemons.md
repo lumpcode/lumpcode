@@ -29,7 +29,7 @@ Path is `.lumpcode/daemons/<id>.{json,yml,yaml}` (top-level only). The stem is t
 | `disabled` | When `true`, stop or do not start this id. |
 | `maxParallelRun` | Worktree only. Same meaning as `lumpcode start --maxParallelRun`. Checkout plus this field is not started. |
 
-Editors: `$schema` `https://lumpcode.com/schemas/daemonConfig.schema.json`. Extra keys fail the schema.
+Editors: `$schema` `https://lumpcode.com/schemas/daemonConfig.schema.json` (ignored at runtime). Extra keys fail the schema.
 
 ## After you push
 

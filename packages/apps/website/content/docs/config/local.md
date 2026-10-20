@@ -7,6 +7,7 @@ description: .lumpcode/local.json is per machine and gitignored. run and start r
 
 ```json .lumpcode/local.json
 {
+  "$schema": "https://lumpcode.com/schemas/localConfig.schema.json",
   "mode": "shared"
 }
 ```

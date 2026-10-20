@@ -189,7 +189,7 @@ Supervisor files live under `~/.lumpcode/supervisor/` (`<projectName>.pid`, `.lo
 
 ### Repo daemon config files
 
-On a **dedicated** machine, supervise can start schedulers from committed recipes under `.lumpcode/daemons/<daemonId>.{json,yml,yaml}` (top-level only; the stem is the `daemonId`). Shared-mode supervise does not start from these files. Schema: `packages/apps/cli/src/schemas/daemonConfig.schema.json` (editors via `$schema`).
+On a **dedicated** machine, supervise can start schedulers from committed recipes under `.lumpcode/daemons/<daemonId>.{json,yml,yaml}` (top-level only; the stem is the `daemonId`). Shared-mode supervise does not start from these files. Schema: `packages/apps/cli/src/schemas/daemonConfig.schema.json` (editors via optional `$schema`, ignored at runtime).
 
 Each file must set an exact **`discoveryBranch`**. Supervise considers a file only when it was read from `origin/<effectiveDiscoveryBranch>` and `discoveryBranch` equals that branch. Dedicated ticks use the same expand list (`expandPrimaryBranches`); each entry is the dedicated-line bind passed as `scanBranch` / `effectiveDiscoveryBranch` into lump discovery. Push a recipe on `feat/team-a` with `discoveryBranch: "feat/team-a"` when `primaryBranches` expands that line. You do not need to merge to the resolved primary first.
 

@@ -32,6 +32,16 @@ describe('daemonConfigFileSchema', () => {
         expect(daemonConfigFileSchema.safeParse({ discoveryBranch: '' }).success).toBe(false);
     });
 
+    it('accepts and strips $schema', () => {
+        expect(
+            expectParseOk({
+                $schema: 'https://lumpcode.com/schemas/daemonConfig.schema.json',
+                discoveryBranch: 'dev',
+                include: ['backlog'],
+            }),
+        ).toEqual({ discoveryBranch: 'dev', include: ['backlog'] });
+    });
+
     it('rejects extra keys (strict)', () => {
         expect(
             daemonConfigFileSchema.safeParse({
@@ -124,6 +134,19 @@ describe('normalizeDaemonConfigFile / hashDaemonConfigFile', () => {
         expect(
             hashDaemonConfigFile({ discoveryBranch: 'dev', include: ['b', 'a'] }),
         ).toBe(hashDaemonConfigFile({ discoveryBranch: 'dev', include: ['a', 'b'] }));
+    });
+
+    it('hashes a recipe with $schema the same as without it', () => {
+        const withKey = expectParseOk({
+            $schema: 'https://lumpcode.com/schemas/daemonConfig.schema.json',
+            discoveryBranch: 'dev',
+            include: ['backlog'],
+        });
+        const withoutKey = expectParseOk({
+            discoveryBranch: 'dev',
+            include: ['backlog'],
+        });
+        expect(hashDaemonConfigFile(withKey)).toBe(hashDaemonConfigFile(withoutKey));
     });
 
     it('hashes key-order-equivalent objects the same', () => {

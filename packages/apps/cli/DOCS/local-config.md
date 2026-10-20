@@ -45,7 +45,7 @@ Machine overrides and lump defaults:
 | `refreshCommand` | no | Shared with `project.json`; **local wins**; dedicated daemon tick only |
 | `logRetention` | no | Local-only. `{ "maxAgeDays": n }` with `n` an integer ≥ 0. Omitted: 14 days. `0` keeps everything. Deletes old transcript and history files and trims this project's daemon and supervisor logs on `lumpcode run` and each daemon tick. Restart the worker to change tick retention. |
 
-Misplaced keys (for example `projectName`) and unknown keys **hard-fail**. `command` must be a registered tag, not a `.ts`/`.js` file path.
+Misplaced keys (for example `projectName`) and unknown keys **hard-fail**. Optional `$schema` is allowed and ignored at runtime. `command` must be a registered tag, not a `.ts`/`.js` file path.
 
 Primary may live only on `project.json`. Missing from both files fails with an error naming both files.
 

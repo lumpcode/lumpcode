@@ -7,6 +7,10 @@
   "required": ["discoveryBranch"],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for editors. Ignored at runtime."
+    },
     "discoveryBranch": {
       "type": "string",
       "minLength": 1,

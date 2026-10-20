@@ -41,6 +41,10 @@
     }
   ],
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for editors. Ignored at runtime."
+    },
     "baseBranch": {
       "type": "string",
       "description": "Git integration line for execution: pre-flight, markers, finished checks, and worktrees. Must be an exact branch name (not a glob). When omitted, defaults to the concrete effective discovery branch. In JS/TS configs, may also be a BaseBranchFn or FilePath that receives { effectiveDiscoveryBranch, contexts } (pre-status raw list) and returns an exact branch string.",

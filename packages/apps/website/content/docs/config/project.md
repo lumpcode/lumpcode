@@ -7,6 +7,7 @@ description: .lumpcode/project.json is committed. It names the project and can s
 
 ```json .lumpcode/project.json
 {
+  "$schema": "https://lumpcode.com/schemas/projectConfig.schema.json",
   "projectName": "my-monorepo",
   "primaryBranch": "dev",
   "command": "cursor",
