@@ -2,6 +2,10 @@
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { createOpenCodeSession } from './utils/createOpenCodeSession.js';
+import {
+    initialPresetChatRunState,
+    resolvePresetChatSession,
+} from './utils/resolvePresetChatSession.js';
 import { resolveOpenCodeArgs } from './utils/resolveOpenCodeArgs.js';
 import { createNdjsonPresenter } from './utils/presentNdjson.js';
 import { presentOpenCodeEvent } from './utils/presentOpenCodeLine.js';
@@ -14,32 +18,17 @@ export const command = (async ({
     lumpVariables = {},
 }) => {
     const model = stepVariables.model ?? lumpVariables.model;
-    const { newChat = false, chatIdIndex = null } = stepVariables || {};
-
-    const chatState = contextRunState.opencodeSetup ?? (contextRunState.opencodeSetup = {});
-    const chatKey = Array.isArray(stepIndex) ? stepIndex.join('.') : String(stepIndex);
 
     const trimmedPrompt = (prompt ?? '').trim();
-    if (!trimmedPrompt) return null;
-
-    let chatId = chatIdIndex != null
-        ? chatState.chatsIds?.[chatIdIndex]
-        : chatState.setupChatId;
-
-    if (!chatId) {
-        throw new Error(
-            chatIdIndex != null
-                ? `Chat ID not found for index: ${chatIdIndex}`
-                : 'Chat ID not found in opencode setup state',
-        );
-    }
-
-    if (newChat) {
-        chatId = await createOpenCodeSession({ model });
-
-        chatState.chatsIds ??= {};
-        chatState.chatsIds[chatKey] = chatId;
-    }
+    const chatId = await resolvePresetChatSession({
+        prompt: trimmedPrompt,
+        contextRunState,
+        setupStateKey: 'opencodeSetup',
+        stepIndex,
+        stepVariables,
+        createChatId: () => createOpenCodeSession({ model }),
+    });
+    if (chatId == null) return null;
 
     const agentPermissions = resolveAgentPermissions({ lumpVariables, stepVariables });
     const optionArgs = resolveOpenCodeArgs({ agentPermissions, model });
@@ -63,14 +52,7 @@ export const setup = (async ({ lumpVariables = {} }) => {
         model: lumpVariables.model,
     });
 
-    return {
-        contextRunState: {
-            setupChatId: setupChatIdStr,
-            chatsIds: {
-                '0': setupChatIdStr,
-            },
-        },
-    };
+    return initialPresetChatRunState(setupChatIdStr);
 });
 
 export const teardown = ((() => {
