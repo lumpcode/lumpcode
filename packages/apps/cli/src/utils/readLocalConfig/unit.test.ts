@@ -103,6 +103,26 @@ describe('readLocalConfig', () => {
             expect(result.data).toContain('projectName');
         });
 
+        it('accepts and strips $schema', async () => {
+            await writeJsonFile({
+                filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME),
+                data: {
+                    $schema: 'https://lumpcode.com/schemas/localConfig.schema.json',
+                    mode: 'shared',
+                    primaryBranch: 'main',
+                },
+            });
+            const result = await readLocalConfig({ localConfigFolderPath: dir });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data).toEqual({
+                mode: 'shared',
+                primaryBranch: 'main',
+                workspaceStrategy: 'checkout',
+            });
+            expect(result.data).not.toHaveProperty('$schema');
+        });
+
         it('L4: rejects unknown key', async () => {
             await writeJsonFile({
                 filePath: path.join(dir, LOCAL_CONFIG_FILE_NAME),

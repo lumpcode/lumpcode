@@ -46,6 +46,7 @@ export * from './getJsConfigFromLumpName';
 export * from './getProjectName';
 export * from './gitCommitAllAndPush';
 export * from './gitCommonDirLock';
+export * from './ignoredJsonSchemaKey';
 export * from './initBareRemoteAndCheckout';
 export * from './initLocalGitRepo';
 export * from './installDaemonProcessGuards';

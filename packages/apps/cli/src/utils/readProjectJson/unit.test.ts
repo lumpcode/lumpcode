@@ -95,6 +95,19 @@ describe('readProjectJson (clean-local-project-json-config)', () => {
         expect(result.data).toMatch(/projectName|letters|digits/i);
     });
 
+    it('accepts and strips $schema', async () => {
+        await writeProject({
+            $schema: 'https://lumpcode.com/schemas/projectConfig.schema.json',
+            projectName: 'demo',
+            primaryBranch: 'dev',
+        });
+        const result = await readProjectJson({ localConfigFolderPath: dir });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual({ projectName: 'demo', primaryBranch: 'dev' });
+        expect(result.data).not.toHaveProperty('$schema');
+    });
+
     it('P7: unknown key', async () => {
         await writeProject({ projectName: 'x', foo: 1 });
         const result = await readProjectJson({ localConfigFolderPath: dir });

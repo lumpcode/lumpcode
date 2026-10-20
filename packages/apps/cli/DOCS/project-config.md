@@ -42,7 +42,7 @@ With lump defaults:
 | `writeTranscripts` | no | Lump default; omit = on |
 | `refreshCommand` | no | Dedicated daemon tick only; local wins; ignored by shared mode and `lumpcode run` |
 
-Not allowed here: `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, `verbose`. Unknown keys hard-fail.
+Not allowed here: `mode`, `workspaceStrategy`, `disabled`, `maxParallelRun`, `verbose`. Unknown keys hard-fail. Optional `$schema` is allowed and ignored at runtime.
 
 ## Merge and lump defaults
 

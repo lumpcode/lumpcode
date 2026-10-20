@@ -61,6 +61,19 @@ describe('getProjectName', () => {
      * clean-local-project-json-config N* — skipped until getProjectName routes through readProjectJson.
      */
     describe('getProjectName strict membership (clean-local-project-json-config N*)', () => {
+        it('accepts $schema on project.json', async () => {
+            await writeJsonFile({
+                filePath: path.join(localConfig, 'project.json'),
+                data: {
+                    $schema: 'https://lumpcode.com/schemas/projectConfig.schema.json',
+                    projectName: 'x',
+                },
+            });
+            const result = await getProjectName({ localConfigFolderPath: localConfig, projectRoot });
+            expect(result.success).toBe(true);
+            if (result.success) expect(result.data).toBe('x');
+        });
+
         it('N2: unknown key fails', async () => {
             await writeJsonFile({
                 filePath: path.join(localConfig, 'project.json'),

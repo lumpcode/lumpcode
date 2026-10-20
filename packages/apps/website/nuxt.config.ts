@@ -11,6 +11,8 @@ mkdirSync(publicSchemaDir, { recursive: true })
 const schemaCopies: Array<{ fromDir: string; name: string }> = [
   { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'lumpConfig.schema.json' },
   { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'daemonConfig.schema.json' },
+  { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'projectConfig.schema.json' },
+  { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'localConfig.schema.json' },
   { fromDir: join(websiteRoot, '../../recipes/schemas'), name: 'backlogDesc.schema.json' },
   { fromDir: join(websiteRoot, '../../recipes/schemas'), name: 'featureBacklogDesc.schema.json' },
 ]
