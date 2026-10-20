@@ -3,8 +3,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resolveDaemonCommandScope } from './main';
+import { initLocalGitRepo } from '../initLocalGitRepo';
 import { writeJsonFile } from '../writeJsonFile';
+import { resolveDaemonCommandScope } from './main';
 
 describe('resolveDaemonCommandScope', () => {
     let base: string;
@@ -17,9 +18,9 @@ describe('resolveDaemonCommandScope', () => {
         projectRoot = path.join(base, 'repo');
         localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         globalConfigFolderPath = path.join(base, 'global');
-        await fs.mkdir(path.join(projectRoot, '.git'), { recursive: true });
         await fs.mkdir(localConfigFolderPath, { recursive: true });
         await fs.mkdir(globalConfigFolderPath, { recursive: true });
+        initLocalGitRepo({ cwd: projectRoot });
         await writeJsonFile({ filePath: path.join(localConfigFolderPath, 'project.json'), data: { projectName: 'demo_proj' } });
     });
 

@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { createTempTestDirs, removeTempTestDirs } from '../../utils';
+import { createTempTestDirs, initLocalGitRepo, removeTempTestDirs } from '../../utils';
 import { command as transcriptCommand } from './main';
 
 describe('transcript command', () => {
@@ -22,7 +22,7 @@ describe('transcript command', () => {
             remote: false,
             global: false,
         }));
-        await fs.mkdir(path.join(projectRoot, '.git'));
+        initLocalGitRepo({ cwd: projectRoot });
     }
 
     function makeHandler(spawnFn?: typeof nodeSpawn) {

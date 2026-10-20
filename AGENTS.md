@@ -128,7 +128,7 @@
 
 ### CLI project config
 
-- Project root: directory with both `.lumpcode` and `.git`; engine `projectRoot` = parent of `.lumpcode/` (`jsConfigToRunLumpInput` derives from `localConfigFolderPath`)
+- Project root: directory with `.lumpcode` and a git checkout (`.git` directory or linked-worktree file); `validateCurrentLumpProjectRoot` requires `.lumpcode/` and `git rev-parse --git-dir` from cwd (not `isDirectory()` on `.git`); engine `projectRoot` = parent of `.lumpcode/` (`jsConfigToRunLumpInput` derives from `localConfigFolderPath`)
 - **`project.json`**: `projectName` (letters, digits, `_`, `-` only); inferred from `git remote get-url origin` or sanitized basename on `project-setup`; used for daemon filenames
 - **`.lumpcode/local.json`** (gitignored; scaffolded by `project-setup --mode`): **required** for `run`/`start` — `mode` (`shared` | `dedicated`), `primaryBranch` or `primaryBranches`, optional deprecated `projectBaseBranch` alias (warn once via `resolvePrimaryBranches` when logger passed), optional `workspaceStrategy` (`checkout` | `worktree`, default `checkout`), optional `disabled` (boolean — daemon skips all lumps on machine; manual `run` unaffected), optional `maxParallelRun` (positive int; default `1` — global-daemon concurrency only when `workspaceStrategy` is `worktree`; checkout warns once and stays sequential), optional `logRetention.maxAgeDays` (integer ≥ 0; omit = 14 days; `0` = keep; `retainLumpcodeLogs` on `run` and each daemon tick). No `--mode`/`--force` on `run`/`start` — edit `local.json`. Read once at daemon startup (restart to pick up changes). When the repo integrates on `dev`, set `primaryBranch`/`primaryBranches` to `dev` so lump branches and context status track the integration branch
 

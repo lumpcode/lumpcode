@@ -77,7 +77,7 @@ For **`lumpcode lump-status`**, verbose status JSON is default; pass **`--silent
 
 ### Project validation
 
-Commands that need a Lumpcode project verify that **`.lumpcode/`** and **`.git/`** exist under the effective project root. If not, they fail with a clear error message.
+Commands that need a Lumpcode project verify that **`.lumpcode/`** exists and that `git rev-parse --git-dir` succeeds from the project root (a `.git` directory or a linked-worktree `.git` file). If not, they fail with a clear error message.
 
 <h3 id="ref-lumpcode-help"><code>lumpcode --help</code></h3>
 
@@ -244,7 +244,7 @@ Plus global [`--json`](#ref-json-output).
 
 **Behavior:**
 
-1. Validates project root (`.lumpcode/` + `.git/`).
+1. Validates project root (`.lumpcode/` + git work tree).
 2. Loads lump config (`config.json` is checked against the JSON schema; `config.js` and `config.ts` are imported and resolved).
 3. Resolves hooks, command modules, and `disabled` the same way as `run` (shared pipeline).
 4. Optionally lists contexts, expands prompts, or simulates one run tick.
