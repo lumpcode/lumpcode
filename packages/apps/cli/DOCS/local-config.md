@@ -61,7 +61,7 @@ This clone is the execution workspace. `lumpcode run` writes on the current name
 ~/your-repo/             ← editor and lumpcode run (same checkout)
 ```
 
-Pick `shared` on **workstations**.
+Pick `shared` on **laptops**. Walkthrough: [get-started.md](./get-started.md).
 
 ### `dedicated`
 

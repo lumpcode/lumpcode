@@ -3,7 +3,7 @@ title: Local config
 description: .lumpcode/local.json is per machine and gitignored. run and start refuse to start without it.
 ---
 
-`project-setup` scaffolds `{ "mode": "shared" }` and gitignores the file. Edit it on this machine; do not commit it.
+`lumpcode setup` and `project-setup` scaffold `{ "mode": "shared" }` and gitignore the file. Edit it on this machine; do not commit it.
 
 ```json .lumpcode/local.json
 {
@@ -29,7 +29,7 @@ There is no `--mode` on `run` or `start`. Change this file (and restart the work
 
 This clone is the execution workspace. `lumpcode run` writes on the current named branch. A dirty tree is allowed. The walk does not commit or push unless you type `c` after a successful run (commit only). `lumpcode start` is dedicated-only.
 
-Use on laptops.
+Use on laptops. Walkthrough: [First PR](/docs/start/first-pr).
 
 ### `dedicated`
 

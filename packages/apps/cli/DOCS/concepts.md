@@ -35,7 +35,7 @@ Repeated `run` or daemon ticks are **resumable**: finished contexts are skipped 
 
 **Ordering:** Per-context `options.priority` (lower runs sooner) and `options.dependsOnContexts` gate which `toDo` contexts are eligible in a batch. A dependency must be **`finished`** on the remote base branch; `branchPushed` does not count. Same-lump deps use the context `name`; cross-lump deps use `<otherLumpName>/<contextName>` (see [types.md § Context](./types.md#context) and [examples.md § 7](./examples.md#7-cross-lump-dependency--run-after-another-lump-finishes)).
 
-**Safety:** Lumpcode does **not** push routine agent work to `baseBranch`; work lives on `lump/<lumpName>/…` branches for normal review and merge. Cap how many such branches are in flight with **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`).
+**Safety:** Shared `run` does not push. Dedicated work lives on `lump/<lumpName>/…` branches for normal review and merge; Lumpcode does **not** push routine agent work to `baseBranch`. Cap how many such branches are in flight with **`maximumNumberOfConcurrentBranches`** (per lump or default in `project.json`).
 
 ## Three workspaces
 
@@ -266,7 +266,7 @@ What you need to know as an operator:
 
 ## Related documentation
 
-- [get-started.md](./get-started.md) — First lump from zero
+- [get-started.md](./get-started.md) — Laptop rehearsal: first lump on this checkout
 - [local-config.md](./local-config.md) — Per-machine `local.json` (`mode`, `primaryBranch`, `workspaceStrategy`)
 - [lump-config.md](./lump-config.md) — All config keys
 - [advanced-config.md](./advanced-config.md#hook-lifecycle) — Shared / dedicated hook lifecycle schemas

@@ -80,7 +80,7 @@ lumpcode run myLump
 
 `lump-plan` loads config, discovers contexts, and can print resolved prompts. It does not run the agent or push. Fix what it reports, then run.
 
-On your laptop, `project-setup` left `mode: "shared"`. `run` writes on this branch. A dirty tree is fine. Verify, type `c` if you want LUMP markers (no push), then push yourself. A worker still cuts `lump/myLump/…`.
+On your laptop, setup left `mode: "shared"` in `.lumpcode/local.json`. `run` writes on this branch. A dirty tree is fine. Verify, type `c` if you want LUMP markers (no push), then push yourself. `lumpcode start` is dedicated-only. A worker still cuts `lump/myLump/…`.
 
 ## Optional skill
 

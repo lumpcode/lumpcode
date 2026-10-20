@@ -9,7 +9,7 @@ useHead({
     {
       name: 'description',
       content:
-        'Start AI loops for the development life cycle on an existing git repo. Run lumpcode setup, rehearse one campaign on this branch, then push yourself.',
+        'Laptop rehearsal on this checkout: lumpcode setup, run on this branch (dirty allowed), type c or e, then push yourself. start is dedicated-only.',
     },
     {
       property: 'og:title',
@@ -18,12 +18,16 @@ useHead({
     {
       property: 'og:description',
       content:
-        'Start AI loops for the development life cycle on an existing git repo. Run lumpcode setup, rehearse one campaign on this branch, then push yourself.',
+        'Laptop rehearsal on this checkout: lumpcode setup, run on this branch (dirty allowed), type c or e, then push yourself. start is dedicated-only.',
     },
   ],
 })
 
 const setupCommand = 'lumpcode setup'
+
+const sharedLocal = `{
+  "mode": "shared"
+}`
 
 const page = docsVuePages.find((item) => item.path === docs.firstPr)
 </script>
@@ -31,7 +35,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
 <template>
   <DocsPageShell
     title="Get started : From install to the first PR"
-    description="Start AI loops on an existing git repo. Rehearse one campaign on this branch. Verify, type c for LUMP markers, then push yourself."
+    description="Laptop rehearsal on this checkout. A dirty tree is fine. Verify, type c for LUMP markers, then push yourself. start is dedicated-only."
     :path="docs.firstPr"
     :headings="page?.headings ?? []"
     :source-path="page?.sourcePath"
@@ -51,7 +55,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
         <ul>
           <li>Node.js 22+</li>
           <li>A git repo with <code>origin</code> you can push to, and a primary branch that already exists on that remote (usually <code>main</code>)</li>
-          <li>Git <code>user.name</code> and <code>user.email</code> set. Setup commits the Lumpcode files; typing <code>c</code> after a shared run stamps LUMP markers.</li>
+          <li>Git <code>user.name</code> and <code>user.email</code> set. Setup commits the Lumpcode files; typing <code>c</code> after a laptop run stamps LUMP markers.</li>
           <li>A CLI coding agent on <code>PATH</code> (Cursor, Copilot, Claude Code, Codex, or OpenCode). If none is installed, setup waits for a command tag.</li>
           <li>Awareness that <code>lumpcode run</code> invokes that agent (LLM cost)</li>
         </ul>
@@ -79,7 +83,7 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
         <h2>3. Run setup</h2>
         <p>
           From the repo root, on the branch you want to rehearse on. Setup is interactive (a TTY, not <code>--json</code>).
-          It scaffolds <code>.lumpcode/</code>, asks JSON, JavaScript, or TypeScript (JSON is the simple path; js/ts installs <code>@lumpcode/cli-utils</code> and <code>@lumpcode/recipes</code>), writes a first lump (README when that file exists), pauses so you can edit, commits and pushes the allowlisted files, plans, then runs in place on this branch.
+          It scaffolds <code>.lumpcode/</code> (gitignored <code>local.json</code> on this machine), asks JSON, JavaScript, or TypeScript (JSON is the simple path; js/ts installs <code>@lumpcode/cli-utils</code> and <code>@lumpcode/recipes</code>), writes a first lump (README when that file exists), pauses so you can edit, commits and pushes the allowlisted files, plans, then runs in place on this branch.
         </p>
         <CodeWindow filename="terminal" :code="setupCommand" />
         <p>
@@ -97,9 +101,15 @@ const page = docsVuePages.find((item) => item.path === docs.firstPr)
       <section id="run-once" class="guide-step">
         <h2>4. Rehearse on this branch</h2>
         <p>
-          Shared setup runs the agent on the branch you are on. It does not create a <code>lump/…</code> branch and does not open a pull request.
+          The agent writes in this folder, on the branch you are on. A dirty tree is allowed.
+          There is no <code>lump/…</code> branch, no auto commit or push, and no pull request.
           Verify the updates. Type <code>c</code> to stamp <code>LUMP: myFirstLump - …</code> markers (still no push), or <code>e</code> to leave the tree dirty and run again.
           Then push this branch yourself.
+        </p>
+        <CodeWindow filename=".lumpcode/local.json" :code="sharedLocal" />
+        <p>
+          <code>lumpcode start</code> is dedicated-only. This laptop is not a worker.
+          After you have committed and pushed <code>.lumpcode/</code>, the next page is a second clone you never edit.
         </p>
       </section>
     </div>

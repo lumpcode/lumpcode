@@ -199,7 +199,7 @@ Plus global [`--json`](#ref-json-output).
 
 1. Reads `.lumpcode/local.json` (hard-fails if missing). Shared: fails on detached HEAD; dirty is allowed; no preflight; agent writes on this checkout. Dedicated: phase 1 locks the execution workspace, pre-flights to `effectiveDiscoveryBranch` (CLI override or lump `discoveryBranch`), loads config, then runs the lump; phase 2 pre-flights to the lump `baseBranch` before agent work.
 2. In shared mode, `--discoveryBranch` is ignored by `run` (warn once); `lump-plan` and `lump-status` honor it for context filtering without checkout.
-3. After a dedicated manual run, switches the operator checkout back to the branch you were on before `run`. Shared does not restore a copy.
+3. After a dedicated manual run, switches the operator checkout back to the branch you were on before `run`. Shared stays on this checkout.
 4. After a successful shared walk that executed contexts, a TTY (not `--json`) prints porcelain and `[c]` / `[e]`. `c` commits LUMP markers (`git add .`, no push). `e` or Ctrl+C leaves the tree dirty (exit 0). Non-TTY / `--json` is implicit `e`.
 
 **Success cases:**
@@ -212,7 +212,7 @@ Plus global [`--json`](#ref-json-output).
 
 With **`--json`**, busy responses include a stable `code` field (`workspacePathBusy`) plus path and optional holder pid/lump name.
 
-**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (shared / dedicated schemas), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-1-run-lumpcode-setup).
+**See also:** [concepts.md](./concepts.md#one-run-end-to-end), [advanced-config.md § Hook lifecycle](./advanced-config.md#hook-lifecycle) (shared / dedicated schemas), [lump-config.md](./lump-config.md#optional-top-level-fields) (`maximumNumberOfConcurrentBranches`), [get-started.md](./get-started.md#step-2-review-on-this-branch).
 
 <a id="ref-cmd-lump-plan"></a>
 
