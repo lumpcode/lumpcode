@@ -81,6 +81,8 @@ The open-branch cap is **per lump name**, across every scan line. On a dedicated
 - **`checkout`** (default) — on a dedicated worker, the execution workspace switches onto the lump branch for the run, then back. One lump at a time in that folder. Shared `run` ignores this (stays on `HEAD`).
 - **`worktree`** — the agent runs in `.lumpcode/worktrees/<branch>/` (branch segments become folders: `lump/a/b` → `…/worktrees/lump/a/b`). The main tree can stay on the base branch. Needed if you want `maxParallelRun` > 1 on a worker. Execution-path lock is released after workspace setup; the git-object-db lock still serializes git.
 
+Prefer `worktree` on a worker when this repo can use linked git worktrees. Setup: [Leave a worker running](/docs/start/worker).
+
 ## If two things try to run at once
 
 Lumpcode takes a lock on the folder it is about to mutate, and a second lock on the shared git object database so linked worktrees do not race. Manual `lumpcode run` **fails fast** if another run holds the lock (`workspacePathBusy`). A worker **waits** (up to 15 minutes), then skips that lump and tries again next pass.

@@ -65,9 +65,9 @@ Pick `shared` on **laptops**. Walkthrough: [get-started.md](./get-started.md).
 
 ### `dedicated`
 
-The clone is **owned by Lumpcode** (typical for a daemon machine on a small server). Lumpcode runs in place: pre-flight does `git fetch && git switch <primaryBranch> && git reset --hard origin/<primaryBranch>` in the checkout itself. **This wipes any uncommitted local changes.** Do not pick `dedicated` for a clone you also edit.
+The clone is **owned by Lumpcode** (typical for a worker clone you do not edit). Lumpcode runs in place: pre-flight does `git fetch && git switch <primaryBranch> && git reset --hard origin/<primaryBranch>` in the checkout itself. **This wipes any uncommitted local changes.** Do not pick `dedicated` for a clone you also edit.
 
-Pick `dedicated` on **machines you don't develop on**, including `lumpcode start` daemons.
+Pick `dedicated` on **machines you don't develop on**, including `lumpcode start` workers. Quick-start: [get-started.md § Leave a worker running](./get-started.md#step-3-leave-a-worker-running-optional).
 
 ## Workspace strategies
 
@@ -79,7 +79,7 @@ Each lump run switches the main worktree to a fresh `lump/<lumpName>/…` branch
 
 Each dedicated lump run uses a **linked git worktree** under `.lumpcode/worktrees/<branch>/` inside the execution workspace (this checkout). The main worktree stays on the lump's resolved `baseBranch` while the agent runs inside the worktree (the **branch workspace**). Worktree paths mirror branch segments (e.g. branch `lump/migrate-vue/Button.tsx` → `.lumpcode/worktrees/lump/migrate-vue/Button.tsx`). `project-setup` gitignores `.lumpcode/worktrees/`. `lumpcode clean` removes worktrees when it deletes lump branches. Shared `run` ignores `workspaceStrategy` (stays on `HEAD`).
 
-Pick `worktree` when you want the base branch checked out in the main tree during runs, or when using `maxParallelRun` so a global daemon can run multiple lumps concurrently in one tick.
+On a worker, prefer `worktree` when this repo can use linked git worktrees. Use `checkout` if worktrees fail for this tree, or you only ever run one lump. `worktree` is also what lets `maxParallelRun` run multiple lumps concurrently in one tick.
 
 ## Multiple primary branches (dedicated daemons)
 

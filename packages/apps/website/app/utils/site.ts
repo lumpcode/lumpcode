@@ -148,7 +148,7 @@ export const workerLine =
   'A one-off run is how you try it. A worker is how you use it.'
 
 export const workerLead =
-  'A second clone you never edit, even another folder on this laptop, and one command: lumpcode start. It picks up every lump in the repo and pushes branches while you do something else. This is how Lumpcode is meant to run.'
+  'A second clone you never edit, even another folder on this laptop: git access, an agent CLI, and lumpcode start. It picks up every lump in the repo and pushes branches while you do something else. This is how Lumpcode is meant to run.'
 
 export const workerSteps = [
   {

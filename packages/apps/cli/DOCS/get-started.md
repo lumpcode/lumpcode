@@ -97,20 +97,70 @@ Then push this branch yourself. Non-TTY / `--json` is implicit `e`. If you alrea
 
 ## Step 3: Leave a worker running (optional)
 
-`lumpcode start` is **dedicated-only**. On this laptop (`mode: "shared"`) it fails. Clone the repo into a folder you never edit, set `mode: "dedicated"`, then:
+This is how Lumpcode is meant to run after the first rehearsal. Website version: [lumpcode.com/docs/start/worker](https://www.lumpcode.com/docs/start/worker).
+
+`lumpcode start` is **dedicated-only**. On this laptop (`mode: "shared"`) it fails.
+
+### What the machine needs
+
+Clone the same repo into a folder you never edit (another directory on this laptop is enough). That machine needs only:
+
+1. The clone, with git `origin` fetch and push
+2. Node.js 22+ and `npm install -g @lumpcode/cli`
+3. Git `user.name` and `user.email`
+4. A CLI agent on `PATH`, already logged in
+
+No extra service or deploy step. If this repo has no `.lumpcode/` yet, finish [Step 1](#step-1-run-lumpcode-setup) on the authoring machine first (or flags-only `project-setup` there). Do not run `project-setup` on the worker once `.lumpcode/` is in git.
+
+### `local.json` on the worker
+
+From the worker clone:
+
+```bash
+npm install
+lumpcode setup
+```
+
+Setup writes this machine’s `.lumpcode/local.json` (gitignored) and asks for **mode**. Pick **dedicated**, then the workspace strategy.
+
+```json
+{
+  "mode": "dedicated",
+  "workspaceStrategy": "worktree",
+  "maxParallelRun": 2
+}
+```
+
+**`mode: "dedicated"` wipes uncommitted work on this clone.** Do not pick it for a checkout you also edit.
+
+**Worktree vs checkout:** Prefer `worktree` when this repo can use linked git worktrees. The agent runs in `.lumpcode/worktrees/<branch>/` (slash segments become folders). The main tree can stay on the primary branch. That is also what lets `maxParallelRun` be greater than 1.
+
+`checkout` is the default if you omit `workspaceStrategy`. This folder switches onto the lump branch, then back. One lump at a time. Use it if worktrees fail for this tree, or you only ever run one lump.
+
+`maxParallelRun` in `local.json` or `--maxParallelRun` on `start` applies only with `worktree`. Checkout stays sequential; passing the flag with checkout fails. `2` above is an example. Omit the field or use `1` until this machine can run two agent sessions. Details: [local-config.md § Workspace strategies](./local-config.md#workspace-strategies).
+
+If `local.json` and a lump are already there, setup does nothing. Edit the file, then start.
+
+### Start the worker
 
 ```bash
 lumpcode start
 ```
 
-That daemon ticks every enabled lump on a cron (default every 5 minutes). Use **`lumpcode daemon-status`**, **`lumpcode daemon-log`**, **`lumpcode stop`**, and **`lumpcode restart`** to manage it.
+`setup` can offer this for you. With no `--include` / `--exclude`, the daemon id is `global`: it discovers every loadable lump on a cron (default every 5 minutes). You do not restart for new lumps.
+
+Use **`lumpcode daemon-status`**, **`lumpcode daemon-log`**, **`lumpcode stop`**, and **`lumpcode restart`** to manage it.
+
+### Day to day on the work repo
+
+Stay on the authoring clone. Add or update lumps, preview with `lumpcode lump-plan <lumpName>`, then commit, push, and merge to the primary branch. The worker fetches that branch on its next tick. Nothing to deploy or register.
 
 | If you… | Prefer |
 |---------|--------|
 | Want **one lump**, **one batch**, on this branch | **`lumpcode run myFirstLump`** |
 | Leave a worker running and tick **all lumps** on a timer | **`lumpcode start`** on a dedicated clone |
 
-Details — cron flags, caps, trade-offs: [concepts.md § When to use run vs start](./concepts.md#when-to-use-run-vs-start-daemon).
+Cron flags, caps, and trade-offs: [concepts.md § When to use run vs start](./concepts.md#when-to-use-run-vs-start-daemon).
 
 ### Optional (dedicated): push a daemon file
 
@@ -136,6 +186,7 @@ Recipe format and collision rules: [concepts.md § Repo daemon config files](./c
 | Prompt run history (optional, `keepHistory: true`) | `.lumpcode/lumps/<lumpName>/history/<contextName>.yaml` (gitignored) |
 | TypeScript transpile cache | `.lumpcode/.cache/transpile/` (gitignored) |
 | Default work branch names (dedicated) | `lump/<lumpName>/<context…>` (local + `origin`) |
+| Dedicated worktrees | `.lumpcode/worktrees/` (gitignored) |
 | Background daemon PID / logs | `~/.lumpcode/daemons/` |
 
 Commit `.lumpcode/` if you want lump definitions and status tracked in git; omit secrets and machine-only paths from shared configs.
@@ -149,7 +200,7 @@ You now have your first working lump ! Browse when you need more depth:
 - [Leave a worker running](https://www.lumpcode.com/docs/start/worker) — Second clone; `lumpcode start`
 - [concepts.md](./concepts.md) — Lifecycle diagrams and workspace details
 - [commands.md](./commands.md) — Every subcommand and flag
-- [local-config.md](./local-config.md) — `.lumpcode/local.json` (`mode`, `primaryBranch`)
+- [local-config.md](./local-config.md) — `.lumpcode/local.json` (`mode`, `workspaceStrategy`, `maxParallelRun`)
 - [lump-config.md](./lump-config.md) — All lump config keys
 - [advanced-config.md](./advanced-config.md#hook-lifecycle) — Lifecycle schemas (shared / dedicated), dynamic `steps`, custom commands
 - [types.md](./types.md) — Hook parameter shapes

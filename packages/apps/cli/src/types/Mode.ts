@@ -5,6 +5,6 @@
  *   `run` rehearses in place on the current named branch (no project copy,
  *   no `lump/…` branch, no auto commit or push).
  * - `dedicated`: the current checkout is dedicated to Lumpcode (typically a
- *   distant daemon machine). Lumpcode pulls and runs in place.
+ *   worker clone you do not edit). Lumpcode pulls and runs in place.
  */
 export type Mode = 'shared' | 'dedicated';

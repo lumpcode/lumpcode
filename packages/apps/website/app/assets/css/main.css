@@ -1065,6 +1065,12 @@ pre code {
   text-wrap: balance;
 }
 
+.guide-step h3 {
+  margin: 1rem 0 0.45rem;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
+}
+
 .guide-step p,
 .guide-step ul {
   margin: 0 0 0.85rem;
