@@ -5,6 +5,10 @@ import { promisify } from 'node:util';
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
 import { resolveCursorConfigDir } from './utils/resolveCursorConfigDir.js';
+import {
+    initialPresetChatRunState,
+    resolvePresetChatSession,
+} from './utils/resolvePresetChatSession.js';
 import { createNdjsonPresenter } from './utils/presentNdjson.js';
 import { presentCursorEvent } from './utils/presentCursorLine.js';
 
@@ -33,32 +37,17 @@ export const command = (async ({
     workspacePath,
 }) => {
     const model = stepVariables.model ?? lumpVariables.model ?? 'auto';
-    const { newChat = false, chatIdIndex = null } = stepVariables || {};
-
-    const chatState = contextRunState.cursorSetup ?? (contextRunState.cursorSetup = {});
-    const chatKey = Array.isArray(stepIndex) ? stepIndex.join('.') : String(stepIndex);
 
     const trimmedPrompt = (prompt ?? '').trim();
-    if (!trimmedPrompt) return null;
-
-    let chatId = chatIdIndex != null
-        ? chatState.chatsIds?.[chatIdIndex]
-        : chatState.setupChatId;
-
-    if (!chatId) {
-        throw new Error(
-            chatIdIndex != null
-                ? `Chat ID not found for index: ${chatIdIndex}`
-                : 'Chat ID not found in cursor setup state',
-        );
-    }
-
-    if (newChat) {
-        chatId = await createChatId();
-
-        chatState.chatsIds ??= {};
-        chatState.chatsIds[chatKey] = chatId;
-    }
+    const chatId = await resolvePresetChatSession({
+        prompt: trimmedPrompt,
+        contextRunState,
+        setupStateKey: 'cursorSetup',
+        stepIndex,
+        stepVariables,
+        createChatId,
+    });
+    if (chatId == null) return null;
 
     const agentPermissions = resolveAgentPermissions({ lumpVariables, stepVariables });
     const configDir = resolveCursorConfigDir({ agentPermissions, projectRoot });
@@ -88,14 +77,7 @@ export const command = (async ({
 export const setup = (async ({}) => {
     const setupChatIdStr = await createChatId();
 
-    return {
-        contextRunState: {
-            setupChatId: setupChatIdStr,
-            chatsIds: {
-                "0": setupChatIdStr,
-            }
-        }
-    };
+    return initialPresetChatRunState(setupChatIdStr);
 });
 
 export const teardown = ((() => {
