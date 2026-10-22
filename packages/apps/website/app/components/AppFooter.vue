@@ -41,7 +41,10 @@
         </div>
       </div>
       <div class="footer-meta">
-        <span>Apache 2.0. Early development.</span>
+        <span>
+          <a class="footer-version" :href="cliVersionUrl">v{{ cliVersion }}</a>
+          · Apache 2.0. Early development.
+        </span>
         <span>LUMP: Loop Using Multiple Prompts</span>
       </div>
     </div>

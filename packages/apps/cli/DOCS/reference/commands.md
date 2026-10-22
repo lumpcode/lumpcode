@@ -1,0 +1,166 @@
+# Commands
+
+Every `lumpcode` subcommand, grouped by job. Flags are camelCase and arguments come before options.
+
+Run `lumpcode` from the repo root that contains `.lumpcode/` and a git checkout (`.git/` or a linked-worktree `.git` file). Commands that need a project fail if `.lumpcode/` is missing or `git rev-parse --git-dir` fails. Boolean flags are presence-only. `--help` works on every command. PowerShell: quote cron as `--cronSetup '*/10 * * * *'`.
+
+**`--json`** — one envelope: `{ "messages": ["…"], "data": { } }`. Success on stdout, failure on stderr (non-zero exit). Operational `info` / `warn` / `verbose` are suppressed; operational `error` still prints.
+
+**`--verbose`** — extra engine detail on `run` / `start` (OR-merged with lump `verbose`). Tick summaries and lock waits still print at `info` without the flag. `lumpcode dashboard` uses it to log failed status reads. Other commands accept the flag and ignore it.
+
+## Everyday
+
+### `lumpcode run <lumpName>`
+
+One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: "shared"`), the agent writes on this branch. After a successful walk with contexts, a TTY (not `--json`) offers `[c]` commit LUMP markers (no push) or `[e]` exit dirty. A dedicated worker still commits, pushes `lump/…`, and restores the checkout.
+
+| Option | Role |
+| --- | --- |
+| `--discoveryBranch` | Concrete discovery branch. Required when the lump’s rules are pattern-only. Ignored by `run` in shared mode (warned). |
+
+Success includes a skipped run (`disabled`, or too many open `lump/<name>/*` branches on a dedicated worker). Busy workspace: fails with `workspacePathBusy`. After a dedicated manual run, the checkout is switched back to the branch you were on. Shared `run` stays on this checkout and does not auto-push `lump/…`.
+
+### `lumpcode lump-plan <lumpName>`
+
+Validate and preview. Does **not** reset git, run the agent, commit, or push.
+
+| Option | Role |
+| --- | --- |
+| `--contexts` | Print resolved names and variables. |
+| `--todoOnly` | With the flags below, only what `run` would pick next. |
+| `--prompts` | Resolved prompt text and agent argv. |
+| `--plan` | Dry-run of branch, git strings, batch. |
+| `--contextName` | One context. |
+| `--discoveryBranch` | Concrete discovery (shared: filter only). |
+
+Depth: `--plan` > `--prompts` > `--contexts` > validate only. `--prompts` / `--plan` may execute your `promptFn` / dynamic `steps`.
+
+### `lumpcode lump-status`
+
+Recompute `contextStatusRecord.json` from remote git. `--lumpName` optional (all loadable lumps). `--silent` for summary lines only. `--discoveryBranch` as on `lump-plan`.
+
+## Setup
+
+### `lumpcode setup`
+
+Interactive first-run drive: preflight, optional skill, then scaffold a fresh `.lumpcode/` or resume a hole. Already valid `local.json` plus a lump is a no-op. Resume keeps `project.json`, writes this machine’s `local.json` when missing (extra keys stay), and skips the lump stub, edit, and run when a config already exists. Shared never starts a daemon. Dedicated can start the unfiltered `global` worker when `local.json` was the hole. Does not open a pull request. Needs a TTY; `--json` fails. Scripts should use `project-setup`, which still refuses an existing `.lumpcode/`.
+
+| Option | Default |
+| --- | --- |
+| `--projectPath` | `.` (resolved to the git work tree) |
+
+### `lumpcode project-setup`
+
+Creates `.lumpcode/` (`project.json`, `local.json`, empty `lumps/` and `commands/`, gitignore entries). Fails if `.lumpcode/` already exists, the path is not a directory, or it is not a git work tree. Flags only.
+
+| Option | Default |
+| --- | --- |
+| `--projectPath` | `.` |
+| `--projectName` | inferred from origin / basename |
+| `--mode` | `shared` |
+| `--primaryBranch` | `main` |
+
+### `lumpcode lump-create <lumpName>`
+
+Scaffolds `config.json` / `--config js` / `--config ts`. Fails if a config already exists in that folder. `lumpName` cannot contain `/` or `.` / `..`.
+
+## Worker
+
+These start and inspect **daemons** on a [worker](../start/worker.md) (the dedicated clone). Process files live under `~/.lumpcode/daemons/<project>.<id>.*`. The default id is `global` (unfiltered). Committed recipes: [daemon files](../config/daemons.md).
+
+### `lumpcode start`
+
+Detach a daemon (omit `--foreground` to background). Dedicated-only (`sharedModeNoDaemon` if `local.json` `mode` is `shared`). Discovers loadable lumps each cron fire.
+
+| Option | Role |
+| --- | --- |
+| `--foreground` | Stay in this terminal. |
+| `--cronSetup` | Cron expression. Default `*/5 * * * *`. |
+| `--include` / `--exclude` | Comma-separated names or `*` globs. |
+| `--daemonId` | `[a-zA-Z0-9_-]+`. Unfiltered default `global`. `--daemonId=global` with any filter fails. |
+| `--maxParallelRun` | Worktree only. Overrides `local.json`. |
+| `--superviseOnly` | Start or adopt the project supervisor and exit. No daemon spawn, no `desired.json`. On a dedicated worker, committed [`.lumpcode/daemons/`](../config/daemons.md) files can then start those daemons. Cannot combine with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, `--maxParallelRun`, `--lumpName`, or `--foreground`. |
+
+Project and local config are frozen at start; restart to pick up edits. `daemon-status` sets `localConfigStale` when those files changed. Empty include match still stays up. Overlapping filtered daemons are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
+
+A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). Several names or globs get `d-` plus 6 hex.
+
+### `lumpcode stop`
+
+| Option | Role |
+| --- | --- |
+| `--daemonId` | Default `global`. |
+| `--all` | Every daemon for this project, then the supervisor. |
+| `--force` | Tree-kill immediately. Does not need readable meta. |
+
+Idle stop: SIGTERM, wait 5s, remove pid/meta/desired. Mid-run graceful stop **refuses** (`daemonBusy`). Corrupt meta without `--force` also refuses. `--all` is the only way to stop the supervisor `start` launched; you do not run that process yourself.
+
+### `lumpcode restart [--daemonId]`
+
+Stop then start from `desired.json`. Mid-run still refuses unless you force-stop first. Missing desired + unreadable meta: live pid fails closed; stale pid is cleaned. Readable desired with bad meta uses `stop --force` then start.
+
+### `lumpcode daemon-status [--daemonId]`
+
+No flags: list daemons plus whether the supervisor is running. With id: one daemon’s paths, cron, filters, and live snapshot (`metaStatus` when corrupt).
+
+When `running: true` and meta is valid, `--json` always includes `inFlightRuns` (empty when idle). Each row is a lump line: `lumpName`, optional discovery branch, optional `contextName` while that context is walking (omitted before the first context or between contexts).
+
+| Field | Meaning |
+| --- | --- |
+| `inFlightRuns` | In-flight lump lines. Always present when running. |
+| `nextTickAt` | Next cron fire, ISO-8601 UTC, when the daemon wrote it. Not derived from `cronSetup` on read. |
+| `tickPhase` | `running` during a tick, `idle` while waiting. |
+| `localConfigStale` | `true` when merged `project.json` / `local.json` changed since this daemon started. Restart to apply. |
+| `snapshotIncomplete` | `true` when an older CLI reported in-flight work as a count only. `inFlightRuns` is then `[]`; names are not invented. |
+
+Human output names each line (`backlog / ctx-a`, or `backlog (no context yet)`). Stopped daemons and invalid/missing meta omit the snapshot keys.
+
+### `lumpcode daemon-log`
+
+Follows the operational log by default. `--noFollow` prints and exits. `--lines` omitted is last 10; `--lines 0` is the whole file. `--daemonId` default `global`. `--json` with `--noFollow` prints `{ logFilePath, lines, … }`. Fails if the log file is missing. Use `lumpcode transcript` for the step session from a daemon tick.
+
+> [!NOTE]
+> Verbose lump logs can grow without bound. `stop --all` deletes them as part of teardown.
+
+### `lumpcode transcript`
+
+Print or follow a daemon session file, not the operational log. `--lumpName` is required unless `--list`. Follows live by default (last 10 lines, then live). `--noFollow` prints and exits. `--lines` omitted is 10; `0` is the whole file. `--json` print requires `--noFollow`. `--list` catalogs stamps and discovery branches, newest stamp first (`<stamp>  <lumpName>  <discoveryBranch>`). `--json --list` is allowed. `--list` cannot combine with `--stamp`, `--lines`, or `--noFollow`. Same newest stamp on two branches needs `--discoveryBranch`. Empty catalog is success. Missing file fails and points at `--list`.
+
+### `lumpcode dashboard`
+
+One read-only page of the list-all `daemon-status` snapshot for this project. Dedicated-only (`sharedModeNoDaemon` on a shared checkout). Stays in the foreground until Ctrl+C or SIGTERM. Does not open a browser.
+
+| Option | Default | Role |
+| --- | --- | --- |
+| `--port` | `4747` | Port from 1 through 65535. A taken port fails with `portInUse`. |
+| `--bind` | `127.0.0.1` | Address to listen on. |
+
+Prints `Dashboard: http://<bind>:<port>` (IPv6 hosts are bracketed). Loopback binds (`127.0.0.1`, `::1`, `[::1]`, `localhost`) do not warn. Any other bind prints that the page has no authentication, then still serves.
+
+The page shows this project's daemons, the supervisor, in-flight lump lines, and the next tick. It refreshes about every 5 seconds from the same list-all snapshot as `daemon-status` with no flags. A failed read keeps the last good snapshot. A snapshot at least 30 seconds old shows a warning. Nothing on the page stops, starts, or restarts a daemon.
+
+With `--json`, startup is one object that includes `url` and, when the warning applies, `bindWarning`. Refreshes do not print another JSON line. `--verbose` logs failed status reads.
+
+## Repair
+
+### `lumpcode context-status <lumpName> <contextName>`
+
+One row after refresh. `--setToFinished` writes an empty marker commit on `baseBranch` and pushes that branch. Use after a squash that dropped the `LUMP:` line.
+
+### `lumpcode clean`
+
+`git fetch --all`, then deletes matching remote refs and local branches, plus worktrees under `.lumpcode/worktrees/`. `--lumpName` scopes to `lump/<name>/*`. `--contextName` requires `--lumpName` and matches branches that contain that marker.
+
+### `lumpcode reset-presets`
+
+Overwrite `~/.lumpcode/commands/presets/` with shipped modules. No project required.
+
+## Three commands named “status”
+
+Do not mix these up with the three **context** states (`toDo`, `branchPushed`, `finished`).
+
+| Command | Answers |
+| --- | --- |
+| `daemon-status` | Is that daemon up? In-flight lump lines, next tick, stale `local.json`. |
+| `lump-status` | Per-context git status for a lump. |
+| `context-status` | One context row; optional force-finished. |

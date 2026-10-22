@@ -19,7 +19,8 @@ export const docs = {
   types: '/docs/config/types',
   localConfig: '/docs/config/local',
   daemons: '/docs/config/daemons',
-  examples: '/docs/reference/examples',
+  examples: '/docs/examples/overview',
+  observe: '/docs/start/observe',
   backlog: '/docs/author/backlog',
 } as const
 

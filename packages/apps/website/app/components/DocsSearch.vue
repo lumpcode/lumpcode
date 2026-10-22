@@ -3,6 +3,9 @@ const { open, closeSearch } = useDocsSearch()
 const query = ref('')
 const active = ref(0)
 const input = ref<HTMLInputElement | null>(null)
+const list = ref<HTMLUListElement | null>(null)
+
+const suggestions = ['worker', 'retry until green', 'dashboard', 'dependsOnContexts', 'tickets'] as const
 
 const hits = computed(() => searchDocs(query.value))
 
@@ -19,9 +22,19 @@ watch(hits, () => {
   active.value = 0
 })
 
+watch(active, async (index) => {
+  await nextTick()
+  list.value?.children[index]?.scrollIntoView({ block: 'nearest' })
+})
+
 function go(path: string) {
   closeSearch()
   void navigateTo(path)
+}
+
+function suggest(text: string) {
+  query.value = text
+  input.value?.focus()
 }
 
 function onKey(event: KeyboardEvent) {
@@ -62,13 +75,22 @@ function onKey(event: KeyboardEvent) {
           autocomplete="off"
           spellcheck="false"
         >
-        <p v-if="query.trim() === ''" class="docs-search-empty">
-          Try “context”, “worker”, or “lump-plan”.
-        </p>
+        <div v-if="query.trim() === ''" class="docs-search-empty">
+          <span>Try</span>
+          <button
+            v-for="suggestion in suggestions"
+            :key="suggestion"
+            class="docs-search-suggestion"
+            type="button"
+            @click="suggest(suggestion)"
+          >
+            {{ suggestion }}
+          </button>
+        </div>
         <p v-else-if="hits.length === 0" class="docs-search-empty">
-          No matches.
+          No matches. Try a shorter word or a command name.
         </p>
-        <ul v-else class="docs-search-hits">
+        <ul v-else ref="list" class="docs-search-hits">
           <li v-for="(hit, index) in hits" :key="hit.path">
             <button
               class="docs-search-hit"
@@ -77,11 +99,18 @@ function onKey(event: KeyboardEvent) {
               @mouseenter="active = index"
               @click="go(hit.path)"
             >
-              <strong>{{ hit.title }}</strong>
-              <span>{{ hit.description }}</span>
+              <span class="docs-search-hit-path">
+                {{ hit.kicker }} / {{ hit.pageTitle }}
+              </span>
+              <strong>{{ hit.heading ?? hit.pageTitle }}</strong>
+              <!-- eslint-disable-next-line vue/no-v-html -->
+              <span class="docs-search-hit-snippet" v-html="hit.snippetHtml" />
             </button>
           </li>
         </ul>
+        <p v-if="hits.length > 0" class="docs-search-footer">
+          <kbd>↑</kbd><kbd>↓</kbd> to move, <kbd>Enter</kbd> to open, <kbd>Esc</kbd> to close
+        </p>
       </div>
     </div>
   </Teleport>

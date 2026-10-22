@@ -18,7 +18,7 @@ Apply when the user wants a structured review of Markdown under `packages/apps/c
 
 ## Review prompt
 
-Work through this prompt for the file the user specifies (replace `{precise_doc_file}` with their path or filename, e.g. `commands.md` or `packages/apps/cli/DOCS/commands.md`):
+Work through this prompt for the file the user specifies (replace `{precise_doc_file}` with their path or filename, e.g. `reference/commands.md` or `packages/apps/cli/DOCS/reference/commands.md`):
 
 Look at `packages/apps/cli/DOCS`, and particularly at {precise_doc_file} among all the documentation.
 What could be done to make {precise_doc_file} more concise if needed? Does it miss anything it should cover? How can we make it better?

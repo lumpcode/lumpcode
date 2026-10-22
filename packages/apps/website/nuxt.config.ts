@@ -87,7 +87,7 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: true,
-      routes: ['/', '/docs/start/overview', '/docs/start/first-pr', '/docs/start/worker', ...docsPrerenderRoutes],
+      routes: ['/', ...docsPrerenderRoutes],
     },
   },
   routeRules: Object.fromEntries(

@@ -304,6 +304,15 @@ pre code {
   color: var(--teal-bright);
 }
 
+.footer-version {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-version:hover {
+  color: var(--teal-bright);
+}
+
 .footer-meta {
   display: flex;
   flex-wrap: wrap;

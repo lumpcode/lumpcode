@@ -13,6 +13,8 @@ import {
     projectRootFromConfigUrl,
 } from '@lumpcode/recipes';
 
+import { learningsPromptFns } from '../../helpers/learningsPromptFns';
+
 const projectRoot = projectRootFromConfigUrl(import.meta.url);
 
 async function existingExpectPath(itemDir: string): Promise<string | undefined> {
@@ -60,9 +62,9 @@ export default featureBacklog<
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
-    promptFns: {
+    promptFns: learningsPromptFns({
         testImpl: (input) => withExpectMatch(defaultTestImplPrompt, input),
         impl: (input) => withExpectMatch(defaultImplPrompt, input),
-    },
+    }),
     timeoutMillis: 1000 * 60 * 60 * 4, // 4 hours
 });

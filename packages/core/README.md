@@ -79,7 +79,7 @@ interface Context {
 ```
 
 - `**priority**` — Lower values are processed first. Defaults to `0`.
-- `**dependsOnContexts**` — Context names that must be `finished` before this context is eligible. If any dependency is still `toDo` or `branchPushed`, the context is excluded from the current batch. Core resolves each entry marker commit with your `gitCommitMessageFn`. [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli) can wire **cross-lump** dependencies between lumps in the same project — see [CLI lump config](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#context-ordering-and-cross-lump-dependencies).
+- `**dependsOnContexts**` — Context names that must be `finished` before this context is eligible. If any dependency is still `toDo` or `branchPushed`, the context is excluded from the current batch. Core resolves each entry marker commit with your `gitCommitMessageFn`. [@lumpcode/cli](https://www.npmjs.com/package/@lumpcode/cli) can wire **cross-lump** dependencies between lumps in the same project — see [CLI contexts](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/contexts.md#order-and-dependencies).
 
 ### CodeBasePath
 
@@ -440,7 +440,7 @@ You can customize this via the `[gitCommitMessageFn](#gitcommitmessagefn)` param
 
 ### Context statuses
 
-CLI users: marker format is `LUMP: <lumpName> - <contextName>` — see [concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md).
+CLI users: marker format is `LUMP: <lumpName> - <contextName>` — see [How a run works](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/run.md#where-done-lives).
 
 When filtering contexts, Lumpcode resolves each context's normalized commit message to one of three statuses:
 

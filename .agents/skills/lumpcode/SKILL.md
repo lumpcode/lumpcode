@@ -32,16 +32,25 @@ Canonical docs (GitHub). Fetch the page that matches the question:
 
 | Page | Use when |
 |------|----------|
-| [concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md) | Vocabulary, `run` vs `start`, context status, workspaces |
-| [get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md) | First-time setup through first `lumpcode run` |
-| [commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md) | Subcommands and flags |
-| [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md) | Lump `config.json` / `config.js` / `config.ts` fields |
-| [local-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/local-config.md) | Per-machine `.lumpcode/local.json` |
-| [project-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/project-config.md) | `.lumpcode/project.json` |
-| [advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md) | Hooks, dynamic `steps`, custom commands |
-| [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md) | Hook and JSON type shapes |
-| [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md) | Ready-made lump shapes |
-| [backlog-recipe.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/backlog-recipe.md) | Folder of tickets: scaffold the backlog recipe, add `desc.yml`, preview, run |
+| [start/terms.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/terms.md) | Vocabulary, status, modes |
+| [start/run.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/run.md) | One run step by step, `run` vs `start`, branches, worktrees, locks |
+| [start/first-pr.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/first-pr.md) | First-time setup through first `lumpcode run` |
+| [start/worker.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/worker.md) | Leaving a worker running (`lumpcode start`) |
+| [start/observe.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/observe.md) | Dashboard, transcripts, daemon logs, status |
+| [examples/overview.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples/overview.md) | Pick a lump shape by job (migrations, issue queues, backlogs, pipelines, building blocks) |
+| [author/contexts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/contexts.md) | `contextListJson`, `getContextListFn`, `contextMatchFn`, ordering |
+| [author/prompts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/prompts.md) | Templates, `steps`, validation and retry, dynamic steps |
+| [author/agents.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/agents.md) | Presets, `model`, permissions, custom command modules |
+| [author/recipes.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/recipes.md) | `@lumpcode/recipes`: `retryUntilGreen`, `featureBacklog`, `openPrPostTeardown` |
+| [author/backlog.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/backlog.md) | Folder of tickets: scaffold, one `desc.yml`, preview, run |
+| [config/lump.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/lump.md) | Every lump config field |
+| [config/local.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/local.md) | Per-machine `.lumpcode/local.json` |
+| [config/project.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/project.md) | `.lumpcode/project.json` |
+| [config/daemons.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/daemons.md) | Committed `.lumpcode/daemons/` files |
+| [config/advanced.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/advanced.md) | Hook order, `contextRunState`, failure modes |
+| [config/types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/types.md) | Hook and JSON type shapes |
+| [reference/commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/reference/commands.md) | Subcommands and flags |
+| [reference/troubleshooting.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/reference/troubleshooting.md) | Status surprises, busy workspaces, skipped lumps |
 
 ## Operate an existing lump
 
@@ -54,7 +63,7 @@ lumpcode run <lumpName>          # execute one campaign (invokes the agent; cost
 lumpcode start                   # detached daemon; ticks lumps on a cron
 ```
 
-`lump-plan` does **not** run the agent, branch, or push. Full flags: [commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md).
+`lump-plan` does **not** run the agent, branch, or push. Full flags: [commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/reference/commands.md).
 
 ## Use case: create or edit a lump
 
@@ -77,7 +86,7 @@ The lump lives at `.lumpcode/lumps/<lumpName>/`. If `.lumpcode/` does not exist 
 lumpcode project-setup
 ```
 
-This creates `.lumpcode/project.json` (committed) and `.lumpcode/local.json` (per-machine, gitignored, holds `mode` + `primaryBranch`). Details: [get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md#step-1-initialize-the-lumpcode-project) · [local-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/local-config.md).
+This creates `.lumpcode/project.json` (committed) and `.lumpcode/local.json` (per-machine, gitignored, holds `mode` + `primaryBranch`). Details: [get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/first-pr.md#3-run-setup) · [local-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/local.md).
 
 ### Step 2: Gather requirements
 
@@ -154,7 +163,7 @@ export default function match({ codeBasePath }) {
 }
 ```
 
-Deep reference: [lump-config.md § context sources](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#contextlistjson) · shapes in [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md).
+Deep reference: [lump-config.md § context sources](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/contexts.md#path-patterns-contextlistjson) · shapes in [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/types.md).
 
 ### Step 5: Write the prompt or steps (required)
 
@@ -174,7 +183,7 @@ Per-step object fields: `promptTemplate` (or `promptFn`), `command`, `stepVariab
 **A step does not have to be an agent prompt.** Two ways to run non-agent work as a step:
 
 - **Omit the prompt.** `promptTemplate`/`promptFn` are optional; when both are absent the `command` still runs and just receives an empty prompt string.
-- **Run a plain command (`config.js` / `config.ts` only).** Give a step an inline `commandFn` returning a `{ executable, args, env? }` descriptor — an ordinary shell/build/git/validation command with no LLM involved. Return `null` to skip the step. This is how you build verification and retry loops between agent passes (see the `loop-example` lump and [advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md#dynamic-steps) · [types.md § CommandFn](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md#commandfn)).
+- **Run a plain command (`config.js` / `config.ts` only).** Give a step an inline `commandFn` returning a `{ executable, args, env? }` descriptor — an ordinary shell/build/git/validation command with no LLM involved. Return `null` to skip the step. This is how you build verification and retry loops between agent passes (see the `loop-example` lump and [advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/prompts.md#decide-what-runs-next) · [types.md § CommandFn](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/types.md#command-and-prompt)).
 
 ### Step 6: Validate
 
@@ -196,7 +205,7 @@ Stop here: the config is ready for the user to run whenever they choose.
 
 ## Config essentials
 
-Keep the context-source and prompt/steps rules above. Full optional field list: [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md).
+Keep the context-source and prompt/steps rules above. Full optional field list: [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/lump.md).
 
 JSON is only for static lumps. Copyable campaigns live in this skill’s `assets/lumps/`:
 
@@ -205,7 +214,7 @@ JSON is only for static lumps. Copyable campaigns live in this skill’s `assets
 - `step-graph/` — named `StepFn`s that branch on verification
 - `coverage-sweep/` — `contextMatchFn` + retries
 
-More JSON-only shapes (migration, codemod, docs gen, cross-lump dependencies): [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md).
+More JSON-only shapes (migration, codemod, docs gen, cross-lump dependencies): [examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples/overview.md).
 
 ## Before finishing
 
