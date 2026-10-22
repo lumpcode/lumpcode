@@ -1,9 +1,9 @@
 ---
-name: drift
+name: radius-drift
 description: >-
   Measures how far a branch or PR drifted from an expect.yml: files, sizes, and
   listed symbols. Explains the gaps. Use when the user asks to check drift,
-  compare against expect.yml, or run /radius:drift. Helps the reviewer focus
+  compare against expect.yml, or run /radius-drift. Helps the reviewer focus
   on the changes that look most unexpected.
 disable-model-invocation: true
 ---
@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 Compare the current branch (and its PR, if any) to an `expect.yml`. The expect is the scope contract: which files, what each should do, roughly how large, and which named symbols must move. Stay on drift from that contract. Do not turn this into a general code review.
 
-To **write** an expect before code exists, use `expect` (`/radius:expect`). To **implement** against an expect, use `impl` (`/radius:impl`).
+To **write** an expect before code exists, use `radius-expect` (`/radius-expect`). To **implement** against an expect, use `radius-impl` (`/radius-impl`).
 
 ## expect.yml
 

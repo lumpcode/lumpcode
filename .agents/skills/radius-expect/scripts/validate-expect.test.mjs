@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { parseExpect } from "../../drift/scripts/check-expect.mjs";
+import { parseExpect } from "../../radius-drift/scripts/check-expect.mjs";
 import { validateExpectDocument } from "./validate-expect.mjs";
 
 const css = `:root { --bg: #ffffff; --ink: #0b0d10; }

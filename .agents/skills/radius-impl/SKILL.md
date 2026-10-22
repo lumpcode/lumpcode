@@ -1,9 +1,9 @@
 ---
-name: impl
+name: radius-impl
 description: >-
   Implements a change to match an existing expect.yml: listed files, per-file
   desc, +/- estimates, and create/update/delete symbols. Use when the user asks
-  to implement an expect, code against expect.yml, or run /radius:impl.
+  to implement an expect, code against expect.yml, or run /radius-impl.
 disable-model-invocation: true
 ---
 
@@ -11,7 +11,7 @@ disable-model-invocation: true
 
 The expect is the scope contract. Implement it. Do not restate the plan in a new prompt, and do not grow the change past the file list.
 
-To **write** an expect first, use `expect` (`/radius:expect`). To **measure drift** after the fact, use `drift` (`/radius:drift`).
+To **write** an expect first, use `radius-expect` (`/radius-expect`). To **measure drift** after the fact, use `radius-drift` (`/radius-drift`).
 
 Prefer the listed files and stay close to the line estimates.
 
@@ -41,7 +41,7 @@ files:
 
 **Legacy files** (filename `blast.yml`, or path keys at the root with `change` instead of `desc`): still implement. Treat each root path as a `files` entry and `change` as `desc`.
 
-If there is no expect, stop. Do not invent one and code in the same turn — send the user to `/radius:expect`.
+If there is no expect, stop. Do not invent one and code in the same turn — send the user to `/radius-expect`.
 
 ## Process
 
@@ -84,6 +84,6 @@ After the edits:
 git diff --numstat
 ```
 
-If `../drift/scripts/check-expect.mjs` is present, you may run it with `--expect <path>`. Either way: if you added an unlisted file, blew a size by about 2× and ≥20 lines, or skipped a listed path, fix it now or say why you cannot.
+If `../radius-drift/scripts/check-expect.mjs` is present, you may run it with `--expect <path>`. Either way: if you added an unlisted file, blew a size by about 2× and ≥20 lines, or skipped a listed path, fix it now or say why you cannot.
 
-Do not turn this into `/radius:drift`. One short note: expect path, files touched, anything that missed. Then stop. Do not commit unless the user asked.
+Do not turn this into `/radius-drift`. One short note: expect path, files touched, anything that missed. Then stop. Do not commit unless the user asked.
