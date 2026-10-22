@@ -1,9 +1,9 @@
 ---
-name: expect
+name: radius-expect
 description: >-
   Drafts an expect.yml scope contract (files, +/- line estimates, create/update/delete
   symbols) from a requirement or conversation, before any code is written. Use when
-  the user asks to write expect.yml, create an expect, run /radius:expect, or
+  the user asks to write expect.yml, create an expect, run /radius-expect, or
   to formalize a change before an agent implements it.
 disable-model-invocation: true
 ---
@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 Write the change **before** it exists. An `expect.yml` is the non-prose prior: the scope contract an implementer matches and a reviewer diffs against. A human still reviews it thoroughly before implementation. If the first time anyone sees it is inside the impl PR, it is late.
 
-To **implement** against an existing expect, use `impl` (`/radius:impl`). To **measure drift**, use `drift` (`/radius:drift`). Do not implement in the same turn as writing the expect.
+To **implement** against an existing expect, use `radius-impl` (`/radius-impl`). To **measure drift**, use `radius-drift` (`/radius-drift`). Do not implement in the same turn as writing the expect.
 
 ## expect.yml
 
@@ -118,6 +118,6 @@ Then check the file is grounded in the tree (from this skill directory, or the i
 node scripts/validate-expect.mjs --expect <path-to-expect.yml>
 ```
 
-It fails when a listed path should already exist and does not, or when an `update` symbol is not in that file. New files (`"-": 0` and only `create` symbols) may be missing. Quote selectors that contain `:` (`.skip:focus`). Fix any issues before handing the expect to `/radius:impl`.
+It fails when a listed path should already exist and does not, or when an `update` symbol is not in that file. New files (`"-": 0` and only `create` symbols) may be missing. Quote selectors that contain `:` (`.skip:focus`). Fix any issues before handing the expect to `/radius-impl`.
 
-After writing, say this is the review they can still change. Implementation is `/radius:impl`: prefer the listed files and stay close to the line estimates.
+After writing, say this is the review they can still change. Implementation is `/radius-impl`: prefer the listed files and stay close to the line estimates.

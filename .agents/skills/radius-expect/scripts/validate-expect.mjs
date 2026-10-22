@@ -17,7 +17,7 @@ import {
   parseArgs,
   parseExpect,
   symbolPresent,
-} from "../../drift/scripts/check-expect.mjs";
+} from "../../radius-drift/scripts/check-expect.mjs";
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
 

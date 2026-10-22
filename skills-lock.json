@@ -1,23 +1,23 @@
 {
   "version": 1,
   "skills": {
-    "drift": {
+    "radius-drift": {
       "source": "danilouli/radius-principle",
       "sourceType": "github",
-      "skillPath": "skills/drift/SKILL.md",
-      "computedHash": "499ee1aa87297aa4a066141d484b80adecfd00eee4506e42aaa2e9846bc4f8c3"
+      "skillPath": "skills/radius-drift/SKILL.md",
+      "computedHash": "371c3fe81a3fa9fdf1167a97ca55976a78a0ffcb59e0a750a6abbd414ad7dc02"
     },
-    "expect": {
+    "radius-expect": {
       "source": "danilouli/radius-principle",
       "sourceType": "github",
-      "skillPath": "skills/expect/SKILL.md",
-      "computedHash": "b172d8265e683db529f99c020937bc988b2f56231cdb34a0a68174df1cae05b5"
+      "skillPath": "skills/radius-expect/SKILL.md",
+      "computedHash": "eebeb2d09e7560ea4886643c8af8f989cf5478bd36469de80f3462668ab95ed7"
     },
-    "impl": {
+    "radius-impl": {
       "source": "danilouli/radius-principle",
       "sourceType": "github",
-      "skillPath": "skills/impl/SKILL.md",
-      "computedHash": "f99f24075bf7747d1a8ff76389f2f21d1f2437c00e5b38bec861c4e6c12f3398"
+      "skillPath": "skills/radius-impl/SKILL.md",
+      "computedHash": "9ff62c27493d7ea96399844337576d0b6659d2297fc5ac7d1f33d1675bf4469e"
     }
   }
 }
