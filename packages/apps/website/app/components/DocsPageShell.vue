@@ -5,6 +5,7 @@ const props = withDefaults(
   defineProps<{
     title: string
     description: string
+    descriptionHtml?: string
     path: string
     headings?: DocsHeading[]
     sourcePath?: string
@@ -28,7 +29,9 @@ const sourceUrl = computed(() =>
         <header class="docs-article-head">
           <p class="section-kicker">{{ kickerText }}</p>
           <h1>{{ title }}</h1>
-          <p>{{ description }}</p>
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <p v-if="descriptionHtml" v-html="descriptionHtml" />
+          <p v-else>{{ description }}</p>
           <slot name="intro" />
         </header>
         <details v-if="headings.length > 0" class="docs-toc-mobile">

@@ -1,223 +1,85 @@
 # @lumpcode/recipes
 
-Lumpcode **recipes** and **kit** helpers for authoring lump configs without boilerplate.
+Ready-made lumps and helpers for [Lumpcode](https://www.npmjs.com/package/@lumpcode/cli): retry until your checks pass, ticket backlogs as folders in git, find-then-implement refactor pipelines, and opening a GitHub PR after each push.
 
-Install [`@lumpcode/cli`](https://www.npmjs.com/package/@lumpcode/cli) for the Lumpcode CLI. Add this package when you want the recipes and kit helpers. Built on [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils) and [`@lumpcode/core`](https://www.npmjs.com/package/@lumpcode/core).
-
-## Install
+Install the CLI with `npm install -g @lumpcode/cli`. Add this package to your **project** (not globally) so a worker clone gets it from `npm install`:
 
 ```bash
-npm install @lumpcode/recipes
+npm install --save-dev @lumpcode/recipes @lumpcode/cli-utils
 ```
 
-## Recipes
+## Retry until green
 
-| Recipe | Export | Use when |
-|--------|--------|----------|
-| **backlog** | `backlog` | Generic folder backlog with a typed stage map and per-item stage resolution |
-| **featureBacklog** | `featureBacklog` | Folder feature campaign: optional `workflow` stages, tickets, and primary / per-item campaign discovery |
-| **abstractionFinder** | `abstractionFinder` | One ephemeral context per tick that appends a backlog item + requirements doc while `todo/` is under `maxPendingAbstractions` |
-| **abstractionBacklog** | `abstractionBacklog` | Folder backlog items with requirements — implement abstraction with verify-until-green, then move item to completed/ |
-
-Recipe factories and variable-carrying kit helpers accept the same dual generics as `defineConfig` from `@lumpcode/cli-utils`: `<V extends LumpVariables, SV extends StepVariables>`, with defaults equal to the unbound bags. Pass explicit type args when refining preset contracts; omit them for classic untyped configs.
-
-Walk through `backlog` from scaffold to one `desc.yml` to `run`: [Folder backlog](https://www.lumpcode.com/docs/author/backlog) ([CLI DOCS](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/backlog-recipe.md)).
-
-## Backlog layout
-
-The backlog recipes (`backlog`, `featureBacklog`, `abstractionBacklog`) use a folder backlog under `backlogItems/`:
-
-```
-.lumpcode/lumps/<lump>/backlogItems/
-  todo/<name>/desc.yml
-  todo/<name>/requirements.md # optional until the `req` stage / finder writes it
-  todo/<name>/testPlan.md     # featureBacklog; optional until the `testPlan` stage
-  todo/<parent>/tickets/<ticket>/desc.yml  # featureBacklog tickets; parent runs `completion` after all tickets
-  completed/<name>/desc.yml   # includes completedAt after move-to-done
-  completed/<name>/requirements.md # moves with the folder
-  completed/<name>/testPlan.md
-```
-
-`desc.yml` is a single YAML object with `name`, `task`, `priority`, optional `dependsOn`, and recipe-specific fields (`workflow`, `manual` for featureBacklog).
-
-JSON Schema for editors (YAML language server):
-
-- Generic / abstraction items: `https://lumpcode.com/schemas/backlogDesc.schema.json`
-- `featureBacklog` items: `https://lumpcode.com/schemas/featureBacklogDesc.schema.json`
-
-Add a first-line comment, map globs in `yaml.schemas`, or import from `@lumpcode/recipes/schemas/featureBacklogDesc.schema.json`:
-
-```yaml
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
-name: my-item
-task: Do the thing
-priority: 1
-workflow: [manualReq, testImpl]
-```
-
-
-## Kit
-
-Flat helpers under `src/kit/` (re-exported from the package root):
-
-- `backlog` recipe helpers — `resolveBacklogPaths`, `validateBaseBacklogItem`, `requireArtifactStep` (artifact `ValidationCommandFn`), `projectRootFromConfigUrl`
-- `getRecursiveSteps` — agent step(s) + validation command, retry until pass (retries via `postCommandExecFn` returned steps)
-- `retryUntilGreen` — opinionated wrapper over `getRecursiveSteps` with default fix prompt
-- `ephemeralContextListFn` — N fresh synthetic contexts per run (`contextCount`, index-aware names)
-- `folderBacklogContexts` — `getContextListFn` from `backlogItems/todo/` with optional per-item parsing (`listTodoRelativeDirs` lists todo-relative item folders, including tickets)
-- `folderSetTaskDoneStep` — move finished item folder from `todo/` to `completed/` after a context completes
-- `ymlBacklogContexts` / `setTaskDoneStep` — **deprecated** YAML-list helpers (warn once, still work)
-- `resolveImplValidateCommand` — string, descriptor, or fn → `ValidationCommandFn`
-- `shellCommand` — `sh -c` helper for validation commands
-- `openPrPostTeardown` — `postTeardownWorkspaceFn` that opens a PR from `branchName` into resolved `baseBranch`. Pass `{ provider: 'github' }` (`gh` on PATH). Skips when the branch was not pushed or a PR already exists; create failures are logged and do not fail the run.
+Run your checks after the agent; on failure, hand it the output and try again. Only green work is committed and pushed.
 
 ```ts
-import { featureBacklog, openPrPostTeardown } from '@lumpcode/recipes';
+// .lumpcode/lumps/typedExports/config.ts
+import { defineConfig } from '@lumpcode/cli-utils'
+import { retryUntilGreen, shellCommand } from '@lumpcode/recipes'
 
-export default featureBacklog({
-  configUrl: import.meta.url,
-  postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
-});
+export default defineConfig({
+  command: 'cursor',
+  contextListJson: { FILE: 'src/utils/{NAME}.ts' },
+  steps: retryUntilGreen({
+    steps: [{ promptTemplate: 'Add an explicit return type to every export in @{FILE}.' }],
+    validationCommandFn: () => shellCommand('npm run typecheck && npm test'),
+  }),
+})
 ```
 
-## Generic backlog stage map
+## A ticket backlog
 
-The [folder backlog tutorial](https://www.lumpcode.com/docs/author/backlog) uses one `implement` stage. Here, consumers declare every legal stage key and how each stage completes:
-
-```ts
-import { backlog } from '@lumpcode/recipes';
-
-export default backlog({
-  configUrl: import.meta.url,
-  stages: {
-    draft: { steps: [{ promptTemplate: 'Draft docs.' }], completion: 'keepPending' },
-    ship: { steps: [{ promptTemplate: 'Ship it.' }], completion: 'moveToDone' },
-  },
-  resolveItem({ item }) {
-    return item.task.includes('draft')
-      ? { stage: 'draft' }
-      : { stage: 'ship' };
-  },
-});
-```
-
-`resolveItem` returns `{ stage, contextName?, variables?, additionalDependsOnContexts? }` or `{ ignored: true }`. Terminal stages with `completion: 'moveToDone'` append `folderSetTaskDoneStep`.
-
-Context variables injected by `backlog`: `TASK_NAME`, `TASK`, `BACKLOG_ITEMS_DIR`, `BACKLOG_ITEM_DIR`, `BACKLOG_STAGE`.
-
-## Examples
-
-### featureBacklog
+One folder per ticket under `backlogItems/todo/<name>/desc.yml`. Each stage is its own PR (requirements, tests, implementation), and finished items move to `completed/`.
 
 ```ts
 // .lumpcode/lumps/backlog/config.ts
-import {
-    type CursorPresetLumpVariables,
-    type CursorPresetStepVariables,
-} from '@lumpcode/cli-utils';
-import { featureBacklog } from '@lumpcode/recipes';
+import { featureBacklog, openPrPostTeardown } from '@lumpcode/recipes'
 
-export default featureBacklog<
-    CursorPresetLumpVariables,
-    CursorPresetStepVariables
->({
-    command: 'cursor',
-    configUrl: import.meta.url,
-    registerCommands: ['cursor'],
-    maximumNumberOfConcurrentBranches: 1,
-    verbose: true,
-    keepHistory: true,
-    lumpVariables: { model: 'composer-2.5' },
-    implValidateCommand: [
-        'npm run build -w=@lumpcode/cli',
-        'npm run test -w=@lumpcode/cli',
-    ].join(' && '),
-});
+export default featureBacklog({
+  configUrl: import.meta.url,
+  command: 'cursor',
+  primaryDiscoveryBranch: 'main',
+  implValidateCommand: 'npm run build && npm test',
+  postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
+})
 ```
 
-`desc.yml` `workflow` is an array of `req`, `manualReq`, `testPlan`, `testImpl`, `impl`, and/or `directImpl`. Omit ≡ `[req, testPlan, testImpl]` (terminal defaults to `impl`). `req` lets the lump write `requirements.md`. `manualReq` is a gate (no agent context): wait until that file exists. If both are listed, `manualReq` wins (the recipe warns once). Omitting both still waits before `testPlan` / `testImpl` / default `impl`. `directImpl` in the array wins over `impl` and may implement without `requirements.md`. `manual: true` skips standalone items and tickets (umbrella `completion` still runs). On the primary discovery branch (default `dev`) only top-level items without `testPlan`/`testImpl` run; tickets never run there. On `<itemDiscoveryBranchPrefix>/<key>` (default `feature/<key>`) the matching item or parent runs. Ticket context names are `<parent>-<ticket>`. After every ticket finishes, one parent `completion` context (no agent) depends on all ticket impl names and merges the parent folder into `completed/`. Status reads use the concrete `discoveryBranch`. Optional `primaryDiscoveryBranch` / `itemDiscoveryBranchPrefix` replace hardcoded `dev` / `feature`; the recipe emits `discoveryBranches` from those values. Optional `promptFns` replaces the main `promptFn` per stage (`req`, `testPlan`, `testImpl`, `impl`, `directImpl`); artifact validation and fix prompts stay the defaults.
-
-### abstractionFinder + abstractionBacklog
-
-Two-lump pipeline: finder tops up the implementer backlog; implementer runs items that already have requirements documents.
-
-```ts
-// .lumpcode/lumps/abstractionFinder/config.ts
-import {
-    type CursorPresetLumpVariables,
-    type CursorPresetStepVariables,
-} from '@lumpcode/cli-utils';
-import { abstractionFinder } from '@lumpcode/recipes';
-
-export default abstractionFinder<
-    CursorPresetLumpVariables,
-    CursorPresetStepVariables
->({
-    configUrl: import.meta.url,
-    maxPendingAbstractions: 5,
-    scanDirectories: ['src'],
-    backlogItemsDir: '.lumpcode/lumps/abstractionImplementer/backlogItems',
-    command: 'cursor',
-    lumpVariables: { model: 'composer-2.5' },
-    discoveryBranch: 'dev',
-    scanCommand: 'npx fallow dupes --mode semantic --format json > .lumpcode/dupes.json',
-});
+```yaml
+# .lumpcode/lumps/backlog/backlogItems/todo/export-csv/desc.yml
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: export-csv
+task: Add a "Download CSV" button to the orders table.
+priority: 1
+workflow: [req, impl]
 ```
 
-`maxPendingAbstractions` caps unmerged `todo/` items (one finder context per tick while under the cap). `scanCommand` runs before the default prompt. Pass `steps` to replace the prompt (the scanner still prepends). `configUrl: import.meta.url` is required so the recipe can count pending items from the project root.
+## What is in the box
 
-```ts
-// .lumpcode/lumps/abstractionImplementer/config.ts
-import {
-    type CursorPresetLumpVariables,
-    type CursorPresetStepVariables,
-} from '@lumpcode/cli-utils';
-import { abstractionBacklog } from '@lumpcode/recipes';
+| Recipe | Builds a lump that |
+| --- | --- |
+| `backlog` | works through a folder of tickets with stages you define |
+| `featureBacklog` | takes each feature through requirements, tests, and implementation |
+| `abstractionFinder` | files one refactor ticket per pass while the queue is under a cap |
+| `abstractionBacklog` | implements those tickets with a validation loop |
 
-export default abstractionBacklog<
-    CursorPresetLumpVariables,
-    CursorPresetStepVariables
->({
-    baseBranch: 'dev',
-    command: 'cursor',
-    configUrl: import.meta.url,
-    registerCommands: ['cursor'],
-    maximumNumberOfConcurrentBranches: 3,
-    verbose: true,
-    keepHistory: true,
-    lumpVariables: { model: 'composer-2.5' },
-    discoveryBranch: 'dev',
-});
-```
+| Helper | Does |
+| --- | --- |
+| `retryUntilGreen`, `getRecursiveSteps` | validation loops with retries |
+| `requireArtifactStep` | fails a step until a file exists |
+| `shellCommand` | `sh -c` command for validation steps |
+| `openPrPostTeardown` | opens a GitHub PR with `gh` after push |
+| `folderBacklogContexts`, `folderSetTaskDoneStep`, `listTodoRelativeDirs` | building blocks of the folder backlog |
+| `ephemeralContextListFn` | fresh contexts every pass, for hunts and scans |
+| `defaultReqPrompt`, `defaultImplPrompt`, … | the `featureBacklog` prompts, to wrap with `promptFns` |
 
-### Custom config with kit helpers
+Recipe factories need `configUrl: import.meta.url`. Every factory and helper keeps the `<V, SV>` generics of `defineConfig`, so typed preset options flow through.
 
-```ts
-import { defineConfig } from '@lumpcode/cli-utils';
-import { retryUntilGreen, shellCommand } from '@lumpcode/recipes';
+## Docs
 
-export default defineConfig({
-    command: 'cursor',
-    steps: retryUntilGreen({
-        steps: [{ promptTemplate: 'Refactor duplicated helpers in src/.' }],
-        validationCommandFn: () => shellCommand('npm test && npm run build'),
-    }),
-});
-```
+- [Recipes](https://www.lumpcode.com/docs/author/recipes): every option
+- [Folder backlog](https://www.lumpcode.com/docs/author/backlog): step-by-step tutorial
+- [Examples](https://www.lumpcode.com/docs/examples/overview): ticket backlogs, triage, find-then-implement, retries
 
-## Build
+## Development
 
-From the monorepo root:
-
-```bash
-npm run build -w=@lumpcode/core
-npm run build -w=@lumpcode/cli-types
-npm run build -w=@lumpcode/cli-utils
-npm run build -w=@lumpcode/recipes
-```
-
-## Test
-
-```bash
-npm run test -w=@lumpcode/recipes
-```
+From the monorepo root: `npm run build -w=@lumpcode/recipes` (after `core`, `cli-types`, `cli-utils`), then `npm run test -w=@lumpcode/recipes`.

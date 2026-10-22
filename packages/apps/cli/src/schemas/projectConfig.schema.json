@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "projectConfig.schema.json",
   "title": "Lumpcode project configuration",
-  "description": "Schema for committed `.lumpcode/project.json`. Holds projectName plus optional shared team defaults (primary branch, default agent command, open-branch cap, keepHistory, writeTranscripts). Local.json overrides shared keys on this machine. See DOCS/project-config.md.",
+  "description": "Schema for committed `.lumpcode/project.json`. Holds projectName plus optional shared team defaults (primary branch, default agent command, open-branch cap, keepHistory, writeTranscripts). Local.json overrides shared keys on this machine. See https://www.lumpcode.com/docs/config/project.",
   "type": "object",
   "required": ["projectName"],
   "additionalProperties": false,

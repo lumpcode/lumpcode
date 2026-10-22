@@ -14,6 +14,12 @@ if (redirectTo !== undefined) {
 }
 
 const page = computed(() => getDocPage(route.path))
+const guideStep = computed(() => {
+  const path = page.value?.path
+  if (path === docs.firstPr) return 'run'
+  if (path === docs.worker) return 'worker'
+  return undefined
+})
 if (page.value === undefined && redirectTo === undefined) {
   throw createError({ statusCode: 404, statusMessage: 'Docs page not found' })
 }
@@ -37,10 +43,14 @@ useHead(() =>
     v-if="page"
     :title="page.title"
     :description="page.description"
+    :description-html="page.descriptionHtml"
     :path="page.path"
     :headings="page.headings"
     :source-path="page.sourcePath"
   >
+    <template v-if="guideStep" #intro>
+      <GuidePathNav :current="guideStep" />
+    </template>
     <DocsMarkdown :html="page.html" />
   </DocsPageShell>
 </template>
