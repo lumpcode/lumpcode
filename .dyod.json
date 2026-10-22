@@ -1,0 +1,10 @@
+{
+    "parentTicketsFolders": [
+        ".lumpcode/lumps/**/backlogItems/"
+    ],
+    "ticketsFolderName": "tickets",
+    "memoryFiles": [
+        ".agents/memory",
+        ".agents/skills"
+    ]
+}

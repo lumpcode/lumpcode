@@ -3,24 +3,27 @@ import { createHash } from 'node:crypto';
 import * as z from 'zod';
 
 import { DEFAULT_DAEMON_CRON_SETUP } from '../../consts';
+import { ignoredJsonSchemaKey } from '../ignoredJsonSchemaKey';
 import { isGitRefGlob } from '../isGitRefGlob';
 
 /** Repo recipe under `.lumpcode/daemons/<daemonId>.{json,yml,yaml}` (id is the stem). */
-export const daemonConfigFileSchema = z
-    .object({
-        discoveryBranch: z
-            .string()
-            .min(1)
-            .refine((value) => !isGitRefGlob(value), {
-                message: 'discoveryBranch must be an exact branch name (no * or ?)',
-            }),
-        cronSetup: z.string().min(1).optional(),
-        include: z.array(z.string()).optional(),
-        exclude: z.array(z.string()).optional(),
-        disabled: z.boolean().optional(),
-        maxParallelRun: z.number().int().positive().optional(),
-    })
-    .strict();
+export const daemonConfigFileSchema = ignoredJsonSchemaKey(
+    z
+        .object({
+            discoveryBranch: z
+                .string()
+                .min(1)
+                .refine((value) => !isGitRefGlob(value), {
+                    message: 'discoveryBranch must be an exact branch name (no * or ?)',
+                }),
+            cronSetup: z.string().min(1).optional(),
+            include: z.array(z.string()).optional(),
+            exclude: z.array(z.string()).optional(),
+            disabled: z.boolean().optional(),
+            maxParallelRun: z.number().int().positive().optional(),
+        })
+        .strict(),
+);
 
 export type DaemonConfigFile = z.infer<typeof daemonConfigFileSchema>;
 

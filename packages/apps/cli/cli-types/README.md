@@ -49,11 +49,11 @@ Lumpcode transpiles project **`.ts`** config, hooks, and command modules at load
 - **Command-module helpers** — `defineCommandModule`, `defineCommand`, `defineCommandSetup`, `defineCommandTeardown`.
 - **Types** — lump config and command-module shapes, plus engine types re-exported from [@lumpcode/core](https://www.npmjs.com/package/@lumpcode/core).
 
-Full list: [types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md).
+Full list: [Types](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/types.md).
 
 ## Docs
 
-Field reference and hook signatures live in the CLI docs — see [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md) and [commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md).
+Field reference and hook signatures live in the CLI docs: [Lump config](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/lump.md) and [Types](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/types.md). New configs should prefer [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils), which includes everything here.
 
 ## Related packages
 

@@ -1,141 +1,91 @@
 # Lumpcode CLI
 
-Lumpcode is a **CLI for running agent loops** over your codebase. It runs on a machine with your repo, git access, and a configured CLI agent: straightforward to start, still configurable and powerful when you need hooks, daemons, or custom steps. It is a ready-made **loop engineering** tool: you design the loop that prompts your coding agent, and Lumpcode runs it. You configure each **agent loop campaign** as a **lump**, with agent work on git branches for **human review through PR merge**.
+Lumpcode runs your coding agent through work too big for one chat: a migration, a ticket backlog, a test suite to build out. It takes one item at a time, runs the agent, and pushes a branch you review as a normal PR. Progress lives in your git history, so it always picks up where it left off. No account, no database.
 
-> *Named after the **lumpfish**: a small cleaner fish that salmon farmers add to their pens to quietly pick parasites off the salmon. Lumpcode plays the same role in your codebase, steadily working through the long tail of repetitive coding chores (codemods, doc updates, dependency updates, new abstractions, missing tests...) one batch at a time, without overflowing you with PRs, while you stay focused on your code.*
+You describe the campaign once as a **lump**: what to work on, what to prompt, which agent. That is **loop engineering**: you design the loop, Lumpcode runs it.
 
-A **lump** is one **agent loop campaign** in your repo (e.g. "migrate every component to Vue"): context discovery, prompt(s), and an agent command under `.lumpcode/lumps/<lumpName>/`. It spans many **contexts**, not a single chat session. Each finished context gets a **marker commit** containing `LUMP: <lumpName> - <contextName>`, so repeated runs are **resumable** from remote git history after you merge PRs.
-
-**Use Lumpcode when** you want AI loops for the SDLC on an existing git repo: AI coding refactoring across many files, an ordered ticket queue, or a long-running campaign you want to tick forward on a schedule.
-
-**New here?** The manual is [lumpcode.com/docs](https://www.lumpcode.com/docs). Tutorial: [first PR](https://www.lumpcode.com/docs/start/first-pr).
+Full docs: [lumpcode.com/docs](https://www.lumpcode.com/docs/start/overview).
 
 ## Install
 
-**Requirements:** Node.js 22+
-
-Install the agent skill so your coding agent knows Lumpcode (without it, the agent has no current product context):
-
-```bash
-npx skills add lumpcode/skills
-```
-
-Install the CLI:
+Requires Node.js 22+, a git repo you can push to, and a CLI agent on `PATH` (Cursor, Claude Code, Copilot, Codex, OpenCode, or your own).
 
 ```bash
 npm install -g @lumpcode/cli
 ```
 
-Verify: `lumpcode --version`
+Optional: `npx skills add lumpcode/skills` teaches the agent in your editor to write and fix lumps.
 
-## Quick start
+## First run
 
-From the root of a git repository you can push to **`origin`**.
-
-**Prerequisites:** git `origin` push access, a CLI agent on `PATH`, and awareness that `run` invokes your agent (LLM cost). Details: [DOCS/get-started.md § Prerequisites](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md#prerequisites).
+From the root of your repo:
 
 ```bash
-lumpcode project-setup
-lumpcode lump-create myFirstLump
+lumpcode setup
 ```
 
-Edit `.lumpcode/lumps/myFirstLump/config.json` (see the [React-component example below](#configjson-example-one-branch-per-react-component)), then:
+`setup` creates `.lumpcode/`, writes a first lump, and runs it on your current branch. Nothing is pushed: review the changes, type `c` to commit them, and push yourself. Walkthrough: [First PR](https://www.lumpcode.com/docs/start/first-pr).
 
-```bash
-lumpcode run myFirstLump
-```
+## A lump
 
-This runs your agent on **one** context, commits a `LUMP: myFirstLump - …` marker, and pushes a `lump/myFirstLump/…` branch to `origin` for you to open as a PR.
-
-Step-by-step: [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md). Run flow diagram: [DOCS/concepts.md § One run, end to end](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#one-run-end-to-end).
-
-### Run continuously as a daemon
-
-Once a one-off `run` works end to end, have a background daemon tick every lump on a cron (default: every 5 minutes):
-
-```bash
-lumpcode start          # detached background daemon
-lumpcode daemon-status  # is it running?
-lumpcode stop           # SIGTERM + cleanup
-```
-
-Because the daemon keeps invoking your agent on every tick, **cap open branches** with `maximumNumberOfConcurrentBranches` (per lump or in `project.json`) and set `"disabled": true` on a lump to take it out of the rotation without stopping the scheduler. With `"workspaceStrategy": "worktree"` and `"maxParallelRun"` in `.lumpcode/local.json` (or `--maxParallelRun` on `start`), a daemon can run multiple matching lumps concurrently in one tick. Use `--include` / `--exclude` (and `--daemonId`) to run filtered schedulers alongside the default `global` daemon.
-
-Sporadic `run` vs sustained `start`: [DOCS/concepts.md#when-to-use-run-vs-start-daemon](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md#when-to-use-run-vs-start-daemon).
-
-## `config.json` example: one branch per React component
-
-Suppose your repo has one folder per React component, each with the same three related files:
-
-```text
-src/components/
-├── Button/
-│   ├── Button.tsx
-│   ├── Button.types.ts
-│   └── Button.test.tsx
-├── Card/
-│   ├── Card.tsx
-│   ├── Card.types.ts
-│   └── Card.test.tsx
-└── Modal/
-    ├── Modal.tsx
-    ├── Modal.types.ts
-    └── Modal.test.tsx
-```
-
-`.lumpcode/lumps/myFirstLump/config.json`:
+`.lumpcode/lumps/portToVue/config.json`:
 
 ```json
 {
   "$schema": "https://lumpcode.com/schemas/lumpConfig.schema.json",
-  "baseBranch": "main",
   "contextListJson": {
-    "COMPONENT": "src/components/{COMPONENT_NAME}/{COMPONENT_NAME}.tsx",
-    "TYPES":     "src/components/{COMPONENT_NAME}/{COMPONENT_NAME}.types.ts",
-    "TEST":      "src/components/{COMPONENT_NAME}/{COMPONENT_NAME}.test.tsx"
+    "COMPONENT": "src/components/{NAME}/index.tsx",
+    "TEST": "src/components/{NAME}/index.test.tsx"
   },
   "prompt": {
-    "promptTemplate": "Tighten the prop types in @{COMPONENT} (declared in @{TYPES}) and add any missing assertions to @{TEST}.",
-    "command": "copilot"
+    "promptTemplate": "Port @{COMPONENT} to Vue 3 and update @{TEST}.",
+    "command": "cursor"
   }
 }
 ```
 
-Lumpcode scans the tree and finds every value `{COMPONENT_NAME}` can take such that **all three rows resolve to a real file**. With the tree above, that yields **three contexts (Button, Card, Modal)** — one work branch and marker commit each. A component missing any of the three files is silently skipped.
+Every folder where both files exist becomes one **context**, one unit of work. `@{COMPONENT}` becomes the matched path. Check it without calling the agent:
 
-- `contextListJson` — Each value is a **path template** with `{PLACEHOLDER}` captures; each key (here `COMPONENT`, `TYPES`, `TEST`) becomes a variable usable in the prompt as `{COMPONENT}`, `{TYPES}`, `{TEST}`. See [DOCS/lump-config.md#contextlistjson](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#contextlistjson).
-- `promptTemplate` — `{VAR}` substitutes the literal value; e.g you can safely use `@{VAR}` to have the same value with a leading `@` for agents that treat `@path` as file context. See [DOCS/lump-config.md#prompt-template-syntax](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#prompt-template-syntax).
-- `command` — Registered [command name](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#command-names) only (`"copilot"`, `"cursor"`, …), not shell flags ([DOCS/advanced-config.md#custom-agent-commands](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md#custom-agent-commands)).
-- `$schema` — Optional but recommended: most editors will then autocomplete and validate every field above.
+```bash
+lumpcode lump-plan portToVue --contexts --prompts
+```
 
-## TypeScript hints for `config.ts`, `config.js`, and command modules
+Need more than one prompt, a test gate with retries, or contexts from an issue tracker? Write `config.ts` instead. See the [examples](https://www.lumpcode.com/docs/examples/overview).
 
-Lumpcode loads **`config.ts`** (highest precedence), **`config.js`**, and **`config.json`**, plus **`.js/.ts`** hook and command modules under `.lumpcode/`. Optional npm package [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) ships `defineConfig`, `defineCommand`, and other thin helpers plus the same types the CLI uses. See [DOCS/lump-config.md — Typed config](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#typed-config-optional) and [DOCS/lump-config.md — TypeScript modules](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md#typescript-modules).
+## Leave a worker running
 
-## Where to next
+On a second clone you never edit (another folder is enough), set `"mode": "dedicated"` in `.lumpcode/local.json` and start the scheduler:
 
+```bash
+lumpcode start           # runs every lump on a schedule, in the background
+lumpcode dashboard       # live view in the browser
+lumpcode transcript --lumpName portToVue   # follow the agent
+lumpcode stop
+```
 
-| Doc                                                | Contents                                                                           |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| [DOCS/concepts.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/concepts.md)               | Project, lump, context, branch, context status; `run` vs `start`; workspace copies |
-| [DOCS/get-started.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/get-started.md)         | Zero → first successful `lumpcode run`                                             |
-| [DOCS/commands.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/commands.md)               | Every subcommand and flag                                                          |
-| [DOCS/project-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/project-config.md)   | `.lumpcode/project.json`                                                           |
-| [DOCS/lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/lump-config.md)         | `config.json` / `config.js` / `config.ts` fields                                   |
-| [DOCS/advanced-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/advanced-config.md) | Hooks, dynamic `steps`, custom commands                                      |
-| [DOCS/examples.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples.md)               | Ready-made lump shapes (smoke test, migration, tickets, codemods, docs, …)         |
-| [DOCS/backlog-recipe.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/backlog-recipe.md)   | Folder of tickets: scaffold the backlog recipe, add one item, preview, run         |
-| [DOCS/types.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/types.md)                     | Hook and JSON type shapes                                                          |
+Each pass takes the next unfinished context, runs the agent, and pushes `lump/portToVue/<context>`. You open the PR and merge. New lumps are picked up when you merge them, with no restart. Guide: [Leave a worker running](https://www.lumpcode.com/docs/start/worker).
+
+## Docs
+
+| Page | Contents |
+| --- | --- |
+| [First PR](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/first-pr.md) | Install, setup, rehearse on your laptop |
+| [Worker](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/worker.md) | A second clone that keeps pushing branches |
+| [Watch it work](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/start/observe.md) | Dashboard, transcripts, logs, status |
+| [Examples](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/examples/overview.md) | Migrations, issue queues, backlogs, pipelines |
+| [Write a lump](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/write-a-lump.md) | Contexts, prompts, steps, agents |
+| [Commands](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/reference/commands.md) | Every subcommand and flag |
+| [All pages](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/README.md) | The full docs index |
 
 ## Related packages
 
-| Package | npm | Role |
-| ------- | --- | ---- |
-| `@lumpcode/core` | [npm](https://www.npmjs.com/package/@lumpcode/core) | Engine API (`runLump`) |
-| `@lumpcode/cli-types` | [npm](https://www.npmjs.com/package/@lumpcode/cli-types) | Typed `config.ts` / `config.js` and command-module helpers |
-| `@lumpcode/recipes` | [npm](https://www.npmjs.com/package/@lumpcode/recipes) | Retry loops, folder backlogs, `openPrPostTeardown` |
-| `lumpcode` | [npm](https://www.npmjs.com/package/lumpcode) | Unscoped npm alias for `@lumpcode/cli` |
+| Package | Role |
+| --- | --- |
+| [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils) | `defineConfig` and typed helpers for `config.ts` |
+| [`@lumpcode/recipes`](https://www.npmjs.com/package/@lumpcode/recipes) | Retry loops, folder backlogs, PR opening |
+
+Install both in your project (not globally) when your lumps import them, so a worker clone gets them from `npm install`.
 
 ## Development
 
-From `packages/apps/cli`: `npm test` (unit), `npm run test:e2e` / `test:e2e:node` (scenarios). See `scripts/run-e2e.mjs` and `src/e2e/` for CI/Windows overrides.
+From `packages/apps/cli`: `npm test` (unit), `npm run test:e2e` / `npm run test:e2e:node` (scenarios). See `scripts/run-e2e.mjs` and `src/e2e/`.

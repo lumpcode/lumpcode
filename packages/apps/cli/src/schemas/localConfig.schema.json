@@ -2,15 +2,19 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "localConfig.schema.json",
   "title": "Lumpcode local configuration",
-  "description": "Schema for .lumpcode/local.json — a gitignored, per-machine file. Created by `lumpcode project-setup` with `{ \"mode\" }` only; shared defaults (primary branch, default agent command, caps) may live in committed `.lumpcode/project.json`. Local wins over project for shared keys. See DOCS/local-config.md.",
+  "description": "Schema for .lumpcode/local.json — a gitignored, per-machine file. Created by `lumpcode project-setup` with `{ \"mode\" }` only; shared defaults (primary branch, default agent command, caps) may live in committed `.lumpcode/project.json`. Local wins over project for shared keys. See https://www.lumpcode.com/docs/config/local.",
   "type": "object",
   "required": ["mode"],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for editors. Ignored at runtime."
+    },
     "mode": {
       "type": "string",
       "enum": ["shared", "dedicated"],
-      "description": "How Lumpcode handles the current checkout. `shared`: day-to-day clone; runs in ~/.lumpcode/project-copies/<projectName>/. `dedicated`: Lumpcode-owned clone (typical daemon machine); destructive reset on the target branch before each tick."
+      "description": "How Lumpcode handles the current checkout. `shared`: day-to-day clone; `run` rehearses in place on the current named branch (dirty allowed, no project copy). `dedicated`: Lumpcode-owned clone (typical daemon machine); destructive reset on the target branch before each tick."
     },
     "primaryBranch": {
       "type": "string",

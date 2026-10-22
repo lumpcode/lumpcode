@@ -51,6 +51,9 @@ onMounted(() => {
         </ul>
       </section>
     </nav>
+    <a class="docs-sidebar-version" :href="cliVersionUrl">
+      Docs for <code>@lumpcode/cli</code> v{{ cliVersion }}
+    </a>
   </aside>
   <button
     v-if="open"

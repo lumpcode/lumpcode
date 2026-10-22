@@ -5,8 +5,12 @@ on:
     branches: [main]
     paths:
       - 'packages/apps/website/**'
+      - 'packages/apps/cli/DOCS/**'
+      - 'packages/apps/cli/package.json'
       - 'packages/apps/cli/src/schemas/lumpConfig.schema.json'
       - 'packages/apps/cli/src/schemas/daemonConfig.schema.json'
+      - 'packages/apps/cli/src/schemas/projectConfig.schema.json'
+      - 'packages/apps/cli/src/schemas/localConfig.schema.json'
       - 'packages/recipes/schemas/backlogDesc.schema.json'
       - 'packages/recipes/schemas/featureBacklogDesc.schema.json'
       - '.github/workflows/deploy-website.yml'

@@ -7,6 +7,8 @@ import {
     openPrPostTeardown,
 } from '@lumpcode/recipes';
 
+import { learningsPromptFns } from '../../helpers/learningsPromptFns';
+
 export default featureBacklog<
     CursorPresetLumpVariables,
     CursorPresetStepVariables
@@ -23,4 +25,5 @@ export default featureBacklog<
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
+    promptFns: learningsPromptFns(),
 });

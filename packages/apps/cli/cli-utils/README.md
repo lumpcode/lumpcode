@@ -1,16 +1,18 @@
 # @lumpcode/cli-utils
 
-**Types**, **`define*` helpers**, and **runtime utilities** for authoring Lumpcode lump configs and recipes.
+Types, `defineConfig` and other `define*` helpers, and small runtime utilities for writing [Lumpcode](https://www.npmjs.com/package/@lumpcode/cli) lumps in TypeScript or JavaScript.
 
-Re-exports all of [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types) plus runtime helpers bundled from `@lumpcode/cli` sources at build time (`cli-types` stays an external dependency at publish).
-
-During the transition both `@lumpcode/cli-types` and `@lumpcode/cli-utils` are supported; new work should prefer `@lumpcode/cli-utils`.
+It includes everything in [`@lumpcode/cli-types`](https://www.npmjs.com/package/@lumpcode/cli-types); prefer this package for new configs.
 
 ## Install
 
+Add it to your project (not globally) so a worker clone gets it from `npm install`:
+
 ```bash
-npm install @lumpcode/cli-utils
+npm install --save-dev @lumpcode/cli-utils
 ```
+
+Docs: [Write a lump](https://www.lumpcode.com/docs/author/write-a-lump) · [Types](https://www.lumpcode.com/docs/config/types) · [Examples](https://www.lumpcode.com/docs/examples/overview).
 
 ## Usage
 

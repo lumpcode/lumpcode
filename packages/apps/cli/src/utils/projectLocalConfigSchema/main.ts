@@ -1,5 +1,6 @@
 import * as z from 'zod';
 
+import { ignoredJsonSchemaKey } from '../ignoredJsonSchemaKey';
 import { isCommandFileRef } from '../lumpConfigPathRef';
 
 const VALID_PROJECT_NAME = /^[a-zA-Z0-9_-]+$/;
@@ -67,39 +68,43 @@ const logRetentionField = {
         .optional(),
 } as const;
 
-export const projectJsonConfigSchema = z
-    .object({
-        projectName: z
-            .string()
-            .trim()
-            .min(1, 'projectName must be a non-empty string')
-            .refine(isValidProjectName, {
-                message:
-                    'projectName must use only letters, digits, underscores (_), and hyphens (-), with no spaces',
-            }),
-        ...sharedPrimaryFields,
-        ...sharedLumpDefaultFields,
-        ...sharedRefreshCommandField,
-    })
-    .strict();
+export const projectJsonConfigSchema = ignoredJsonSchemaKey(
+    z
+        .object({
+            projectName: z
+                .string()
+                .trim()
+                .min(1, 'projectName must be a non-empty string')
+                .refine(isValidProjectName, {
+                    message:
+                        'projectName must use only letters, digits, underscores (_), and hyphens (-), with no spaces',
+                }),
+            ...sharedPrimaryFields,
+            ...sharedLumpDefaultFields,
+            ...sharedRefreshCommandField,
+        })
+        .strict(),
+);
 
-export const localJsonConfigSchema = z
-    .object({
-        mode: z.enum(['shared', 'dedicated']),
-        workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
-        disabled: z.boolean().optional(),
-        maxParallelRun: z
-            .number({ error: 'maxParallelRun must be a positive integer' })
-            .int({ error: 'maxParallelRun must be a positive integer' })
-            .positive({ error: 'maxParallelRun must be a positive integer' })
-            .optional(),
-        ...sharedPrimaryFields,
-        ...sharedLumpDefaultFields,
-        ...sharedRefreshCommandField,
-        verbose: z.boolean().optional(),
-        ...logRetentionField,
-    })
-    .strict();
+export const localJsonConfigSchema = ignoredJsonSchemaKey(
+    z
+        .object({
+            mode: z.enum(['shared', 'dedicated']),
+            workspaceStrategy: z.enum(['checkout', 'worktree']).optional(),
+            disabled: z.boolean().optional(),
+            maxParallelRun: z
+                .number({ error: 'maxParallelRun must be a positive integer' })
+                .int({ error: 'maxParallelRun must be a positive integer' })
+                .positive({ error: 'maxParallelRun must be a positive integer' })
+                .optional(),
+            ...sharedPrimaryFields,
+            ...sharedLumpDefaultFields,
+            ...sharedRefreshCommandField,
+            verbose: z.boolean().optional(),
+            ...logRetentionField,
+        })
+        .strict(),
+);
 
 function hasPrimarySource(value: {
     primaryBranch?: string;

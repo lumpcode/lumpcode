@@ -48,8 +48,8 @@ Task name: ${TASK_NAME}
 Task:
 ${TASK}
 
-Surfaces: packages/apps/website/ (landing, /docs, meta titles/descriptions), packages/apps/cli/DOCS/, and related READMEs when needed.
-Follow AGENTS.md public website and CLI docs vocabulary.
+Surfaces: packages/apps/website/ (landing, meta titles/descriptions), packages/apps/cli/DOCS/ (the single source for GitHub docs and the website /docs), and related READMEs when needed.
+Follow the vocabulary and rules in @.agents/memory/writing/ (docs.md, website.md).
 Do not implement product/code features — documentation, copy, and meta only.
 Do not edit @${BACKLOG_ITEM_DIR}/desc.yml.
                         `.trim();

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "radius-drift": {
+      "source": "danilouli/radius-principle",
+      "sourceType": "github",
+      "skillPath": "skills/radius-drift/SKILL.md",
+      "computedHash": "371c3fe81a3fa9fdf1167a97ca55976a78a0ffcb59e0a750a6abbd414ad7dc02"
+    },
+    "radius-expect": {
+      "source": "danilouli/radius-principle",
+      "sourceType": "github",
+      "skillPath": "skills/radius-expect/SKILL.md",
+      "computedHash": "eebeb2d09e7560ea4886643c8af8f989cf5478bd36469de80f3462668ab95ed7"
+    },
+    "radius-impl": {
+      "source": "danilouli/radius-principle",
+      "sourceType": "github",
+      "skillPath": "skills/radius-impl/SKILL.md",
+      "computedHash": "9ff62c27493d7ea96399844337576d0b6659d2297fc5ac7d1f33d1675bf4469e"
+    }
+  }
+}

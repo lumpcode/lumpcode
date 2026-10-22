@@ -1,0 +1,11 @@
+# Articles
+
+Public pieces under `articles/` and positioning diction.
+
+- `articles/` holds short public pieces, one folder per article named `NN-slug/` (`01-`, `02-`, …) with `article.md` as the edit source and optional `publish.json` (`platform`: `x`, `dev.to`, `linkedin`, …). How-to pieces open with a short product intro (not a command dump from line 1), then go step by step, command by command; mention the published `/lumpcode` skill (`npx skills add lumpcode/skills`) as optional help. Positioning pieces stay quick to read — cut a section back when it grows instead of letting it sprawl (competitive categories: ~one sentence each once researched). X's article preview formats markdown poorly, so ship a sibling `article.html` for paste; X outros use `x.com/ddyods`. Cover images are 5:2
+- Positioning diction: plain/sharp body; avoid colorful fillers (`drudgery`, `enormous beasts`, `ground down`, `chewing through`); one punchy title is fine; prefer **campaign** in prose, define **lump** once in the product section, use **context** only for isolation — skip “loop engineering” in X positioning (keep for docs/README)
+- Never claim coinage of a term the user did not invent (e.g. **loop engineering**) — use the term, drop "what I call …" framing
+- Competitive positioning must name real alternatives found by web research with specific reasons they do not fit (e.g. enterprise large-scale-change platforms are heavy to put in place and not open source) — no hand-waving
+- Stress **git-first** as product identity (not a phase to outgrow): git is **gate** (reviewable PRs for agent output *and* loop config) and **source of truth** (done/left from remote history, not a database); short category label **git-first loop manager**; state general git role before how loops plug in; long-running **campaign** pacing by PR merge; push a lump change or a new lump and the next daemon tick picks it up, nothing to deploy or register
+- Anonymize client/mission material in public articles — no company, industry, or codebase identifying details unless the user explicitly allows a name
+- Existing pieces under `articles/` are internal drafts or already published: leave them alone during renames and doc cleanups (e.g. article 10 still says `blast.yml`, now `expect.yml`). Only edit an article when the user asks for that article

@@ -19,7 +19,8 @@ export const docs = {
   types: '/docs/config/types',
   localConfig: '/docs/config/local',
   daemons: '/docs/config/daemons',
-  examples: '/docs/reference/examples',
+  examples: '/docs/examples/overview',
+  observe: '/docs/start/observe',
   backlog: '/docs/author/backlog',
 } as const
 
@@ -96,7 +97,7 @@ export const safetyLabel = 'Safe by default'
 export const trustPoints = [
   'Works only on its own lump/… branches',
   'Never merges anything itself',
-  'Copies the repo instead of editing your checkout',
+  'A worker clone you never develop in',
   'Runs one agent at a time by default',
 ] as const
 
@@ -148,7 +149,7 @@ export const workerLine =
   'A one-off run is how you try it. A worker is how you use it.'
 
 export const workerLead =
-  'A second clone you never edit, even another folder on this laptop, and one command: lumpcode start. It picks up every lump in the repo and pushes branches while you do something else. This is how Lumpcode is meant to run.'
+  'A second clone you never edit, even another folder on this laptop: git access, an agent CLI, and lumpcode start. It picks up every lump in the repo and pushes branches while you do something else. This is how Lumpcode is meant to run.'
 
 export const workerSteps = [
   {

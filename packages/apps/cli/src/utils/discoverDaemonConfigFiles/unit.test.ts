@@ -189,6 +189,46 @@ describe('discoverDaemonConfigFiles', () => {
         );
     });
 
+    it('considers a daemon JSON that includes $schema', async () => {
+        await createIntegrationBranch({
+            projectRoot,
+            remoteDir,
+            branchName: 'dev',
+            extraFiles: {
+                '.lumpcode/daemons/backlog.json': `${JSON.stringify(
+                    {
+                        $schema: 'https://lumpcode.com/schemas/daemonConfig.schema.json',
+                        discoveryBranch: 'dev',
+                        include: ['backlog'],
+                    },
+                    null,
+                    2,
+                )}\n`,
+            },
+        });
+        execGit('fetch origin', projectRoot);
+
+        const result = await discoverDaemonConfigFiles({
+            cwd: projectRoot,
+            effectiveDiscoveryBranches: ['dev'],
+            logger,
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toHaveLength(1);
+        expect(result.data[0]).toMatchObject({
+            daemonId: 'backlog',
+            effectiveDiscoveryBranch: 'dev',
+            path: '.lumpcode/daemons/backlog.json',
+            parsed: { discoveryBranch: 'dev', include: ['backlog'] },
+        });
+        expect(result.data[0]!.parsed).not.toHaveProperty('$schema');
+        expect(result.data[0]!.hash).toBe(
+            hashDaemonConfigFile({ discoveryBranch: 'dev', include: ['backlog'] }),
+        );
+        expect(logger.warn).not.toHaveBeenCalledWith(expect.stringMatching(/schema invalid|unrecognized_keys/));
+    });
+
     it('drops invalid parse or schema files and does not read cwd-only files', async () => {
         await createIntegrationBranch({
             projectRoot,

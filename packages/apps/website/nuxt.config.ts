@@ -11,6 +11,8 @@ mkdirSync(publicSchemaDir, { recursive: true })
 const schemaCopies: Array<{ fromDir: string; name: string }> = [
   { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'lumpConfig.schema.json' },
   { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'daemonConfig.schema.json' },
+  { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'projectConfig.schema.json' },
+  { fromDir: join(websiteRoot, '../cli/src/schemas'), name: 'localConfig.schema.json' },
   { fromDir: join(websiteRoot, '../../recipes/schemas'), name: 'backlogDesc.schema.json' },
   { fromDir: join(websiteRoot, '../../recipes/schemas'), name: 'featureBacklogDesc.schema.json' },
 ]
@@ -85,7 +87,7 @@ export default defineNuxtConfig({
   nitro: {
     prerender: {
       crawlLinks: true,
-      routes: ['/', '/docs/start/overview', '/docs/start/first-pr', '/docs/start/worker', ...docsPrerenderRoutes],
+      routes: ['/', ...docsPrerenderRoutes],
     },
   },
   routeRules: Object.fromEntries(

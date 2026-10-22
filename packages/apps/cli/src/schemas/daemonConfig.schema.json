@@ -2,11 +2,15 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "daemonConfig.schema.json",
   "title": "Lumpcode daemon config file",
-  "description": "Schema for committed `.lumpcode/daemons/<daemonId>.{json,yml,yaml}` recipes. The daemon id is the file stem only — do not put `daemonId` in the file. Dedicated supervise considers a file when its `discoveryBranch` equals the dedicated line's `effectiveDiscoveryBranch` (the `origin/<branch>` ref the file was read from). See DOCS/concepts.md.",
+  "description": "Schema for committed `.lumpcode/daemons/<daemonId>.{json,yml,yaml}` recipes. The daemon id is the file stem only — do not put `daemonId` in the file. Dedicated supervise considers a file when its `discoveryBranch` equals the dedicated line's `effectiveDiscoveryBranch` (the `origin/<branch>` ref the file was read from). See https://www.lumpcode.com/docs/config/daemons.",
   "type": "object",
   "required": ["discoveryBranch"],
   "additionalProperties": false,
   "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URL for editors. Ignored at runtime."
+    },
     "discoveryBranch": {
       "type": "string",
       "minLength": 1,

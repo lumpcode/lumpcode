@@ -304,6 +304,15 @@ pre code {
   color: var(--teal-bright);
 }
 
+.footer-version {
+  color: inherit;
+  text-decoration: none;
+}
+
+.footer-version:hover {
+  color: var(--teal-bright);
+}
+
 .footer-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1063,6 +1072,12 @@ pre code {
   font-size: 1.15rem;
   letter-spacing: -0.02em;
   text-wrap: balance;
+}
+
+.guide-step h3 {
+  margin: 1rem 0 0.45rem;
+  font-size: 1rem;
+  letter-spacing: -0.02em;
 }
 
 .guide-step p,

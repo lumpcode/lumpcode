@@ -74,6 +74,25 @@
   font-size: 0.7rem;
 }
 
+.docs-sidebar-version {
+  display: block;
+  margin-top: 1.6rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-decoration: none;
+}
+
+.docs-sidebar-version code {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+}
+
+.docs-sidebar-version:hover {
+  color: var(--text-soft);
+}
+
 .docs-nav-section + .docs-nav-section {
   margin-top: 1.35rem;
 }
@@ -200,40 +219,6 @@
   max-width: 40rem;
   color: var(--text-muted);
   font-size: 1.05rem;
-}
-
-.docs-article-head .page-intro-skip {
-  margin-top: 0.7rem;
-}
-
-.docs-article-head .path-nav {
-  margin-top: 1.15rem;
-}
-
-.docs-article .guide {
-  padding-bottom: 1.4rem;
-}
-
-.docs-article .guide:has(+ .guide-payoff) {
-  padding-bottom: 1.1rem;
-}
-
-.docs-article .guide-payoff {
-  padding: 0.2rem 0 0;
-}
-
-.docs-article .guide-payoff .btn {
-  margin-bottom: 1.2rem;
-}
-
-.docs-article .worker-day-steps {
-  margin-top: 0;
-  margin-bottom: 1.35rem;
-}
-
-.docs-article .guide-step,
-.docs-article .guide-payoff {
-  scroll-margin-top: calc(var(--docs-sticky-offset) + 0.9rem);
 }
 
 .docs-toc {
@@ -620,6 +605,69 @@
 
 .docs-search-hit[data-active='true'] {
   background: rgb(56 176 171 / 12%);
+}
+
+.docs-search-hits {
+  max-height: min(60vh, 32rem);
+  overflow-y: auto;
+}
+
+.docs-search-hit-path {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+}
+
+.docs-search-hit-snippet {
+  color: var(--text-soft);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.docs-search-hit-snippet mark {
+  padding: 0 0.1em;
+  border-radius: 3px;
+  background: rgb(56 176 171 / 25%);
+  color: var(--text);
+}
+
+.docs-search-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.docs-search-suggestion {
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-soft);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.docs-search-suggestion:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.docs-search-footer {
+  margin: 0;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.docs-search-footer kbd {
+  margin: 0 0.15rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: inherit;
 }
 
 @media (max-width: 1100px) {

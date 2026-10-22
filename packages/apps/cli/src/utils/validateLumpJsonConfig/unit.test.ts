@@ -3,6 +3,15 @@ import { describe, it, expect } from 'vitest';
 import { validateLumpJsonConfig } from './main';
 
 describe('validateLumpJsonConfig', () => {
+    it('accepts optional $schema', () => {
+        const result = validateLumpJsonConfig({
+            $schema: 'https://lumpcode.com/schemas/lumpConfig.schema.json',
+            contextListJson: { FILE: 'src/{FILE}' },
+            prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
+        });
+        expect(result.success).toBe(true);
+    });
+
     it('accepts a minimal valid config', () => {
         const result = validateLumpJsonConfig({
             contextListJson: { FILE: 'src/{FILE}' },

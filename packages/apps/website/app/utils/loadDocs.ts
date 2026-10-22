@@ -1,91 +1,87 @@
-import { docsItemByPath, docsVuePages, withoutTrailingSlash } from './docsNav'
-import { renderMarkdown, type DocsHeading } from './renderMarkdown'
+import { docsSectionTitle, withoutTrailingSlash } from './docsNav'
+import { buildSearchSections, markdownToPlainText, searchSections, type DocsSearchHit, type DocsSearchSection } from './docsSearch'
+import { renderInlineMarkdown, renderMarkdown, type DocsHeading } from './renderMarkdown'
 
 export type DocPage = {
   slug: string
   path: string
   title: string
   description: string
+  descriptionHtml: string
   html: string
   headings: DocsHeading[]
-  searchText: string
   sourcePath: string
 }
 
-type Frontmatter = {
-  title: string
-  description: string
-}
+export const docsSourceDir = 'packages/apps/cli/DOCS'
 
-const rawDocs = import.meta.glob('../../content/docs/**/*.md', {
+// Pages live one folder deep (`start/`, `author/`, …). Top-level DOCS files are GitHub-only.
+const rawDocs = import.meta.glob('../../../cli/DOCS/*/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
 }) as Record<string, string>
 
-function parseFrontmatter(raw: string): { data: Frontmatter; body: string } {
-  const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw)
-  if (match === null) {
-    throw new Error('Docs page is missing YAML frontmatter')
+function parsePage(raw: string, relFile: string): { title: string; description: string; body: string } {
+  const lines = raw.replace(/\r\n/g, '\n').split('\n')
+  const titleIndex = lines.findIndex((line) => line.trim() !== '')
+  const titleMatch = /^#\s+(.+)$/.exec(lines[titleIndex] ?? '')
+  if (titleMatch === null) {
+    throw new Error(`Docs page ${relFile} must start with a "# Title" line`)
   }
-  const data: Frontmatter = { title: '', description: '' }
-  for (const line of (match[1] ?? '').split('\n')) {
-    const sep = line.indexOf(':')
-    if (sep === -1) {
+  let cursor = titleIndex + 1
+  while (cursor < lines.length && lines[cursor]?.trim() === '') {
+    cursor += 1
+  }
+  const descriptionLines: string[] = []
+  while (cursor < lines.length && lines[cursor]?.trim() !== '') {
+    descriptionLines.push(lines[cursor] ?? '')
+    cursor += 1
+  }
+  const description = descriptionLines.join(' ').trim()
+  if (description === '' || /^(#|>|\||```|<|- )/.test(description)) {
+    throw new Error(`Docs page ${relFile} needs a plain lead paragraph after the title`)
+  }
+  return { title: (titleMatch[1] ?? '').trim(), description, body: lines.slice(cursor).join('\n') }
+}
+
+function loadAllDocs(): { pages: Map<string, DocPage>; sections: DocsSearchSection[] } {
+  const pages = new Map<string, DocPage>()
+  const sections: DocsSearchSection[] = []
+  for (const [filePath, raw] of Object.entries(rawDocs)) {
+    const relFile = /DOCS\/(.+)\.md$/.exec(filePath)?.[1]
+    if (relFile === undefined) {
       continue
     }
-    const key = line.slice(0, sep).trim()
-    const value = line.slice(sep + 1).trim().replace(/^['"]|['"]$/g, '')
-    if (key === 'title' || key === 'description') {
-      data[key] = value
-    }
-  }
-  if (data.title === '' || data.description === '') {
-    throw new Error('Docs page frontmatter needs title and description')
-  }
-  return { data, body: match[2] ?? '' }
-}
-
-function fileToSlug(filePath: string): { slug: string; relFile: string } {
-  const match = /content\/docs\/(.+)\.md$/.exec(filePath)
-  const relFile = match?.[1] ?? 'index'
-  const slug = relFile === 'index' ? '' : relFile.replace(/\/index$/, '')
-  return { slug, relFile }
-}
-
-function searchTextFrom(title: string, description: string, body: string, headings: DocsHeading[]): string {
-  const headingText = headings.map((heading) => heading.text).join(' ')
-  const stripped = body
-    .replace(/^```[^\n]*\r?\n/gm, ' ')
-    .replace(/```/g, ' ')
-    .replace(/`/g, ' ')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/[#>*_-]/g, ' ')
-  return `${title} ${description} ${headingText} ${stripped}`.toLowerCase()
-}
-
-function loadAllDocs(): Map<string, DocPage> {
-  const pages = new Map<string, DocPage>()
-  for (const [filePath, raw] of Object.entries(rawDocs)) {
-    const { slug, relFile } = fileToSlug(filePath)
-    const path = slug === '' ? '/docs' : `/docs/${slug}`
-    const { data, body } = parseFrontmatter(raw)
-    const { html, headings } = renderMarkdown(body)
+    const path = `/docs/${relFile}`
+    const { title, description, body } = parsePage(raw, relFile)
+    const { html, headings } = renderMarkdown(body, { relFile })
+    const plainDescription = markdownToPlainText(description)
     pages.set(path, {
-      slug,
+      slug: relFile,
       path,
-      title: data.title,
-      description: data.description,
+      title,
+      description: plainDescription,
+      descriptionHtml: renderInlineMarkdown(description, { relFile }),
       html,
       headings,
-      searchText: searchTextFrom(data.title, data.description, body, headings),
-      sourcePath: `packages/apps/website/content/docs/${relFile}.md`,
+      sourcePath: `${docsSourceDir}/${relFile}.md`,
     })
+    sections.push(
+      ...buildSearchSections({
+        path,
+        title,
+        kicker: docsSectionTitle(path) ?? 'Docs',
+        description: plainDescription,
+        body,
+        headings,
+      }),
+    )
   }
-  return pages
+  return { pages, sections }
 }
 
-const docsByPath = loadAllDocs()
+const { pages: docsByPath, sections: docsSections } = loadAllDocs()
 
 export function getDocPage(path: string): DocPage | undefined {
   return docsByPath.get(withoutTrailingSlash(path))
@@ -95,64 +91,6 @@ export function listDocPages(): DocPage[] {
   return [...docsByPath.values()]
 }
 
-export type DocsSearchHit = {
-  path: string
-  title: string
-  description: string
-  heading?: { id: string; text: string }
-}
-
 export function searchDocs(query: string): DocsSearchHit[] {
-  const terms = query.toLowerCase().trim().split(/\s+/).filter(Boolean)
-  if (terms.length === 0) {
-    return []
-  }
-  const hits: DocsSearchHit[] = []
-  for (const page of docsByPath.values()) {
-    const pageMatch = terms.every((term) => page.searchText.includes(term))
-    if (pageMatch) {
-      hits.push({
-        path: page.path,
-        title: page.title,
-        description: page.description,
-      })
-    }
-    for (const heading of page.headings) {
-      const headingBlob = `${page.title} ${heading.text}`.toLowerCase()
-      if (terms.every((term) => headingBlob.includes(term))) {
-        hits.push({
-          path: `${page.path}#${heading.id}`,
-          title: page.title,
-          description: heading.text,
-          heading,
-        })
-      }
-    }
-  }
-  for (const page of docsVuePages) {
-    const nav = docsItemByPath(page.path)
-    const title = nav?.title ?? page.path
-    const description = nav?.description ?? ''
-    const blob =
-      `${title} ${description} ${page.searchText} ${page.headings.map((heading) => heading.text).join(' ')}`.toLowerCase()
-    if (terms.every((term) => blob.includes(term))) {
-      hits.push({
-        path: page.path,
-        title,
-        description,
-      })
-    }
-    for (const heading of page.headings) {
-      const headingBlob = `${title} ${heading.text}`.toLowerCase()
-      if (terms.every((term) => headingBlob.includes(term))) {
-        hits.push({
-          path: `${page.path}#${heading.id}`,
-          title,
-          description: heading.text,
-          heading,
-        })
-      }
-    }
-  }
-  return hits.slice(0, 12)
+  return searchSections(docsSections, query)
 }
