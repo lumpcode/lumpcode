@@ -40,4 +40,4 @@ A worker process reads this merge **once** at `start`. Restart the worker after 
 
 ## What to commit
 
-A project root is a directory that contains both `.git/` and `.lumpcode/`. Commit `project.json` and lump folders with the product code. Gitignore `local.json`. `project-setup` already appends `local.json`, `history/`, `.cache/`, `worktrees/`, and `contextStatusRecord.json` to `.gitignore`.
+A project root is a directory that contains both `.git/` and `.lumpcode/`. Commit `project.json` and lump folders with the product code. Gitignore `local.json`. `project-setup` already appends `local.json`, `history/`, `transcripts/`, `.cache/`, `worktrees/`, and `contextStatusRecord.json` to `.gitignore`.

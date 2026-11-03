@@ -497,3 +497,10 @@
     parked: needs recipe helper design (when it runs vs openPr, session resume
     contract, GitHub-only)
   tags: [recipes, git, presets, hooks]
+- name: bug-on-stop
+  task: >-
+    lumpcode stop --all
+    Process pid 1997916 did not exit within 5s.
+    ➜  Impulse-Lump-Repo git:(dev) lumpcode stop --all
+    Stopped all Lumpcode daemons and the supervisor for "MKDP-Web".
+    And also when the stop is draining, if we abort the wait, it seems the lock is not released at the end.

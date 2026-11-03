@@ -17,6 +17,7 @@ generated-env.ts
 .DS_Store
 .lumpcode/**/contextStatusRecord.json
 .lumpcode/**/history/**
+.lumpcode/**/transcripts/
 .lumpcode/local.json
 .lumpcode/worktrees/
 .worktrees/
