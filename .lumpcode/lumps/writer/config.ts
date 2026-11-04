@@ -21,7 +21,7 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
     maximumNumberOfConcurrentBranches: 1,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'claude-opus-5-5' },
+    lumpVariables: { model: 'claude-opus-5-5-high' },
     timeoutMillis: 1000 * 60 * 60 * 2,
     getContextListFn: ephemeralContextListFn({
         variables: { EXPLANATION },
@@ -39,8 +39,7 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
                     return `
 Follow @.agents/skills/writer/SKILL.md
 Read @.agents/memory/writing/docs.md and @.agents/memory/writing/website.md before you edit.
-Write the review note to @${explanation} and make the one wording change it describes.
-                    `.trim();
+Write the review note to @${explanation} and make the one wording change it describes.`.trim();
                 },
             },
         ],
