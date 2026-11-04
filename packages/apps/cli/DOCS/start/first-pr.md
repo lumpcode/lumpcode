@@ -81,6 +81,6 @@ lumpcode run myFirstLump
 
 ## Next: let a worker do it
 
-A laptop run is how you check a lump. A **worker** is how you use it: a second clone that runs every lump on a schedule and pushes one branch per item while you review. Make sure `.lumpcode/` is committed and pushed, then [leave a worker running](worker.md).
+A laptop run is how you check a lump. A **worker** is how you use it: a second clone that runs every lump on a schedule and pushes one branch per run while you review. Make sure `.lumpcode/` is committed and pushed, then [leave a worker running](worker.md).
 
 Scripts and CI that cannot answer prompts use `lumpcode project-setup` (flags only) instead of `setup`. See [Commands](../reference/commands.md#lumpcode-project-setup).
