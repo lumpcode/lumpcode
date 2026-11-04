@@ -11,18 +11,18 @@ useHead({
       <div class="hero-copy">
         <p class="hero-kicker">You just need git and a CLI agent.</p>
         <h1>
-          <span class="hero-line">Your coding agent, on repeat.</span>
-          <span class="hero-line">One PR at a time.</span>
+          <span class="hero-line">The simplest software factory</span>
+          <span class="hero-line">lives in your repo.</span>
         </h1>
         <p class="lede">
-          Lumpcode is a CLI that runs your coding agent over a list of work items you define: one file, a group of files, a ticket.
-          Each run pushes a branch you open as a pull request, so you review the work as normal diffs.
+          A <strong>lump</strong> is a software factory defined in a folder of your repo: what to work on, what to prompt, which agent, how to check the result.
+          Make it specific to one migration or general enough to take a spec backlog that never stops growing.
         </p>
         <p class="lede">
-          Some work is too big for one chat: a migration, a ticket backlog, a&nbsp;test suite to build out, duplicated logic to extract...
+          Lumpcode runs your coding agent through it and pushes a branch for each piece of work. You review each branch as a pull request, or let your CI merge it.
         </p>
         <p class="lede-lump">
-          A <strong>lump</strong> is that whole campaign, described once in your repo and worked through over many PRs.
+          No account, no database, nothing to deploy. Changing the factory is a pull request your team reviews, like the rest of your code.
         </p>
         <div class="hero-actions">
           <NuxtLink class="btn btn-primary" :to="docs.firstPr">Get started</NuxtLink>
@@ -99,10 +99,10 @@ useHead({
     </section>
 
     <section class="section wrap" id="specific">
-      <h2 class="section-title">One folder. Every loop.</h2>
+      <h2 class="section-title">One folder per factory.</h2>
       <p class="section-lead">
-        A lump is a folder in your repo. Add another and you have another loop, running through the same CLI.
-        Lumpcode stores nothing of its own, so pushing a commit is the only way you ever control any of them, and changing a loop is a pull request your team reviews like any other code.
+        Add another lump folder and you have another factory, running through the same CLI.
+        Lumpcode stores nothing of its own, so pushing a commit is the only way you ever control any of them.
       </p>
       <CodeWindow filename="your-repo" :code="lumpsTree" />
       <div class="feature-grid">

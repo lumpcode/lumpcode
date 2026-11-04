@@ -1,7 +1,7 @@
 {
   "name": "@lumpcode/cli",
   "version": "0.8.1",
-  "description": "CLI for AI loops for the SDLC on an existing git repo. Easy to set up, still powerful: agent loop campaigns (lumps) with CLI agents, git branches, and resumable LUMP marker commits",
+  "description": "The simplest way to set up software factories in your repo: lumps defined in code you commit, run by your CLI coding agent, one git branch per piece of work",
   "keywords": [
     "lumpcode",
     "cli",
