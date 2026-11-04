@@ -39,7 +39,7 @@ npm workspaces (not pnpm), Node 22, TypeScript, Vitest, Commander, Zod (CLI only
 | `packages/apps/website` | Private: lumpcode.com (Nuxt), landing and `/docs` |
 | `.lumpcode/` | This repo's own lumps (`backlog`, `qol`, `bugfixes`, `docs`, `ideasToBacklog`, abstraction pair) |
 
-Build order: core → cli-types → cli-utils → recipes → cli. `npm run test -w=<package>` per package; CLI E2E with `npm run test:e2e:ci` after bundle or daemon changes. `npm run website` serves the site. `npm run worktree -- <branch>` creates a dev worktree under `.worktrees/<branch>` (copies `.env` files, runs `npm i`). Git flow: `GIT-FLOW.md` (`dev` integration, `ver/X.Y.Z` releases, merge commits into `main`).
+Build order: core → cli-types → cli-utils → recipes → cli (`npm run build`, Turborepo; the website and `@lumpcode/ui` stay outside that script). `npm run test -w=<package>` per package; CLI E2E with `npm run test:e2e:ci` after bundle or daemon changes. `npm run website` serves the site. `npm run worktree -- <branch>` creates a dev worktree under `.worktrees/<branch>` (copies `.env` files, runs `npm i`). Git flow: `GIT-FLOW.md` (`dev` integration, `ver/X.Y.Z` releases, merge commits into `main`).
 
 ## What not to do
 

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "@lumpcode/cli#build": {
+      "dependsOn": ["^build"],
+      "outputs": [
+        "dist/**",
+        "bin/lumpcode-*",
+        "bin/esbuild",
+        "bin/esbuild.exe",
+        "bin/schemas/**",
+        "bin/presets/**"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!DOCS/**",
+        "!README.md",
+        "!src/e2e/**",
+        "!**/*.test.ts",
+        "!**/*.unit.test.ts",
+        "!cli-types/**",
+        "!cli-utils/**"
+      ]
+    }
+  }
+}

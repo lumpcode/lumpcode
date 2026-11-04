@@ -6,9 +6,11 @@
   "license": "ISC",
   "author": "",
   "type": "module",
+  "packageManager": "npm@11.19.1",
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "node scripts/turbo-build.mjs",
     "build:all": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils && npm run build -w=@lumpcode/recipes",
     "azure-daemon-vm": "node scripts/azure-daemon-vm/deploy.mjs",
     "hetzner-daemon-vm": "node scripts/hetzner-daemon-vm/deploy.mjs",
@@ -33,6 +35,7 @@
     "fallow": "^3.14.0",
     "js-yaml": "^5.0.0",
     "rollup": "^4.52.5",
+    "turbo": "^2.11.10",
     "type-fest": "^5.1.0",
     "vitest": "^3.2.4",
     "vue-tsc": "^3.1.4"
