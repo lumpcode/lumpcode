@@ -16,7 +16,7 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
     maximumNumberOfConcurrentBranches: 1,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'claude-opus-5-5' },
+    lumpVariables: { model: 'claude-opus-5-5-high' },
     timeoutMillis: 1000 * 60 * 60 * 2,
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     async getContextListFn() {
