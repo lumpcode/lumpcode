@@ -79,7 +79,7 @@ describe('validateDaemonLaunch', () => {
 
         expect(result.success).toBe(true);
         expect(logger.warnings).toEqual([
-            'lump "v0.0.9": Lump config not found for v0.0.9; skipping',
+            `lump "v0.0.9": No config.ts, config.js, or config.json in ${path.join(localConfigFolderPath, 'lumps', 'v0.0.9')}; skipping`,
         ]);
     });
 
