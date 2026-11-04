@@ -504,3 +504,12 @@
     ➜  Impulse-Lump-Repo git:(dev) lumpcode stop --all
     Stopped all Lumpcode daemons and the supervisor for "MKDP-Web".
     And also when the stop is draining, if we abort the wait, it seems the lock is not released at the end.
+- name: bug-with-ts-files-in-lumpcode-folder
+  task: >-
+    [lumpcode start] lump "css2TwUi": Failed to import /home/dsaadia/Impulse-Lump-Repo/.lumpcode/lumps/css2TwUi/config.js, error: TypeError [ERR_UNKNOWN_F
+    ILE_EXTENSION]: Unknown file extension ".ts" for /home/dsaadia/Impulse-Lump-Repo/.lumpcode/helpers/copyProjectEnvFilesToWorktree/index.ts; skipping
+    [lumpcode start] primaryBranches glob "feature/*" matched no remote heads; skipping.
+    [lumpcode start] lump "css2TwUi": Failed to import /home/dsaadia/Impulse-Lump-Repo/.lumpcode/lumps/css2TwUi/config.js, error: TypeError [ERR_UNKNOWN_F
+    ILE_EXTENSION]: Unknown file extension ".ts" for /home/dsaadia/Impulse-Lump-Repo/.lumpcode/helpers/copyProjectEnvFilesToWorktree/index.ts; skipping
+    [lumpcode start] Lumpcode daemon id="main" on */5 * * * *. First run now, then on schedule. Press Ctrl+C to stop.
+    [lumpcode start] 2026-11-04T13:15:53.078Z - runTick

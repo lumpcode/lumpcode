@@ -48,6 +48,8 @@ Task name: ${TASK_NAME}
 Task:
 ${TASK}
 
+When @${BACKLOG_ITEM_DIR}/requirements.md exists, it is the decided plan. Follow it. Do not edit it.
+
 Surfaces: packages/apps/website/ (landing, meta titles/descriptions), packages/apps/cli/DOCS/ (the single source for GitHub docs and the website /docs), and related READMEs when needed.
 Follow the vocabulary and rules in @.agents/memory/writing/ (docs.md, website.md).
 Do not implement product/code features — documentation, copy, and meta only.
