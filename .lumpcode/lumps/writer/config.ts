@@ -39,8 +39,7 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
                     return `
 Follow @.agents/skills/writer/SKILL.md
 Read @.agents/memory/writing/docs.md and @.agents/memory/writing/website.md before you edit.
-Write the review note to @${explanation} and make the one wording change it describes.
-                    `.trim();
+Write the review note to @${explanation} and make the one wording change it describes.`.trim();
                 },
             },
         ],
