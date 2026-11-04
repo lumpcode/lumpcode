@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: primary-branches-glob-nested-scan
+workflow:
+  - impl
+task: >-
+  expandPrimaryBranches trusts git ls-remote glob matching, where * also
+  crosses /, so primaryBranches "feature/*" adds nested heads like
+  feature/x/y to the dedicated scan list while branchMatchesGitGlob (used by
+  lump discovery matching and the discoveryBranch allowlist) rejects them;
+  filter expanded heads through branchMatchesGitGlob so both use one dialect.
+priority: 30
