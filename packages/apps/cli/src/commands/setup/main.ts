@@ -85,6 +85,7 @@ const SKILL_INSTALL_COMMAND = 'npx skills add lumpcode/skills -y';
 const SKILL_INSTALL_TIMEOUT_MS = 60_000;
 const COMMIT_ALLOWLIST = [
     '.gitignore',
+    '.lumpcode/.gitignore',
     '.lumpcode/project.json',
     '.lumpcode/lumps/',
     '.lumpcode/commands/',

@@ -1,0 +1,8 @@
+# This file is written once.
+
+/local.json
+/.cache/
+/worktrees/
+**/contextStatusRecord.json
+**/history/
+**/transcripts/

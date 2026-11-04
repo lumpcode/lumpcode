@@ -190,7 +190,7 @@ export default function setup() {
             args: ['project-setup', '--projectName', 'ts-setup-e2e'],
         });
         expectCliOk(setup, 'project-setup');
-        const gitignore = await fs.readFile(path.join(project.projectRoot, '.gitignore'), 'utf-8');
-        expect(gitignore).toContain('.lumpcode/.cache/');
+        const gitignore = await fs.readFile(path.join(project.projectRoot, '.lumpcode', '.gitignore'), 'utf-8');
+        expect(gitignore).toContain('/.cache/');
     });
 });

@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { command } from './main';
-import { execGit, initLocalGitRepo } from '../../utils';
+import { execGit, initLocalGitRepo, LUMPCODE_GITIGNORE_BODY } from '../../utils';
 
 describe('project-setup command', () => {
     let projectRoot: string;
@@ -46,13 +46,9 @@ describe('project-setup command', () => {
             const localRaw = await fs.readFile(path.join(projectRoot, '.lumpcode', 'local.json'), 'utf-8');
             expect(JSON.parse(localRaw)).toEqual({ mode: 'shared' });
 
-            const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
-            expect(gitignore).toContain('.lumpcode/**/contextStatusRecord.json');
-            expect(gitignore).toContain('.lumpcode/**/history/');
-            expect(gitignore).toContain('.lumpcode/**/transcripts/');
-            expect(gitignore).toContain('.lumpcode/worktrees/');
-            expect(gitignore).toContain('.lumpcode/local.json');
-            expect(gitignore).toContain('.lumpcode/.cache/');
+            const gitignore = await fs.readFile(path.join(projectRoot, '.lumpcode', '.gitignore'), 'utf-8');
+            expect(gitignore).toBe(LUMPCODE_GITIGNORE_BODY);
+            await expect(fs.access(path.join(projectRoot, '.gitignore'))).rejects.toThrow();
         } finally {
             process.chdir(prev);
         }
@@ -88,8 +84,8 @@ describe('project-setup command', () => {
                 );
                 expect(JSON.parse(localRaw)).toEqual({ mode: 'shared' });
 
-                const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
-                expect(gitignore).toContain('.lumpcode/local.json');
+                const gitignore = await fs.readFile(path.join(projectRoot, '.lumpcode', '.gitignore'), 'utf-8');
+                expect(gitignore).toBe(LUMPCODE_GITIGNORE_BODY);
             } finally {
                 process.chdir(prev);
             }
@@ -226,47 +222,23 @@ describe('project-setup command', () => {
         }
     });
 
-    it('does not duplicate contextStatusRecord.json ignore line when already in .gitignore', async () => {
-        await fs.writeFile(
-            path.join(projectRoot, '.gitignore'),
-            '.lumpcode/**/contextStatusRecord.json\n',
-            'utf-8',
-        );
+    it('writes .lumpcode/.gitignore and leaves an existing root .gitignore unchanged', async () => {
+        const existing = '.lumpcode/**/contextStatusRecord.json\n.lumpcode/.cache/\ndist/\n';
+        await fs.writeFile(path.join(projectRoot, '.gitignore'), existing, 'utf-8');
         const handle = makeHandler();
         const prev = process.cwd();
         process.chdir(projectRoot);
         try {
             const result = await handle({
-                options: { projectName: 'dup-test' },
+                options: { projectName: 'keep-root-gitignore' },
                 arguments: {},
             });
             expect(result.success).toBe(true);
 
-            const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
-            expect(gitignore.match(/\.lumpcode\/\*\*\/contextStatusRecord\.json/g)?.length).toBe(1);
-        } finally {
-            process.chdir(prev);
-        }
-    });
-
-    it('does not duplicate .lumpcode/.cache/ when already in gitignore', async () => {
-        await fs.writeFile(
-            path.join(projectRoot, '.gitignore'),
-            '.lumpcode/.cache/\n',
-            'utf-8',
-        );
-        const handle = makeHandler();
-        const prev = process.cwd();
-        process.chdir(projectRoot);
-        try {
-            const first = await handle({
-                options: { projectName: 'cache-dup-test' },
-                arguments: {},
-            });
-            expect(first.success).toBe(true);
-
-            const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
-            expect(gitignore.match(/\.lumpcode\/\.cache\//g)?.length).toBe(1);
+            const root = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
+            expect(root).toBe(existing);
+            const nested = await fs.readFile(path.join(projectRoot, '.lumpcode', '.gitignore'), 'utf-8');
+            expect(nested).toBe(LUMPCODE_GITIGNORE_BODY);
         } finally {
             process.chdir(prev);
         }

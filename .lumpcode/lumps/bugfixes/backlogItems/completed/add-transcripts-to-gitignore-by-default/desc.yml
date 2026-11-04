@@ -1,0 +1,14 @@
+name: add-transcripts-to-gitignore-by-default
+workflow:
+  - directImpl
+task: >-
+  setup and project-setup write .lumpcode/.gitignore once, through
+  scaffoldLumpcodeProject, and stop appending ignore lines to the root
+  .gitignore. The body ignores /local.json, /.cache/, /worktrees/,
+  **/contextStatusRecord.json, **/history/, and **/transcripts/, and says the
+  file is written once. setup commits that path. This repo commits the same file
+  and drops those product lines from the root .gitignore, keeping .worktrees/.
+  project.md tells an existing project to add the file itself. Do not change
+  run, start, lump-plan, the transcript writer, or the cache writer.
+priority: 0
+completedAt: '2026-11-04T17:26:42.326Z'

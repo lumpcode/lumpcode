@@ -3,17 +3,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
-import { TRANSCRIPTS_GITIGNORE_LINE } from '../lumpTranscriptFilePath';
-import { scaffoldLumpcodeProject } from './main';
-
-const GITIGNORE_LINES = [
-    '.lumpcode/**/contextStatusRecord.json',
-    '.lumpcode/**/history/',
-    TRANSCRIPTS_GITIGNORE_LINE,
-    '.lumpcode/worktrees/',
-    '.lumpcode/.cache/',
-    '.lumpcode/local.json',
-];
+import { LUMPCODE_GITIGNORE_BODY, scaffoldLumpcodeProject } from './main';
 
 describe('scaffoldLumpcodeProject', () => {
     let projectRoot: string;
@@ -55,8 +45,9 @@ describe('scaffoldLumpcodeProject', () => {
         const localRaw = await fs.readFile(path.join(lumpcodeDir, 'local.json'), 'utf-8');
         expect(localRaw).toBe(`${JSON.stringify({ mode: 'shared' }, null, 2)}\n`);
 
-        const gitignore = await fs.readFile(path.join(projectRoot, '.gitignore'), 'utf-8');
-        expect(gitignore).toBe(`${GITIGNORE_LINES.join('\n')}\n`);
+        const gitignore = await fs.readFile(path.join(projectRoot, '.lumpcode', '.gitignore'), 'utf-8');
+        expect(gitignore).toBe(LUMPCODE_GITIGNORE_BODY);
+        await expect(fs.access(path.join(projectRoot, '.gitignore'))).rejects.toThrow();
     });
 
     it('fails when .lumpcode already exists', async () => {
