@@ -21,7 +21,7 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
     maximumNumberOfConcurrentBranches: 1,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'cursor-grok-4.6-high' },
+    lumpVariables: { model: 'claude-opus-5-5' },
     timeoutMillis: 1000 * 60 * 60 * 2,
     getContextListFn: ephemeralContextListFn({
         variables: { EXPLANATION },
