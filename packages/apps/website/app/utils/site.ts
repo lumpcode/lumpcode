@@ -1,9 +1,9 @@
 export const siteUrl = 'https://www.lumpcode.com'
 
-export const siteTitle = 'Lumpcode — AI loops for the SDLC, one PR at a time'
+export const siteTitle = 'Lumpcode — The simplest software factory lives in your repo'
 
 export const siteDescription =
-  'Start AI loops for the SDLC on an existing git repo. Easy to set up, still powerful: AI loops for the development life cycle, including AI coding refactoring.'
+  'The simplest way to set up software factories in your repo: lumps defined in code you commit, run by your coding agent, one branch per piece of work.'
 
 export const githubRepoUrl = 'https://github.com/lumpcode/lumpcode'
 export const npmCliUrl = 'https://www.npmjs.com/package/@lumpcode/cli'
@@ -59,7 +59,7 @@ export const positioningLine =
   'Your coding agent already handles one task: one branch, one pull request. Lumpcode runs the whole list.'
 
 export const sdlcLine =
-  'The clean way to start AI loops for the SDLC on an existing git repo. Easy to set up, still powerful when the campaign grows.'
+  'It takes two commands to run a first lump on an existing repo, and it stays the same tool when one lump becomes a dozen that feed each other.'
 
 export const useWhen = [
   'AI coding refactoring across hundreds of files',
@@ -79,7 +79,7 @@ export const lumpsTree = `.lumpcode/lumps/
 
 export const features = [
   {
-    title: 'Any loop you can describe',
+    title: 'Any factory you can describe',
     body: 'File sweeps, ticket queues, doc passes, cleanup. Each item can run several prompts in order, gated on your build or tests and retried with the failure output.',
   },
   {

@@ -2,9 +2,9 @@
 
 How README, `packages/apps/cli/DOCS/`, schemas, and skills talk about Lumpcode.
 
-- Keep user-facing docs (`README`, `DOCS/`) aligned with real CLI behavior; avoid internal implementation detail unless an operator truly needs it. Position Lumpcode as a **loop engineering** tool (term woven once into root/CLI READMEs + `DOCS/start/terms.md`; `loop-engineering` npm keyword on cli/core/cli-types) — one mention per surface, not keyword stuffing
+- Keep user-facing docs (`README`, `DOCS/`) aligned with real CLI behavior; avoid internal implementation detail unless an operator truly needs it. Position Lumpcode as **the simplest way to set up software factories in your repo** (root/CLI README intros, npm description, GitHub About); a **lump** is one software factory. **Loop engineering** stays in `DOCS/start/terms.md` and as the `loop-engineering` npm keyword on cli/core/cli-types, not in README intros
 - Publishable package READMEs (`@lumpcode/recipes`, `@lumpcode/cli-utils`, …) are operator-facing: no "private monorepo" or "Published …" status framing; point to `@lumpcode/cli` as the main install when the package is an add-on
-- **Lump**: configured long-running agent loop campaign (`.lumpcode/lumps/`, `lumpcode run`); large body of work too big for one chat — both repetitive edits (migrations, codemods) **and** planned feature roadmaps; avoid "set up once" framing (project setup is followed by recurring per-lump authoring)
+- **Lump**: a software factory living in the repo (`.lumpcode/lumps/`, `lumpcode run`), defined in code the user commits; technically a long-running agent loop campaign over a body of work too big for one chat — both repetitive edits (migrations, codemods) **and** planned feature roadmaps; avoid "set up once" framing (project setup is followed by recurring per-lump authoring)
 - **LUMP** backronym: Loop Using Multiple Prompts
 - Human review via **PR merge**, not vague "human review"
 - Three workspace terms: **project workspace** (`projectRoot`), **execution workspace** (`executionWorkspacePath`; git repo root after pre-flight), **branch workspace** (`workspacePath` on core `CommandFn` / `SetupWorkspaceFn` return — agent + per-context git cwd)
