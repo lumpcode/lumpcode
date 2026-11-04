@@ -1,0 +1,37 @@
+desc: "setup and project-setup write .lumpcode/.gitignore once and stop appending ignore lines to the root .gitignore."
+files:
+  packages/apps/cli/src/utils/scaffoldLumpcodeProject/main.ts:
+    desc: "Write LUMPCODE_GITIGNORE_BODY to .lumpcode/.gitignore. Drop the root append and its line constants. Fail the scaffold when that write fails."
+    "-": 22
+    "+": 18
+    symbols:
+      LUMPCODE_GITIGNORE_BODY: create
+      scaffoldLumpcodeProject: update
+  packages/apps/cli/src/utils/scaffoldLumpcodeProject/unit.test.ts:
+    desc: "Fresh scaffold matches LUMPCODE_GITIGNORE_BODY at .lumpcode/.gitignore and does not create a root .gitignore."
+    "-": 12
+    "+": 10
+  packages/apps/cli/src/commands/setup/main.ts:
+    desc: "Add .lumpcode/.gitignore to COMMIT_ALLOWLIST so the setup commit includes it."
+    "-": 0
+    "+": 1
+  packages/apps/cli/src/commands/setup/testing/general.unit.test.ts:
+    desc: "The setup commit contains .lumpcode/.gitignore."
+    "-": 0
+    "+": 2
+  packages/apps/cli/src/commands/project-setup/unit.test.ts:
+    desc: "Assert the nested gitignore body. Root .gitignore is left unchanged, including when it already has Lumpcode lines. Drop the duplicate-line cases."
+    "-": 50
+    "+": 28
+  .lumpcode/.gitignore:
+    desc: "Same body as LUMPCODE_GITIGNORE_BODY for this repo."
+    "-": 0
+    "+": 8
+  .gitignore:
+    desc: "Remove the .lumpcode product lines, including the duplicate .cache entry. Keep .worktrees/."
+    "-": 6
+    "+": 0
+  packages/apps/cli/DOCS/config/project.md:
+    desc: "What to commit names .lumpcode/.gitignore. Existing projects add that file themselves; run and start do not."
+    "-": 1
+    "+": 4
