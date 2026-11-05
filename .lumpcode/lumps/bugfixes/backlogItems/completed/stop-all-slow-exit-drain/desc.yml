@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: stop-all-slow-exit-drain
 workflow:
   - impl
@@ -6,6 +5,7 @@ task: >-
   lumpcode stop --all aborts with a bare "Process pid N did not exit within 5s."
   when one daemon is slow to exit after SIGTERM, leaving the other daemons and
   the supervisor running; treat that daemon as draining so --all keeps going,
-  and cover that a draining daemon exits and frees its locks after the stop
-  wait is interrupted.
+  and cover that a draining daemon exits and frees its locks after the stop wait
+  is interrupted.
 priority: 20
+completedAt: '2026-11-05T04:01:08.374Z'

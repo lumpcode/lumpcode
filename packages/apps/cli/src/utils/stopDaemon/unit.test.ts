@@ -1,8 +1,10 @@
+import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { pollUntil } from '../pollUntil';
 import { writeJsonFile } from '../writeJsonFile';
 import { drainOrStopOneDaemon, stopOneDaemon, stopSupervisor } from './main';
 
@@ -106,6 +108,81 @@ describe('drainOrStopOneDaemon', () => {
         await expect(fs.access(pidFilePath)).resolves.toBeUndefined();
         const desired = JSON.parse(await fs.readFile(desiredFilePath, 'utf8')) as { stopping?: true };
         expect(desired.stopping).toBe(true);
+    });
+
+    it('returns exitTimeout when the process ignores SIGTERM', async () => {
+        const readyDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-ignore-'));
+        const readyFile = path.join(readyDir, 'ready');
+        const child = spawn(
+            process.execPath,
+            [
+                '-e',
+                `const fs = require('node:fs');
+process.on('SIGTERM', () => {});
+fs.writeFileSync(process.env.LUMP_HOLD_READY, '1');
+setInterval(() => {}, 60000);`,
+            ],
+            {
+                detached: true,
+                stdio: 'ignore',
+                env: { ...process.env, LUMP_HOLD_READY: readyFile },
+            },
+        );
+        child.unref();
+        const pid = child.pid;
+        if (pid === undefined) {
+            throw new Error('spawn did not return a pid');
+        }
+        try {
+            await pollUntil({
+                timeoutMs: 5000,
+                intervalMs: 25,
+                timeoutError: 'SIGTERM-ignoring fixture did not become ready',
+                poll: async () => {
+                    try {
+                        await fs.access(readyFile);
+                        return true;
+                    } catch {
+                        return undefined;
+                    }
+                },
+            });
+            await fs.writeFile(pidFilePath, `${pid}\n`, 'utf8');
+            await writeJsonFile({
+                filePath: metaFilePath,
+                data: {
+                    daemonId: 'global',
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    inFlightRuns: [],
+                },
+            });
+            const result = await drainOrStopOneDaemon({
+                pidFilePath,
+                metaFilePath,
+                desiredFilePath,
+                force: false,
+                waitMs: 400,
+            });
+            expect(result).toMatchObject({
+                status: 'failed',
+                cause: 'exitTimeout',
+                pid,
+            });
+            if (result.status !== 'failed') {
+                throw new Error('unreachable');
+            }
+            expect(result.message).toMatch(/did not exit within/);
+            await expect(fs.access(pidFilePath)).resolves.toBeUndefined();
+            expect(() => process.kill(pid, 0)).not.toThrow();
+        } finally {
+            try {
+                process.kill(pid, 'SIGKILL');
+            } catch {
+                // already gone
+            }
+            await fs.rm(readyDir, { recursive: true, force: true });
+        }
     });
 });
 
