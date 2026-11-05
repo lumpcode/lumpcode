@@ -1,9 +1,10 @@
 name: runForegroundStart
 task: >-
   Extract the repeated foreground start-handler invocation (makeStartHandler
-  with an immediate or gated waitForShutdownOverride, then options
-  foreground plus cron */5 * * * * and empty arguments) from the start
-  command unit tests into runForegroundStart. Colocated test helper on
+  with an immediate or gated waitForShutdownOverride, then options foreground
+  plus cron */5 * * * * and empty arguments) from the start command unit tests
+  into runForegroundStart. Colocated test helper on
   commands/start/testing/testHelpers.ts. Affected:
   commands/start/testing/{general,multiDiscoveryBranches,parallelGlobalDaemon,daemonInFlightMeta}.unit.test.ts.
 priority: 2
+completedAt: '2026-11-05T03:15:58.848Z'

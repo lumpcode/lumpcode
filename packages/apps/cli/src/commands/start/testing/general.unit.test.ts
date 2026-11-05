@@ -9,6 +9,7 @@ import { command } from '../main';
 import {
     localConfigFolderPath,
     makeStartHandler,
+    runForegroundStart,
     setupStartTestRepo,
     teardownStartTestRepo,
     writeDefaultLocalJson,
@@ -59,11 +60,7 @@ describe('start command', () => {
         await writeDefaultLocalJson(projectRoot);
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         try {
-            const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-            const result = await handle({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(true);
         } finally {
             warnSpy.mockRestore();
@@ -90,11 +87,7 @@ describe('start command', () => {
         await writeMinimalLump(projectRoot, 'alpha');
         await writeDefaultProjectJson(projectRoot, 'test-no-local');
 
-        const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-        const result = await handle({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        const result = await runForegroundStart({ deps: deps() });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toContain('local.json');
@@ -110,11 +103,7 @@ describe('start command', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         try {
-            const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-            const result = await handle({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             if (!result.success) {
                 throw new Error(`expected success, got: ${result.data.messages.join(' | ')}`);
@@ -139,11 +128,7 @@ describe('start command', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         try {
-            const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-            const result = await handle({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             if (!result.success) {
                 throw new Error(`expected success, got: ${result.data.messages.join(' | ')}`);
@@ -181,11 +166,7 @@ describe('start command', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         try {
-            const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-            const result = await handle({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             if (!result.success) {
                 throw new Error(`expected success, got: ${result.data.messages.join(' | ')}`);
@@ -223,11 +204,7 @@ describe('start command', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         try {
-            const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-            const result = await handle({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             if (!result.success) {
                 throw new Error(`expected success, got: ${result.data.messages.join(' | ')}`);
@@ -280,11 +257,7 @@ describe('start command', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         try {
-            const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-            const result = await handle({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             if (!result.success) {
                 throw new Error(`expected success, got: ${result.data.messages.join(' | ')}`);
@@ -350,7 +323,8 @@ describe('start command', () => {
             `${projectName}.global.daemon.meta.json`,
         );
 
-        const handle = makeStartHandler(deps(), {
+        const result = await runForegroundStart({
+            deps: deps(),
             waitForShutdownOverride: async () => {
                 expect((await fs.readFile(pidPath, 'utf8')).trim()).toBe(String(process.pid));
                 const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as {
@@ -362,10 +336,6 @@ describe('start command', () => {
                 expect(meta.cronSetup).toBe('*/5 * * * *');
                 expect(meta.workspaceStrategy).toBe('checkout');
             },
-        });
-        const result = await handle({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
         });
 
         expect(result.success).toBe(true);
@@ -390,7 +360,8 @@ describe('start command', () => {
             `${projectName}.alpha.daemon.meta.json`,
         );
 
-        const handle = makeStartHandler(deps(), {
+        const result = await runForegroundStart({
+            deps: deps(),
             waitForShutdownOverride: async () => {
                 expect((await fs.readFile(pidPath, 'utf8')).trim()).toBe(String(process.pid));
                 const meta = JSON.parse(await fs.readFile(metaPath, 'utf8')) as {
@@ -402,10 +373,7 @@ describe('start command', () => {
                 expect(meta.include).toEqual(['alpha']);
                 expect(meta.lumpName).toBeUndefined();
             },
-        });
-        const result = await handle({
-            options: { foreground: true, include: 'alpha' },
-            arguments: {},
+            options: { include: 'alpha' },
         });
 
         expect(result.success).toBe(true);
@@ -470,11 +438,7 @@ describe('start command', () => {
             trailingNewline: true,
         });
 
-        const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-        const result = await handle({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        const result = await runForegroundStart({ deps: deps() });
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
     });
@@ -518,10 +482,7 @@ describe('start command', () => {
             );
 
             try {
-                const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
-                });
+                const result = await runForegroundStart({ deps: deps() });
                 expect(result.success).toBe(false);
                 if (result.success) throw new Error('unreachable');
                 expect(result.data.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
@@ -540,9 +501,9 @@ describe('start command', () => {
             });
             await writeMinimalLump(projectRoot, 'alpha');
 
-            const result = await makeStartHandler(deps())({
-                options: { maxParallelRun: 2, foreground: true },
-                arguments: {},
+            const result = await runForegroundStart({
+                deps: deps(),
+                options: { maxParallelRun: 2 },
             });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
@@ -556,9 +517,9 @@ describe('start command', () => {
         await writeDefaultLocalJson(projectRoot, { workspaceStrategy: 'checkout' });
         await writeMinimalLump(projectRoot, 'alpha');
 
-        const result = await makeStartHandler(deps())({
-            options: { maxParallelRun: 2, foreground: true },
-            arguments: {},
+        const result = await runForegroundStart({
+            deps: deps(),
+            options: { maxParallelRun: 2 },
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
@@ -580,11 +541,7 @@ describe('start command', () => {
             );
 
             try {
-                const handle = makeStartHandler(deps(), { waitForShutdownOverride: async () => {} });
-                const result = await handle({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
-                });
+                const result = await runForegroundStart({ deps: deps() });
                 expect(result.success).toBe(true);
                 expect(readSpy).toHaveBeenCalledTimes(1);
 
@@ -607,10 +564,7 @@ describe('start command', () => {
             });
             await writeMinimalLump(projectRoot, 'alpha');
 
-            const result = await makeStartHandler(deps())({
-                options: { foreground: true },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
             expect(result.data.messages.join(' ')).toMatch(/primaryBranch|primaryBranches|project\.json|local\.json/i);
