@@ -365,7 +365,7 @@
 - name: generic-lock-holder-label
   task: >-
     Stop requiring a fake `lumpName` on CLI lock APIs when the holder is not a lump run.
-    Today `GitCommonDirLockContext` / `GitCommonDirLockHolder` / `WorkspaceLockHolder` and
+    Today `GitCommonDirLockContext` / `WorkspaceLockHolder` and
     `acquireGitCommonDirLock` / `workspacePathLock` / `acquireWorkspaceFileLock` all take
     required `lumpName: string` even though the lock is keyed by git-common-dir or workspace
     path — `lumpName` is only holder identity for busy/wait copy (`formatHolderClause` in

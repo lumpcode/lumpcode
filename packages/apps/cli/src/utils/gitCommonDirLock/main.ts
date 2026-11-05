@@ -2,7 +2,6 @@ import { type Failure, type Logger, success, type Success } from '@lumpcode/core
 
 import {
     acquireWorkspaceFileLock,
-    formatWorkspaceFileWaitMessage,
     isWorkspaceFileBusyError,
     workspaceLockFilePath,
     workspaceLocksDirPath,
@@ -22,14 +21,6 @@ const GIT_COMMON_DIR_LOCK_SPEC = {
 } as const satisfies WorkspaceFileLockSpec;
 
 export type GitCommonDirBusyError = WorkspaceFileBusyError<typeof GIT_COMMON_DIR_LOCK_SPEC>;
-
-export type GitCommonDirLockHolder = {
-    pid: number;
-    lumpName: string;
-    gitCommonDir: string;
-    startedAt: string;
-    projectName?: string;
-};
 
 export type ReleaseGitCommonDirLockFn = () => Promise<void>;
 
@@ -71,17 +62,6 @@ export function gitCommonDirLockFilePath(input: {
 
 export function isGitCommonDirBusyError(data: unknown): data is GitCommonDirBusyError {
     return isWorkspaceFileBusyError(data, GIT_COMMON_DIR_LOCK_SPEC.busyCode);
-}
-
-export function formatGitCommonDirWaitMessage(input: {
-    gitCommonDir: string;
-    holder?: GitCommonDirLockHolder;
-}): string {
-    return formatWorkspaceFileWaitMessage({
-        spec: GIT_COMMON_DIR_LOCK_SPEC,
-        workspacePath: input.gitCommonDir,
-        holder: input.holder,
-    });
 }
 
 export async function acquireGitCommonDirLock(
