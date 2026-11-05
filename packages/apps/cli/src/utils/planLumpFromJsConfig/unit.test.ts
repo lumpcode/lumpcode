@@ -107,6 +107,42 @@ describe('planLumpFromJsConfig', () => {
         expect(result.data.plan?.contextNames).toEqual(['ctx1']);
     });
 
+    it('fails with a --contexts hint when contextName is not in the context list', async () => {
+        const result = await planLumpFromJsConfig({
+            lumpName: 'preview-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth: 'contexts',
+            contextName: 'missing',
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data).toBe(
+            'Context "missing" is not in the context list of lump "preview-lump". Run lumpcode lump-plan preview-lump --contexts to list context names.',
+        );
+    });
+
+    it('fails with a --todoOnly hint when todoOnly filters out an existing contextName', async () => {
+        execGit('commit --allow-empty -m "LUMP: preview-lump - ctx1"', projectRoot);
+        execGit('push origin main', projectRoot);
+
+        const result = await planLumpFromJsConfig({
+            lumpName: 'preview-lump',
+            localConfigFolderPath,
+            globalConfigFolderPath,
+            projectRoot,
+            depth: 'contexts',
+            todoOnly: true,
+            contextName: 'ctx1',
+        });
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+        expect(result.data).toBe(
+            'Context "ctx1" of lump "preview-lump" is not toDo (it is branchPushed, finished, or waiting on dependsOnContexts). Drop --todoOnly to preview it anyway.',
+        );
+    });
+
     it('P1 validate depth succeeds with config.ts', async () => {
         await fs.writeFile(
             path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.ts'),
