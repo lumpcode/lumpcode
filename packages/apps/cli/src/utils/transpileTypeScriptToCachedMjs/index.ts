@@ -1,1 +1,1 @@
-export { isTypeScriptModulePath, transpileTypeScriptToCachedMjs } from './main';
+export { isTypeScriptModulePath, needsTypeScriptTranspile, transpileTypeScriptToCachedMjs } from './main';

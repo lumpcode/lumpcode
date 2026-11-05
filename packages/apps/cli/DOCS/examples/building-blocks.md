@@ -136,7 +136,7 @@ export function stopDevServer(workspacePath: string): void {
 }
 ```
 
-Call `startDevServer` from `postSetupWorkspaceFn` and `stopDevServer` from `postTeardownWorkspaceFn`. A full lump that uses it: [Labelled bugs, verified in a browser](issue-queues.md#labelled-bugs-verified-in-a-browser). Shared code goes in `.lumpcode/helpers/`, imported with a relative path.
+Call `startDevServer` from `postSetupWorkspaceFn` and `stopDevServer` from `postTeardownWorkspaceFn`. A full lump that uses it: [Labelled bugs, verified in a browser](issue-queues.md#labelled-bugs-verified-in-a-browser). Shared code goes in `.lumpcode/helpers/`. Helpers there may be `.ts` and imported with a relative path from `config.ts`, `config.js`, or a `.js` hook module.
 
 ## Open a pull request after push
 
