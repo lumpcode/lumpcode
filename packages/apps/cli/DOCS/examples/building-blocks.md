@@ -203,6 +203,8 @@ Commit one file per daemon under `.lumpcode/daemons/` and the worker starts them
 }
 ```
 
+A daily daemon that is busy or blocked at its fire time catches up the same day; it does not wait for tomorrow.
+
 On the worker, run `lumpcode start --superviseOnly` once so only these files start daemons. Change a file, push, and the worker restarts that daemon. Details: [Daemon files](../config/daemons.md).
 
 ## Keep secrets out of git

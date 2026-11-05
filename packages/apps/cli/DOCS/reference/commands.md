@@ -83,6 +83,8 @@ Detach a daemon (omit `--foreground` to background). Dedicated-only (`sharedMode
 
 Project and local config are frozen at start; restart to pick up edits. `daemon-status` sets `localConfigStale` when those files changed. Empty include match still stays up. Overlapping filtered daemons are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
 
+A cron fire that lands while a tick is running is not dropped; one catch-up tick runs when that tick ends. A lump that times out waiting on a workspace lock is retried every minute until the next scheduled fire.
+
 A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). Several names or globs get `d-` plus 6 hex.
 
 ### `lumpcode stop`
