@@ -2,7 +2,6 @@ import { type Failure, type Success } from '@lumpcode/core';
 
 import {
     acquireWorkspaceFileLock,
-    formatWorkspaceFileWaitMessage,
     isWorkspaceFileBusyError,
     workspaceLockFilePath,
     workspaceLocksDirPath,
@@ -22,14 +21,6 @@ const WORKSPACE_PATH_LOCK_SPEC = {
 } as const satisfies WorkspaceFileLockSpec;
 
 export type WorkspacePathBusyError = WorkspaceFileBusyError<typeof WORKSPACE_PATH_LOCK_SPEC>;
-
-export type WorkspacePathLockHolder = {
-    pid: number;
-    lumpName: string;
-    workspacePath: string;
-    startedAt: string;
-    projectName?: string;
-};
 
 export type ReleaseWorkspacePathLockFn = ReleaseWorkspaceFileLockFn;
 
@@ -55,17 +46,6 @@ export function workspacePathLockFilePath(input: {
 
 export function isWorkspacePathBusyError(data: unknown): data is WorkspacePathBusyError {
     return isWorkspaceFileBusyError(data, WORKSPACE_PATH_LOCK_SPEC.busyCode);
-}
-
-export function formatWorkspacePathWaitMessage(input: {
-    workspacePath: string;
-    holder?: WorkspacePathLockHolder;
-}): string {
-    return formatWorkspaceFileWaitMessage({
-        spec: WORKSPACE_PATH_LOCK_SPEC,
-        workspacePath: input.workspacePath,
-        holder: input.holder,
-    });
 }
 
 export async function acquireWorkspacePathLock(input: {
