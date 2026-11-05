@@ -181,6 +181,28 @@ export default function setup() {
         expectLumpStatus(status, { lumpName, contextName: ctx, status: 'branchPushed' });
     });
 
+    it('TS-S11 config.js imports a relative TypeScript helper and pushes its marker commit', async () => {
+        const lumpName = 'jsTsHelperLump';
+        const ctx = 'README';
+        const project = await createProject({
+            lumps: [{
+                name: lumpName,
+                configJs: `import { helperName } from '../../helpers/jsTsHelper/index.ts';
+export default {
+  contextListJson: { NAME: '{NAME}.md' },
+  prompt: { promptTemplate: 'E2E @{NAME} ' + helperName, command: 'e2e-agent' },
+  numberOfContextsPerBranch: 1,
+};`,
+                hookFiles: {
+                    '../../helpers/jsTsHelper/index.ts': 'export const helperName: string = "from-ts-helper";\n',
+                },
+            }],
+        });
+        expectCliOk(await runE2eCli({ project, args: ['run', lumpName, '--json'] }), 'run');
+        expectLumpMarkerCommit({ remoteDir: project.remoteDir, lumpName, contextName: ctx });
+        expectMarkerOnRemote({ remoteDir: project.remoteDir, lumpName, contextName: ctx });
+    });
+
     it('TS-S10 project-setup gitignores transpile cache', async () => {
         const project = await createProject({ lumps: [{ name: 'unused' }] });
         await fs.rm(path.join(project.projectRoot, '.lumpcode'), { recursive: true, force: true });

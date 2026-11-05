@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: js-config-ts-imports
 workflow:
   - impl
@@ -9,3 +8,4 @@ task: >-
   bundle .js/.mjs entries whose relative import graph reaches a .ts file the
   same way.
 priority: 21
+completedAt: '2026-11-05T04:14:16.140Z'

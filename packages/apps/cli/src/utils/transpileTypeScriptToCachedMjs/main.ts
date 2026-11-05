@@ -22,6 +22,13 @@ export function isTypeScriptModulePath(filePath: string): boolean {
     return filePath.endsWith('.ts');
 }
 
+/** `.js` / `.mjs` only. `.cjs` ends with `.js` and stays on Node's native loader. */
+function isJavaScriptModulePath(filePath: string): boolean {
+    if (filePath.endsWith('.mjs')) return true;
+    if (filePath.endsWith('.cjs')) return false;
+    return filePath.endsWith('.js');
+}
+
 function configureEsbuildBinaryPath(): void {
     if (esbuildBinaryPathConfigured) return;
     esbuildBinaryPathConfigured = true;
@@ -97,7 +104,7 @@ type CacheMeta = {
     sourcePath: string;
     sourceMtimeMs: number;
     outPath: string;
-    /** Absolute paths and mtimes of bundled relative `.ts` dependencies (entry excluded). */
+    /** Absolute paths and mtimes of bundled relative `.ts` dependencies, including ones reached through relative `.js` / `.mjs` files (entry excluded). */
     dependencyMtimes?: Record<string, number>;
 };
 
@@ -144,15 +151,19 @@ async function resolveRelativeModule(fromFile: string, specifier: string): Promi
     return null;
 }
 
+function isWalkableRelativeModulePath(filePath: string): boolean {
+    return isTypeScriptModulePath(filePath) || isJavaScriptModulePath(filePath);
+}
+
+/** Relative `.ts` files reachable from the entry, walking through relative `.js` / `.mjs` modules. */
 async function collectBundledDependencyPaths(entryAbsolutePath: string): Promise<string[]> {
-    const visited = new Set<string>();
+    const visited = new Set<string>([entryAbsolutePath]);
     const dependencyPaths: string[] = [];
     const queue = [entryAbsolutePath];
 
     while (queue.length > 0) {
         const current = queue.pop();
-        if (!current || visited.has(current)) continue;
-        visited.add(current);
+        if (!current) continue;
 
         let sourceContent: string;
         try {
@@ -163,8 +174,11 @@ async function collectBundledDependencyPaths(entryAbsolutePath: string): Promise
 
         for (const specifier of extractRelativeImportSpecifiers(sourceContent)) {
             const resolved = await resolveRelativeModule(current, specifier);
-            if (!resolved || !isTypeScriptModulePath(resolved) || visited.has(resolved)) continue;
-            dependencyPaths.push(resolved);
+            if (!resolved || !isWalkableRelativeModulePath(resolved) || visited.has(resolved)) continue;
+            visited.add(resolved);
+            if (isTypeScriptModulePath(resolved)) {
+                dependencyPaths.push(resolved);
+            }
             queue.push(resolved);
         }
     }
@@ -172,11 +186,19 @@ async function collectBundledDependencyPaths(entryAbsolutePath: string): Promise
     return dependencyPaths.sort();
 }
 
+export async function needsTypeScriptTranspile(absolutePath: string): Promise<boolean> {
+    const resolved = path.resolve(absolutePath);
+    if (isTypeScriptModulePath(resolved)) return true;
+    if (!isJavaScriptModulePath(resolved)) return false;
+    const dependencyPaths = await collectBundledDependencyPaths(resolved);
+    return dependencyPaths.length > 0;
+}
+
 async function dependencyMtimesForBundledEntry(
     entryAbsolutePath: string,
     sourceContent: string,
 ): Promise<Record<string, number> | undefined> {
-    if (!shouldBundleSource(sourceContent)) return undefined;
+    if (!shouldBundleEntry(entryAbsolutePath, sourceContent)) return undefined;
 
     const dependencyPaths = await collectBundledDependencyPaths(entryAbsolutePath);
     const dependencyMtimes: Record<string, number> = {};
@@ -194,7 +216,7 @@ async function areStoredDependencyMtimesValid(
     sourceContent: string,
     storedDependencyMtimes: Record<string, number> | undefined,
 ): Promise<boolean> {
-    if (!shouldBundleSource(sourceContent)) return true;
+    if (!shouldBundleEntry(entryAbsolutePath, sourceContent)) return true;
     if (!storedDependencyMtimes) return false;
 
     const currentDependencyPaths = await collectBundledDependencyPaths(entryAbsolutePath);
@@ -260,6 +282,12 @@ function shouldBundleSource(sourceContent: string): boolean {
     return /from\s+['"]\.{1,2}\//.test(sourceContent);
 }
 
+/** `.js` / `.mjs` entries are always bundled. `.ts` entries bundle only when they import a relative module. */
+function shouldBundleEntry(absolutePath: string, sourceContent: string): boolean {
+    if (isJavaScriptModulePath(absolutePath)) return true;
+    return shouldBundleSource(sourceContent);
+}
+
 /** Keep npm deps (e.g. `@lumpcode/*`) external when bundling relative lump-local modules. */
 const ESBUILD_PACKAGES_EXTERNAL = 'external' as const;
 
@@ -278,7 +306,7 @@ async function patchImportMetaUrlInOutput(outPath: string, sourceAbsolutePath: s
 async function runEsbuildTranspile(absolutePath: string, outPath: string): Promise<void> {
     configureEsbuildBinaryPath();
     const sourceContent = await fs.readFile(absolutePath, 'utf-8');
-    const bundle = shouldBundleSource(sourceContent);
+    const bundle = shouldBundleEntry(absolutePath, sourceContent);
 
     if (isSea()) {
         const binaryPath = process.env.ESBUILD_BINARY_PATH;
