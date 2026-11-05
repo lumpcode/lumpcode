@@ -8,7 +8,7 @@ import {
     daemonMetaPath,
     localConfigFolderPath,
     makePromiseGate,
-    makeStartHandler,
+    runForegroundStart,
     setupStartTestRepo,
     teardownStartTestRepo,
     writeCommittedLumps,
@@ -119,11 +119,9 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
 
         let startPromise: Promise<{ success: boolean }> | undefined;
         try {
-            startPromise = makeStartHandler(deps(), {
+            startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(async () => {
@@ -153,7 +151,8 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
             .mockResolvedValue(runSuccess);
 
         try {
-            const result = await makeStartHandler(deps(), {
+            const result = await runForegroundStart({
+                deps: deps(),
                 // Assert before daemon cleanup removes meta artifacts.
                 waitForShutdownOverride: async () => {
                     const count = await readMetaCount();
@@ -161,9 +160,6 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
                     const raw = await readRawMeta();
                     expect(raw.busy).not.toBe(true);
                 },
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
             expect(result.success).toBe(true);
         } finally {
@@ -183,16 +179,14 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
             );
 
         try {
-            const result = await makeStartHandler(deps(), {
+            const result = await runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: async () => {
                     const count = await readMetaCount();
                     expect(count === 0 || count === undefined).toBe(true);
                     const raw = await readRawMeta();
                     expect(raw.busy).not.toBe(true);
                 },
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
             expect(result.success).toBe(true);
         } finally {
@@ -213,14 +207,12 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
             );
 
         try {
-            const result = await makeStartHandler(deps(), {
+            const result = await runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: async () => {
                     const count = await readMetaCount();
                     expect(count === 0 || count === undefined).toBe(true);
                 },
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
             expect(result.success).toBe(true);
         } finally {
@@ -235,13 +227,11 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
             .mockResolvedValue(runSuccess);
 
         try {
-            await makeStartHandler(deps(), {
+            await runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: async () => {
                     assertMetaKeysAreAllowed(await readRawMeta());
                 },
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
         } finally {
             runLumpSpy.mockRestore();
@@ -272,11 +262,9 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
 
         let startPromise: Promise<{ success: boolean }> | undefined;
         try {
-            startPromise = makeStartHandler(deps(), {
+            startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(async () => {
@@ -348,11 +336,9 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
 
         let startPromise: Promise<{ success: boolean }> | undefined;
         try {
-            startPromise = makeStartHandler(deps(), {
+            startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await Promise.all([startPromise, pollDuringRuns]);
@@ -387,11 +373,9 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
             });
             let startPromise: Promise<{ success: boolean }> | undefined;
             try {
-                startPromise = makeStartHandler(deps(), {
+                startPromise = runForegroundStart({
+                    deps: deps(),
                     waitForShutdownOverride: () => shutdownGate,
-                })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
                 });
                 await vi.waitFor(async () => {
                     const raw = await readRawMeta();
@@ -422,7 +406,8 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
                 .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
                 .mockResolvedValue(runSuccess);
             try {
-                const result = await makeStartHandler(deps(), {
+                const result = await runForegroundStart({
+                    deps: deps(),
                     waitForShutdownOverride: async () => {
                         const raw = await readRawMeta();
                         expect(raw.inFlightRuns).toEqual([]);
@@ -438,9 +423,6 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
                         );
                         assertMetaKeysAreAllowed(raw);
                     },
-                })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
                 });
                 expect(result.success).toBe(true);
             } finally {
@@ -469,11 +451,9 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
                 });
             let startPromise: Promise<{ success: boolean }> | undefined;
             try {
-                startPromise = makeStartHandler(deps(), {
+                startPromise = runForegroundStart({
+                    deps: deps(),
                     waitForShutdownOverride: () => shutdownGate,
-                })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
                 });
                 await vi.waitFor(async () => {
                     if (gates.size < 2) throw new Error('waiting for two in-flight lumps');
@@ -530,11 +510,9 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
             });
             let startPromise: Promise<{ success: boolean }> | undefined;
             try {
-                startPromise = makeStartHandler(deps(), {
+                startPromise = runForegroundStart({
+                    deps: deps(),
                     waitForShutdownOverride: () => shutdownGate,
-                })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
                 });
                 await vi.waitFor(async () => {
                     const raw = await readRawMeta();
@@ -561,15 +539,13 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
                 .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
                 .mockResolvedValue(runSuccess);
             try {
-                const result = await makeStartHandler(deps(), {
+                const result = await runForegroundStart({
+                    deps: deps(),
                     waitForShutdownOverride: async () => {
                         const raw = await readRawMeta();
                         expect(raw.inFlightRuns).toEqual([]);
                         expect(Object.hasOwn(raw, 'inFlightLumpCount')).toBe(false);
                     },
-                })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
                 });
                 expect(result.success).toBe(true);
             } finally {
@@ -629,11 +605,9 @@ describe('start command — daemon in-flight meta (parallel-global-daemon-worktr
                 });
             let startPromise: Promise<{ success: boolean }> | undefined;
             try {
-                startPromise = makeStartHandler(deps(), {
+                startPromise = runForegroundStart({
+                    deps: deps(),
                     waitForShutdownOverride: () => shutdownGate,
-                })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
                 });
                 await vi.waitFor(async () => {
                     const raw = await readRawMeta();

@@ -14,7 +14,7 @@ import { execGit } from '../../../utils/execGit';
 import { writeJsonFile } from '../../../utils/writeJsonFile';
 import {
     localConfigFolderPath,
-    makeStartHandler,
+    runForegroundStart,
     setupStartTestRepo,
     teardownStartTestRepo,
     writeDedicatedLocal,
@@ -61,10 +61,7 @@ describe('start command — multi discovery branches', () => {
         await writeMultiLocal();
         await seedMainAndReleaseLumps();
 
-        const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        const result = await runForegroundStart({ deps: deps() });
         expect(result.success).toBe(true);
     });
 
@@ -81,10 +78,7 @@ describe('start command — multi discovery branches', () => {
             lumpSpecs: [{ name: 'sharedName', configOverrides: { discoveryBranch: 'ver/0.0.9' } }],
         });
 
-        const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        const result = await runForegroundStart({ deps: deps() });
         expect(result.success).toBe(true);
     });
 
@@ -95,10 +89,7 @@ describe('start command — multi discovery branches', () => {
         execGit('commit -m "mainLine on main"', projectRoot);
         execGit('push origin main', projectRoot);
 
-        const result = await makeStartHandler(deps())({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        const result = await runForegroundStart({ deps: deps() });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages.join(' ')).toMatch(/ver\/0\.0\.9|Discovery branch/i);
@@ -122,10 +113,7 @@ describe('start command — multi discovery branches', () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(true);
             const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls].map((c) => String(c[0])).join('\n');
             expect(logged).toMatch(/badLine/i);
@@ -166,12 +154,7 @@ describe('start command — multi discovery branches', () => {
                     }),
                 );
             try {
-                const result = await makeStartHandler(deps(), {
-                    waitForShutdownOverride: async () => {},
-                })({
-                    options: { foreground: true, cronSetup: '*/5 * * * *' },
-                    arguments: {},
-                });
+                const result = await runForegroundStart({ deps: deps() });
                 expect(result.success).toBe(true);
                 const logged = [...logSpy.mock.calls, ...warnSpy.mock.calls]
                     .map((c) => String(c[0]))
@@ -198,9 +181,9 @@ describe('start command — multi discovery branches', () => {
             baseBranch: 'ver/0.0.9',
         });
 
-        const result = await makeStartHandler(deps())({
-            options: { include: 'releaseLine', foreground: true },
-            arguments: {},
+        const result = await runForegroundStart({
+            deps: deps(),
+            options: { include: 'releaseLine' },
         });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
@@ -215,9 +198,9 @@ describe('start command — multi discovery branches', () => {
         });
         await createIntegrationBranch({ projectRoot, remoteDir, branchName: 'ver/0.0.9' });
 
-        const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-            options: { include: 'releaseLine', foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
+        const result = await runForegroundStart({
+            deps: deps(),
+            options: { include: 'releaseLine' },
         });
         expect(result.success).toBe(true);
     });
@@ -236,10 +219,7 @@ describe('start command — multi discovery branches', () => {
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
             expect(result.data.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
@@ -275,10 +255,7 @@ describe('start command — multi discovery branches', () => {
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(true);
             const byName = new Map(
@@ -343,10 +320,7 @@ describe('start command — multi discovery branches', () => {
         );
 
         try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            await runForegroundStart({ deps: deps() });
 
             const scanBranches = discoverSpy.mock.calls.map((c) => c[0].scanBranch);
             expect(scanBranches).toEqual(['ver/0.0.9', 'main', 'ver/0.0.9', 'main']);
@@ -377,10 +351,7 @@ describe('start command — multi discovery branches', () => {
             'runLumpFromLumpName',
         );
         try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            await runForegroundStart({ deps: deps() });
 
             const lumpNames = runLumpSpy.mock.calls.map((c) => c[0].lumpName);
             expect(lumpNames.indexOf('releaseLine')).toBeLessThan(lumpNames.lastIndexOf('mainLine'));
@@ -446,10 +417,7 @@ describe('start command — multi discovery branches', () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(true);
 
             const multiRuns = runLumpSpy.mock.calls.filter((c) => c[0].lumpName === 'multiLine');
@@ -531,10 +499,7 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(true);
             const scanBranches = discoverSpy.mock.calls.map((c) => c[0].scanBranch);
@@ -589,10 +554,7 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(true);
             const sharedRuns = runLumpSpy.mock.calls.filter((c) => c[0].lumpName === 'sharedName');
@@ -621,10 +583,7 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
             'expandPrimaryBranches',
         ).mockResolvedValue(failure('ls-remote failed while expanding feature/*'));
 
-        const result = await makeStartHandler(deps())({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        const result = await runForegroundStart({ deps: deps() });
 
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
@@ -650,10 +609,7 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(true);
             const scanBranches = discoverSpy.mock.calls.map((c) => c[0].scanBranch);
@@ -684,10 +640,7 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');
@@ -726,13 +679,9 @@ describe('start command — dynamic-discovery-branch (T*, S*)', () => {
             });
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: {
-                    lumpName: 'solo',
-                    foreground: true,
-                    cronSetup: '*/5 * * * *',
-                },
-                arguments: {},
+            const result = await runForegroundStart({
+                deps: deps(),
+                options: { lumpName: 'solo' },
             });
 
             expect(result.success).toBe(true);
@@ -806,10 +755,7 @@ describe('start command — daemon-primary-branch-refresh-command (T5–T7)', ()
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(true);
             const scanBranches = discoverSpy.mock.calls.map((c) => c[0].scanBranch);
@@ -854,10 +800,7 @@ describe('start command — daemon-primary-branch-refresh-command (T5–T7)', ()
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(true);
             const calls = discoverSpy.mock.calls.map((c) =>
@@ -897,10 +840,7 @@ describe('start command — daemon-primary-branch-refresh-command (T5–T7)', ()
         );
 
         try {
-            const result = await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
 
             expect(result.success).toBe(false);
             if (result.success) throw new Error('unreachable');

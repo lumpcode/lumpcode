@@ -11,7 +11,7 @@ import { execGit } from '../../../utils/execGit';
 import {
     daemonMetaPath,
     makePromiseGate,
-    makeStartHandler,
+    runForegroundStart,
     runLumpSuccess,
     setupStartTestRepo,
     teardownStartTestRepo,
@@ -89,11 +89,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            const startPromise = makeStartHandler(deps(), {
+            const startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(() => {
@@ -144,11 +142,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            const startPromise = makeStartHandler(deps(), {
+            const startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(async () => {
@@ -204,11 +200,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            const startPromise = makeStartHandler(deps(), {
+            const startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(() => {
@@ -259,11 +253,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            const startPromise = makeStartHandler(deps(), {
+            const startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(() => {
@@ -339,11 +331,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
         let startPromise: Promise<{ success: boolean; data?: unknown }> | undefined;
         try {
-            startPromise = makeStartHandler(deps(), {
+            startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(() => {
@@ -400,11 +390,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
 
         let startPromise: Promise<{ success: boolean; data?: unknown; messages?: string[] }> | undefined;
         try {
-            startPromise = makeStartHandler(deps(), {
+            startPromise = runForegroundStart({
+                deps: deps(),
                 waitForShutdownOverride: () => shutdownGate,
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
             });
 
             await vi.waitFor(() => {
@@ -437,12 +425,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
         });
         await writeLumps(['a', 'b', 'c']);
 
-        const result = await makeStartHandler(deps(), {
-            waitForShutdownOverride: async () => {},
-        })({
-            options: { foreground: true, cronSetup: '*/5 * * * *' },
-            arguments: {},
-        });
+        const result = await runForegroundStart({ deps: deps() });
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toBe(SHARED_MODE_NO_DAEMON_MESSAGE);
@@ -466,12 +449,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(true);
             expect(retainSpy).toHaveBeenCalledTimes(1);
             expect(retainSpy.mock.invocationCallOrder[0]).toBeLessThan(
@@ -501,11 +479,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
-            })({
-                options: { include: 'alpha', foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
+            const result = await runForegroundStart({
+                deps: deps(),
+                options: { include: 'alpha' },
             });
             expect(result.success).toBe(true);
             expect(started).toEqual(['alpha']);
@@ -531,15 +507,9 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
-            })({
-                options: {
-                    include: 'sideA',
-                    foreground: true,
-                    cronSetup: '*/5 * * * *',
-                },
-                arguments: {},
+            const result = await runForegroundStart({
+                deps: deps(),
+                options: { include: 'sideA' },
             });
             expect(result.success).toBe(true);
             expect(started).toEqual(['sideA']);
@@ -557,12 +527,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             .mockImplementation(async () => runSuccess);
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(true);
             expect(runLumpSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ liveStepWrite: expect.any(Function) }),
@@ -581,12 +546,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             .mockImplementation(async () => runSuccess);
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(true);
             expect(runLumpSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ lumpName: 'alpha' }),
@@ -606,12 +566,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             .mockImplementation(async () => runSuccess);
 
         try {
-            const result = await makeStartHandler(deps(), {
-                waitForShutdownOverride: async () => {},
-            })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            const result = await runForegroundStart({ deps: deps() });
             expect(result.success).toBe(true);
             expect(runLumpSpy).toHaveBeenCalledWith(
                 expect.objectContaining({ liveStepWrite: expect.any(Function) }),
@@ -641,10 +596,7 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             });
 
         try {
-            await makeStartHandler(deps(), { waitForShutdownOverride: async () => {} })({
-                options: { foreground: true, cronSetup: '*/5 * * * *' },
-                arguments: {},
-            });
+            await runForegroundStart({ deps: deps() });
             expect(started).toEqual(['alpha']);
         } finally {
             runLumpSpy.mockRestore();
