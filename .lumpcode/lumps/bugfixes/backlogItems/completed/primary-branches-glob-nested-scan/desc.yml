@@ -9,3 +9,4 @@ task: >-
   heads through branchMatchesGitGlob so both use one dialect.
 priority: 30
 completedAt: '2026-11-05T08:22:16.536Z'
+learntFrom: true
