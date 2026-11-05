@@ -889,7 +889,7 @@ async function resolveCommandFn({
             }
         } else if (!commandModules.has(command)) {
             if (inRecursiveCall) {
-                throw new Error(`Command ${command} not registered in recursive call. Please register the command before in the registerCommands field.`);
+                throw new Error(`Command "${command}" is used by a step returned at run time but is not registered. Add it to registerCommands in the lump config: registerCommands: ['${command}'].`);
             }
             const commandPath = await getCommandPath(command, configPaths);
             const loadResult = await loadCommandModule({

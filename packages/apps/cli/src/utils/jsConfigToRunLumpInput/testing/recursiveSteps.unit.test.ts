@@ -81,7 +81,9 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
             steps: [recursiveFn],
         }));
         const wrapper = data.steps[0] as Function;
-        await expect(wrapper(promptFnInput())).rejects.toThrow('Command test-agent not registered in recursive call');
+        await expect(wrapper(promptFnInput())).rejects.toThrow(
+            `Command "test-agent" is used by a step returned at run time but is not registered. Add it to registerCommands in the lump config: registerCommands: ['test-agent'].`,
+        );
     });
 
     it('should allow pre-registered commands in recursive items via registerCommands', async () => {

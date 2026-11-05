@@ -1,15 +1,21 @@
-# Say where Lumpcode looked when a lump has no config file
+# Say which config field fixes an unregistered command in a runtime-returned step
 
-When a lump folder had no config file, `getJsConfigFromLumpName` (`packages/apps/cli`) returned `Lump config not found for <lumpName>`. That message hid the next step. It did not say which folder was checked or which file names count as a config, so an operator with a typo'd folder, a `config.mts`, or a config in the wrong place had to read the source to find out.
-
-It now returns:
+A step can be returned at run time, either by a function in `steps` or by a `postCommandExecFn`. If that step uses a command tag that is neither the lump `command` nor listed in `registerCommands`, `jsConfigToRunLumpInput` (`packages/apps/cli`) threw:
 
 ```
-No config.ts, config.js, or config.json in <project>/.lumpcode/lumps/<lumpName>
+Command reviewer not registered in recursive call. Please register the command before in the registerCommands field.
 ```
 
-This error reaches operators from `run`, `lump-status`, `context-status`, `lump-plan`, and the daemon's skip warning (`lump "<name>": <message>; skipping`). The path already contains the lump name, so no information is lost. Behavior is otherwise unchanged: the same condition fails, with the same `Failure<string>` shape, and the lookup order is still `config.ts`, then `config.js`, then `config.json`.
+"Recursive call" is an internal detail: operators never write a recursive call, they write a function that returns steps. The sentence "register the command before in the registerCommands field" is also hard to parse, and it does not say that the field belongs in the lump config.
 
-Two unit tests pinned the old warning text, so I updated them to expect the new message with the temp lump path: `discoverLoadableLumpNames/unit.test.ts` and `validateDaemonLaunch/unit.test.ts`. No docs or E2E tests quoted the old string.
+It now throws:
 
-Tests: `npm run test -w=@lumpcode/cli` (161 files, 1212 tests pass) and root `npm run build` (passes).
+```
+Command "reviewer" is used by a step returned at run time but is not registered. Add it to registerCommands in the lump config: registerCommands: ['reviewer'].
+```
+
+This matches how `DOCS/config/advanced.md` and `DOCS/author/prompts.md` describe the case, and it gives the line to paste. Behavior is otherwise unchanged: the same condition still throws an `Error` from the same place, and file-path commands and the lump `command` are still pre-registered as before.
+
+One unit test pinned the old text, so I updated it to expect the full new message: `jsConfigToRunLumpInput/testing/recursiveSteps.unit.test.ts`. No docs or E2E tests quoted the old string.
+
+Tests: `npm run test -w=@lumpcode/cli` (161 files, 1211 tests pass) and root `npm run build` (passes).
