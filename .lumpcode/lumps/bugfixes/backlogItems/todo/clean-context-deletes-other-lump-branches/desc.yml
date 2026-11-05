@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: clean-context-deletes-other-lump-branches
+workflow:
+  - impl
+task: >-
+  lumpcode clean --lumpName <L> --contextName <X> deletes, locally and on the
+  remote, every lump/* branch (any lump) whose history contains X's marker
+  commit, so once X is merged into the base it wipes unrelated open lump
+  branches; scope discoverByContext in commands/clean/main.ts to
+  lump/<L>/* branches that carry the marker on unmerged commits.
+priority: 20
