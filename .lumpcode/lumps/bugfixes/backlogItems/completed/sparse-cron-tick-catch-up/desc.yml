@@ -9,3 +9,4 @@ task: >-
   the next scheduled fire.
 priority: 22
 completedAt: '2026-11-05T08:14:00.039Z'
+learntFrom: true

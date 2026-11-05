@@ -9,3 +9,4 @@ task: >-
   is interrupted.
 priority: 20
 completedAt: '2026-11-05T04:01:08.374Z'
+learntFrom: true

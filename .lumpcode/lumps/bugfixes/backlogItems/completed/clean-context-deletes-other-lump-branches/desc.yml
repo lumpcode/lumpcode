@@ -9,3 +9,4 @@ task: >-
   branches that carry the marker on unmerged commits.
 priority: 20
 completedAt: '2026-11-05T07:09:41.324Z'
+learntFrom: true
