@@ -1,6 +1,6 @@
 # Leave a worker running
 
-A worker is a second clone of your repo that runs every lump on a schedule and pushes one branch per item. You keep writing lumps and merging on your laptop. This is how Lumpcode is meant to run.
+A worker is a second clone of your repo that runs every lump on a schedule and pushes one branch per run. You keep writing lumps and merging on your laptop. This is how Lumpcode is meant to run.
 
 ## A day with a worker
 
