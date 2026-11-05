@@ -39,8 +39,3 @@ export function resolveE2eCliInvocation(): E2eCliInvocation {
     }
     return resolveSeaInvocation();
 }
-
-/** @deprecated Prefer `resolveE2eCliInvocation` — kept for callers that only need the SEA path. */
-export function resolveE2eBinary(): string {
-    return resolveE2eCliInvocation().executable;
-}
