@@ -1,14 +1,17 @@
-# Worker pushes one branch per run, not per item
+# `maximumNumberOfConcurrentBranches` caps branches, not PRs
 
-`DOCS/start/worker.md` opened with "a second clone of your repo that runs every lump on a schedule and pushes one branch per item". That lead is also the page description the site shows in search. It contradicted two things:
+`DOCS/start/worker.md` said: "Cap open PRs per lump with `maximumNumberOfConcurrentBranches` so the worker waits for your reviews." Two things were wrong:
 
-- Step 3 on the same page: "One `lump/<lumpName>/…` branch per run."
-- Core terms (`DOCS/start/terms.md`): a context is not one PR, and `numberOfContextsPerBranch` puts several on one branch. The sweeps and issue-queue examples group 3, 5, and 10 per branch.
+- The setting does not count PRs. It counts `lump/<name>/*` branches on the remote (`countOpenLumpBranches`, `git ls-remote`). The CLI stops at `git push` and never sees a PR, so a branch with no PR counts the same as one under review. `DOCS/config/lump.md` already describes it correctly: "Skip the run when that many `lump/<name>/*` branches already exist on origin."
+- "Waits for your reviews" suggests that merging frees a slot. It does not. Lumpcode never deletes a merged branch, and only `lumpcode clean` does. If the git host keeps head branches after merge, the cap stays full and the lump stops running without any error. This is the "worker does not pick up my lump" case, and the page that sets up the worker is where an operator needs to read it.
 
-"Per item" reads as a promise that every unit of work gets its own branch, which is only true at the default of 1. The First PR page hands off to the worker with the same sentence, so I fixed both places together.
+The line I now stand behind, on the worker page:
 
-The line I now stand behind, on both pages:
+> Cap a lump's branches on the remote with `maximumNumberOfConcurrentBranches` so the worker waits for your reviews. A merged branch still counts until it is deleted: turn on your host's delete-branch-on-merge setting, or run `lumpcode clean --lumpName <name>`.
 
-> A worker is a second clone of your repo that runs every lump on a schedule and pushes one branch per run.
+The same "PRs" claim also appeared on two example pages, so I changed it there to match without repeating the deletion detail:
 
-Also noticed but left alone: "Cap open PRs per lump with `maximumNumberOfConcurrentBranches`" (worker page, building blocks, examples overview). The setting counts pushed `lump/<name>/*` branches, not PRs. It appears on three pages, so fixing it is a separate change.
+- `DOCS/examples/building-blocks.md`: "Capping a lump's open branches is built in", now linking to the worker page section.
+- `DOCS/examples/overview.md`: "stops the worker from piling up branches while you are away".
+
+Noticed but left alone: in `DOCS/reference/troubleshooting.md`, step 4 of "Worker does not pick up my new lump" says "Merge or `lumpcode clean`". That has the same gap, because merging only helps if the host deletes the branch.

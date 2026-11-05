@@ -182,7 +182,7 @@ import fs from 'node:fs'
 disabled: () => fs.readdirSync('.lumpcode/lumps/refactors/backlogItems/todo').length >= 3,
 ```
 
-To pause by hand, set `"disabled": true`, push, and merge. The worker keeps running and skips the lump. Capping open PRs is built in: `maximumNumberOfConcurrentBranches`.
+To pause by hand, set `"disabled": true`, push, and merge. The worker keeps running and skips the lump. Capping a lump's open branches is built in: [`maximumNumberOfConcurrentBranches`](../start/worker.md#day-to-day-on-your-laptop).
 
 ## Different schedules per lump
 
