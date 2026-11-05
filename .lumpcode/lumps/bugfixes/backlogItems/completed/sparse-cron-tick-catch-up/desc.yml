@@ -1,0 +1,11 @@
+name: sparse-cron-tick-catch-up
+workflow:
+  - impl
+task: >-
+  A daemon on a sparse cron (for example daily) loses that day's run when the
+  scheduled fire lands while a tick is still running, during the immediate first
+  tick, or when its lump run times out waiting on a workspace lock; run one
+  catch-up tick after a skipped fire and retry lock-timed-out lump lines until
+  the next scheduled fire.
+priority: 22
+completedAt: '2026-11-05T08:14:00.039Z'

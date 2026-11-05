@@ -31,6 +31,7 @@ import {
 export type { WorkspacePathBusyError } from '../workspacePathLock';
 export type { RunLumpFromJsConfigFailure } from './failures';
 export {
+    isRunLumpLockWaitTimeoutFailure,
     isRunLumpWorkspacePathBusyFailure,
     runLumpFromJsConfigFailureMessage,
     toRunLumpMessageFailure,

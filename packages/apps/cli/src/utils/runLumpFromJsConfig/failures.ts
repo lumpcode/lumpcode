@@ -14,6 +14,14 @@ export function isRunLumpWorkspacePathBusyFailure(
     return failure.kind === 'workspacePathBusy';
 }
 
+export function isRunLumpLockWaitTimeoutFailure(
+    failure: RunLumpFromJsConfigFailure,
+): failure is Extract<RunLumpFromJsConfigFailure, { kind: 'workspacePathBusy' }> & {
+    reason: 'waitTimedOut';
+} {
+    return failure.kind === 'workspacePathBusy' && failure.reason === 'waitTimedOut';
+}
+
 export function toRunLumpMessageFailure(
     message: string,
     extras?: { code: 'detachedHead' },
