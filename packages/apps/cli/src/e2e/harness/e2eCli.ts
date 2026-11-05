@@ -9,11 +9,6 @@ export function e2eCliInvocation(): E2eCliInvocation {
     return e2eInvocation;
 }
 
-/** Primary executable for spawning the CLI (Node binary when `runner` is `node`). */
-export function e2eBinary(): string {
-    return e2eInvocation.executable;
-}
-
 /** Runs the e2e CLI against a project with an isolated `HOME` and parsed `--json` output. */
 export function runE2eCli(input: { project: E2eProject; args: string[]; timeoutMs?: number }) {
     return runCli({
