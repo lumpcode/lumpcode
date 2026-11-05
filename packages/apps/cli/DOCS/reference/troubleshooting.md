@@ -50,7 +50,7 @@ There is no undo inside Lumpcode. Recover from git if the work was committed; if
 1. The lump must be on the branch the worker tracks (usually the primary). Push and merge; wait for the next cron (default five minutes), or `lumpcode restart`.
 2. `--include` / `--exclude` on that worker may filter it out.
 3. Lump `"disabled": true` soft-skips (exit 0). Local `"disabled": true` pauses every lump on that machine.
-4. `maximumNumberOfConcurrentBranches` can skip while older `lump/<name>/*` branches are still open. Merge or `lumpcode clean --lumpName <name>`.
+4. `maximumNumberOfConcurrentBranches` skips the run while that many `lump/<name>/*` branches exist on the remote. A merged branch still counts until it is deleted, so delete merged branches or turn on your host's delete-branch-on-merge setting ([worker day to day](../start/worker.md#day-to-day-on-your-laptop)). `lumpcode clean --lumpName <name>` also frees the cap, but it deletes every branch of that lump, including ones you have not reviewed.
 5. Dedicated discovery allowlist: the lump’s `discoveryBranch` must match configured `primaryBranches`. Launch fails closed on a mismatch; check the worker log.
 6. TypeScript lumps that import `@lumpcode/recipes` need `npm install` on the worker clone. The global CLI does not provide those packages.
 

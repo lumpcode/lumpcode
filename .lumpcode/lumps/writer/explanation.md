@@ -1,17 +1,12 @@
-# `maximumNumberOfConcurrentBranches` caps branches, not PRs
+# Troubleshooting: merging does not free a `maximumNumberOfConcurrentBranches` slot
 
-`DOCS/start/worker.md` said: "Cap open PRs per lump with `maximumNumberOfConcurrentBranches` so the worker waits for your reviews." Two things were wrong:
+`DOCS/reference/troubleshooting.md`, "Worker does not pick up my new lump", step 4 said: "`maximumNumberOfConcurrentBranches` can skip while older `lump/<name>/*` branches are still open. Merge or `lumpcode clean --lumpName <name>`." The previous writer run flagged this line and left it for later. Two things were wrong:
 
-- The setting does not count PRs. It counts `lump/<name>/*` branches on the remote (`countOpenLumpBranches`, `git ls-remote`). The CLI stops at `git push` and never sees a PR, so a branch with no PR counts the same as one under review. `DOCS/config/lump.md` already describes it correctly: "Skip the run when that many `lump/<name>/*` branches already exist on origin."
-- "Waits for your reviews" suggests that merging frees a slot. It does not. Lumpcode never deletes a merged branch, and only `lumpcode clean` does. If the git host keeps head branches after merge, the cap stays full and the lump stops running without any error. This is the "worker does not pick up my lump" case, and the page that sets up the worker is where an operator needs to read it.
+- "Merge" is offered as the fix, but merging alone does nothing to the cap. `countOpenLumpBranches` counts every `lump/<name>/*` head on the remote (`git ls-remote`). Lumpcode never deletes a merged branch, so if the git host keeps head branches after merge, the lump stays skipped. An operator who is on this page has usually already merged and is still stuck. "Still open" adds to the confusion, because it sounds like PR state, which the CLI never sees.
+- `lumpcode clean --lumpName <name>` is offered as if it were the same thing as merging. It deletes every remote and local branch of that lump, including branches still waiting for review (`discoverByGlob` in `commands/clean/main.ts`). That is a real fix for the cap, but the operator should know what they are throwing away before they run it.
 
-The line I now stand behind, on the worker page:
+The line I now stand behind:
 
-> Cap a lump's branches on the remote with `maximumNumberOfConcurrentBranches` so the worker waits for your reviews. A merged branch still counts until it is deleted: turn on your host's delete-branch-on-merge setting, or run `lumpcode clean --lumpName <name>`.
+> 4. `maximumNumberOfConcurrentBranches` skips the run while that many `lump/<name>/*` branches exist on the remote. A merged branch still counts until it is deleted, so delete merged branches or turn on your host's delete-branch-on-merge setting ([worker day to day](../start/worker.md#day-to-day-on-your-laptop)). `lumpcode clean --lumpName <name>` also frees the cap, but it deletes every branch of that lump, including ones you have not reviewed.
 
-The same "PRs" claim also appeared on two example pages, so I changed it there to match without repeating the deletion detail:
-
-- `DOCS/examples/building-blocks.md`: "Capping a lump's open branches is built in", now linking to the worker page section.
-- `DOCS/examples/overview.md`: "stops the worker from piling up branches while you are away".
-
-Noticed but left alone: in `DOCS/reference/troubleshooting.md`, step 4 of "Worker does not pick up my new lump" says "Merge or `lumpcode clean`". That has the same gap, because merging only helps if the host deletes the branch.
+The link points to the worker page section that already explains the cap, so the page links to that explanation instead of repeating it.
