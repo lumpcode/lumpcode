@@ -74,7 +74,7 @@ export default defineConfig({
 })
 ```
 
-Retries get a default fix prompt with the command and its output. Pass `fixSteps` to write your own. If the check is still red after the last attempt, the context fails: no commit, no push, and it stays `toDo`. A branch only reaches your remote when the check passed. The hand-written version of this loop is in [Building blocks](../examples/building-blocks.md#retry-until-green-by-hand).
+Retries get a default fix prompt with the command and its output. Pass `fixSteps` to write your own. If the check is still red after the last attempt, the branch is still committed and pushed, and `lumpVariables.__VALIDATION_FAILED__` is `true`. It is `false` when a check passed. Pass `pushOnValidationFailure: false` when a red branch should not be published: the context fails, stays `toDo`, and later steps do not run. The hand-written version of this loop is in [Building blocks](../examples/building-blocks.md#retry-until-green-by-hand).
 
 ## Decide what runs next
 

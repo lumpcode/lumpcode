@@ -15,15 +15,15 @@ The CLI binary does not bundle this package. A TypeScript lump that imports it w
 | Helper | Use when |
 | --- | --- |
 | `retryUntilGreen` | Agent edits, then your test/build command, retry with the failure output. |
-| `getRecursiveSteps` | Same loop with more control over the fix steps. |
-| `requireArtifactStep` | Fail the context until a file exists (requirements.md, and so on). |
+| `getValidationLoopSteps` | Same loop with more control over the fix steps. |
+| `requireArtifactStep` | Exit 1 when a file is missing (requirements.md, and so on). The retry loop decides whether the context fails. |
 | `openPrPostTeardown` | After push, open a GitHub PR with `gh` on `PATH`. Opt-in, not built into the CLI. |
 | `folderBacklogContexts` | Context list from `backlogItems/todo/`. |
 | `folderSetTaskDoneStep` | Move a finished item to `completed/` after the context succeeds. |
 | `ephemeralContextListFn` | N fresh synthetic contexts per run (hunts, one-off scans). |
 | `shellCommand` | `{ executable, args }` for `sh -c`. |
 
-`retryUntilGreen` is the usual wrapper: iteration 0 runs your steps, retries call `fixSteps` or a default “here is the command output, fix it” prompt, until `validationCommandFn` exits 0 or the cap is hit.
+`retryUntilGreen` is the usual wrapper: iteration 0 runs your steps, retries call `fixSteps` or a default “here is the command output, fix it” prompt, until `validationCommandFn` exits 0 or the cap is hit. Hitting the cap still pushes the branch, and sets `lumpVariables.__VALIDATION_FAILED__` (`true` when the last check stayed red, `false` when a check passed). Pass `validationFailedVariableName` to write the flag under another name, for example when two loops run in one context. Pass `pushOnValidationFailure: false` to fail the context instead of pushing. `requireArtifactStep` still exits 1 when the file is missing. The loop, not that helper, decides whether the context fails.
 
 ```ts config.ts
 import { defineConfig } from '@lumpcode/cli-utils'

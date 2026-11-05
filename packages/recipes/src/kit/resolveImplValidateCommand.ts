@@ -1,7 +1,7 @@
 import type { LumpVariables, StepVariables } from '@lumpcode/cli-utils';
 import type { CommandDescriptor } from '@lumpcode/core';
 
-import type { ValidationCommandFn, ValidationCommandFnInput } from './getRecursiveSteps';
+import type { ValidationCommandFn, ValidationCommandFnInput } from './getValidationLoopSteps';
 import { shellCommand } from './shellCommand';
 
 export type ImplValidateCommand<

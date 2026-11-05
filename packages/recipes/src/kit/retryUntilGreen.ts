@@ -8,12 +8,12 @@ import type { CommandDescriptor } from '@lumpcode/core';
 import { shellSingleQuote } from '@lumpcode/core';
 
 import {
-    getRecursiveSteps,
+    getValidationLoopSteps,
     type GetFirstStepsInput,
-    type GetRecursiveStepsOptions,
+    type GetValidationLoopStepsOptions,
     type IsValidationCommandResultOkInput,
     type ValidationCommandFn,
-} from './getRecursiveSteps';
+} from './getValidationLoopSteps';
 
 function formatVerificationCommand(descriptor: CommandDescriptor | null): string {
     if (!descriptor) {
@@ -70,7 +70,9 @@ export interface RetryUntilGreenInput<
     fixSteps?: (input: GetFirstStepsInput) => LumpJsConfig<V, SV>['steps'];
     validationCommandFn: ValidationCommandFn<V, SV>;
     isValidationCommandResultOk?: (input: IsValidationCommandResultOkInput<V, SV>) => boolean;
-    maxIterations?: GetRecursiveStepsOptions<V, SV>['maxIterations'];
+    maxIterations?: GetValidationLoopStepsOptions<V, SV>['maxIterations'];
+    pushOnValidationFailure?: GetValidationLoopStepsOptions<V, SV>['pushOnValidationFailure'];
+    validationFailedVariableName?: GetValidationLoopStepsOptions<V, SV>['validationFailedVariableName'];
 }
 
 /** Work steps, validation command, and optional fix steps — retried until checks pass or `maxIterations`. */
@@ -83,11 +85,15 @@ export function retryUntilGreen<
     validationCommandFn,
     isValidationCommandResultOk,
     maxIterations,
+    pushOnValidationFailure,
+    validationFailedVariableName,
 }: RetryUntilGreenInput<V, SV>): LumpJsConfigSteps<V, SV> {
-    return getRecursiveSteps<V, SV>({
+    return getValidationLoopSteps<V, SV>({
         maxIterations,
         validationCommandFn,
         isValidationCommandResultOk,
+        pushOnValidationFailure,
+        validationFailedVariableName,
         getFirstSteps({ currentIteration, prevValidateCommandResult, prevValidateCommandDescriptor }) {
             if (currentIteration === 0) {
                 return steps;

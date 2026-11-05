@@ -23,7 +23,7 @@ lumpcode lump-status --lumpName smokeTest
 
 ## Retry until green
 
-Run your checks after the agent, and give it the output when they fail. A branch is only pushed when the checks pass; after the last attempt the context fails and stays `toDo`.
+Run your checks after the agent, and give it the output when they fail. If the check is still red after the last attempt, the branch is still pushed and `lumpVariables.__VALIDATION_FAILED__` is `true` (`false` when a check passed). Pass `pushOnValidationFailure: false` to withhold that push: the context fails and stays `toDo`.
 
 ```ts config.ts
 import { defineConfig } from '@lumpcode/cli-utils'
