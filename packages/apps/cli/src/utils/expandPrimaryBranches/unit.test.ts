@@ -1,10 +1,17 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
+import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
+import { execGit } from '../execGit';
+import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import * as listRemoteHeadBranchesModule from '../listRemoteHeadBranches';
+import { discoveryRulesMatchScanBranch } from '../resolveLumpBranches';
 import { expandPrimaryBranches } from './main';
 
 function createLogger(): Logger {
@@ -251,5 +258,126 @@ describe('expandPrimaryBranches primary-first order (daemon-primary-branch-refre
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
         expect(result.data).toEqual(['hotfix', 'feature/a', 'dev']);
+    });
+});
+
+/**
+ * Real `git ls-remote`: git lets `*` cross `/`, so the post-filter must drop
+ * nested heads that `branchMatchesGitGlob` rejects.
+ */
+describe('expandPrimaryBranches segment-only globs (real git)', () => {
+    let projectRoot: string;
+    let remoteDir: string;
+
+    beforeEach(async () => {
+        ({ projectRoot, remoteDir } = await createTempTestDirs({
+            prefix: 'lump-expand-primary-',
+            global: false,
+        }));
+        initBareRemoteAndCheckout({ projectRoot, remoteDir });
+    });
+
+    afterEach(async () => {
+        await removeTempTestDirs({ projectRoot, remoteDir });
+    });
+
+    function pushRemoteHead(branchName: string): void {
+        execGit('checkout main', projectRoot);
+        execGit(`checkout -b ${branchName}`, projectRoot);
+        execGit('commit --allow-empty -m "head"', projectRoot);
+        execGit(`push origin ${branchName}`, projectRoot);
+    }
+
+    /**
+     * Git cannot store a loose ref that is a path prefix of another
+     * (`refs/heads/feature/x/y` blocks `refs/heads/feature/x/y/z`). Packed-refs
+     * can hold both, which is what `git ls-remote` sees.
+     */
+    function publishPackedRemoteHeads(heads: { branch: string; sha: string }[]): void {
+        execGit('pack-refs --all', remoteDir);
+        const packedPath = path.join(remoteDir, 'packed-refs');
+        const existing = fs.readFileSync(packedPath, 'utf-8');
+        const headerLine =
+            existing.split('\n').find((line) => line.startsWith('#')) ??
+            '# pack-refs with: peeled fully-peeled sorted ';
+        const kept = existing
+            .split('\n')
+            .filter((line) => line.length > 0 && !line.startsWith('#'))
+            .map((line) => {
+                const [sha, ref] = line.split(' ');
+                return { sha: sha!, ref: ref! };
+            });
+        const merged = [
+            ...kept,
+            ...heads.map(({ branch, sha }) => ({ sha, ref: `refs/heads/${branch}` })),
+        ].sort((a, b) => a.ref.localeCompare(b.ref));
+        fs.writeFileSync(
+            packedPath,
+            `${headerLine}\n${merged.map(({ sha, ref }) => `${sha} ${ref}`).join('\n')}\n`,
+        );
+    }
+
+    it('drops nested heads that ls-remote returns for a one-segment glob', async () => {
+        pushRemoteHead('feature/a');
+        pushRemoteHead('feature/x/y');
+
+        const primaryBranches = ['main', 'feature/*'] as const;
+        const result = await expandPrimaryBranches({
+            localConfig: expandTestLocalConfig({
+                mode: 'dedicated',
+                primaryBranches: [...primaryBranches],
+            }),
+            cwd: projectRoot,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual(['main', 'feature/a']);
+        for (const scanBranch of result.data) {
+            expect(
+                discoveryRulesMatchScanBranch({
+                    rules: [...primaryBranches],
+                    scanBranch,
+                }),
+            ).toBe(true);
+        }
+    });
+
+    it('keeps a two-segment head for feature/*/* and drops a deeper head', async () => {
+        execGit('commit --allow-empty -m y', projectRoot);
+        const shaY = execGit('rev-parse HEAD', projectRoot);
+        execGit('commit --allow-empty -m z', projectRoot);
+        const shaZ = execGit('rev-parse HEAD', projectRoot);
+        publishPackedRemoteHeads([
+            { branch: 'feature/x/y', sha: shaY },
+            { branch: 'feature/x/y/z', sha: shaZ },
+        ]);
+
+        const primaryBranches = ['main', 'feature/*/*'] as const;
+        const result = await expandPrimaryBranches({
+            localConfig: expandTestLocalConfig({
+                mode: 'dedicated',
+                primaryBranches: [...primaryBranches],
+            }),
+            cwd: projectRoot,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data).toEqual(['main', 'feature/x/y']);
+        expect(
+            discoveryRulesMatchScanBranch({
+                rules: ['feature/*/*'],
+                scanBranch: 'feature/x/y',
+            }),
+        ).toBe(true);
+        for (const scanBranch of result.data) {
+            expect(
+                discoveryRulesMatchScanBranch({
+                    rules: [...primaryBranches],
+                    scanBranch,
+                }),
+            ).toBe(true);
+        }
     });
 });

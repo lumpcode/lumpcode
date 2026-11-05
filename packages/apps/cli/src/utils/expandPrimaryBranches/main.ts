@@ -3,6 +3,7 @@ import { failure, success } from '@lumpcode/core';
 
 import { DISCOVERY_GIT_TIMEOUT_MS } from '../../consts';
 import type { LocalConfig } from '../../types/LocalConfig';
+import { branchMatchesGitGlob } from '../branchMatchesGitGlob';
 import { isGitRefGlob } from '../isGitRefGlob';
 import { listRemoteHeadBranches } from '../listRemoteHeadBranches';
 import { resolvePrimaryBranch, resolvePrimaryBranches } from '../resolvePrimaryBranches';
@@ -16,7 +17,10 @@ export type ExpandPrimaryBranchesInput = {
 /**
  * Dedicated mode: expand configured `primaryBranches` (exact + git globs) to a
  * concrete, deduped scan list via `listRemoteHeadBranches` / `git ls-remote`.
- * Exact entries are kept as-is even when missing on the remote.
+ * Git's matcher lets `*` cross `/`; hits are kept only when `branchMatchesGitGlob`
+ * accepts them, so the scan list uses the same segment-only dialect as discovery
+ * matching and the allowlist. Exact entries are kept as-is even when missing on
+ * the remote.
  *
  * Expand order: configured-entry order (exact as listed, then each glob's
  * ls-remote hits), then the resolved primary (first exact) is moved to index 0.
@@ -57,6 +61,8 @@ export async function expandPrimaryBranches(
             cwd,
             branchGlob: entry,
             timeoutMillis: DISCOVERY_GIT_TIMEOUT_MS,
+            postFilterBranchShortName: (branch) =>
+                branchMatchesGitGlob({ pattern: entry, branch }),
         });
         if (!listed.success && listed.data.reason === 'timeout') {
             return failure(
