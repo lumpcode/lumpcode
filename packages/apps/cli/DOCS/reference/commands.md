@@ -149,7 +149,7 @@ One row after refresh. `--setToFinished` writes an empty marker commit on `baseB
 
 ### `lumpcode clean`
 
-`git fetch --all`, then deletes matching remote refs and local branches, plus worktrees under `.lumpcode/worktrees/`. `--lumpName` scopes to `lump/<name>/*`. `--contextName` requires `--lumpName` and matches branches that contain that marker.
+`git fetch --all`, then deletes matching remote refs and local branches, plus worktrees under `.lumpcode/worktrees/`. `--lumpName` scopes to `lump/<name>/*`. `--contextName` requires `--lumpName` and deletes `lump/<lumpName>/*` branches whose unmerged commits carry that marker.
 
 ### `lumpcode reset-presets`
 

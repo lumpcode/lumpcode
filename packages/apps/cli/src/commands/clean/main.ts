@@ -79,8 +79,22 @@ async function discoverByGlob(projectRoot: string, branchPattern: string): Promi
     };
 }
 
+/** `lump/<lumpName>/` from `lumpBranchGlob`, so `lump/other` is not a candidate. */
+function lumpNameBranchPrefix(lumpName: string): string {
+    const glob = lumpBranchGlob({ lumpName });
+    return glob.endsWith('*') ? glob.slice(0, -1) : glob;
+}
+
+/** Remote-tracking head whose branch is outside `lump/` (`origin/main`, `origin/HEAD`, `upstream/dev`). */
+function remoteTrackingHeadOutsideLump(refShortName: string): boolean {
+    const slash = refShortName.indexOf('/');
+    if (slash === -1) return false;
+    return !refShortName.slice(slash + 1).startsWith(LUMP_BRANCH_PREFIX);
+}
+
 async function discoverByContext(projectRoot: string, lumpName: string, contextName: string): Promise<DiscoveredRefs> {
     const commitMessage = getGitCommitMessage({ contextName, lumpName });
+    const branchPrefix = lumpNameBranchPrefix(lumpName);
 
     const logResult = await execAsync(
         `git log --remotes=origin --branches -F --grep=${shellSingleQuote(commitMessage)} --format=${shellSingleQuote(GIT_LOG_HASH_BODY_FORMAT)}`,
@@ -102,16 +116,18 @@ async function discoverByContext(projectRoot: string, lumpName: string, contextN
             execAsync(`git branch -r --contains ${hash} --format=${shellSingleQuote('%(refname:short)')}`, { cwd: projectRoot }),
             execAsync(`git branch --contains ${hash} --format=${shellSingleQuote('%(refname:short)')}`, { cwd: projectRoot }),
         ]);
-        if (remoteResult.success) {
-            for (const b of parseLocalRefs(remoteResult.data.stdout)) {
-                if (b.startsWith(`origin/${LUMP_BRANCH_PREFIX}`)) {
-                    remoteBranchSet.add(b.slice('origin/'.length));
-                }
+        const remoteRefs = remoteResult.success ? parseLocalRefs(remoteResult.data.stdout) : [];
+        // Reachable from a non-lump remote head means the marker arrived through the base, not this branch.
+        if (remoteRefs.some(remoteTrackingHeadOutsideLump)) continue;
+
+        for (const b of remoteRefs) {
+            if (b.startsWith(`origin/${branchPrefix}`)) {
+                remoteBranchSet.add(b.slice('origin/'.length));
             }
         }
         if (localResult.success) {
             for (const b of parseLocalRefs(localResult.data.stdout)) {
-                if (b.startsWith(LUMP_BRANCH_PREFIX)) {
+                if (b.startsWith(branchPrefix)) {
                     localBranchSet.add(b);
                 }
             }

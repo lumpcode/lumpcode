@@ -120,6 +120,77 @@ describe('clean command', () => {
         expect(localBranches).toBe('');
     });
 
+    function mergeIntoMainAndPush(branch: string) {
+        execGit('checkout main', projectRoot);
+        execGit(`merge --no-ff ${branch} -m "merge ${branch}"`, projectRoot);
+        execGit('push origin main', projectRoot);
+    }
+
+    it('contextName does not delete another lump branch cut from the merged base', async () => {
+        const button = setupLumpBranch('myLump', 'button');
+        mergeIntoMainAndPush(button);
+        const card = setupLumpBranch('otherLump', 'card');
+
+        const handle = makeHandler();
+        const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        expect(result.data.data!.deletedBranches).not.toContain(card);
+        expect(result.data.data!.deletedBranches).not.toContain(button);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${card}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${button}`);
+
+        const localCard = execGit(`branch --list ${card}`, projectRoot);
+        expect(localCard).toContain('card');
+    });
+
+    it('contextName does not delete a same-lump branch cut from the merged base', async () => {
+        const button = setupLumpBranch('myLump', 'button');
+        mergeIntoMainAndPush(button);
+        const form = setupLumpBranch('myLump', 'form');
+
+        const handle = makeHandler();
+        const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        expect(result.data.data!.deletedBranches).not.toContain(form);
+        expect(result.data.data!.deletedBranches).not.toContain(button);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${form}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${button}`);
+    });
+
+    it('contextName does not delete another lump branch that contains an unmerged marker', async () => {
+        const button = setupLumpBranch('myLump', 'button');
+        const card = `${LUMP_BRANCH_PREFIX}otherLump/card`;
+        const cardMessage = getGitCommitMessage({ contextName: 'card', lumpName: 'otherLump' });
+        execGit(`checkout ${button}`, projectRoot);
+        execGit(`checkout -b ${card}`, projectRoot);
+        execGit(`commit --allow-empty -m "${cardMessage}"`, projectRoot);
+        execGit(`push origin ${card}`, projectRoot);
+        execGit('checkout main', projectRoot);
+
+        const handle = makeHandler();
+        const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        expect(result.data.data!.deletedBranches).toContain(button);
+        expect(result.data.data!.deletedBranches).not.toContain(card);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${button}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${card}`);
+    });
+
     it('contextName scopes cleanup to a single context', async () => {
         setupLumpBranch('myLump', 'button');
         setupLumpBranch('myLump', 'form');
