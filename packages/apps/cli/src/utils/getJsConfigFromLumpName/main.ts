@@ -24,7 +24,7 @@ export async function getJsConfigFromLumpName(input: {
     );
 
     if (!jsonConfigExists && !jsConfigExists && !tsConfigExists) {
-        return failure(`Lump config not found for ${lumpName}`);
+        return failure(`No config.ts, config.js, or config.json in ${lumpDir}`);
     }
 
     const jsConfigResolution = await decision([
