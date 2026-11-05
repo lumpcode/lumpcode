@@ -89,5 +89,33 @@ describe('runPreflight', () => {
             expect(result.data.executionWorkspacePath).toBe(projectRoot);
             await expect(fs.access(expectedCopy)).rejects.toBeDefined();
         });
+
+        it('leaves a dirty source checkout in place and does not copy it', async () => {
+            const projectName = 'preflight-shared-dirty';
+            const expectedCopy = path.join(globalConfigFolderPath, 'project-copies', projectName);
+            const filePath = path.join(projectRoot, 'README.md');
+            await fs.writeFile(filePath, '# initial\n', 'utf-8');
+            execGit('add README.md', projectRoot);
+            execGit('commit -m "add readme"', projectRoot);
+            execGit('push origin main', projectRoot);
+            await fs.writeFile(filePath, '# dirty\n', 'utf-8');
+
+            const result = await runPreflight({
+                mode: 'shared',
+                projectBaseBranch: 'main',
+                sourceProjectRoot: projectRoot,
+                globalConfigFolderPath,
+                projectName,
+            });
+
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.executionWorkspacePath).toBe(projectRoot);
+            expect(await fs.readFile(filePath, 'utf-8')).toBe('# dirty\n');
+            expect(execGit('status --porcelain', projectRoot)).toContain('README.md');
+            expect(execGit('rev-parse --abbrev-ref HEAD', projectRoot)).toBe('main');
+            await expect(fs.access(expectedCopy)).rejects.toBeDefined();
+            await expect(fs.access(path.join(globalConfigFolderPath, 'project-copies'))).rejects.toBeDefined();
+        });
     });
 });
