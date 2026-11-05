@@ -13,7 +13,10 @@ export function requireArtifactStep<
     return async ({ context, workspacePath }) => {
         const artifactPath = context.variables[artifactPathVarName];
         if (typeof artifactPath !== 'string' || artifactPath.trim() === '') {
-            throw new Error(`Missing context variable ${artifactPathVarName}`);
+            throw new Error(
+                `requireArtifactStep('${artifactPathVarName}'): context "${context.name}" does not set ${artifactPathVarName} to a path. ` +
+                    `Set ${artifactPathVarName} in the context variables to the artifact path, relative to the workspace.`,
+            );
         }
 
         const fullPath = path.join(workspacePath, artifactPath);

@@ -1,21 +1,21 @@
-# Say which config field fixes an unregistered command in a runtime-returned step
+# Say which helper, context, and variable fix a missing requireArtifactStep path
 
-A step can be returned at run time, either by a function in `steps` or by a `postCommandExecFn`. If that step uses a command tag that is neither the lump `command` nor listed in `registerCommands`, `jsConfigToRunLumpInput` (`packages/apps/cli`) threw:
+`requireArtifactStep(varName)` (`packages/recipes`) builds a validation command that checks whether the file named by a context variable exists. When the context does not set that variable, or sets it to an empty or non-string value, the helper threw:
 
 ```
-Command reviewer not registered in recursive call. Please register the command before in the registerCommands field.
+Missing context variable REPORT
 ```
 
-"Recursive call" is an internal detail: operators never write a recursive call, they write a function that returns steps. The sentence "register the command before in the registerCommands field" is also hard to parse, and it does not say that the field belongs in the lump config.
+This happens when the context source does not set the variable that the author named in `requireArtifactStep('REPORT')`, for example after a typo or a renamed variable. The old message did not name the helper that needed the variable or the context that lacked it. It also did not say that the variable should hold a file path, so the author had to find the call site before fixing anything.
 
 It now throws:
 
 ```
-Command "reviewer" is used by a step returned at run time but is not registered. Add it to registerCommands in the lump config: registerCommands: ['reviewer'].
+requireArtifactStep('REPORT'): context "fix-login" does not set REPORT to a path. Set REPORT in the context variables to the artifact path, relative to the workspace.
 ```
 
-This matches how `DOCS/config/advanced.md` and `DOCS/author/prompts.md` describe the case, and it gives the line to paste. Behavior is otherwise unchanged: the same condition still throws an `Error` from the same place, and file-path commands and the lump `command` are still pre-registered as before.
+Behavior is otherwise unchanged. The same condition still throws an `Error` from the same place. Existing and missing artifacts still produce the same exit-0 and exit-1 commands. No docs quoted the old string, and `.agents/memory/domain/recipes.md` ("missing variable still throws") is still accurate.
 
-One unit test pinned the old text, so I updated it to expect the full new message: `jsConfigToRunLumpInput/testing/recursiveSteps.unit.test.ts`. No docs or E2E tests quoted the old string.
+One unit test pinned the old text. I updated it to expect the full new message: `packages/recipes/src/kit/requireArtifactStep/unit.test.ts`.
 
-Tests: `npm run test -w=@lumpcode/cli` (161 files, 1211 tests pass) and root `npm run build` (passes).
+Tests: `npm run test -w=@lumpcode/recipes` (8 files, 97 tests pass) and root `npm run build` (passes).
