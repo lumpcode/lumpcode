@@ -29,5 +29,5 @@ New to lumps? Start with the [smoke test](building-blocks.md#smoke-test) and [Wr
 
 - **The list shrinks by itself.** Discovery skips work that is already done (a component with no `<style>` left, a file that already has a test), so re-running is always safe.
 - **A check gates every branch.** Lint, typecheck, or tests run after the agent, and failures go back to the agent with the output. See [Retry until green](building-blocks.md#retry-until-green).
-- **Review stays small.** `numberOfContextsPerBranch` groups tiny diffs; `maximumNumberOfConcurrentBranches` stops the worker from piling up PRs while you are away.
+- **Review stays small.** `numberOfContextsPerBranch` groups tiny diffs; `maximumNumberOfConcurrentBranches` stops the worker from piling up branches while you are away.
 - **Prompts point at the repo.** Long instructions live in a prompt file or a skill the repo already has (`Follow @.agents/skills/…/SKILL.md`), so the config stays short.
