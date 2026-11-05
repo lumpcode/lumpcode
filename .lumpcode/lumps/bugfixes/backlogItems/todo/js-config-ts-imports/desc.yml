@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: js-config-ts-imports
+workflow:
+  - impl
+task: >-
+  A lump config.js (or any .js module Lumpcode imports) that imports a relative
+  .ts helper such as .lumpcode/helpers/<name>/index.ts fails with
+  ERR_UNKNOWN_FILE_EXTENSION, because only .ts entries go through esbuild;
+  bundle .js/.mjs entries whose relative import graph reaches a .ts file the
+  same way.
+priority: 21
