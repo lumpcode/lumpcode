@@ -12,10 +12,14 @@ import {
     waitForDaemonPidFile,
     writeDaemonMetaSticky,
 } from '../../testing';
+import type { Logger } from '@lumpcode/core';
+
 import { daemonSchedulerFiles } from '../../utils/daemonSchedulerFiles';
 import { pollUntil } from '../../utils/pollUntil';
+import { supervisorMetaPath, supervisorPidPath } from '../../utils/supervisorPaths';
 import { command as startCommand } from '../start/main';
 import { command as stopCommand } from './main';
+import { stopAllProjectDaemons } from './stopAllProjectDaemons';
 import { writeJsonFile, removeTempTestDirs } from '../../utils';
 describe('stop command', () => {
     let projectRoot: string;
@@ -783,5 +787,199 @@ describe('stop command', () => {
                 activeFixturePids.delete(fixturePid);
             }
         }, 15_000);
+    });
+
+    describe('stop --all slow SIGTERM exit', () => {
+        const activePids = new Set<number>();
+
+        afterEach(() => {
+            for (const pid of activePids) {
+                try {
+                    process.kill(pid, 'SIGKILL');
+                } catch {
+                    // already gone
+                }
+            }
+            activePids.clear();
+        });
+
+        function captureLogger(): { logger: Logger; infos: string[] } {
+            const infos: string[] = [];
+            const logger: Logger = {
+                error() {},
+                warn() {},
+                info(message: string) {
+                    infos.push(message);
+                },
+                verbose() {},
+                child() {
+                    return logger;
+                },
+            };
+            return { logger, infos };
+        }
+
+        async function spawnHold(input: {
+            mode: 'ignore' | 'delay' | 'default';
+            delayMs?: number;
+        }): Promise<number> {
+            const readyDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-hold-'));
+            const readyFile = path.join(readyDir, 'ready');
+            const child = spawn(
+                process.execPath,
+                [
+                    '-e',
+                    `const fs = require('node:fs');
+const mode = process.env.LUMP_HOLD_MODE;
+const delay = Number(process.env.LUMP_HOLD_DELAY_MS || 0);
+if (mode === 'ignore' || mode === 'delay') {
+  process.on('SIGTERM', () => {
+    if (mode === 'ignore') return;
+    setTimeout(() => process.exit(0), delay);
+  });
+}
+fs.writeFileSync(process.env.LUMP_HOLD_READY, '1');
+setInterval(() => {}, 60000);`,
+                ],
+                {
+                    detached: true,
+                    stdio: 'ignore',
+                    env: {
+                        ...process.env,
+                        LUMP_HOLD_MODE: input.mode,
+                        LUMP_HOLD_DELAY_MS: String(input.delayMs ?? 0),
+                        LUMP_HOLD_READY: readyFile,
+                    },
+                },
+            );
+            child.unref();
+            const pid = child.pid;
+            if (pid === undefined) {
+                throw new Error('spawn did not return a pid');
+            }
+            activePids.add(pid);
+            await pollUntil({
+                timeoutMs: 5000,
+                intervalMs: 25,
+                timeoutError: 'hold fixture did not become ready',
+                poll: async () => {
+                    try {
+                        await fs.access(readyFile);
+                        return true;
+                    } catch {
+                        return undefined;
+                    }
+                },
+            });
+            return pid;
+        }
+
+        async function plantIdleDaemon(daemonId: string, pid: number) {
+            const files = daemonSchedulerFiles({
+                daemonsDir: path.join(globalConfigFolderPath, 'daemons'),
+                projectName,
+                daemonId,
+            });
+            await fs.mkdir(path.dirname(files.pidFilePath), { recursive: true });
+            await fs.writeFile(files.pidFilePath, `${pid}\n`, 'utf8');
+            await fs.writeFile(files.logFilePath, 'log\n', 'utf8');
+            await writeJsonFile({
+                filePath: files.metaFilePath,
+                data: {
+                    daemonId,
+                    cronSetup: '*/5 * * * *',
+                    workspaceStrategy: 'checkout',
+                    inFlightRuns: [],
+                },
+            });
+            await writeJsonFile({
+                filePath: files.desiredFilePath,
+                data: { projectRoot, daemonId, cronSetup: '*/5 * * * *' },
+            });
+            return files;
+        }
+
+        function assertDead(pid: number) {
+            expect(() => process.kill(pid, 0)).toThrow();
+            activePids.delete(pid);
+        }
+
+        it('waits out a daemon that exits ~7s after SIGTERM and still stops the rest', async () => {
+            const slowPid = await spawnHold({ mode: 'delay', delayMs: 7000 });
+            const fastPid = await spawnHold({ mode: 'default' });
+            const supervisorPid = await spawnHold({ mode: 'default' });
+            const slowFiles = await plantIdleDaemon('slow', slowPid);
+            const fastFiles = await plantIdleDaemon('fast', fastPid);
+            const supervisorPidFile = supervisorPidPath({ globalConfigFolderPath, projectName });
+            const supervisorMetaFile = supervisorMetaPath({ globalConfigFolderPath, projectName });
+            await fs.mkdir(path.dirname(supervisorPidFile), { recursive: true });
+            await fs.writeFile(supervisorPidFile, `${supervisorPid}\n`, 'utf8');
+            await writeJsonFile({
+                filePath: supervisorMetaFile,
+                data: { projectRoot, startedAt: new Date().toISOString() },
+            });
+
+            const logs: string[] = [];
+            const spy = vi.spyOn(console, 'log').mockImplementation((message?: unknown) => {
+                logs.push(String(message));
+            });
+            try {
+                const result = await makeStopHandler()({ options: { all: true }, arguments: {} });
+                expect(
+                    result.success,
+                    result.success ? '' : result.data.messages.join(' '),
+                ).toBe(true);
+                if (!result.success) throw new Error('unreachable');
+                const text = result.data.messages.join(' ');
+                expect(text).toMatch(/Stopped all Lumpcode daemons and the supervisor/);
+                expect(text).not.toMatch(/Process pid \d+ did not exit within/);
+                expect(logs.join('\n')).toContain(
+                    'daemon "slow" did not exit within 5s after SIGTERM; waiting for drain',
+                );
+                expect(logs.join('\n')).not.toMatch(/Process pid \d+ did not exit within/);
+            } finally {
+                spy.mockRestore();
+            }
+
+            for (const files of [slowFiles, fastFiles]) {
+                await expect(fs.access(files.pidFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+                await expect(fs.access(files.metaFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+                await expect(fs.access(files.desiredFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+                await expect(fs.access(files.logFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+            }
+            await expect(fs.access(supervisorPidFile)).rejects.toMatchObject({ code: 'ENOENT' });
+            await expect(fs.access(supervisorMetaFile)).rejects.toMatchObject({ code: 'ENOENT' });
+            assertDead(slowPid);
+            assertDead(fastPid);
+            assertDead(supervisorPid);
+        }, 20_000);
+
+        it('names daemons still running when the shared drain wait times out', async () => {
+            const nightlyPid = await spawnHold({ mode: 'ignore' });
+            const globalPid = await spawnHold({ mode: 'default' });
+            await plantIdleDaemon('nightly', nightlyPid);
+            await plantIdleDaemon('global', globalPid);
+            const { logger, infos } = captureLogger();
+
+            const result = await stopAllProjectDaemons({
+                projectName,
+                daemonsDir: path.join(globalConfigFolderPath, 'daemons'),
+                globalConfigFolderPath,
+                force: false,
+                logger,
+                drainTimeoutMs: 600,
+            });
+
+            expect(result.success).toBe(false);
+            if (result.success) throw new Error('unreachable');
+            expect(result.data).toBe(
+                'Timed out waiting for project daemons to exit (still running: "nightly"). Run `lumpcode stop --all --force`.',
+            );
+            expect(infos).toContain(
+                'daemon "nightly" did not exit within 5s after SIGTERM; waiting for drain',
+            );
+            assertDead(globalPid);
+            expect(() => process.kill(nightlyPid, 0)).not.toThrow();
+        }, 20_000);
     });
 });

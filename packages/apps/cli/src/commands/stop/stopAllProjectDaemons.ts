@@ -33,8 +33,9 @@ export type StopAllProjectDaemonsResult = {
 
 /**
  * Mark every desired stopping, then `drainOrStopOneDaemon` per id
- * (mid-run daemons drain unless force). Poll leftovers, unlink, then
- * stop the supervisor (no busy/meta policy).
+ * (mid-run daemons drain unless force). A SIGTERM exit timeout joins
+ * that same drain wait. Poll leftovers, unlink, then stop the supervisor
+ * (no busy/meta policy).
  */
 export async function stopAllProjectDaemons(
     input: StopAllProjectDaemonsInput,
@@ -91,8 +92,23 @@ export async function stopAllProjectDaemons(
             case 'draining':
                 logger.info(`daemon "${daemonId}" is mid-run; waiting for drain`);
                 break;
-            case 'failed':
-                return failure(stopped.message);
+            case 'failed': {
+                switch (stopped.cause) {
+                    case 'exitTimeout':
+                        logger.info(
+                            `daemon "${daemonId}" did not exit within ${Math.round(waitMs / 1000)}s after SIGTERM; waiting for drain`,
+                        );
+                        break;
+                    case 'pidRead':
+                    case 'signal':
+                        return failure(stopped.message);
+                    default: {
+                        const _exhaustive: never = stopped;
+                        return failure(String(_exhaustive));
+                    }
+                }
+                break;
+            }
             default: {
                 const _exhaustive: never = stopped;
                 return failure(String(_exhaustive));
@@ -101,19 +117,22 @@ export async function stopAllProjectDaemons(
     }
 
     const drainWaitMs = force ? DAEMON_FORCE_STOP_WAIT_MS : drainTimeoutMs;
+    let stillRunningIds: string[] = [];
     const drained = await pollUntil({
         timeoutMs: drainWaitMs,
         intervalMs: 200,
         poll: async () => {
             const still = await listRunningProjectDaemons({ daemonsDir, projectName });
             if (!still.success) return undefined;
-            return Object.keys(still.data).length === 0 ? true : undefined;
+            stillRunningIds = Object.keys(still.data);
+            return stillRunningIds.length === 0 ? true : undefined;
         },
     });
 
     if (!drained) {
+        const listed = stillRunningIds.map((id) => `"${id}"`).join(', ');
         return failure(
-            'Timed out waiting for project daemons to exit. Run `lumpcode stop --all --force`.',
+            `Timed out waiting for project daemons to exit (still running: ${listed}). Run \`lumpcode stop --all --force\`.`,
         );
     }
 

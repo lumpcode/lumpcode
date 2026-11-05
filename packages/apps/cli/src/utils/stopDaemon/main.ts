@@ -47,27 +47,38 @@ async function signalDaemonProcess(input: {
     }
 }
 
+/** `stopPid` failure. `exitTimeout` is not detected by reading `message`. */
+type StopPidCallFailure =
+    | { cause: 'signal'; message: string }
+    | { cause: 'exitTimeout'; message: string };
+
 async function stopPid(input: {
     pid: number;
     force: boolean;
     waitMs: number;
-}): Promise<Success<void> | Failure<string>> {
+}): Promise<Success<void> | Failure<StopPidCallFailure>> {
     const { pid, force, waitMs } = input;
     const signaled = await signalDaemonProcess({ pid, force });
     if (!signaled.success) {
-        return signaled;
+        const error: StopPidCallFailure = { cause: 'signal', message: signaled.data };
+        return failure(error);
     }
     if (await waitForPidExit({ pid, waitMs })) {
         return success(undefined);
     }
-    return failure(`Process pid ${pid} did not exit within ${Math.round(waitMs / 1000)}s.`);
+    const error: StopPidCallFailure = {
+        cause: 'exitTimeout',
+        message: `Process pid ${pid} did not exit within ${Math.round(waitMs / 1000)}s.`,
+    };
+    return failure(error);
 }
 
 export type StopPidResult =
     | { status: 'stopped'; pid: number }
     | { status: 'missing' }
     | { status: 'stale' }
-    | { status: 'failed'; message: string; pid?: number };
+    | { status: 'failed'; cause: 'pidRead' | 'signal'; message: string; pid?: number }
+    | { status: 'failed'; cause: 'exitTimeout'; message: string; pid: number };
 
 export type StopOneDaemonResult =
     | StopPidResult
@@ -93,7 +104,7 @@ async function readPidForStop(
 ): Promise<StopPidResult | { status: 'alive'; pid: number }> {
     const pidAliveResult = await readDaemonPidIfAlive(pidFilePath);
     if (!pidAliveResult.success) {
-        return { status: 'failed', message: pidAliveResult.data };
+        return { status: 'failed', cause: 'pidRead', message: pidAliveResult.data };
     }
     const pidAlive = pidAliveResult.data;
     if (pidAlive.status === 'missing') {
@@ -117,7 +128,12 @@ async function signalWaitUnlink(input: {
         waitMs: input.waitMs,
     });
     if (!stopped.success) {
-        return { status: 'failed', message: stopped.data, pid: input.pid };
+        return {
+            status: 'failed',
+            cause: stopped.data.cause,
+            message: stopped.data.message,
+            pid: input.pid,
+        };
     }
     await unlinkBestEffort(input.unlinkPaths);
     return { status: 'stopped', pid: input.pid };
@@ -277,17 +293,25 @@ export function stopOneDaemonCliFailure(
                 data: { code: 'daemonBusy' },
             });
         case 'failed': {
-            const prefix = force
-                ? `Force-killed pid ${stopped.pid}`
-                : `Sent SIGTERM to pid ${stopped.pid}`;
-            const timeout = stopped.message.includes('did not exit');
-            return failure({
-                messages: [
-                    timeout
-                        ? `${prefix} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`
-                        : stopped.message,
-                ],
-            });
+            switch (stopped.cause) {
+                case 'exitTimeout': {
+                    const prefix = force
+                        ? `Force-killed pid ${stopped.pid}`
+                        : `Sent SIGTERM to pid ${stopped.pid}`;
+                    return failure({
+                        messages: [
+                            `${prefix} but it did not exit within ${waitSeconds}s. PID file left at ${pidFilePath}.`,
+                        ],
+                    });
+                }
+                case 'pidRead':
+                case 'signal':
+                    return failure({ messages: [stopped.message] });
+                default: {
+                    const _exhaustive: never = stopped;
+                    return _exhaustive;
+                }
+            }
         }
         default: {
             const _exhaustive: never = stopped;
