@@ -216,6 +216,8 @@ describe('setup command', () => {
             expect(config).not.toHaveProperty('baseBranch');
 
             const committed = execGit('diff-tree --no-commit-id --name-only -r HEAD', projectRoot);
+            expect(committed.split('\n')).toContain('.lumpcode/.gitignore');
+            expect(committed.split('\n')).not.toContain('.gitignore');
             expect(committed).toMatch(/\.lumpcode\/project\.json/);
             expect(committed).toMatch(/\.lumpcode\/lumps\//);
             expect(committed).not.toMatch(/local\.json/);

@@ -5,10 +5,8 @@ import { failure, pathExists, success, type Failure, type Success } from '@lumpc
 
 import type { Mode } from '../../types/Mode';
 import type { WorkspaceStrategy } from '../../types/WorkspaceStrategy';
-import { appendMissingGitignoreLines } from '../appendMissingGitignoreLines';
 import { localConfigFolderPath } from '../localConfigFolderPath';
 import { lumpsDirPath } from '../lumpDirPath';
-import { TRANSCRIPTS_GITIGNORE_LINE } from '../lumpTranscriptFilePath';
 import { projectJsonPath } from '../projectJsonPath';
 import { LOCAL_CONFIG_FILE_NAME } from '../readLocalConfig';
 import { writeJsonFile } from '../writeJsonFile';
@@ -23,11 +21,16 @@ export type ScaffoldLumpcodeProjectInput = {
     };
 };
 
-const CONTEXT_STATUS_RECORD_GITIGNORE_LINE = '.lumpcode/**/contextStatusRecord.json';
-const HISTORY_GITIGNORE_LINE = '.lumpcode/**/history/';
-const WORKTREES_GITIGNORE_LINE = '.lumpcode/worktrees/';
-const CACHE_GITIGNORE_LINE = '.lumpcode/.cache/';
-const LOCAL_CONFIG_GITIGNORE_LINE = `.lumpcode/${LOCAL_CONFIG_FILE_NAME}`;
+/** `.lumpcode/.gitignore` body. Written once by setup and project-setup. */
+export const LUMPCODE_GITIGNORE_BODY = `# This file is written once.
+
+/local.json
+/.cache/
+/worktrees/
+**/contextStatusRecord.json
+**/history/
+**/transcripts/
+`;
 
 /**
  * Create-only `.lumpcode/` write path. Fails when the tree already exists.
@@ -70,26 +73,12 @@ export async function scaffoldLumpcodeProject(
                 pretty: true,
                 trailingNewline: true,
             }),
+            fs.writeFile(path.join(lumpcodeDir, '.gitignore'), LUMPCODE_GITIGNORE_BODY, 'utf-8'),
         ]);
         if (!projectWrite.success) throw new Error(projectWrite.data);
         if (!localWrite.success) throw new Error(localWrite.data);
     } catch (error) {
         return failure(`Failed to initialize Lumpcode project: ${error}`);
-    }
-
-    const gitignoreResult = await appendMissingGitignoreLines({
-        projectRoot: input.projectRoot,
-        lines: [
-            CONTEXT_STATUS_RECORD_GITIGNORE_LINE,
-            HISTORY_GITIGNORE_LINE,
-            TRANSCRIPTS_GITIGNORE_LINE,
-            WORKTREES_GITIGNORE_LINE,
-            CACHE_GITIGNORE_LINE,
-            LOCAL_CONFIG_GITIGNORE_LINE,
-        ],
-    });
-    if (!gitignoreResult.success) {
-        return failure(gitignoreResult.data);
     }
 
     return success({ lumpcodeDir });
