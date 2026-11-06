@@ -107,5 +107,5 @@ changing code, make the smallest fix, then reload and verify. Do not commit.`,
 
 - **The label is the opt-in.** Humans decide which bugs the agent gets. Swap `gh issue list` for `az boards query --wiql …` (Azure DevOps) or your tracker's API; the shape is the same.
 - **A running app.** `postSetupWorkspaceFn` runs once per branch workspace, before the agent. Start the dev server there, and stop it in `postTeardownWorkspaceFn`. Shared helpers live in `.lumpcode/helpers/`, outside `lumps/`. A sketch is in [Building blocks](building-blocks.md#start-a-dev-server-for-the-agent).
-- **Proof, not promises.** The second loop fails the context until the report file exists, so every PR arrives with an explanation and screenshots for the reviewer.
+- **Proof, not promises.** The second loop exits 1 until the report file exists. The default still pushes that branch. Pass `pushOnValidationFailure: false` on that loop when the branch should stay unpublished until the file is there.
 - Give the agent a browser tool (for example a Playwright MCP server in its own config). Lumpcode only runs the agent; the tools are the agent's.

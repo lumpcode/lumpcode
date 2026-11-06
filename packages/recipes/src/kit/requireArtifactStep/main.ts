@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { LumpVariables, StepVariables } from '@lumpcode/cli-utils';
 import { pathExists } from '@lumpcode/core';
 
-import type { ValidationCommandFn } from '../getRecursiveSteps';
+import type { ValidationCommandFn } from '../getValidationLoopSteps';
 
 /** Validation command that fails when the artifact referenced by a context variable was not created. */
 export function requireArtifactStep<

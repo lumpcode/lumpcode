@@ -145,7 +145,7 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
         const SUCCESS_ATTEMPT = 4;
         const echoOk = () => ({ executable: 'echo', args: ['ok'] });
 
-        function getRecursiveSteps(): LumpJsConfigSteps {
+        function getValidationLoopSteps(): LumpJsConfigSteps {
             return [
                 {
                     commandFn({ context }) {
@@ -173,7 +173,7 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
                         return [];
                     }
                     if (!contextRunState.loopIsValid) {
-                        return getRecursiveSteps();
+                        return getValidationLoopSteps();
                     }
                     return [];
                 }) as LumpJsConfigSteps[number],
@@ -189,7 +189,7 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
             const resolved = assertSuccess(await jsConfigToRunLumpInput({
                 config: {
                     getContextListFn: () => [{ name: 'loopCtx', variables: { NAME: 'loopCtx' } }],
-                    steps: getRecursiveSteps(),
+                    steps: getValidationLoopSteps(),
                     numberOfContextsPerBranch: 1,
                 } as LumpJsConfig,
                 lumpName: 'loop-lump',

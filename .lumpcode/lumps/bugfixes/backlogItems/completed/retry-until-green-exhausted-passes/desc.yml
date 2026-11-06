@@ -1,0 +1,12 @@
+name: retry-until-green-exhausted-passes
+workflow:
+  - impl
+task: >-
+  getRecursiveSteps (behind retryUntilGreen) caps retries on stepIndex nesting
+  depth and then swaps the check for `echo "Loop limit reached"` (exit 0), so a
+  check that never passes is indistinguishable from a pass and a nested caller
+  gets fewer attempts. Cap on the iteration count, always run the real check,
+  set lumpVariables.__VALIDATION_FAILED__ true or false, push the branch by
+  default, and add pushOnValidationFailure: false to withhold that push.
+priority: 20
+completedAt: '2026-11-05T17:28:15.713Z'

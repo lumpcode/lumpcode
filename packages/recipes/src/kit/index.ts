@@ -10,6 +10,9 @@ export {
     type EphemeralContextListFnOptions,
 } from './ephemeralContextListFn';
 export {
+    getValidationLoopSteps,
+    DEFAULT_VALIDATION_FAILED_VARIABLE_NAME,
+    type GetValidationLoopStepsOptions,
     getRecursiveSteps,
     type GetRecursiveStepsOptions,
     type ValidationCommandFnInput,
@@ -17,7 +20,7 @@ export {
     type IsValidationCommandResultOkInput,
     type GetFirstStepsInput,
     type StepIndex,
-} from './getRecursiveSteps';
+} from './getValidationLoopSteps';
 export {
     retryUntilGreen,
     type RetryUntilGreenInput,

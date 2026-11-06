@@ -8,6 +8,8 @@ import {
 } from '@lumpcode/cli-utils';
 import type { CommandDescriptor, MaybePromise, PostCommandExecFn } from '@lumpcode/core';
 
+import { shellCommand } from './shellCommand';
+
 export type StepIndex = number | number[];
 
 export type ValidationCommandFnInput<
@@ -38,7 +40,7 @@ export type GetFirstStepsInput = {
     prevValidateCommandDescriptor: CommandDescriptor | null;
 };
 
-export type GetRecursiveStepsOptions<
+export type GetValidationLoopStepsOptions<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 > = {
@@ -49,14 +51,41 @@ export type GetRecursiveStepsOptions<
     currentIteration?: number;
     prevValidateCommandResult?: string | null;
     prevValidateCommandDescriptor?: CommandDescriptor | null;
+    /** When the last check is still red, succeed and let core push. `false` fails the walk after the flag is set. Default `true`. */
+    pushOnValidationFailure?: boolean;
+    /** Lump variable set to `true` when the last check is still red, `false` when a check passes. Default `__VALIDATION_FAILED__`. */
+    validationFailedVariableName?: string;
 };
 
-function stepIndexDepth(stepIndex: StepIndex): number {
-    return Array.isArray(stepIndex) ? stepIndex.length : 1;
+export const DEFAULT_VALIDATION_FAILED_VARIABLE_NAME = '__VALIDATION_FAILED__';
+
+function setValidationFailed({
+    lumpVariables,
+    variableName,
+    failed,
+}: {
+    lumpVariables: LumpVariables;
+    variableName: string;
+    failed: boolean;
+}): void {
+    lumpVariables[variableName] = failed;
+}
+
+/** Fails the walk after the validation-failed variable is already set. The check keeps `continueOnError: true` so core still runs `postCommandExecFn`. */
+function withholdPushAfterValidationFailure<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+>(): LumpJsConfigSteps<V, SV> {
+    return [
+        {
+            commandFn: () => shellCommand('exit 1'),
+            continueOnError: false,
+        },
+    ];
 }
 
 /** Agent prompt(s) followed by a validation command, retried until checks pass or `maxIterations` is reached. */
-export function getRecursiveSteps<
+export function getValidationLoopSteps<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 >({
@@ -67,7 +96,9 @@ export function getRecursiveSteps<
     currentIteration = 0,
     prevValidateCommandResult = null,
     prevValidateCommandDescriptor = null,
-}: GetRecursiveStepsOptions<V, SV>): LumpJsConfigSteps<V, SV> {
+    pushOnValidationFailure = true,
+    validationFailedVariableName = DEFAULT_VALIDATION_FAILED_VARIABLE_NAME,
+}: GetValidationLoopStepsOptions<V, SV>): LumpJsConfigSteps<V, SV> {
     const firstSteps = getFirstSteps({
         currentIteration,
         prevValidateCommandResult,
@@ -83,12 +114,6 @@ export function getRecursiveSteps<
         }),
         {
             async commandFn(input) {
-                if (stepIndexDepth(input.stepIndex) > maxIterations) {
-                    return {
-                        executable: 'echo',
-                        args: ['Loop limit reached'],
-                    };
-                }
                 const validateCommandDescriptor = await validationCommandFn({
                     ...input,
                     currentIteration,
@@ -98,26 +123,51 @@ export function getRecursiveSteps<
                 return validateCommandDescriptor;
             },
             async postCommandExecFn(input) {
-                if (stepIndexDepth(input.stepIndex) > maxIterations) {
-                    return;
-                }
                 if (isValidationCommandResultOk({
                     ...input,
                     currentIteration,
                 })) {
+                    setValidationFailed({
+                        lumpVariables: input.lumpVariables,
+                        variableName: validationFailedVariableName,
+                        failed: false,
+                    });
                     return;
                 }
-                return getRecursiveSteps<V, SV>({
-                    maxIterations,
-                    validationCommandFn,
-                    isValidationCommandResultOk,
-                    getFirstSteps,
-                    currentIteration: currentIteration + 1,
-                    prevValidateCommandResult: input.commandResult,
-                    prevValidateCommandDescriptor: thisIterValidateCommandDescriptor,
+                if (currentIteration < maxIterations) {
+                    return getValidationLoopSteps<V, SV>({
+                        maxIterations,
+                        validationCommandFn,
+                        isValidationCommandResultOk,
+                        getFirstSteps,
+                        currentIteration: currentIteration + 1,
+                        prevValidateCommandResult: input.commandResult,
+                        prevValidateCommandDescriptor: thisIterValidateCommandDescriptor,
+                        pushOnValidationFailure,
+                        validationFailedVariableName,
+                    });
+                }
+                setValidationFailed({
+                    lumpVariables: input.lumpVariables,
+                    variableName: validationFailedVariableName,
+                    failed: true,
                 });
+                if (pushOnValidationFailure) {
+                    return;
+                }
+                return withholdPushAfterValidationFailure<V, SV>();
             },
-            continueOnError: currentIteration < maxIterations,
+            // Always reach postCommandExecFn, including a red last check, so the flag is set before any withholding step.
+            continueOnError: true,
         },
     ];
 }
+
+/** @deprecated Use `getValidationLoopSteps`. */
+export const getRecursiveSteps = getValidationLoopSteps;
+
+/** @deprecated Use `GetValidationLoopStepsOptions`. */
+export type GetRecursiveStepsOptions<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = GetValidationLoopStepsOptions<V, SV>;

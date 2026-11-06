@@ -10,7 +10,7 @@ npm install --save-dev @lumpcode/recipes @lumpcode/cli-utils
 
 ## Retry until green
 
-Run your checks after the agent; on failure, hand it the output and try again. Only green work is committed and pushed.
+Run your checks after the agent; on failure, hand it the output and try again. A still-red last attempt is still committed and pushed. Pass `pushOnValidationFailure: false` to withhold that push. The `lumpVariables.__VALIDATION_FAILED__` flag can be renamed with `validationFailedVariableName`.
 
 ```ts
 // .lumpcode/lumps/typedExports/config.ts
@@ -64,7 +64,7 @@ workflow: [req, impl]
 
 | Helper | Does |
 | --- | --- |
-| `retryUntilGreen`, `getRecursiveSteps` | validation loops with retries |
+| `retryUntilGreen`, `getValidationLoopSteps` | validation loops with retries (`getRecursiveSteps` is a deprecated alias) |
 | `requireArtifactStep` | fails a step until a file exists |
 | `shellCommand` | `sh -c` command for validation steps |
 | `openPrPostTeardown` | opens a GitHub PR with `gh` after push |
