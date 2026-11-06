@@ -3,7 +3,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as core from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
-import { listRemoteHeadBranches } from './main';
+import { listRemoteHeadBranches, listRemoteHeadRefs } from './main';
 
 vi.mock('@lumpcode/core', async () => {
     const actual = await vi.importActual<typeof core>('@lumpcode/core');
@@ -156,6 +156,53 @@ describe('listRemoteHeadBranches', () => {
         });
 
         expect(listed).toEqual(failure({ message: 'git failed', reason: 'exit' }));
+    });
+
+    it('listRemoteHeadRefs returns the branch name with the hash ls-remote reports', async () => {
+        execAsyncMock.mockResolvedValue(
+            success({
+                stdout:
+                    'abc123\trefs/heads/lump/my-lump/ctx-a\n' +
+                    'def456 refs/heads/lump/my-lump/ctx-b\n',
+                stderr: '',
+            }),
+        );
+
+        const listed = await listRemoteHeadRefs({
+            cwd: '/tmp/repo',
+            branchGlob: 'lump/my-lump/*',
+        });
+
+        expect(listed).toEqual(
+            success([
+                { branchName: 'lump/my-lump/ctx-a', commitHash: 'abc123' },
+                { branchName: 'lump/my-lump/ctx-b', commitHash: 'def456' },
+            ]),
+        );
+    });
+
+    it('listRemoteHeadRefs keeps the first hash when a branch name is repeated', async () => {
+        execAsyncMock.mockResolvedValue(
+            success({
+                stdout:
+                    'abc123\trefs/heads/lump/my-lump/ctx-a\n' +
+                    'def456\trefs/heads/lump/my-lump/ctx-b\n' +
+                    'ghi789\trefs/heads/lump/my-lump/ctx-a\n',
+                stderr: '',
+            }),
+        );
+
+        const listed = await listRemoteHeadRefs({
+            cwd: '/tmp/repo',
+            branchGlob: 'lump/my-lump/*',
+        });
+
+        expect(listed).toEqual(
+            success([
+                { branchName: 'lump/my-lump/ctx-a', commitHash: 'abc123' },
+                { branchName: 'lump/my-lump/ctx-b', commitHash: 'def456' },
+            ]),
+        );
     });
 
     it('ignores lines with fewer than two whitespace-separated fields', async () => {

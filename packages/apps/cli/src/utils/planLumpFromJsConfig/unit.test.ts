@@ -324,6 +324,39 @@ describe('planLumpFromJsConfig', () => {
                 maximumNumberOfConcurrentBranches: 2,
             });
         });
+
+        it('plan depth returns a plan when the only lump branch on origin is already merged', async () => {
+            const branch = 'lump/preview-lump/ctx-a';
+            execGit('checkout main', projectRoot);
+            execGit(`checkout -b ${branch}`, projectRoot);
+            execGit('commit --allow-empty -m "lump work"', projectRoot);
+            execGit(`push origin ${branch}`, projectRoot);
+            execGit('checkout main', projectRoot);
+            execGit(`merge --no-ff ${branch} -m "merge"`, projectRoot);
+            execGit('push origin main', projectRoot);
+            execGit('fetch origin main', projectRoot);
+
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'project.json'),
+                data: {
+                    projectName: 'preview-project',
+                    maximumNumberOfConcurrentBranches: 1,
+                },
+            });
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.plan?.skipped).toBeUndefined();
+            expect(result.data.plan?.branchName).toBeTruthy();
+            expect(result.data.plan?.contextNames).toEqual(['ctx1']);
+        });
     });
 
     describe('plan skips post workspace hooks', () => {
