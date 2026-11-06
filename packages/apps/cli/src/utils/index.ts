@@ -54,6 +54,7 @@ export * from './installDaemonProcessGuards';
 export * from './installProcessShutdown';
 export * from './installRunAbortHandlers';
 export * from './isGitRefGlob';
+export * from './isReachableFromNonLumpRemoteHead';
 export * from './isValidLumpName';
 export * from './jsConfigToRunLumpInput';
 export * from './jsonConfigToJsConfig';

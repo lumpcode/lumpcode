@@ -75,7 +75,7 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `baseBranch` | Exact execution branch. Omit to use the concrete discovery / primary branch. JS/TS may use `({ effectiveDiscoveryBranch, contexts }) => string`. |
 | `discoveryBranch` / `discoveryBranches` | Where a dedicated worker finds this lump. Mutually exclusive. Globs allowed. Ignored for `run` in shared mode. |
 | `disabled` | Soft-skip on `run` and on the worker (exit 0). Boolean, function, or module path. |
-| `maximumNumberOfConcurrentBranches` | Skip the run when that many `lump/<name>/*` branches already exist on origin. |
+| `maximumNumberOfConcurrentBranches` | Skip the run when that many `lump/<name>/*` branches on origin are not merged yet. A branch whose tip is already in a non-lump branch (merge commit or fast-forward) does not count. |
 | `numberOfContextsPerBranch` | Default `1`. Raise it to group small diffs. |
 | `lumpVariables` | Bag for hooks and preset options (`model`, `agentPermissions`, `outputDetail`). |
 | `verbose` | Extra engine logs. Also on with `lumpcode run --verbose`. |

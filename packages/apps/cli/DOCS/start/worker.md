@@ -64,7 +64,7 @@ More in [Watch it work](observe.md).
 - Add or change a lump, check it with `lumpcode lump-plan <lumpName>`, push, merge. The worker picks it up.
 - Merge what is good. If you squash, keep the `LUMP: <lumpName> - <context>` line in the message, it is how Lumpcode knows the item is done.
 - Pause a lump with `"disabled": true`, push, merge. The worker skips it and stays up.
-- Cap a lump's branches on the remote with `maximumNumberOfConcurrentBranches` so the worker waits for your reviews. A merged branch still counts until it is deleted: turn on your host's delete-branch-on-merge setting, or run `lumpcode clean --lumpName <name>`.
+- Cap a lump's branches on the remote with `maximumNumberOfConcurrentBranches` so the worker waits for your reviews. Merged branches stop counting once the worker has fetched the base branch. Squash and rebase merges still count until the branch is deleted: turn on delete-branch-on-merge or run `lumpcode clean --lumpName <name>`.
 
 Changed `.lumpcode/local.json` or `project.json` on the worker? Run `lumpcode restart`. Lumps are re-read every pass; machine config is read once at start.
 

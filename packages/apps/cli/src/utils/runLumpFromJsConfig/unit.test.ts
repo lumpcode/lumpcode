@@ -141,6 +141,31 @@ describe('runLumpFromJsConfig', () => {
         expect(core.runLump).not.toHaveBeenCalled();
     });
 
+    it('does not skip when the only lump branch on origin is already merged', async () => {
+        createAndPushLumpBranch('my-lump', 'ctx-a');
+        execGit('checkout main', projectRoot);
+        execGit(`merge --no-ff ${LUMP_BRANCH_PREFIX}my-lump/ctx-a -m "merge"`, projectRoot);
+        execGit('push origin main', projectRoot);
+        execGit('fetch origin main', projectRoot);
+
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.success({
+                result: {
+                    branchName: 'some-branch',
+                    contextNames: ['ctx1'],
+                    contextRunStateList: [],
+                },
+            } as unknown as core.RunLumpOutput),
+        );
+
+        const result = await callRunLumpFromJsConfig(makeJsConfig({ maximumNumberOfConcurrentBranches: 1 }));
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.skipped).toBe(false);
+        expect(core.runLump).toHaveBeenCalledOnce();
+    });
+
     it('runs normally when the number of open branches is below maximumNumberOfConcurrentBranches', async () => {
         createAndPushLumpBranch('my-lump', 'ctx-a');
 
