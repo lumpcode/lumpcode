@@ -6,7 +6,7 @@ import { command } from './main';
 import { LUMP_BRANCH_PREFIX, REFS_HEADS_PREFIX } from '../../consts';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
-import { gitCurrentBranch, writeLocalJson } from '../../testing';
+import { createLumpWorkBranch, gitCurrentBranch, writeLocalJson } from '../../testing';
 import { execGit, initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
@@ -45,22 +45,9 @@ describe('clean command', () => {
         return command.handlerMaker({ projectRoot });
     }
 
-    function setupLumpBranch(lumpName: string, contextName: string, opts: { push?: boolean } = { push: true }) {
-        const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        const message = getGitCommitMessage({ contextName, lumpName });
-        execGit('checkout main', projectRoot);
-        execGit(`checkout -b ${branch}`, projectRoot);
-        execGit(`commit --allow-empty -m "${message}"`, projectRoot);
-        if (opts.push) {
-            execGit(`push origin ${branch}`, projectRoot);
-        }
-        execGit('checkout main', projectRoot);
-        return branch;
-    }
-
     it('removes all lump branches from local and remote', async () => {
-        setupLumpBranch('myLump', 'button');
-        setupLumpBranch('myLump', 'form');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'form', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: {}, arguments: {} });
@@ -79,8 +66,8 @@ describe('clean command', () => {
     });
 
     it('scopes cleanup to a single lump when lumpName is provided', async () => {
-        setupLumpBranch('alpha', 'ctx1');
-        setupLumpBranch('beta', 'ctx2');
+        createLumpWorkBranch({ projectRoot, lumpName: 'alpha', contextName: 'ctx1', useMarkerMessage: true });
+        createLumpWorkBranch({ projectRoot, lumpName: 'beta', contextName: 'ctx2', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'alpha' }, arguments: {} });
@@ -106,7 +93,7 @@ describe('clean command', () => {
     });
 
     it('cleans local-only branches that were never pushed', async () => {
-        setupLumpBranch('myLump', 'local-only', { push: false });
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'local-only', useMarkerMessage: true, push: false });
 
         const handle = makeHandler();
         const result = await handle({ options: {}, arguments: {} });
@@ -127,9 +114,9 @@ describe('clean command', () => {
     }
 
     it('contextName does not delete another lump branch cut from the merged base', async () => {
-        const button = setupLumpBranch('myLump', 'button');
+        const button = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
         mergeIntoMainAndPush(button);
-        const card = setupLumpBranch('otherLump', 'card');
+        const card = createLumpWorkBranch({ projectRoot, lumpName: 'otherLump', contextName: 'card', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
@@ -149,9 +136,9 @@ describe('clean command', () => {
     });
 
     it('contextName does not delete a same-lump branch cut from the merged base', async () => {
-        const button = setupLumpBranch('myLump', 'button');
+        const button = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
         mergeIntoMainAndPush(button);
-        const form = setupLumpBranch('myLump', 'form');
+        const form = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'form', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
@@ -168,7 +155,7 @@ describe('clean command', () => {
     });
 
     it('contextName does not delete another lump branch that contains an unmerged marker', async () => {
-        const button = setupLumpBranch('myLump', 'button');
+        const button = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
         const card = `${LUMP_BRANCH_PREFIX}otherLump/card`;
         const cardMessage = getGitCommitMessage({ contextName: 'card', lumpName: 'otherLump' });
         execGit(`checkout ${button}`, projectRoot);
@@ -192,8 +179,8 @@ describe('clean command', () => {
     });
 
     it('contextName scopes cleanup to a single context', async () => {
-        setupLumpBranch('myLump', 'button');
-        setupLumpBranch('myLump', 'form');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'form', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
@@ -210,13 +197,14 @@ describe('clean command', () => {
     });
 
     it('contextName finds a marker in the commit body', async () => {
-        const branch = `${LUMP_BRANCH_PREFIX}myLump/button`;
         const message = getGitCommitMessage({ contextName: 'button', lumpName: 'myLump' });
-        execGit('checkout main', projectRoot);
-        execGit(`checkout -b ${branch}`, projectRoot);
-        execGit(`commit --allow-empty -m "PR title" -m "* ${message}"`, projectRoot);
-        execGit(`push origin ${branch}`, projectRoot);
-        execGit('checkout main', projectRoot);
+        const branch = createLumpWorkBranch({
+            projectRoot,
+            lumpName: 'myLump',
+            contextName: 'button',
+            message: 'PR title',
+            commitBody: `* ${message}`,
+        });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
@@ -260,7 +248,7 @@ describe('clean command', () => {
     });
 
     it('does not call runProjectPreflight', async () => {
-        setupLumpBranch('myLump', 'button');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
         const spy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
         const handle = makeHandler();
         await handle({ options: {}, arguments: {} });
@@ -268,7 +256,7 @@ describe('clean command', () => {
     });
 
     it('does not switch integration branch during clean', async () => {
-        setupLumpBranch('myLump', 'button');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
         const branchBefore = gitCurrentBranch(projectRoot);
         const handle = makeHandler();
         await handle({ options: {}, arguments: {} });
@@ -281,7 +269,7 @@ describe('clean command', () => {
             mode: 'shared',
             primaryBranch: 'main',
         });
-        setupLumpBranch('myLump', 'button');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
 
         const handle = command.handlerMaker({ projectRoot, globalConfigFolderPath });
         const result = await handle({ options: {}, arguments: {} });
@@ -298,7 +286,7 @@ describe('clean command', () => {
             primaryBranch: 'main',
             primaryBranches: ['main', 'ver/0.0.9'],
         });
-        setupLumpBranch('myLump', 'ctx');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'ctx', useMarkerMessage: true });
         const branchBefore = gitCurrentBranch(projectRoot);
         const handle = makeHandler();
         const result = await handle({ options: {}, arguments: {} });

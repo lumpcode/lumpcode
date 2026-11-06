@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
 
 import { lumpWorktreePath } from '../utils/getLumpWorktreePath';
+import { createLumpWorkBranch } from '../testing';
 import {
     createE2eLoopLumpConfigJs,
     e2eMarkerPath,
@@ -21,7 +22,6 @@ import {
     remoteBranchFileContent,
     runE2eCli,
     seedFinishedContextOnMain,
-    seedRemoteLumpBranch,
     sharedModeCopyPath,
     useE2eProjects,
 } from './harness';
@@ -163,7 +163,7 @@ describe('E2E run scenarios', () => {
         const project = await createProject({
                 lumps: [{ name: lumpName, maximumNumberOfConcurrentBranches: 1 }],
             });
-        seedRemoteLumpBranch({ projectRoot: project.projectRoot, lumpName, contextName: 'seeded' });
+        createLumpWorkBranch({ projectRoot: project.projectRoot, lumpName, contextName: 'seeded', message: 'seed' });
         const run = await runE2eCli({ project, args: ['run', lumpName, '--json'] });
         expectCliOk(run, 'run');
         expectRunSkippedTooManyOpenBranches(run);
