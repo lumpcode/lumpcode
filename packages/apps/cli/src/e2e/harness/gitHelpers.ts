@@ -48,20 +48,6 @@ export function seedFinishedContextOnMain(input: {
     git('push origin main', input.projectRoot);
 }
 
-/** Creates and pushes an empty lump branch so concurrent-branch limits can be exercised. */
-export function seedRemoteLumpBranch(input: {
-    projectRoot: string;
-    lumpName: string;
-    contextName: string;
-}): void {
-    const branch = lumpBranchName(input.lumpName, input.contextName);
-    git('checkout main', input.projectRoot);
-    git(`checkout -b ${branch}`, input.projectRoot);
-    git('commit --allow-empty -m "seed"', input.projectRoot);
-    git(`push origin ${branch}`, input.projectRoot);
-    git('checkout main', input.projectRoot);
-}
-
 /** Lists branch names under `lump/<lumpName>/` in a bare remote repository. */
 export function listRemoteLumpBranches(remoteDir: string, lumpName: string): string[] {
     const prefix = `${LUMP_BRANCH_PREFIX}${lumpName}/`;

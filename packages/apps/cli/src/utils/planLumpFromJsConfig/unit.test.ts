@@ -4,10 +4,9 @@ import * as fs from 'node:fs/promises';
 import { execSync } from 'node:child_process';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
-import { LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing/tsLumpFixtures';
+import { createLumpWorkBranch, LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing';
 import { seedGlobalConfigFixture } from '../jsConfigToRunLumpInput/testing/testHelpers';
 import { planLumpFromJsConfig } from './main';
-import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { writeJsonFile } from '../writeJsonFile';
 
@@ -291,16 +290,8 @@ describe('planLumpFromJsConfig', () => {
         });
 
         it('C4: plan reports tooManyOpenBranches when cap inherited from project', async () => {
-            const makeOpen = (ctx: string) => {
-                const branch = `lump/preview-lump/${ctx}`;
-                execGit('checkout main', projectRoot);
-                execGit(`checkout -b ${branch}`, projectRoot);
-                execGit('commit --allow-empty -m "lump work"', projectRoot);
-                execGit(`push origin ${branch}`, projectRoot);
-                execGit('checkout main', projectRoot);
-            };
-            makeOpen('ctx-a');
-            makeOpen('ctx-b');
+            createLumpWorkBranch({ projectRoot, lumpName: 'preview-lump', contextName: 'ctx-a' });
+            createLumpWorkBranch({ projectRoot, lumpName: 'preview-lump', contextName: 'ctx-b' });
 
             await writeJsonFile({
                 filePath: path.join(localConfigFolderPath, 'project.json'),
