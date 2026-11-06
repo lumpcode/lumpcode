@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: lump-create-stub-unknown-command
+workflow:
+  - impl
+task: >-
+  lumpcode lump-create scaffolds config.json / .js / .ts with command "claude",
+  which is not a shipped preset tag (the Claude Code preset is "claude-code"),
+  so lump-plan and run on a freshly created lump fail with "Failed to load
+  command module 'claude'"; fix the stubs in commands/lump-create/main.ts.
+priority: 20
