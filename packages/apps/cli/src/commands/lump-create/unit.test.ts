@@ -3,8 +3,31 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+import type { Step } from '@lumpcode/core';
+
 import { command } from './main';
 import { initLocalGitRepo } from '../../utils/initLocalGitRepo';
+import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
+import { jsConfigToRunLumpInput } from '../../utils/jsConfigToRunLumpInput';
+import { listBundledPresetCommandNames } from '../../utils/ensurePresetCommandsInstalled';
+import type { LumpJsConfig } from '../../types';
+
+const bundlePresetsDir = path.resolve(__dirname, '../../presets/commands');
+
+async function shippedPresetTags(): Promise<string[]> {
+    const names = await listBundledPresetCommandNames(bundlePresetsDir);
+    return names.map((name) => path.basename(name, '.js'));
+}
+
+function commandTagFromPrompt(prompt: LumpJsConfig['prompt']): string {
+    if (prompt == null || typeof prompt === 'string' || typeof prompt === 'function') {
+        throw new Error('stub prompt has no command tag');
+    }
+    if (typeof prompt.command !== 'string') {
+        throw new Error('stub command is not a tag');
+    }
+    return prompt.command;
+}
 
 describe('lump-create command', () => {
     let projectRoot: string;
@@ -135,5 +158,75 @@ describe('lump-create command', () => {
         expect(result.success).toBe(false);
         if (result.success) throw new Error('unreachable');
         expect(result.data.messages[0]).toContain('path separators');
+    });
+
+    it('names a shipped preset command tag in every stub format', async () => {
+        const tags = await shippedPresetTags();
+        expect(tags.length).toBeGreaterThan(0);
+
+        const formats = [
+            { config: undefined, lumpName: 'stub-json' },
+            { config: 'js' as const, lumpName: 'stub-js' },
+            { config: 'ts' as const, lumpName: 'stub-ts' },
+        ];
+
+        const handle = makeHandler();
+        const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+
+        for (const format of formats) {
+            const result = await handle({
+                options: format.config ? { config: format.config } : {},
+                arguments: { lumpName: format.lumpName },
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+
+            const loaded = await getJsConfigFromLumpName({
+                lumpName: format.lumpName,
+                localConfigFolderPath,
+            });
+            expect(loaded.success).toBe(true);
+            if (!loaded.success) throw new Error(loaded.data);
+
+            expect(tags).toContain(commandTagFromPrompt(loaded.data.prompt));
+        }
+    });
+
+    it('loads the json stub command module', async () => {
+        const handle = makeHandler();
+        const created = await handle({
+            options: {},
+            arguments: { lumpName: 'comps' },
+        });
+        expect(created.success).toBe(true);
+        if (!created.success) throw new Error('unreachable');
+
+        const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
+        const loaded = await getJsConfigFromLumpName({
+            lumpName: 'comps',
+            localConfigFolderPath,
+        });
+        expect(loaded.success).toBe(true);
+        if (!loaded.success) throw new Error(loaded.data);
+
+        const globalConfigFolderPath = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-create-presets-'));
+        try {
+            const resolved = await jsConfigToRunLumpInput({
+                config: loaded.data,
+                lumpName: 'comps',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectBaseBranch: 'main',
+                executionWorkspacePath: projectRoot,
+            });
+            expect(resolved.success).toBe(true);
+            if (!resolved.success) throw new Error(resolved.data);
+
+            const step = resolved.data.steps[0] as Step;
+            expect(typeof step.commandFn).toBe('function');
+            expect(step.commandFn.commandName).toBe(commandTagFromPrompt(loaded.data.prompt));
+        } finally {
+            await fs.rm(globalConfigFolderPath, { recursive: true, force: true });
+        }
     });
 });
