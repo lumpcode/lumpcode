@@ -1,0 +1,12 @@
+name: createLumpWorkBranch
+task: >-
+  Extract the repeated empty lump-branch fixture (checkout main, create
+  lump/<lumpName>/<contextName>, empty commit, optional origin push, return
+  to main) into createLumpWorkBranch. Shared test helper under
+  src/testing, re-exported from testing/index.ts. Affected: the local
+  createAndPushLumpBranch / createLocalOnlyLumpBranch copies in
+  runLumpFromLumpName, runLumpFromJsConfig, and countOpenLumpBranches unit
+  tests; planLumpFromJsConfig's makeOpen; clean's setupLumpBranch and its
+  two -m marker commit; the matching sequences in buildContextStatusRecord's
+  unit test; and e2e seedRemoteLumpBranch.
+priority: 3
