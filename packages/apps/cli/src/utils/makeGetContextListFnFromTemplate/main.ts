@@ -17,6 +17,13 @@ const normalizeForTemplateMatch = (p: string): string => {
     return p;
 };
 
+/** `{PLACEHOLDER}` or `$modifier{PLACEHOLDER}` in a path pattern. */
+const PLACEHOLDER_TOKEN = /\$\w+\{[^}]+\}|\{[^}]+\}/;
+
+function patternHasPlaceholder(pattern: string): boolean {
+    return PLACEHOLDER_TOKEN.test(pattern);
+}
+
 export type MakeGetContextListFnFromTemplateInput = Parameters<typeof makeGetContextListFnFromTemplate>;
 
 export type MakeGetContextListFnFromTemplateOutput = GetContextListFn;
@@ -33,6 +40,10 @@ export function makeGetContextListFnFromTemplate(
     },
     contextOptionsFn?: ContextOptionsFn,
 ): MakeGetContextListFnFromTemplateOutput {
+    const requiredKeys = Object.keys(jsonTemplate).filter((key) =>
+        patternHasPlaceholder(jsonTemplate[key]),
+    );
+
     const retFn: GetContextListFn = ({ codeBasePaths }) => {
         const allContexts: Record<string, Context> = {};
 
@@ -69,9 +80,11 @@ export function makeGetContextListFnFromTemplate(
             }
         }
 
-        const list = Object.values(allContexts).sort((a, b) => (
-            a.name.localeCompare(b.name) ? 1 : -1
-        ));
+        const list = Object.values(allContexts)
+            .filter((ctx) => requiredKeys.every((key) => ctx.variables[key] !== undefined))
+            .sort((a, b) => (
+                a.name.localeCompare(b.name) ? 1 : -1
+            ));
 
         if (!contextOptionsFn) {
             return list;
