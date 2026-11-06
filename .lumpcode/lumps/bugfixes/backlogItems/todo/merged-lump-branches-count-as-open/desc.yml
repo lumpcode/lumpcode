@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: merged-lump-branches-count-as-open
+workflow:
+  - impl
+task: >-
+  maximumNumberOfConcurrentBranches counts every lump/<lumpName>/* ref on
+  origin, so a branch already merged into a non-lump branch keeps blocking
+  the lump until someone deletes it; stop counting branches whose tip is
+  reachable from a non-lump origin head, in both run and lump-plan.
+priority: 16

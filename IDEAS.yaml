@@ -16,10 +16,6 @@
     with the recipes helper delegating to it instead of carrying a second implementation.
   priority: 12
   tags: [cli, git, recipes, daemon]
-- name: ignore-lump-branches-if-their-commits-are-merged-to-base-branch
-  task: Ignore lump branches if their commits are merged to the base branch (i.e finished)
-  priority: 16
-  tags: [git, status]
 - name: lump-plan-remote-todo-status
   task: >-
     Verify/ensure `lump-plan` reports which contexts are todo from the remote (source of truth).
