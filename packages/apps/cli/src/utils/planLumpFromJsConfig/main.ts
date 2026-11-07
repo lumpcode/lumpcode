@@ -159,6 +159,7 @@ export async function planLumpFromJsConfig(input: {
         codeBasePaths: codeBasePathsResult.data,
         lumpVariables,
     });
+    const resolvedContextNames = new Set(contexts.map((c) => c.name));
 
     if (todoOnly) {
         const refreshRemoteTrackingRefsFn = makeLockedRefreshRemoteTrackingRefsFn({
@@ -188,7 +189,11 @@ export async function planLumpFromJsConfig(input: {
     if (contextName) {
         contexts = contexts.filter((c) => c.name === contextName);
         if (contexts.length === 0) {
-            return failure(`Context "${contextName}" not found in resolved context list`);
+            return failure(
+                resolvedContextNames.has(contextName)
+                    ? `Context "${contextName}" of lump "${lumpName}" is not toDo (it is branchPushed, finished, or waiting on dependsOnContexts). Drop --todoOnly to preview it anyway.`
+                    : `Context "${contextName}" is not in the context list of lump "${lumpName}". Run lumpcode lump-plan ${lumpName} --contexts to list context names.`,
+            );
         }
     }
 

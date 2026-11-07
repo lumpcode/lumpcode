@@ -1,21 +1,25 @@
-# Say which helper, context, and variable fix a missing requireArtifactStep path
+# Tell apart "no such context" and "filtered out by --todoOnly" in lump-plan --contextName
 
-`requireArtifactStep(varName)` (`packages/recipes`) builds a validation command that checks whether the file named by a context variable exists. When the context does not set that variable, or sets it to an empty or non-string value, the helper threw:
-
-```
-Missing context variable REPORT
-```
-
-This happens when the context source does not set the variable that the author named in `requireArtifactStep('REPORT')`, for example after a typo or a renamed variable. The old message did not name the helper that needed the variable or the context that lacked it. It also did not say that the variable should hold a file path, so the author had to find the call site before fixing anything.
-
-It now throws:
+`lumpcode lump-plan <lump> --contextName <name>` (`planLumpFromJsConfig` in `packages/apps/cli`) used one message whenever no context was left after filtering:
 
 ```
-requireArtifactStep('REPORT'): context "fix-login" does not set REPORT to a path. Set REPORT in the context variables to the artifact path, relative to the workspace.
+Context "ctx1" not found in resolved context list
 ```
 
-Behavior is otherwise unchanged. The same condition still throws an `Error` from the same place. Existing and missing artifacts still produce the same exit-0 and exit-1 commands. No docs quoted the old string, and `.agents/memory/domain/recipes.md` ("missing variable still throws") is still accurate.
+That message was wrong when `--todoOnly` was also set. The todo filter runs before the name filter, so a context that is in the list but is `branchPushed`, `finished`, or waiting on `dependsOnContexts` was reported as "not found". An operator who checked the config and saw the context there had no way to know that the todo filter had removed it. In the plain typo case, the message also did not name the lump or say how to see valid names.
 
-One unit test pinned the old text. I updated it to expect the full new message: `packages/recipes/src/kit/requireArtifactStep/unit.test.ts`.
+The util now keeps the resolved names from before the todo filter and returns one of two messages:
 
-Tests: `npm run test -w=@lumpcode/recipes` (8 files, 97 tests pass) and root `npm run build` (passes).
+```
+Context "ctx1" of lump "preview-lump" is not toDo (it is branchPushed, finished, or waiting on dependsOnContexts). Drop --todoOnly to preview it anyway.
+```
+
+```
+Context "missing" is not in the context list of lump "preview-lump". Run lumpcode lump-plan preview-lump --contexts to list context names.
+```
+
+Behavior is otherwise unchanged. The command still fails at the same point, and no context is shown that was not shown before. `setup` also calls this util, but it never passes `contextName`, so it is not affected. No docs, tests, or memory quoted the old string.
+
+I added two unit tests to `packages/apps/cli/src/utils/planLumpFromJsConfig/unit.test.ts`, one per message. The `--todoOnly` test pushes a `LUMP: preview-lump - ctx1` marker to `origin/main`, which makes the context `finished`.
+
+Tests: `npm run test -w=@lumpcode/cli` (165 files, 1246 tests pass) and root `npm run build` (passes). Before the build, the CLI test run had one failure: `scripts/npm-pack-postinstall.unit.test.mjs` needs `dist/index.js`. It passed once the bundle existed.
