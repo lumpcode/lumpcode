@@ -46,6 +46,11 @@ describe('jsConfigToRunLumpInput prompt, command, and steps', () => {
                 'At least one prompt or step must be provided');
         });
 
+        it('should name where to set a command when no step or lump command is set', async () => {
+            assertFailure(await resolveJsConf({ prompt: 'Fix @{FILE}' }),
+                'A step has no command to run. Set command on the step or at the top of the lump config, or set a default command in .lumpcode/project.json or .lumpcode/local.json.');
+        });
+
         it('should treat a solo steps string like prompt', async () => {
             const data = assertSuccess(await resolveJsConf({ prompt: undefined, steps: 'Refactor @{FILE} to Vue', command: stubCommandFn }));
             const item = data.steps[0] as Step;
