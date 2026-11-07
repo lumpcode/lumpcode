@@ -1,21 +1,21 @@
-# Say where to set a command when a step has none
+# Keep the cause when listing project files fails
 
-When a step had no command to run, config load (`resolveCommandFn` in `packages/apps/cli/src/utils/jsConfigToRunLumpInput/main.ts`) failed with:
-
-```
-Step must have a command or commandFn
-```
-
-This hit an operator who had written a prompt but no `command` anywhere. The message had two problems. `commandFn` is the engine's internal step field, not something an operator writes. And the message did not say where a command can be set. A step inherits `command` from the lump config, which inherits it from `.lumpcode/local.json` and then `.lumpcode/project.json` (`applyLumpConfigDefaults`). The error fires only when all of those are empty.
-
-The message now names those places:
+Before a run, `getToDoContextList` (`packages/core/src/helpers/getToDoContextList/main.ts`) lists the project's files with `getCodeBasePaths`. That helper fails when the project root cannot be read, and its message names the directory and the OS error. `getToDoContextList` dropped that message and returned only:
 
 ```
-A step has no command to run. Set command on the step or at the top of the lump config, or set a default command in .lumpcode/project.json or .lumpcode/local.json.
+Failed to get code base paths
 ```
 
-The wording follows the nearby `registerCommands` error, which also says what to add and where. Behavior is otherwise unchanged: the same configs fail at the same point. No docs, tests, or memory quoted the old string.
+All three callers show this message as-is: `runLump` (prefixed with "Failed to get to do context list"), `lump-plan --todoOnly`, and the dashboard's lump scoring. So an operator got no hint about which path failed or why.
 
-I added one unit test to `packages/apps/cli/src/utils/jsConfigToRunLumpInput/testing/promptCommandSteps.unit.test.ts`. It uses a prompt with no command and checks for the new message.
+The message now keeps the cause:
 
-Tests: root `npm run build` (passes) and `npm run test -w=@lumpcode/cli` (166 files, 1264 tests pass).
+```
+Failed to get code base paths: Failed to scan directory: Error: Cannot read directory /path/to/root: Error: ENOENT: no such file or directory, scandir '/path/to/root'
+```
+
+The same inputs fail at the same point; only the text is longer. No docs, tests, or memory quoted the old string.
+
+I added one unit test to `packages/core/src/helpers/getToDoContextList/unit.test.ts`. It points `projectRoot` at a missing directory and checks that the message names it.
+
+Tests: `npm run test -w=@lumpcode/core` (27 files, 201 tests pass, 4 skipped) and root `npm run build` (passes).
