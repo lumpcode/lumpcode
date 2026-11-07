@@ -16,11 +16,6 @@
     with the recipes helper delegating to it instead of carrying a second implementation.
   priority: 12
   tags: [cli, git, recipes, daemon]
-- name: lump-plan-remote-todo-status
-  task: >-
-    Verify/ensure `lump-plan` reports which contexts are todo from the remote (source of truth).
-  priority: 17
-  tags: [cli, git, status]
 - name: see-lump-context-run-time
   task: See the lump context run time (in seconds)
   priority: 18
@@ -88,10 +83,6 @@
   task: >-
     commandFn can return another step, or Success|Failure directly, instead of always a command to execute.
   priority: 40
-  tags: [engine]
-- name: post-command-exec-fn-return-null
-  task: postCommandExecFn should be able to return null.
-  priority: 41
   tags: [engine]
 - name: per-lump-git-remote
   task: Per-lump/project.json/local.json git remote override (default remains origin).
