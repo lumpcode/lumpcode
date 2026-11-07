@@ -16,6 +16,7 @@ export {
     writeLumpHookTs,
 } from './tsLumpFixtures';
 export type { TranspileCacheMeta, TsLumpProjectContext } from './tsLumpFixtures';
+export { createLumpWorkBranch } from './createLumpWorkBranch';
 export {
     assertCheckoutBranch,
     createIntegrationBranch,

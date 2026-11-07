@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { buildContextStatusRecord } from './main';
-import { LUMP_BRANCH_PREFIX } from '../../consts';
+import { createLumpWorkBranch } from '../../testing';
 import { getGitCommitMessage } from '../getGitCommitMessage';
 import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
@@ -37,10 +37,7 @@ describe('buildContextStatusRecord', () => {
     });
 
     it('should return branchPushed for commits on a remote branch', async () => {
-        const branchName = `${LUMP_BRANCH_PREFIX}myLump/button`;
-        execGit(`checkout -b ${branchName}`, tmpDir);
-        execGit(`commit --allow-empty -m "${commitMsg('button')}"`, tmpDir);
-        execGit(`push origin ${branchName}`, tmpDir);
+        const branchName = createLumpWorkBranch({ projectRoot: tmpDir, lumpName, contextName: 'button', useMarkerMessage: true });
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
@@ -82,10 +79,7 @@ describe('buildContextStatusRecord', () => {
     });
 
     it('should handle multiple contexts with different statuses', async () => {
-        const cardBranch = `${LUMP_BRANCH_PREFIX}myLump/card`;
-        execGit(`checkout -b ${cardBranch}`, tmpDir);
-        execGit(`commit --allow-empty -m "${commitMsg('card')}"`, tmpDir);
-        execGit(`push origin ${cardBranch}`, tmpDir);
+        createLumpWorkBranch({ projectRoot: tmpDir, lumpName, contextName: 'card', useMarkerMessage: true });
 
         execGit('checkout main', tmpDir);
         execGit('checkout -b merge-branch', tmpDir);
@@ -105,15 +99,8 @@ describe('buildContextStatusRecord', () => {
     });
 
     it('should only include commits matching the given lump name', async () => {
-        const branch1 = `${LUMP_BRANCH_PREFIX}myLump/button`;
-        const branch2 = `${LUMP_BRANCH_PREFIX}otherLump/form`;
-        execGit(`checkout -b ${branch1}`, tmpDir);
-        execGit(`commit --allow-empty -m "${commitMsg('button', 'myLump')}"`, tmpDir);
-        execGit(`push origin ${branch1}`, tmpDir);
-        execGit('checkout main', tmpDir);
-        execGit(`checkout -b ${branch2}`, tmpDir);
-        execGit(`commit --allow-empty -m "${commitMsg('form', 'otherLump')}"`, tmpDir);
-        execGit(`push origin ${branch2}`, tmpDir);
+        createLumpWorkBranch({ projectRoot: tmpDir, lumpName, contextName: 'button', useMarkerMessage: true });
+        createLumpWorkBranch({ projectRoot: tmpDir, lumpName: 'otherLump', contextName: 'form', useMarkerMessage: true });
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
@@ -123,13 +110,13 @@ describe('buildContextStatusRecord', () => {
     });
 
     it('discovers context names from marker strings in the commit body', async () => {
-        const branchName = `${LUMP_BRANCH_PREFIX}myLump/batch`;
-        execGit(`checkout -b ${branchName}`, tmpDir);
-        execGit(
-            `commit --allow-empty -m "PR title" -m "* ${commitMsg('button')}, ${commitMsg('form')}"`,
-            tmpDir,
-        );
-        execGit(`push origin ${branchName}`, tmpDir);
+        createLumpWorkBranch({
+            projectRoot: tmpDir,
+            lumpName,
+            contextName: 'batch',
+            message: 'PR title',
+            commitBody: `* ${commitMsg('button')}, ${commitMsg('form')}`,
+        });
 
         const result = await buildContextStatusRecord({ projectRoot: tmpDir, lumpName, baseBranch: 'main' });
         expect(result.success).toBe(true);
