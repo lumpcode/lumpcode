@@ -55,6 +55,7 @@ describe('clean command', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
 
+        expect(result.data.messages).toEqual([`Cleaned ${result.data.data!.deletedBranches.length} branch(es)`]);
         expect(result.data.data!.deletedBranches).toHaveLength(2);
 
         const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
@@ -89,6 +90,7 @@ describe('clean command', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
 
+        expect(result.data.messages).toEqual(['Cleaned 0 branch(es)']);
         expect(result.data.data!.deletedBranches).toHaveLength(0);
     });
 
@@ -277,6 +279,120 @@ describe('clean command', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.data!.deletedBranches).toContain(`${LUMP_BRANCH_PREFIX}myLump/button`);
         await expect(fs.access(path.join(globalConfigFolderPath, 'project-copies'))).rejects.toBeDefined();
+    });
+
+    async function writePreReceiveHook(script: string) {
+        const hookPath = path.join(bareDir, 'hooks', 'pre-receive');
+        await fs.writeFile(hookPath, script);
+        await fs.chmod(hookPath, 0o755);
+    }
+
+    function refuseDeletesHook(): string {
+        return `#!/bin/sh
+while read -r _oldrev newrev refname; do
+    case "$newrev" in
+        0000000000000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000)
+            echo "refusing to delete \${refname}" >&2
+            exit 1
+            ;;
+    esac
+done
+exit 0
+`;
+    }
+
+    function refuseOneDeleteHook(ref: string): string {
+        return `#!/bin/sh
+while read -r _oldrev newrev refname; do
+    case "$newrev" in
+        0000000000000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000)
+            if [ "$refname" = ${JSON.stringify(ref)} ]; then
+                echo "refusing to delete \${refname}" >&2
+                exit 1
+            fi
+            ;;
+    esac
+done
+exit 0
+`;
+    }
+
+    it('fails and names both branches when origin refuses every delete', async () => {
+        const branchA = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'a', useMarkerMessage: true });
+        const branchB = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'b', useMarkerMessage: true });
+        await writePreReceiveHook(refuseDeletesHook());
+
+        const result = await makeHandler()({ options: { lumpName: 'demo' }, arguments: {} });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+
+        const originFailures = result.data.messages.filter((message) => message.startsWith('Could not delete origin branch'));
+        expect(originFailures).toHaveLength(2);
+        expect(originFailures.some((message) => message.includes(`"${branchA}"`) && message.includes('refusing to delete'))).toBe(true);
+        expect(originFailures.some((message) => message.includes(`"${branchB}"`) && message.includes('refusing to delete'))).toBe(true);
+        expect(result.data.messages.some((message) => message.startsWith('Could not delete local branch'))).toBe(false);
+        expect(result.data.messages.at(-1)).toBe('Cleaned 0 branch(es); 2 could not be deleted.');
+        expect(result.data.data.deletedBranches).toEqual([]);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${branchA}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${branchB}`);
+    });
+
+    it('fails naming the checked-out branch and still deletes the other', async () => {
+        const other = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'a', useMarkerMessage: true });
+        const checkedOut = createLumpWorkBranch({
+            projectRoot,
+            lumpName: 'demo',
+            contextName: 'b',
+            useMarkerMessage: true,
+            checkoutMain: false,
+        });
+
+        const result = await makeHandler()({ options: { lumpName: 'demo' }, arguments: {} });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+
+        const localFailures = result.data.messages.filter((message) => message.startsWith('Could not delete local branch'));
+        expect(localFailures).toHaveLength(1);
+        expect(localFailures[0]).toContain(`"${checkedOut}"`);
+        expect(localFailures[0]).toMatch(/error:/i);
+        expect(result.data.messages.some((message) => message.startsWith('Could not delete origin branch'))).toBe(false);
+        expect(result.data.data.deletedBranches).toEqual([other]);
+        expect(result.data.messages.at(-1)).toBe('Cleaned 1 branch(es); 1 could not be deleted.');
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${other}`);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${checkedOut}`);
+
+        const localBranches = execGit(`branch --list "${LUMP_BRANCH_PREFIX}*"`, projectRoot);
+        expect(localBranches).not.toContain(other);
+        expect(localBranches).toContain(checkedOut);
+    });
+
+    it('deletes the branch origin accepts when a hook refuses only one', async () => {
+        const refused = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'a', useMarkerMessage: true });
+        const allowed = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'b', useMarkerMessage: true });
+        await writePreReceiveHook(refuseOneDeleteHook(`${REFS_HEADS_PREFIX}${refused}`));
+
+        const result = await makeHandler()({ options: { lumpName: 'demo' }, arguments: {} });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+
+        const originFailures = result.data.messages.filter((message) => message.startsWith('Could not delete origin branch'));
+        expect(originFailures).toHaveLength(1);
+        expect(originFailures[0]).toContain(`"${refused}"`);
+        expect(originFailures[0]).toContain('refusing to delete');
+        expect(result.data.messages.some((message) => message.includes(`"${allowed}"`))).toBe(false);
+        expect(result.data.data.deletedBranches).toEqual([allowed]);
+        expect(result.data.messages.at(-1)).toBe('Cleaned 1 branch(es); 1 could not be deleted.');
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${refused}`);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${allowed}`);
     });
 
     it('works with LC-MULTI without parsing effective list for branch switch', async () => {

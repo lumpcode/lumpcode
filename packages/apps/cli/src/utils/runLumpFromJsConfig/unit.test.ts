@@ -13,6 +13,7 @@ import {
     runLumpFromJsConfigFailureMessage,
 } from './main';
 import type { LumpJsConfig } from '../../types';
+import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { createLumpWorkBranch } from '../../testing';
 import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
@@ -125,7 +126,7 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('does not skip when the only lump branch on origin is already merged', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
         execGit('checkout main', projectRoot);
         execGit(`merge --no-ff ${LUMP_BRANCH_PREFIX}my-lump/ctx-a -m "merge"`, projectRoot);
         execGit('push origin main', projectRoot);
