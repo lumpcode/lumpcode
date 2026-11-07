@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { MakeGetContextListFnFromTemplateInput, MakeGetContextListFnFromTemplateOutput, makeGetContextListFnFromTemplate } from "./main";
 
 
@@ -342,5 +342,56 @@ describe("makeGetContextListFnFromTemplate", () => {
         });
 
         expect(out).toEqual([]);
+    });
+
+    const componentAndTestTemplate = {
+        COMPONENT: "src/components/{NAME}/index.tsx",
+        TEST: "src/components/{NAME}/index.test.tsx",
+    };
+
+    const componentAndTestPaths = [
+        { isDir: false, path: "src/components/UserCard/index.tsx" },
+        { isDir: false, path: "src/components/UserCard/index.test.tsx" },
+        { isDir: false, path: "src/components/DataTable/index.tsx" },
+    ];
+
+    const userCardContext = {
+        name: "UserCard",
+        variables: {
+            COMPONENT: "src/components/UserCard/index.tsx",
+            TEST: "src/components/UserCard/index.test.tsx",
+        },
+    };
+
+    it("emits a context only when every placeholder key matched", () => {
+        const fn = makeGetContextListFnFromTemplate(componentAndTestTemplate);
+
+        const out = fn({
+            lumpVariables: {},
+            codeBasePaths: componentAndTestPaths,
+        });
+
+        expect(out).toEqual([userCardContext]);
+    });
+
+    it("does not call contextOptionsFn for a context missing a placeholder key", async () => {
+        const contextOptionsFn = vi.fn(() => undefined);
+        const fn = makeGetContextListFnFromTemplate(
+            componentAndTestTemplate,
+            undefined,
+            contextOptionsFn,
+        );
+
+        const out = await fn({
+            lumpVariables: {},
+            codeBasePaths: componentAndTestPaths,
+        });
+
+        expect(out).toEqual([userCardContext]);
+        expect(contextOptionsFn).toHaveBeenCalledTimes(1);
+        expect(contextOptionsFn).toHaveBeenCalledWith({
+            name: "UserCard",
+            variables: userCardContext.variables,
+        });
     });
 });

@@ -1,0 +1,10 @@
+name: context-list-json-partial-match
+workflow:
+  - impl
+task: >-
+  makeGetContextListFnFromTemplate (contextListJson path patterns) emits a
+  context as soon as any one key matches, so a component folder missing its test
+  still becomes a context whose prompt keeps a literal @{TEST}; emit a context
+  only when every placeholder key matched, as the docs promise.
+priority: 20
+completedAt: '2026-11-06T09:05:52.280Z'
