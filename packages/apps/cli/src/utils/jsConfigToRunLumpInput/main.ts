@@ -905,7 +905,7 @@ async function resolveCommandFn({
         return success(fn);
     }
 
-    return failure('Step must have a command or commandFn');
+    return failure('A step has no command to run. Set command on the step or at the top of the lump config, or set a default command in .lumpcode/project.json or .lumpcode/local.json.');
 }
 
 async function loadCommandModule({
