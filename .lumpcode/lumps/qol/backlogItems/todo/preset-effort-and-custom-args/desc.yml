@@ -1,7 +1,10 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: preset-effort-and-custom-args
-workflow: [manualReq, testImpl, impl]
+workflow:
+  - impl
 task: >-
-  Add effort (and similar) options to agent presets, plus a custom args list
-  so operators can pass extra CLI flags through lumpVariables/stepVariables.
+  Let every shipped agent preset take an extraArgs string list from
+  lumpVariables/stepVariables (step replaces lump) and pass it to the harness
+  unchanged, so operators can set effort and other harness flags without a
+  custom command module; no typed per-harness effort key.
 priority: 2
