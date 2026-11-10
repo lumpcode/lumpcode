@@ -1,0 +1,42 @@
+desc: "Lump config skipCommitAndPush selects the shared no-op git pair on a dedicated run so the worker does not commit or push lump/…."
+files:
+  packages/apps/cli/src/types/LumpJsConfig.ts:
+    desc: "Optional skipCommitAndPush boolean. Lump-only. Omit and false keep today's commit and push."
+    "-": 0
+    "+": 8
+    symbols:
+      LumpJsConfig: update
+  packages/apps/cli/src/utils/jsConfigToRunLumpInput/main.ts:
+    desc: "Strip the field off RunLumpInput. true uses makeSharedNoopGitFns for dedicated too, with or without a git lock. makeGatedGitFns stays the publishing path."
+    "-": 4
+    "+": 12
+    symbols:
+      jsConfigToRunLumpInput: update
+  packages/apps/cli/src/utils/jsConfigToRunLumpInput/testing/general.unit.test.ts:
+    desc: "Dedicated true returns success(undefined) and does not commit, with and without a git lock. false matches omit. Shared true stays a no-op. Key absent on RunLumpInput."
+    "-": 0
+    "+": 90
+  packages/apps/cli/src/utils/validateLumpJsonConfig/unit.test.ts:
+    desc: "Boolean validates. A non-boolean fails. Omit still validates."
+    "-": 0
+    "+": 30
+  packages/apps/cli/src/schemas/lumpConfig.schema.json:
+    desc: "Optional boolean. true skips the dedicated commit and push. Omit and false keep them."
+    "-": 0
+    "+": 6
+  packages/apps/cli/DOCS/config/lump.md:
+    desc: "Optional-fields row. Link the lifecycle to the run page."
+    "-": 1
+    "+": 6
+  packages/apps/cli/DOCS/start/run.md:
+    desc: "Step 6 names the field. Steps still run in the branch workspace. No commit, no push."
+    "-": 2
+    "+": 5
+  packages/apps/cli/DOCS/start/terms.md:
+    desc: "Dedicated-mode cell points at the field."
+    "-": 1
+    "+": 2
+  packages/apps/cli/DOCS/reference/commands.md:
+    desc: "lumpcode run sentence. Dedicated still commits and pushes unless the lump sets the field."
+    "-": 1
+    "+": 2
