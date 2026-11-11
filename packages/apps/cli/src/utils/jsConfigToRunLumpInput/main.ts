@@ -401,7 +401,9 @@ async function resolveConcreteBaseBranch(input: {
 
     if (typeof lumpBaseBranchOverride === 'string') {
         if (isGitRefGlob(lumpBaseBranchOverride)) {
-            return failure('baseBranch must be a concrete branch name');
+            return failure(
+                `baseBranch must be a concrete branch name, not a pattern (got "${lumpBaseBranchOverride}")`,
+            );
         }
         return success(lumpBaseBranchOverride);
     }
@@ -411,10 +413,7 @@ async function resolveConcreteBaseBranch(input: {
             effectiveDiscoveryBranch: concreteDiscovery,
             contexts: rawContexts,
         });
-        if (typeof resolved !== 'string' || !resolved.trim() || isGitRefGlob(resolved)) {
-            return failure('baseBranch function must return a non-empty concrete branch name');
-        }
-        return success(resolved.trim());
+        return checkBaseBranchFnResult(resolved);
     }
 
     // FilePath module
@@ -427,8 +426,15 @@ async function resolveConcreteBaseBranch(input: {
         effectiveDiscoveryBranch: concreteDiscovery,
         contexts: rawContexts,
     });
+    return checkBaseBranchFnResult(resolved);
+}
+
+function checkBaseBranchFnResult(resolved: unknown): Success<string> | Failure<string> {
     if (typeof resolved !== 'string' || !resolved.trim() || isGitRefGlob(resolved)) {
-        return failure('baseBranch function must return a non-empty concrete branch name');
+        const got = typeof resolved === 'string' ? `"${resolved}"` : typeof resolved;
+        return failure(
+            `baseBranch function must return a non-empty concrete branch name, not a pattern (got ${got})`,
+        );
     }
     return success(resolved.trim());
 }
