@@ -1,16 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { createSpyLogger } from '../../testing';
 import { installProcessShutdown } from './main';
-
-function testLogger() {
-    return {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: vi.fn(),
-    };
-}
 
 describe('installProcessShutdown', () => {
     afterEach(() => {
@@ -20,7 +11,7 @@ describe('installProcessShutdown', () => {
     it('resolves when shutdown() is called and runs onSignal', async () => {
         const onSignal = vi.fn();
         const session = installProcessShutdown({
-            logger: testLogger(),
+            logger: createSpyLogger(),
             signalMessage: (signal) => `signal ${signal}`,
             onSignal,
         });
@@ -33,7 +24,7 @@ describe('installProcessShutdown', () => {
     it('runs onSignal when waitForShutdownOverride settles', async () => {
         const onSignal = vi.fn();
         const session = installProcessShutdown({
-            logger: testLogger(),
+            logger: createSpyLogger(),
             signalMessage: (signal) => `signal ${signal}`,
             onSignal,
             waitForShutdownOverride: async () => {},

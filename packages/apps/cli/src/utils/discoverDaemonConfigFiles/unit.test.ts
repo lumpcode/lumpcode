@@ -1,25 +1,15 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 
 import type { Logger } from '@lumpcode/core';
 
-import { createIntegrationBranch, daemonConfigFileJson, initBareRemoteAndCheckout } from '../../testing';
+import { createIntegrationBranch, createSpyLogger, daemonConfigFileJson, initBareRemoteAndCheckout } from '../../testing';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { execGit } from '../execGit';
 import { DaemonConfigFile, hashDaemonConfigFile } from '../daemonConfigFile';
 import { discoverDaemonConfigFiles } from './main';
-
-function createLogger(): Logger {
-    return {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => createLogger(),
-    };
-}
 
 describe('discoverDaemonConfigFiles', () => {
     let projectRoot: string;
@@ -32,7 +22,7 @@ describe('discoverDaemonConfigFiles', () => {
             global: false,
         }));
         initBareRemoteAndCheckout(projectRoot, remoteDir);
-        logger = createLogger();
+        logger = createSpyLogger();
     });
 
     afterEach(async () => {

@@ -3,6 +3,7 @@ import { failure, success, type Context } from '@lumpcode/core';
 
 import type { LumpJsConfig } from '../../types';
 import type { LocalConfig } from '../../types/LocalConfig';
+import { createSpyLogger } from '../../testing';
 import {
     scoreDedicatedLumpLineSnapshots,
     snapshotDedicatedLumpLine,
@@ -50,16 +51,6 @@ const getCodeBasePathsMock = vi.mocked(core.getCodeBasePaths);
 const execAsyncMock = vi.mocked(core.execAsync);
 const makeLockedRefreshMock = vi.mocked(makeLockedRefreshRemoteTrackingRefsFn);
 
-function createLogger() {
-    return {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => createLogger(),
-    };
-}
-
 const baseLocalConfig: LocalConfig = {
     mode: 'dedicated',
     primaryBranch: 'main',
@@ -82,7 +73,7 @@ function snapshotInput(overrides: Partial<Parameters<typeof snapshotDedicatedLum
         globalConfigFolderPath: '/tmp/global',
         sourceProjectRoot: '/tmp/proj',
         localConfig: baseLocalConfig,
-        logger: createLogger(),
+        logger: createSpyLogger(),
         projectName: 'test-project',
         ...overrides,
     };
@@ -109,7 +100,7 @@ function readySnapshot(
 function scoreSnapshots(snapshots: DedicatedLumpLineSnapshot[]) {
     return scoreDedicatedLumpLineSnapshots({
         snapshots,
-        logger: createLogger(),
+        logger: createSpyLogger(),
         globalConfigFolderPath: '/tmp/global',
         projectName: 'test-project',
     });

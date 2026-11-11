@@ -1,10 +1,9 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import type { Logger } from '@lumpcode/core';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
+    createSpyLogger,
     initBareRemoteAndCheckout,
     writeLocalJson,
     writeMinimalLump,
@@ -13,16 +12,6 @@ import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeJsonFile } from '../writeJsonFile';
 import { resolveEffectiveDiscoveryBranch } from './main';
-
-function createLogger(): Logger {
-    return {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => createLogger(),
-    };
-}
 
 /**
  * dynamic-discovery-branch E1–E7.
@@ -70,7 +59,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -99,7 +88,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(false);
@@ -127,7 +116,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -155,7 +144,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(false);
@@ -184,7 +173,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(false);
@@ -197,7 +186,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
         });
         await writeMinimalLump(projectRoot, 'sharedLump', {});
         gitCommitAllAndPush({ cwd: projectRoot, message: 'shared lump' });
-        const logger = createLogger();
+        const logger = createSpyLogger();
 
         const result = await resolveEffectiveDiscoveryBranch({
             discoveryBranchOpt: 'feature/a',
@@ -235,7 +224,7 @@ describe('resolveEffectiveDiscoveryBranch (dynamic-discovery-branch E*)', () => 
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(false);
