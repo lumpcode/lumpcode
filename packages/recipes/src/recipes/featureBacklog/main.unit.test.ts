@@ -567,6 +567,104 @@ describe('resolveFeatureBacklogItem', () => {
 
         expect(resolution).toEqual({ ignored: true });
     });
+
+    it('adds the parent dependsOn on a ticket testImpl context and an impl context', async () => {
+        await writeTodoDesc(
+            lumpPath,
+            'auth',
+            'name: auth\ntask: Auth\npriority: 1\ndependsOn:\n  - persistence\n',
+        );
+        const ticket: FeatureBacklogItem = {
+            name: 'sessions',
+            task: 'Sessions',
+            priority: 1,
+            todoRelativeDir: 'auth/tickets/sessions',
+            parentName: 'auth',
+        };
+        await writeFeatureArtifact(lumpPath, 'auth/tickets/sessions', {
+            requirements: true,
+            testPlan: true,
+        });
+
+        mockedGetContextStatus.mockResolvedValue('toDo');
+        const testImpl = await resolve({
+            item: ticket,
+            discoveryBranch: 'feature/auth',
+        });
+        expect(testImpl).toMatchObject({
+            stage: 'testImpl',
+            contextName: 'auth-sessions_testImpl',
+            additionalDependsOnContexts: ['persistence'],
+        });
+
+        mockedGetContextStatus.mockResolvedValue('finished');
+        const impl = await resolve({
+            item: ticket,
+            discoveryBranch: 'feature/auth',
+        });
+        expect(impl).toMatchObject({
+            stage: 'impl',
+            contextName: 'auth-sessions',
+            additionalDependsOnContexts: ['persistence'],
+        });
+    });
+
+    it('adds nothing when the parent has no dependsOn and leaves a top-level item unchanged', async () => {
+        const topLevel = await resolve();
+        expect(topLevel).toEqual({
+            stage: 'req',
+            contextName: 'my-feature_req',
+            variables: {
+                WORKFLOW: defaultWorkflow,
+                REQ_FILE: reqPath,
+            },
+        });
+        expect(topLevel).not.toHaveProperty('additionalDependsOnContexts');
+
+        const ticket: FeatureBacklogItem = {
+            name: 'sessions',
+            task: 'Sessions',
+            priority: 1,
+            todoRelativeDir: 'auth/tickets/sessions',
+            parentName: 'auth',
+            workflow: ['req'],
+        };
+        for (const body of [
+            'name: auth\ntask: Auth\npriority: 1\n',
+            'name: auth\ntask: Auth\npriority: 1\ndependsOn: []\n',
+        ]) {
+            await writeTodoDesc(lumpPath, 'auth', body);
+            const resolution = await resolve({
+                item: ticket,
+                discoveryBranch: 'feature/auth',
+            });
+            expect(resolution).toEqual({
+                stage: 'req',
+                contextName: 'auth-sessions_req',
+                variables: {
+                    WORKFLOW: 'req',
+                    REQ_FILE:
+                        '.lumpcode/lumps/backlog/backlogItems/todo/auth/tickets/sessions/requirements.md',
+                },
+            });
+        }
+    });
+
+    it('rejects a parent desc.yml that fails backlog item validation', async () => {
+        await writeTodoDesc(lumpPath, 'auth', 'name: auth\ntask: Auth\n');
+        const ticket: FeatureBacklogItem = {
+            name: 'sessions',
+            task: 'Sessions',
+            priority: 1,
+            todoRelativeDir: 'auth/tickets/sessions',
+            parentName: 'auth',
+            workflow: ['req'],
+        };
+
+        await expect(
+            resolve({ item: ticket, discoveryBranch: 'feature/auth' }),
+        ).rejects.toThrow(/numeric field "priority"/);
+    });
 });
 
 describe('featureBacklog parseItem', () => {
@@ -795,6 +893,132 @@ describe('featureBacklog promptFns', () => {
             }),
         ).toBe('CUSTOM TEST IMPL');
 
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+});
+
+describe('featureBacklog ticket dependsOn inheritance', () => {
+    function sortedDependsOn(
+        contexts: { name: string; options?: { dependsOnContexts?: string[] } }[],
+        name: string,
+    ): string[] {
+        const match = contexts.find((ctx) => ctx.name === name);
+        if (!match) {
+            throw new Error(`Missing context "${name}"`);
+        }
+        return [...(match.options?.dependsOnContexts ?? [])].sort();
+    }
+
+    it('makes ticket contexts wait for the parent dependsOn and sibling dependencies', async () => {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-inherit-'));
+        const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
+        await mkdir(lumpPath, { recursive: true });
+        const configPath = path.join(lumpPath, 'config.ts');
+        await writeFile(configPath, 'export default {};\n');
+        await writeTodoDesc(
+            lumpPath,
+            'persistence',
+            'name: persistence\ntask: Persistence\npriority: 1\ndependsOn: []\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'auth',
+            'name: auth\ntask: Auth\npriority: 2\ndependsOn:\n  - persistence\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'auth/tickets/sessions',
+            'name: sessions\ntask: Sessions\npriority: 1\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'auth/tickets/login',
+            'name: login\ntask: Login\npriority: 2\ndependsOn:\n  - sessions\n',
+        );
+        await writeFeatureArtifact(lumpPath, 'auth/tickets/sessions', {
+            requirements: true,
+            testPlan: true,
+        });
+        await writeFeatureArtifact(lumpPath, 'auth/tickets/login', {
+            requirements: true,
+            testPlan: true,
+        });
+        await writeTodoDesc(
+            lumpPath,
+            'hold',
+            'name: hold\ntask: Hold\npriority: 3\ndependsOn:\n  - persistence\n  - hold-sibling\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'hold/tickets/piece',
+            'name: piece\ntask: Piece\npriority: 1\nworkflow:\n  - impl\ndependsOn:\n  - sibling\n',
+        );
+        await writeFeatureArtifact(lumpPath, 'hold/tickets/piece', { requirements: true });
+
+        const config = featureBacklog({
+            configUrl: pathToFileURL(configPath),
+            implValidateCommand: 'npm test',
+        });
+        const listContexts = asGetContextListFn(config.getContextListFn);
+
+        mockedGetContextStatus.mockResolvedValue('toDo');
+        const testImplContexts = await listContexts({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/auth',
+        });
+        expect(testImplContexts.map((ctx) => ctx.name).sort()).toEqual([
+            'auth',
+            'auth-login_testImpl',
+            'auth-sessions_testImpl',
+        ]);
+        expect(sortedDependsOn(testImplContexts, 'auth-sessions_testImpl')).toEqual(['persistence']);
+        expect(sortedDependsOn(testImplContexts, 'auth-login_testImpl')).toEqual([
+            'auth-sessions',
+            'persistence',
+        ]);
+        expect(sortedDependsOn(testImplContexts, 'auth')).toEqual([
+            'auth-login',
+            'auth-sessions',
+            'persistence',
+        ]);
+
+        mockedGetContextStatus.mockResolvedValue('finished');
+        const implContexts = await listContexts({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/auth',
+        });
+        expect(implContexts.map((ctx) => ctx.name).sort()).toEqual([
+            'auth',
+            'auth-login',
+            'auth-sessions',
+        ]);
+        expect(sortedDependsOn(implContexts, 'auth-sessions')).toEqual(['persistence']);
+        expect(sortedDependsOn(implContexts, 'auth-login')).toEqual([
+            'auth-sessions',
+            'persistence',
+        ]);
+        expect(sortedDependsOn(implContexts, 'auth')).toEqual([
+            'auth-login',
+            'auth-sessions',
+            'persistence',
+        ]);
+
+        const holdContexts = await listContexts({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/hold',
+        });
+        expect(holdContexts.find((ctx) => ctx.name === 'hold-piece')?.options?.dependsOnContexts)
+            .toEqual(['hold-sibling', 'persistence']);
+        expect(sortedDependsOn(holdContexts, 'hold')).toEqual([
+            'hold-piece',
+            'hold-sibling',
+            'persistence',
+        ]);
+
+        mockedGetContextStatus.mockReset();
         await rm(projectRoot, { recursive: true, force: true });
     });
 });

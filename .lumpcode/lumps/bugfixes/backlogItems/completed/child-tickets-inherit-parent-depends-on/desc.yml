@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: child-tickets-inherit-parent-depends-on
 workflow:
   - impl
@@ -9,3 +8,4 @@ task: >-
   for are merged; make every ticket context also wait for its parent's
   dependsOn.
 priority: 10
+completedAt: '2026-11-11T11:54:03.320Z'

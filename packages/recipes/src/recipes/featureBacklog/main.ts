@@ -18,7 +18,7 @@ import {
     defaultTestPlanPrompt,
 } from './defaultPrompts';
 import { resolveFeatureBacklogDiscoveryOptions } from './discovery';
-import { resolveFeatureBacklogItem } from './resolve';
+import { resolveFeatureBacklogItem, runWithParentDescCache } from './resolve';
 import type { FeatureBacklogItem, FeatureBacklogOptions } from './types';
 import {
     assertValidFeatureItemName,
@@ -82,7 +82,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
             'echo "No implementation validation command provided. I say, trust but verify, but well..."',
     );
 
-    return backlog<FeatureBacklogItem, V, SV>({
+    const config = backlog<FeatureBacklogItem, V, SV>({
         configUrl,
         backlogItemsDir,
         includeUmbrellaParents: true,
@@ -161,4 +161,13 @@ export const featureBacklog = defineRecipe(function featureBacklog<
             },
         },
     });
+
+    const listContexts = config.getContextListFn;
+    if (typeof listContexts !== 'function') {
+        return config;
+    }
+    return {
+        ...config,
+        getContextListFn: (input) => runWithParentDescCache(() => listContexts(input)),
+    };
 });
