@@ -678,6 +678,64 @@ describe('featureBacklog parseItem', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
+    it('inherits parent dependsOn on ticket contexts', async () => {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-inherit-'));
+        const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
+        await mkdir(lumpPath, { recursive: true });
+        const configPath = path.join(lumpPath, 'config.ts');
+        await writeFile(configPath, 'export default {};\n');
+        await writeTodoDesc(
+            lumpPath,
+            'auth',
+            'name: auth\ntask: Auth\npriority: 1\ndependsOn:\n  - persistence\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'persistence',
+            'name: persistence\ntask: Persistence\npriority: 1\ndependsOn: []\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'auth/tickets/sessions',
+            'name: sessions\ntask: Sessions\npriority: 1\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'auth/tickets/login',
+            'name: login\ntask: Login\npriority: 2\ndependsOn:\n  - sessions\n',
+        );
+        await writeFeatureArtifact(lumpPath, 'auth/tickets/sessions', {
+            requirements: true,
+            testPlan: true,
+        });
+        await writeFeatureArtifact(lumpPath, 'auth/tickets/login', {
+            requirements: true,
+            testPlan: true,
+        });
+
+        const config = featureBacklog({
+            configUrl: pathToFileURL(configPath),
+            implValidateCommand: 'npm test',
+        });
+        const listContexts = asGetContextListFn(config.getContextListFn);
+
+        mockedGetContextStatus.mockResolvedValue('toDo');
+        const contexts = await listContexts({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/auth',
+        });
+
+        expect(contexts.find((ctx) => ctx.name === 'auth-sessions_testImpl')?.options?.dependsOnContexts)
+            .toEqual(['persistence']);
+        expect(
+            [...(contexts.find((ctx) => ctx.name === 'auth-login_testImpl')?.options?.dependsOnContexts ?? [])].sort(),
+        ).toEqual(['auth-sessions', 'persistence']);
+
+        mockedGetContextStatus.mockReset();
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
     it('emits parent completion after all tickets have completed', async () => {
         const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-parent-done-'));
         const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');

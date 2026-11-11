@@ -75,7 +75,7 @@ Per item, in `desc.yml`:
 | `workflow` | Stages, any of `req` or `manualReq`, `testPlan`, `testImpl`, `impl` or `directImpl`. Omitted: `[req, testPlan, testImpl]` then `impl`. `manualReq` waits for a `requirements.md` you write. `directImpl` implements from `desc.yml` alone. |
 | `manual` | `true` keeps the agent away from this item. |
 
-Big features: put tickets in `todo/<parent>/tickets/<ticket>/desc.yml`. The parent never runs a stage itself; when every ticket is done, it moves to `completed/`.
+Big features: put tickets in `todo/<parent>/tickets/<ticket>/desc.yml`. The parent never runs a stage itself; when every ticket is done, it moves to `completed/`. A ticket waits for its parent's `dependsOn` as well as its own. Its own `dependsOn` names sibling tickets.
 
 Editors autocomplete `desc.yml` with `# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json` on the first line. Generic `backlog` and `abstractionBacklog` items use `https://lumpcode.com/schemas/backlogDesc.schema.json`.
 
