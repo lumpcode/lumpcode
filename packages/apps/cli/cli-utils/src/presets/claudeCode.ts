@@ -1,3 +1,4 @@
+import type { PresetExtraArgsVariables } from './extraArgs';
 import type { PresetSessionStepVariables } from './session';
 
 export type ClaudeCodeAgentPermissions = {
@@ -17,7 +18,7 @@ export type ClaudeCodeAgentPermissions = {
 export type ClaudeCodePresetLumpVariables = {
   model?: string;
   agentPermissions?: ClaudeCodeAgentPermissions;
-};
+} & PresetExtraArgsVariables;
 
 export type ClaudeCodePresetStepVariables = ClaudeCodePresetLumpVariables &
   PresetSessionStepVariables;

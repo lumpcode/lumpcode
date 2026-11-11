@@ -4,6 +4,7 @@ import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
+import { resolvePresetExtraArgs } from './utils/resolvePresetExtraArgs.js';
 import { resolveCursorConfigDir } from './utils/resolveCursorConfigDir.js';
 import {
     initialPresetChatRunState,
@@ -50,6 +51,7 @@ export const command = (async ({
     if (chatId == null) return null;
 
     const agentPermissions = resolveAgentPermissions({ lumpVariables, stepVariables });
+    const extraArgs = resolvePresetExtraArgs({ lumpVariables, stepVariables });
     const configDir = resolveCursorConfigDir({ agentPermissions, projectRoot });
 
     return {
@@ -70,6 +72,7 @@ export const command = (async ({
             model,
             '--resume',
             chatId,
+            ...extraArgs,
         ],
     };
 });
