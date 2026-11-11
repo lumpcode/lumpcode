@@ -1,21 +1,21 @@
-# Keep the cause when listing project files fails
+# Say which baseBranch value was rejected and why
 
-Before a run, `getToDoContextList` (`packages/core/src/helpers/getToDoContextList/main.ts`) lists the project's files with `getCodeBasePaths`. That helper fails when the project root cannot be read, and its message names the directory and the OS error. `getToDoContextList` dropped that message and returned only:
-
-```
-Failed to get code base paths
-```
-
-All three callers show this message as-is: `runLump` (prefixed with "Failed to get to do context list"), `lump-plan --todoOnly`, and the dashboard's lump scoring. So an operator got no hint about which path failed or why.
-
-The message now keeps the cause:
+A lump's `baseBranch` must be an exact branch name. `jsConfigToRunLumpInput` (`packages/apps/cli/src/utils/jsConfigToRunLumpInput/main.ts`) rejects a pattern such as `feature/*`, and also rejects a `baseBranch` function that returns a pattern, an empty string, or a non-string. The errors did not show the rejected value or that the problem was a pattern:
 
 ```
-Failed to get code base paths: Failed to scan directory: Error: Cannot read directory /path/to/root: Error: ENOENT: no such file or directory, scandir '/path/to/root'
+baseBranch must be a concrete branch name
+baseBranch function must return a non-empty concrete branch name
 ```
 
-The same inputs fail at the same point; only the text is longer. No docs, tests, or memory quoted the old string.
+The sibling check for `--discoveryBranch` already says `not a pattern (got "...")`. That matters most for the function form, where the operator never typed the value. The messages now match that wording and show what was rejected:
 
-I added one unit test to `packages/core/src/helpers/getToDoContextList/unit.test.ts`. It points `projectRoot` at a missing directory and checks that the message names it.
+```
+baseBranch must be a concrete branch name, not a pattern (got "feature/*")
+baseBranch function must return a non-empty concrete branch name, not a pattern (got "exec/*")
+```
 
-Tests: `npm run test -w=@lumpcode/core` (27 files, 201 tests pass, 4 skipped) and root `npm run build` (passes).
+A non-string return shows its type instead (`got undefined`). The inline function and the file-path module function had the same three-line check, so both now call one private helper, `checkBaseBranchFnResult`. The same inputs still fail at the same point; only the text changed. No docs or memory quoted the old strings. `context-status` has its own `baseBranch` message, which I left alone.
+
+Tests: in `testing/dynamicDiscoveryBranch.unit.test.ts`, B3 now expects the new string. A new B3b covers a `baseBranch` function that returns a pattern.
+
+Checks: `npm run test -w=@lumpcode/cli` (167 files, 1286 tests pass) and root `npm run build` (passes). One earlier full-suite run failed `sparseCronCatchUp.unit.test.ts` on a timing-based retry test. It passed 3 of 3 runs alone and on the next full run. It does not touch this code.

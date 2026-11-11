@@ -51,7 +51,21 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
                 { baseBranch: 'feature/*', getContextListFn: stubGetContextListFn },
                 { effectiveDiscoveryBranch: DISCOVERY },
             ),
-            'baseBranch must be a concrete branch name',
+            'baseBranch must be a concrete branch name, not a pattern (got "feature/*")',
+        );
+    });
+
+    it('B3b: BaseBranchFn returning a pattern fails at resolve and names the value', async () => {
+        const baseBranchFn: BaseBranchFn = () => 'exec/*';
+        assertFailure(
+            await resolveJsConf(
+                {
+                    baseBranch: baseBranchFn as LumpJsConfig['baseBranch'],
+                    getContextListFn: stubGetContextListFn,
+                },
+                { effectiveDiscoveryBranch: DISCOVERY },
+            ),
+            'baseBranch function must return a non-empty concrete branch name, not a pattern (got "exec/*")',
         );
     });
 
