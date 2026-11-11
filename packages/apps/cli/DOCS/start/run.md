@@ -12,6 +12,9 @@ What happens when you type `lumpcode run`, how a worker differs, and how Lumpcod
 4. **Branch** (worker only). Cut `lump/myLump/<context>` from the base branch, in place or in a worktree.
 5. **Run the steps** for each context: your prompt or steps, your agent, your validation commands.
 6. **Commit** (worker only) with `LUMP: myLump - <context>`, then **push** the branch.
+   A lump with `skipCommitAndPush: true` still cuts the local `lump/…` workspace and runs the steps.
+   It does not commit and does not push. The next dedicated setup deletes that local branch and recreates it from `origin/<base>`.
+   Anything that must survive has to be done by a step.
 
 On a laptop (`shared`), steps 1, 4, and 6 are skipped. The agent edits your current branch. At the end a terminal prompt offers `c` to commit with markers (no push) or `e` to leave the tree as is.
 

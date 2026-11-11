@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { countOpenLumpBranches } from './main';
 import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { createLumpWorkBranch } from '../../testing';

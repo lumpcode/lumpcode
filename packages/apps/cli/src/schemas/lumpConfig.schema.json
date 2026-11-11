@@ -211,6 +211,11 @@
       "description": "Daemon only. When false, skip the transcript file for this lump. Omit or true writes it (today's default). Lump wins over local.json and project.json. Does not affect lumpcode run stdout.",
       "default": true
     },
+    "skipCommitAndPush": {
+      "type": "boolean",
+      "description": "Dedicated runs only. When true, the worker still builds the branch workspace and runs the steps, and does not commit or push. Omit or false keeps the commit and the push. Shared mode does not auto-commit or push either way.",
+      "default": false
+    },
     "registerCommands": {
       "type": "array",
       "items": {

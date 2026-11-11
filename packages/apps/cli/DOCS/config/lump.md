@@ -81,6 +81,7 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `verbose` | Extra engine logs. Also on with `lumpcode run --verbose`. |
 | `keepHistory` | Write prompt/output YAML per context. Gitignored. |
 | `writeTranscripts` | Daemon only. Omit or `true` writes the transcript file. `false` skips it. Lump > local > project. |
+| `skipCommitAndPush` | `true` skips the worker commit and push. Steps still run in the branch workspace. [How a run works](../start/run.md). |
 | `registerCommands` | Extra command tags that appear only inside dynamic `steps`. |
 | `branchFn` | Custom work-branch name. Default `lump/<lumpName>/<contexts…>`. |
 | `setupFn` / `teardownFn` | Per-context hooks. Teardown always runs; failures are logged and do not block git. |

@@ -79,6 +79,12 @@ export type LumpJsConfig<
     writeTranscripts?: boolean;
     verbose?: boolean;
     /**
+     * Dedicated runs only. `true` still builds the branch workspace and runs
+     * the steps, and does not commit or push. Omit or `false` keeps the commit
+     * and the push. Shared mode never auto-commits or pushes.
+     */
+    skipCommitAndPush?: boolean;
+    /**
      * After generated checkout/worktree setup. Mutually exclusive with
      * `postSetupWorkspaceCommand`.
      */
