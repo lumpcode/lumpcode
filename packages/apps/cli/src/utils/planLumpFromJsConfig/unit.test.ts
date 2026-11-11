@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createLumpWorkBranch, LUMP_PLAN_UTIL_CONFIG_TS } from '../../testing';
 import { seedGlobalConfigFixture } from '../jsConfigToRunLumpInput/testing/testHelpers';
 import { planLumpFromJsConfig } from './main';
+import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { writeJsonFile } from '../writeJsonFile';
 

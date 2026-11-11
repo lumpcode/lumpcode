@@ -1,0 +1,11 @@
+name: clean-reports-failed-deletes
+workflow:
+  - impl
+task: >-
+  lumpcode clean (commands/clean/main.ts) ignores the result of `git push
+  --delete origin` and `git branch -D`, so it exits 0 with "Cleaned N
+  branch(es)" and lists branches in data.deletedBranches that are still on
+  origin or still local; report only branches that were actually deleted and
+  fail when any deletion failed.
+priority: 20
+completedAt: '2026-11-07T17:28:18.080Z'
