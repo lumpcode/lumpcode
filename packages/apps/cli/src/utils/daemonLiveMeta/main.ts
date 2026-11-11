@@ -1,10 +1,8 @@
-import * as fs from 'node:fs/promises';
-
 import type { Logger } from '@lumpcode/core';
 
 import type { LumpLine } from '../lumpLine';
 import type { DaemonInFlightRun, DaemonMetaWrite } from '../readDaemonMeta';
-import { formatJsonFileContent } from '../writeJsonFile';
+import { writeJsonFile } from '../writeJsonFile';
 
 export type DaemonLiveMetaWriter = {
     writeFingerprintAtStart: (fingerprint: string) => Promise<void>;
@@ -50,23 +48,6 @@ type PersistOverrides = {
     nextTickAt?: string | undefined;
 };
 
-async function replaceJsonFile(filePath: string, data: unknown): Promise<void> {
-    const content = formatJsonFileContent({ data, trailingNewline: true });
-    const tmpPath = `${filePath}.${process.pid}.tmp`;
-    await fs.writeFile(tmpPath, content, 'utf8');
-    try {
-        await fs.rename(tmpPath, filePath);
-    } catch {
-        try {
-            await fs.unlink(filePath);
-            await fs.rename(tmpPath, filePath);
-        } catch (error: unknown) {
-            await fs.unlink(tmpPath).catch(() => undefined);
-            throw error;
-        }
-    }
-}
-
 export function createDaemonLiveMetaWriter(
     input: CreateDaemonLiveMetaWriterInput,
 ): DaemonLiveMetaWriter {
@@ -95,12 +76,14 @@ export function createDaemonLiveMetaWriter(
         if (tickAt !== undefined) {
             data.nextTickAt = tickAt;
         }
-        try {
-            await replaceJsonFile(metaFilePath, data);
-        } catch (error: unknown) {
-            const message = String(error);
-            logger.error(`Could not write daemon live meta: ${message}`);
-            throw new Error(message);
+        const written = await writeJsonFile({
+            filePath: metaFilePath,
+            data,
+            trailingNewline: true,
+        });
+        if (!written.success) {
+            logger.error(`Could not write daemon live meta: ${written.data}`);
+            throw new Error(written.data);
         }
     };
 
