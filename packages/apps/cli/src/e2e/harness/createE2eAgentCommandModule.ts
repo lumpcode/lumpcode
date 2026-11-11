@@ -18,11 +18,7 @@ ${writeCwd}fs.writeFileSync(\`\${markerDir}/\${contextName}.done\`, '');
 `;
 }
 
-function e2eMockAgentScriptPathExpr(input: { lumpName: string; relativeTo: 'lump' | 'commands' }): string {
-    const script = `./${E2E_MOCK_AGENT_SCRIPT_BASENAME}`;
-    if (input.relativeTo === 'lump') {
-        return `fileURLToPath(new URL('${script}', import.meta.url))`;
-    }
+function e2eMockAgentScriptPathExpr(input: { lumpName: string }): string {
     return `fileURLToPath(new URL('../lumps/${input.lumpName}/${E2E_MOCK_AGENT_SCRIPT_BASENAME}', import.meta.url))`;
 }
 
@@ -33,22 +29,12 @@ function e2eMockAgentCommandFnBody(input: { scriptPathExpr: string }): string {
 })`;
 }
 
-/** Inline `command` fn for lump `config.js` (Node mock agent, no shell). */
-export function inlineE2eMockAgentCommandFn(input: {
-    lumpName: string;
-    writeWorkspaceCwd?: boolean;
-}): string {
-    return e2eMockAgentCommandFnBody({
-        scriptPathExpr: e2eMockAgentScriptPathExpr({ lumpName: input.lumpName, relativeTo: 'lump' }),
-    });
-}
-
 /** Source of a command module that writes an e2e completion marker instead of calling a real agent. */
 export function createE2eAgentCommandModule(input: { lumpName: string }): string {
     return `import { fileURLToPath } from 'node:url';
 
 export const command = ${e2eMockAgentCommandFnBody({
-        scriptPathExpr: e2eMockAgentScriptPathExpr({ lumpName: input.lumpName, relativeTo: 'commands' }),
+        scriptPathExpr: e2eMockAgentScriptPathExpr({ lumpName: input.lumpName }),
     })};
 
 export const setup = () => ({ contextRunState: { e2eRan: true } });
