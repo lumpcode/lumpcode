@@ -1,0 +1,13 @@
+name: createSpyLogger
+task: >-
+  Extract the copied Vitest logger double (info/warn/error/verbose as vi.fn,
+  child returning a logger, and the warnings-array variant whose warn pushes
+  each message) into createSpyLogger. Shared test helper under src/testing,
+  re-exported from testing/index.ts. Affected: the local createLogger copies
+  in validateDaemonLaunch, discoverLoadableLumpNames, scoreDedicatedLumpLine,
+  resolveEffectiveDiscoveryBranch, reconcileDaemonConfigFiles,
+  expandPrimaryBranches, discoverDaemonConfigFiles, and
+  discoverDedicatedLumpsForScanBranch unit tests; testLogger in
+  installProcessShutdown; and the three inline logger objects in
+  installDaemonProcessGuards.
+priority: 4
