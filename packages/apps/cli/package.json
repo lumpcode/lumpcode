@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli",
-  "version": "0.8.1",
+  "version": "0.9.0",
   "description": "The simplest way to set up software factories in your repo: lumps defined in code you commit, run by your CLI coding agent, one git branch per piece of work",
   "keywords": [
     "lumpcode",
@@ -70,7 +70,7 @@
     "install-bin:local:beta": "sh scripts/install-local.sh"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.8.1",
+    "@lumpcode/core": "^0.9.0",
     "ajv": "^8.20.0",
     "commander": "^9.5.0",
     "croner": "^9.1.0",
