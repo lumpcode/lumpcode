@@ -67,7 +67,7 @@ function resolveDepth(options: Input['options']): LumpPlanDepth {
     return 'validate';
 }
 
-function formatHumanPlan(data: PlanLumpOutput): string[] {
+function formatHumanPlan(data: PlanLumpOutput, todoOnly?: boolean): string[] {
     const lines: string[] = [
         `Lump "${data.lumpName}" is valid.`,
         `discoveryBranch: ${data.discoveryBranch}`,
@@ -83,7 +83,7 @@ function formatHumanPlan(data: PlanLumpOutput): string[] {
         }
     }
 
-    if (data.todoContextNames?.length) {
+    if (todoOnly && data.todoContextNames?.length) {
         lines.push(`todoOnly filter: ${data.todoContextNames.join(', ')}`);
     }
 
@@ -112,16 +112,19 @@ function formatHumanPlan(data: PlanLumpOutput): string[] {
             lines.push(`plan: skipped (${data.plan.skipped.reason})`);
             lines.push(`  ${data.plan.skipped.reasonDetail}`);
         } else {
-            lines.push(`plan branch: ${data.plan.branchName ?? '(none)'}`);
-            if (data.plan.contextNames?.length) {
-                lines.push(`plan batch contexts: ${data.plan.contextNames.join(', ')}`);
-            }
-            if (data.plan.setupWorkspaceCommand) {
-                lines.push('setupWorkspaceCommand:');
-                lines.push(`  ${data.plan.setupWorkspaceCommand}`);
-            }
-            if (data.plan.teardownWorkspaceCommand) {
-                lines.push(`teardownWorkspaceCommand: ${data.plan.teardownWorkspaceCommand}`);
+            const contextNames = data.plan.contextNames ?? [];
+            if (contextNames.length === 0) {
+                lines.push('plan: no todo contexts');
+            } else {
+                lines.push(`plan branch: ${data.plan.branchName ?? '(none)'}`);
+                lines.push(`plan batch contexts: ${contextNames.join(', ')}`);
+                if (data.plan.setupWorkspaceCommand) {
+                    lines.push('setupWorkspaceCommand:');
+                    lines.push(`  ${data.plan.setupWorkspaceCommand}`);
+                }
+                if (data.plan.teardownWorkspaceCommand) {
+                    lines.push(`teardownWorkspaceCommand: ${data.plan.teardownWorkspaceCommand}`);
+                }
             }
         }
     }
@@ -153,7 +156,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const data = planResult.data;
     const messages = input.options.json
         ? [`Plan for lump "${lumpName}" (${depth}).`]
-        : formatHumanPlan(data);
+        : formatHumanPlan(data, input.options.todoOnly);
 
     return success({ messages, data });
 };

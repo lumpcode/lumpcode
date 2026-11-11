@@ -27,9 +27,9 @@ Validate and preview. Does **not** reset git, run the agent, commit, or push.
 | Option | Role |
 | --- | --- |
 | `--contexts` | Print resolved names and variables. |
-| `--todoOnly` | With the flags below, only what `run` would pick next. |
+| `--todoOnly` | Filter the listed contexts and prompts. |
 | `--prompts` | Resolved prompt text and agent argv. |
-| `--plan` | Dry-run of branch, git strings, batch. |
+| `--plan` | Dry-run of the branch, git strings, and batch `run` would pick next (remote todo). |
 | `--contextName` | One context. |
 | `--discoveryBranch` | Concrete discovery (shared: filter only). |
 
