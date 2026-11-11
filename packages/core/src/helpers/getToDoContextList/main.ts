@@ -36,7 +36,7 @@ export async function getToDoContextList<V extends LumpVariables = LumpVariables
 
     if (!codeBasePathsResult.success) {
         return failure({
-            message: 'Failed to get code base paths',
+            message: `Failed to get code base paths: ${codeBasePathsResult.data.message}`,
         });
     }
 
