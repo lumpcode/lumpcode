@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
+import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { countOpenLumpBranches } from './main';
 import { createLumpWorkBranch } from '../../testing';
 import { execGit } from '../execGit';
@@ -66,7 +67,7 @@ describe('countOpenLumpBranches', () => {
     });
 
     it('does not count a lump branch merged into main with a merge commit', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
         execGit('checkout main', projectRoot);
         execGit(`merge --no-ff ${LUMP_BRANCH_PREFIX}my-lump/ctx-a -m "merge"`, projectRoot);
         execGit('push origin main', projectRoot);
@@ -77,7 +78,7 @@ describe('countOpenLumpBranches', () => {
     });
 
     it('does not count a lump branch fast-forwarded into main', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
         execGit('checkout main', projectRoot);
         execGit(`merge --ff-only ${LUMP_BRANCH_PREFIX}my-lump/ctx-a`, projectRoot);
         execGit('push origin main', projectRoot);
@@ -88,12 +89,12 @@ describe('countOpenLumpBranches', () => {
     });
 
     it('counts the unmerged branch when another lump branch is already merged', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
         execGit('checkout main', projectRoot);
         execGit(`merge --no-ff ${LUMP_BRANCH_PREFIX}my-lump/ctx-a -m "merge"`, projectRoot);
         execGit('push origin main', projectRoot);
         execGit('fetch origin main', projectRoot);
-        createAndPushLumpBranch('my-lump', 'ctx-b');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
         execGit('checkout main', projectRoot);
 
         const count = await countOpenLumpBranches({ executionWorkspacePath: projectRoot, lumpName: 'my-lump' });

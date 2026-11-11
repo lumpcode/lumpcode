@@ -101,7 +101,10 @@ export async function jsConfigToRunLumpInput({
     localConfig?: LocalConfig;
     /** Concrete discovery branch bound for author context source + baseBranch resolve. */
     effectiveDiscoveryBranch?: string;
-    /** When set, workspace setup/teardown and git add+commit/push use the common-dir lock. */
+    /**
+     * When set, workspace setup/teardown use the common-dir lock.
+     * Git add+commit/push use it unless the lump sets `skipCommitAndPush`.
+     */
     gitLock?: GitCommonDirLockContext;
     /** Plan path: skip composing postSetup/postTeardown (no invoke, no command splice). */
     skipPostWorkspaceHooks?: boolean;
@@ -131,6 +134,7 @@ export async function jsConfigToRunLumpInput({
         postTeardownWorkspaceFn: postTeardownWorkspaceFnField,
         postTeardownWorkspaceCommand,
         verbose: _configVerbose,
+        skipCommitAndPush,
         ...rest
     } = config;
 
@@ -253,7 +257,7 @@ export async function jsConfigToRunLumpInput({
     }
 
     const gitCommitMessageFn = makeGitCommitMessageFnFromLumpName(lumpName);
-    const gatedGitFns = mode === 'shared'
+    const gatedGitFns = mode === 'shared' || skipCommitAndPush === true
         ? makeSharedNoopGitFns()
         : gitLock
             ? makeGatedGitFns({ gitLock })

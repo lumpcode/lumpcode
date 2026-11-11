@@ -12,7 +12,7 @@ Run `lumpcode` from the repo root that contains `.lumpcode/` and a git checkout 
 
 ### `lumpcode run <lumpName>`
 
-One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: "shared"`), the agent writes on this branch. After a successful walk with contexts, a TTY (not `--json`) offers `[c]` commit LUMP markers (no push) or `[e]` exit dirty. A dedicated worker still commits, pushes `lump/…`, and restores the checkout.
+One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: "shared"`), the agent writes on this branch. After a successful walk with contexts, a TTY (not `--json`) offers `[c]` commit LUMP markers (no push) or `[e]` exit dirty. A dedicated worker still commits and pushes `lump/…` unless the lump sets `skipCommitAndPush`, and restores the checkout.
 
 | Option | Role |
 | --- | --- |

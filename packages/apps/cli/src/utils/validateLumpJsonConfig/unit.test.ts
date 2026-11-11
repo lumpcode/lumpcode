@@ -63,6 +63,27 @@ describe('validateLumpJsonConfig', () => {
         expect(result.success).toBe(false);
     });
 
+    describe('skipCommitAndPush', () => {
+        const base = {
+            contextListJson: { FILE: 'src/{FILE}' },
+            prompt: { promptTemplate: 'Do {FILE}', command: 'claude' },
+        };
+
+        it('accepts true and false', () => {
+            expect(validateLumpJsonConfig({ ...base, skipCommitAndPush: true }).success).toBe(true);
+            expect(validateLumpJsonConfig({ ...base, skipCommitAndPush: false }).success).toBe(true);
+        });
+
+        it('rejects a non-boolean', () => {
+            expect(validateLumpJsonConfig({ ...base, skipCommitAndPush: 'yes' }).success).toBe(false);
+            expect(validateLumpJsonConfig({ ...base, skipCommitAndPush: 1 }).success).toBe(false);
+        });
+
+        it('still accepts a config that omits the field', () => {
+            expect(validateLumpJsonConfig(base).success).toBe(true);
+        });
+    });
+
     describe('post workspace hook fields', () => {
         const base = {
             contextListJson: { FILE: 'src/{FILE}' },

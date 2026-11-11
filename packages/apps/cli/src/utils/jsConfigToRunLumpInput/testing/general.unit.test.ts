@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import * as path from 'node:path';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
-import { shellSingleQuote, type SetupFn, type TeardownFn } from '@lumpcode/core';
+import { shellSingleQuote, type RunLumpInput, type SetupFn, type TeardownFn } from '@lumpcode/core';
 
 import { shellBestEffort } from '../../shellBestEffort';
 import { LUMP_BRANCH_PREFIX, LUMP_COMMIT_PREFIX } from '../../../consts';
@@ -234,6 +234,162 @@ describe('jsConfigToRunLumpInput', () => {
             const data = assertSuccess(await resolveJsConf({}));
             expect(data.gitAddCommitFn).toBeUndefined();
             expect(data.gitPushFn).toBeUndefined();
+        });
+    });
+
+    describe('skipCommitAndPush', () => {
+        const commitMessage = 'LUMP: my-lump - ctx';
+        const branchName = 'lump/my-lump/ctx';
+        const context = { name: 'ctx', variables: {} };
+
+        async function expectNoopGitPair(
+            data: Pick<RunLumpInput, 'gitAddCommitFn' | 'gitPushFn'>,
+            workspacePath: string,
+        ) {
+            expect(typeof data.gitAddCommitFn).toBe('function');
+            expect(typeof data.gitPushFn).toBe('function');
+
+            const addResult = await data.gitAddCommitFn!({
+                baseBranch: 'main',
+                branchName,
+                workspacePath,
+                context,
+                commitMessage,
+            });
+            expect(addResult.success).toBe(true);
+            if (!addResult.success) throw new Error('unreachable');
+            expect(addResult.data).toBeUndefined();
+
+            const pushResult = await data.gitPushFn!({
+                baseBranch: 'main',
+                branchName,
+                workspacePath,
+                contextList: [context],
+            });
+            expect(pushResult.success).toBe(true);
+            if (!pushResult.success) throw new Error('unreachable');
+            expect(pushResult.data).toBeUndefined();
+        }
+
+        it('strips the key from RunLumpInput and keeps gitCommitMessageFn', async () => {
+            const data = assertSuccess(await resolveJsConf({ skipCommitAndPush: true }));
+            expect('skipCommitAndPush' in data).toBe(false);
+            expect(typeof data.gitCommitMessageFn).toBe('function');
+        });
+
+        it('dedicated without a git lock installs the no-op pair when true', async () => {
+            const data = assertSuccess(await resolveJsConf(
+                { skipCommitAndPush: true },
+                { localConfig: { mode: 'dedicated', primaryBranch: 'main' } },
+            ));
+            await expectNoopGitPair(data, DEFAULT_TEST_WORKSPACE);
+            expect(await data.branchFn({
+                contextList: [context],
+                contextRunStateList: [{}],
+                lumpVariables: {},
+            })).toContain(LUMP_BRANCH_PREFIX);
+
+            const setupOut = await data.setupWorkspaceFn!({
+                baseBranch: 'main',
+                branchName,
+                contextList: [context],
+            });
+            expect(setupOut.command).toContain(`git switch -c ${shellSingleQuote(branchName)}`);
+        });
+
+        it('false without a git lock omits both functions, matching omit', async () => {
+            const data = assertSuccess(await resolveJsConf({ skipCommitAndPush: false }));
+            expect(data.gitAddCommitFn).toBeUndefined();
+            expect(data.gitPushFn).toBeUndefined();
+            expect('skipCommitAndPush' in data).toBe(false);
+        });
+
+        describe('with a git repo', () => {
+            let projectRoot: string;
+            let globalConfigFolderPath: string;
+
+            beforeEach(async () => {
+                ({ projectRoot, globalConfigFolderPath } = await createTempTestDirs({
+                    prefix: 'lump-jsconf-skip-git-',
+                    remote: false,
+                }));
+                initLocalGitRepo({ cwd: projectRoot });
+            });
+
+            afterEach(async () => {
+                await removeTempTestDirs({ projectRoot, globalConfigFolderPath });
+            });
+
+            function gitLock() {
+                return {
+                    globalConfigFolderPath,
+                    gitCwd: projectRoot,
+                    lumpName: 'my-lump',
+                    lockMode: 'fail' as const,
+                };
+            }
+
+            it('dedicated with a git lock and true returns success(undefined) and does not commit', async () => {
+                const data = assertSuccess(await jsConfigToRunLumpInput({
+                    config: makeConfig({ skipCommitAndPush: true }),
+                    lumpName: 'my-lump',
+                    localConfigFolderPath: DEFAULT_TEST_LOCAL_CONFIG,
+                    globalConfigFolderPath,
+                    projectBaseBranch: DEFAULT_TEST_PROJECT_BASE_BRANCH,
+                    executionWorkspacePath: projectRoot,
+                    workspaceStrategy: 'checkout',
+                    localConfig: { mode: 'dedicated', primaryBranch: 'main' },
+                    gitLock: gitLock(),
+                }));
+
+                await expectNoopGitPair(data, projectRoot);
+                expect(execGit('log -1 --pretty=%s', projectRoot)).toBe('init');
+                expect('skipCommitAndPush' in data).toBe(false);
+            });
+
+            it('false with a git lock still commits, matching omit', async () => {
+                const data = assertSuccess(await jsConfigToRunLumpInput({
+                    config: makeConfig({ skipCommitAndPush: false }),
+                    lumpName: 'my-lump',
+                    localConfigFolderPath: DEFAULT_TEST_LOCAL_CONFIG,
+                    globalConfigFolderPath,
+                    projectBaseBranch: DEFAULT_TEST_PROJECT_BASE_BRANCH,
+                    executionWorkspacePath: projectRoot,
+                    workspaceStrategy: 'checkout',
+                    localConfig: { mode: 'dedicated', primaryBranch: 'main' },
+                    gitLock: gitLock(),
+                }));
+
+                expect(typeof data.gitAddCommitFn).toBe('function');
+                expect(typeof data.gitPushFn).toBe('function');
+                const addResult = await data.gitAddCommitFn!({
+                    baseBranch: 'main',
+                    branchName,
+                    workspacePath: projectRoot,
+                    context,
+                    commitMessage,
+                });
+                expect(addResult.success).toBe(true);
+                expect(execGit('log -1 --pretty=%s', projectRoot)).toBe(commitMessage);
+            });
+
+            it('shared with true stays a no-op and does not commit', async () => {
+                const data = assertSuccess(await jsConfigToRunLumpInput({
+                    config: makeConfig({ skipCommitAndPush: true }),
+                    lumpName: 'my-lump',
+                    localConfigFolderPath: DEFAULT_TEST_LOCAL_CONFIG,
+                    globalConfigFolderPath,
+                    projectBaseBranch: DEFAULT_TEST_PROJECT_BASE_BRANCH,
+                    executionWorkspacePath: projectRoot,
+                    workspaceStrategy: 'checkout',
+                    localConfig: { mode: 'shared', primaryBranch: 'main' },
+                    gitLock: gitLock(),
+                }));
+
+                await expectNoopGitPair(data, projectRoot);
+                expect(execGit('log -1 --pretty=%s', projectRoot)).toBe('init');
+                expect('skipCommitAndPush' in data).toBe(false);
+            });
         });
     });
 
