@@ -174,6 +174,47 @@ describe('lump-plan command', () => {
         expect(result.success).toBe(true);
     });
 
+    it('plan human output names the next batch without a todoOnly filter line', async () => {
+        const result = await makeHandler()({
+            options: { plan: true },
+            arguments: { lumpName: 'my-lump' },
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.data?.todoContextNames).toEqual(['alpha']);
+        expect(result.data.data?.plan?.contextNames).toEqual(['alpha']);
+        expect(result.data.messages.some((line) => line.startsWith('plan branch:'))).toBe(true);
+        expect(result.data.messages.some((line) => line.startsWith('todoOnly filter:'))).toBe(false);
+    });
+
+    it('prints plan: no todo contexts when the plan batch is empty', async () => {
+        await fs.writeFile(
+            path.join(localConfigFolderPath, 'lumps', 'my-lump', 'config.js'),
+            `export default {
+  getContextListFn: () => [],
+  prompt: {
+    promptFn: () => 'hello',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`,
+            'utf-8',
+        );
+
+        const result = await makeHandler()({
+            options: { plan: true },
+            arguments: { lumpName: 'my-lump' },
+        });
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.messages).toContain('plan: no todo contexts');
+        expect(result.data.messages.some((line) => line.startsWith('plan branch:'))).toBe(false);
+        expect(result.data.data?.plan).toEqual({
+            contextNames: [],
+            branchName: '',
+        });
+    });
+
     it('leaves checkout branch unchanged', async () => {
         const before = gitCurrentBranch(projectRoot);
         await makeHandler()({

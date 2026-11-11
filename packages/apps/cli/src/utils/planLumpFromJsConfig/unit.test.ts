@@ -20,6 +20,18 @@ const LUMP_CONFIG_JS = `export default {
 };
 `;
 
+const TWO_CONTEXT_CONFIG_JS = `export default {
+  getContextListFn: () => [
+    { name: 'ctx-a', variables: { FILE: 'a.ts' } },
+    { name: 'ctx-b', variables: { FILE: 'b.ts' } },
+  ],
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`;
+
 describe('planLumpFromJsConfig', () => {
     let projectRoot: string;
     let remoteDir: string;
@@ -88,6 +100,99 @@ describe('planLumpFromJsConfig', () => {
         if (!result.success) throw new Error('unreachable');
         expect(result.data.promptsByContext?.ctx1).toHaveLength(1);
         expect(result.data.promptsByContext?.ctx1?.[0].prompt).toBe('preview prompt');
+    });
+
+    describe('plan batch from remote todo', () => {
+        async function writeTwoContexts() {
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+                TWO_CONTEXT_CONFIG_JS,
+                'utf-8',
+            );
+        }
+
+        function markFinishedOnOrigin(contextName: string) {
+            execGit(`commit --allow-empty -m "LUMP: preview-lump - ${contextName}"`, projectRoot);
+            execGit('push origin main', projectRoot);
+        }
+
+        it('plan depth without todoOnly batches the next remote todo context', async () => {
+            await writeTwoContexts();
+            markFinishedOnOrigin('ctx-a');
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.contexts?.map((c) => c.name)).toEqual(['ctx-a', 'ctx-b']);
+            expect(result.data.todoContextNames).toEqual(['ctx-b']);
+            expect(result.data.plan?.contextNames).toEqual(['ctx-b']);
+            expect(result.data.plan?.branchName).toBe('lump/preview-lump/ctx-b');
+        });
+
+        it('plan depth returns an empty batch when every context is finished', async () => {
+            await writeTwoContexts();
+            markFinishedOnOrigin('ctx-a');
+            markFinishedOnOrigin('ctx-b');
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.contexts?.map((c) => c.name)).toEqual(['ctx-a', 'ctx-b']);
+            expect(result.data.plan).toEqual({
+                contextNames: [],
+                branchName: '',
+            });
+        });
+
+        it('plan depth with a finished contextName returns an empty batch', async () => {
+            await writeTwoContexts();
+            markFinishedOnOrigin('ctx-a');
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+                contextName: 'ctx-a',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.contexts?.map((c) => c.name)).toEqual(['ctx-a']);
+            expect(result.data.plan).toEqual({
+                contextNames: [],
+                branchName: '',
+            });
+        });
+
+        it('contexts depth without todoOnly still lists a finished context', async () => {
+            await writeTwoContexts();
+            markFinishedOnOrigin('ctx-a');
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'contexts',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.contexts?.map((c) => c.name)).toEqual(['ctx-a', 'ctx-b']);
+            expect(result.data.todoContextNames).toBeUndefined();
+        });
     });
 
     it('plan depth omits gitCommandsByContext and gitPushCommand', async () => {

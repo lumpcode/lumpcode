@@ -161,7 +161,8 @@ export async function planLumpFromJsConfig(input: {
     });
     const resolvedContextNames = new Set(contexts.map((c) => c.name));
 
-    if (todoOnly) {
+    let todoContexts: typeof contexts | undefined;
+    if (todoOnly || depth === 'plan') {
         const refreshRemoteTrackingRefsFn = makeLockedRefreshRemoteTrackingRefsFn({
             gitLock: {
                 globalConfigFolderPath,
@@ -181,9 +182,12 @@ export async function planLumpFromJsConfig(input: {
         if (!todoResult.success) {
             return failure(todoResult.data.message);
         }
-        const todoNames = new Set(todoResult.data.map((c) => c.name));
-        contexts = contexts.filter((c) => todoNames.has(c.name));
+        todoContexts = todoResult.data;
         baseOutput.todoContextNames = todoResult.data.map((c) => c.name);
+        if (todoOnly) {
+            const todoNames = new Set(todoContexts.map((c) => c.name));
+            contexts = contexts.filter((c) => todoNames.has(c.name));
+        }
     }
 
     if (contextName) {
@@ -256,7 +260,10 @@ export async function planLumpFromJsConfig(input: {
     }
 
     const numberOfContextsPerBranch = runLumpInput.numberOfContextsPerBranch ?? 1;
-    const batchContexts = contexts.slice(0, numberOfContextsPerBranch);
+    const planSource = (todoContexts ?? []).filter((context) =>
+        contextName === undefined || context.name === contextName,
+    );
+    const batchContexts = planSource.slice(0, numberOfContextsPerBranch);
 
     if (batchContexts.length === 0) {
         baseOutput.plan = {
