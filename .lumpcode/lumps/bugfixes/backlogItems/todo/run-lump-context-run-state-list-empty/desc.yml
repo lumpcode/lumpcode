@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: run-lump-context-run-state-list-empty
+workflow:
+  - impl
+task: >-
+  runLump always returns result.contextRunStateList as [] because core
+  executeStepsForContextList never adds each context's contextRunState to the
+  list it returns, so the per-context state the core README documents in the
+  return value (and lumpcode run --json echoes) is lost.
+priority: 20
