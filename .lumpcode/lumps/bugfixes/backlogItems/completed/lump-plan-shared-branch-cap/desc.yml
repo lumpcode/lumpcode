@@ -1,0 +1,10 @@
+name: lump-plan-shared-branch-cap
+workflow:
+  - impl
+task: >-
+  lumpcode lump-plan --plan (utils/planLumpFromJsConfig) reports "skipped
+  (tooManyOpenBranches)" on a shared checkout, where lumpcode run never applies
+  maximumNumberOfConcurrentBranches and runs the next context; make the preview
+  apply the cap only when run would, through one shared gate.
+priority: 20
+completedAt: '2026-11-11T12:06:02.809Z'

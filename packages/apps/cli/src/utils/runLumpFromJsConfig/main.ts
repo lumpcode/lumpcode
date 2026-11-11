@@ -172,15 +172,14 @@ export async function runLumpFromJsConfig(input: {
             }
         }
 
-        if (localConfig.mode !== 'shared') {
-            const tooManySkip = await evaluateTooManyOpenBranchesSkip({
-                jsConfig,
-                lumpName,
-                executionWorkspacePath: tentativeExecutionWorkspacePath,
-            });
-            if (tooManySkip) {
-                return success(tooManySkip);
-            }
+        const tooManySkip = await evaluateTooManyOpenBranchesSkip({
+            jsConfig,
+            lumpName,
+            executionWorkspacePath: tentativeExecutionWorkspacePath,
+            mode: localConfig.mode,
+        });
+        if (tooManySkip) {
+            return success(tooManySkip);
         }
 
         const runLumpInput = {
