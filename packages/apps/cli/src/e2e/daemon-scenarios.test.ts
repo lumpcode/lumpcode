@@ -1,7 +1,15 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
+import { spawn } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
+import { isDaemonMidRun, readDaemonMeta } from '../utils/readDaemonMeta';
+import { gitCommonDirLocksDirPath } from '../utils/gitCommonDirLock';
+import { pollUntil } from '../utils/pollUntil';
+import { workspacePathLocksDirPath } from '../utils/workspacePathLock';
 import {
     daemonPathsForProject,
+    e2eCliInvocation,
     expectCliOk,
     expectDaemonRunning,
     expectMarkerOnRemote,
@@ -9,6 +17,7 @@ import {
     remoteHasBranch,
     runE2eCli,
     runForegroundUntilMarkers,
+    subprocessEnv,
     useE2eProjects,
     waitForDaemonIdle,
     waitForPath,
@@ -95,4 +104,167 @@ describe('E2E daemon scenarios', () => {
             }),
         ).toBe(false);
     });
+
+    it('stop --all drain still exits and releases locks after the wait is interrupted', async () => {
+        const lumpName = 'slowLump';
+        const project = await createProject({
+            lumps: [{
+                name: lumpName,
+                useE2eAgent: false,
+                configJs: `export default {
+  baseBranch: 'main',
+  contextListJson: { NAME: '{NAME}.md' },
+  prompt: { promptTemplate: 'E2E @{NAME}', command: './slow-command.js' },
+  numberOfContextsPerBranch: 1,
+};`,
+                hookFiles: {
+                    'slow-command.js': `export const command = () => ({
+  executable: process.env.LUMPCODE_E2E_NODE || 'node',
+  args: ['-e', 'setTimeout(() => {}, 20000)'],
 });
+`,
+                },
+            }],
+        });
+        const paths = daemonPathsForProject(project);
+        expectCliOk(
+            await runE2eCli({ project, args: ['start', '--cronSetup', '*/1 * * * *', '--json'] }),
+            'detached start',
+        );
+        await waitForPath(paths.pidFilePath, 30_000);
+        const daemonPid = Number.parseInt((await fs.readFile(paths.pidFilePath, 'utf8')).trim(), 10);
+        expect(Number.isNaN(daemonPid)).toBe(false);
+
+        await pollUntil({
+            timeoutMs: 90_000,
+            intervalMs: 100,
+            timeoutError: `daemon did not go mid-run at ${paths.metaFilePath}`,
+            poll: async () => {
+                const metaResult = await readDaemonMeta(paths.metaFilePath);
+                if (!metaResult.success) return undefined;
+                return isDaemonMidRun(metaResult.data) ? true : undefined;
+            },
+        });
+
+        const invocation = e2eCliInvocation();
+        const stopChild = spawn(invocation.executable, [...invocation.argsPrefix, 'stop', '--all'], {
+            cwd: project.projectRoot,
+            env: subprocessEnv(project.homeDir),
+            // New process group so SIGINT reaches the launcher and the CLI child, as Ctrl+C does.
+            detached: true,
+            stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        let stopOutput = '';
+        stopChild.stdout?.on('data', (chunk: Buffer) => {
+            stopOutput += chunk.toString();
+        });
+        stopChild.stderr?.on('data', (chunk: Buffer) => {
+            stopOutput += chunk.toString();
+        });
+        try {
+            await pollUntil({
+                timeoutMs: 30_000,
+                intervalMs: 50,
+                timeoutError: () =>
+                    new Error(`stop --all did not log a drain wait.\n${stopOutput}`),
+                poll: () => (stopOutput.includes('waiting for drain') ? true : undefined),
+            });
+            const stopExited = new Promise<void>((resolve) => {
+                if (stopChild.exitCode !== null || stopChild.signalCode !== null) {
+                    resolve();
+                    return;
+                }
+                stopChild.once('close', () => resolve());
+            });
+            if (stopChild.pid !== undefined) {
+                try {
+                    process.kill(-stopChild.pid, 'SIGINT');
+                } catch {
+                    stopChild.kill('SIGINT');
+                }
+            }
+            await Promise.race([
+                stopExited,
+                new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error(`stop did not exit after SIGINT.\n${stopOutput}`)), 10_000);
+                }),
+            ]);
+
+            await pollUntil({
+                timeoutMs: 60_000,
+                intervalMs: 200,
+                timeoutError: () =>
+                    new Error(
+                        `draining daemon pid ${daemonPid} did not exit and release locks.\n${stopOutput}`,
+                    ),
+                poll: async () => {
+                    try {
+                        process.kill(daemonPid, 0);
+                        return undefined;
+                    } catch (error) {
+                        const code = (error as NodeJS.ErrnoException).code;
+                        if (code !== 'ESRCH') throw error;
+                    }
+                    for (const filePath of [paths.pidFilePath, paths.metaFilePath, paths.desiredFilePath]) {
+                        try {
+                            await fs.access(filePath);
+                            return undefined;
+                        } catch (error) {
+                            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+                        }
+                    }
+                    const held = [
+                        ...(await lockFilesHoldingPid(
+                            workspacePathLocksDirPath({
+                                globalConfigFolderPath: project.globalConfigFolderPath,
+                            }),
+                            daemonPid,
+                        )),
+                        ...(await lockFilesHoldingPid(
+                            gitCommonDirLocksDirPath({
+                                globalConfigFolderPath: project.globalConfigFolderPath,
+                            }),
+                            daemonPid,
+                        )),
+                    ];
+                    return held.length === 0 ? true : undefined;
+                },
+            });
+        } finally {
+            if (stopChild.exitCode === null && stopChild.signalCode === null && stopChild.pid !== undefined) {
+                try {
+                    process.kill(-stopChild.pid, 'SIGKILL');
+                } catch {
+                    stopChild.kill('SIGKILL');
+                }
+            }
+        }
+    }, 180_000);
+});
+
+async function lockFilesHoldingPid(dir: string, pid: number): Promise<string[]> {
+    let names: string[];
+    try {
+        names = await fs.readdir(dir);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
+        throw error;
+    }
+    const held: string[] = [];
+    for (const name of names) {
+        const filePath = path.join(dir, name);
+        let raw: string;
+        try {
+            raw = await fs.readFile(filePath, 'utf8');
+        } catch {
+            continue;
+        }
+        try {
+            const parsed = JSON.parse(raw) as { pid?: unknown };
+            if (parsed.pid === pid) held.push(filePath);
+        } catch {
+            // not a lock payload
+        }
+    }
+    return held;
+}

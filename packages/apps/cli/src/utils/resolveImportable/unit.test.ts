@@ -1,20 +1,28 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
+import * as esbuild from 'esbuild';
+import { describe, expect, it, vi } from 'vitest';
 
 import { readCacheMeta, withTsLumpProject, writeCommandModuleTs } from '../../testing/tsLumpFixtures';
 import { resolveImportable } from './main';
 
 describe('resolveImportable', () => {
     it('R1 loads an existing .js path', async () => {
-        await withTsLumpProject(async ({ lumpDir }) => {
+        await withTsLumpProject(async ({ lumpDir, projectRoot }) => {
             const jsPath = path.join(lumpDir, 'legacy.js');
             await fs.writeFile(jsPath, 'export default { fromJs: true };', 'utf-8');
 
-            const result = await resolveImportable<{ fromJs: boolean }>(jsPath, 'default');
-            expect(result.success).toBe(true);
-            if (!result.success) throw new Error('unreachable');
-            expect(result.data).toEqual({ fromJs: true });
+            const buildSpy = vi.spyOn(esbuild, 'build');
+            try {
+                const result = await resolveImportable<{ fromJs: boolean }>(jsPath, 'default');
+                expect(result.success).toBe(true);
+                if (!result.success) throw new Error('unreachable');
+                expect(result.data).toEqual({ fromJs: true });
+                expect(buildSpy).not.toHaveBeenCalled();
+                expect(await readCacheMeta(projectRoot)).toEqual([]);
+            } finally {
+                buildSpy.mockRestore();
+            }
         });
     });
 
@@ -76,6 +84,28 @@ export const teardown = () => {};`,
             if (result.success) throw new Error('unreachable');
             expect(result.data).toContain(path.basename(tsPath));
             expect((await readCacheMeta(projectRoot)).length).toBe(0);
+        });
+    });
+
+    it('R6 loads a .js default export that calls a relative .ts helper', async () => {
+        await withTsLumpProject(async ({ lumpDir, projectRoot }) => {
+            await fs.writeFile(
+                path.join(lumpDir, 'helper.ts'),
+                'export function helperValue(): string { return "from-ts"; }\n',
+                'utf-8',
+            );
+            const jsPath = path.join(lumpDir, 'hook.js');
+            await fs.writeFile(
+                jsPath,
+                'import { helperValue } from "./helper.ts";\nexport default function hook() { return helperValue(); }\n',
+                'utf-8',
+            );
+
+            const result = await resolveImportable<() => string>(jsPath, 'default');
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data()).toBe('from-ts');
+            expect((await readCacheMeta(projectRoot)).length).toBeGreaterThan(0);
         });
     });
 });

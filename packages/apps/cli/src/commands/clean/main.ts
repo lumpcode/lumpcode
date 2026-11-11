@@ -10,16 +10,18 @@ import {
     parseGitLogHashBodyRecords,
     shellSingleQuote,
     success,
+    type ExecAsyncFailure,
 } from '@lumpcode/core';
 
 import { shellBestEffort } from '../../utils/shellBestEffort';
 
-import { REFS_HEADS_PREFIX, LUMP_BRANCH_PREFIX } from '../../consts';
+import { LUMP_BRANCH_PREFIX } from '../../consts';
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { commandFailure } from '../../utils/commandFailure';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import { lumpWorktreePath } from '../../utils/getLumpWorktreePath';
+import { isNonLumpRemoteTrackingRef } from '../../utils/isReachableFromNonLumpRemoteHead';
 import { listRemoteHeadBranches } from '../../utils/listRemoteHeadBranches';
 import { localConfigFolderPath } from '../../utils/localConfigFolderPath';
 import { lumpBranchGlob } from '../../utils/lumpBranchGlob';
@@ -79,8 +81,15 @@ async function discoverByGlob(projectRoot: string, branchPattern: string): Promi
     };
 }
 
+/** `lump/<lumpName>/` from `lumpBranchGlob`, so `lump/other` is not a candidate. */
+function lumpNameBranchPrefix(lumpName: string): string {
+    const glob = lumpBranchGlob({ lumpName });
+    return glob.endsWith('*') ? glob.slice(0, -1) : glob;
+}
+
 async function discoverByContext(projectRoot: string, lumpName: string, contextName: string): Promise<DiscoveredRefs> {
     const commitMessage = getGitCommitMessage({ contextName, lumpName });
+    const branchPrefix = lumpNameBranchPrefix(lumpName);
 
     const logResult = await execAsync(
         `git log --remotes=origin --branches -F --grep=${shellSingleQuote(commitMessage)} --format=${shellSingleQuote(GIT_LOG_HASH_BODY_FORMAT)}`,
@@ -102,16 +111,18 @@ async function discoverByContext(projectRoot: string, lumpName: string, contextN
             execAsync(`git branch -r --contains ${hash} --format=${shellSingleQuote('%(refname:short)')}`, { cwd: projectRoot }),
             execAsync(`git branch --contains ${hash} --format=${shellSingleQuote('%(refname:short)')}`, { cwd: projectRoot }),
         ]);
-        if (remoteResult.success) {
-            for (const b of parseLocalRefs(remoteResult.data.stdout)) {
-                if (b.startsWith(`origin/${LUMP_BRANCH_PREFIX}`)) {
-                    remoteBranchSet.add(b.slice('origin/'.length));
-                }
+        const remoteRefs = remoteResult.success ? parseLocalRefs(remoteResult.data.stdout) : [];
+        // Reachable from a non-lump remote head means the marker arrived through the base, not this branch.
+        if (remoteRefs.some(isNonLumpRemoteTrackingRef)) continue;
+
+        for (const b of remoteRefs) {
+            if (b.startsWith(`origin/${branchPrefix}`)) {
+                remoteBranchSet.add(b.slice('origin/'.length));
             }
         }
         if (localResult.success) {
             for (const b of parseLocalRefs(localResult.data.stdout)) {
-                if (b.startsWith(LUMP_BRANCH_PREFIX)) {
+                if (b.startsWith(branchPrefix)) {
                     localBranchSet.add(b);
                 }
             }
@@ -147,19 +158,74 @@ async function removeWorktreesForBranches(executionWorkspacePath: string, branch
     }
 }
 
-async function deleteRefs(executionWorkspacePath: string, refs: DiscoveredRefs): Promise<void> {
-    const { remoteBranches, localBranches } = refs;
+type DeleteSide = 'origin' | 'local';
+
+type RefDeleteResult =
+    | { branch: string; side: DeleteSide; ok: true }
+    | { branch: string; side: DeleteSide; ok: false; error: string };
+
+/** Git's own stderr from an `execAsync` failure, trimmed. */
+function gitDeleteError(execFailure: ExecAsyncFailure): string {
+    const raw = execFailure.info.stderr;
+    if (typeof raw === 'object' && raw !== null && 'stderr' in raw) {
+        const stderr = String((raw as { stderr?: unknown }).stderr ?? '').trim();
+        if (stderr.length > 0) return stderr;
+    }
+    return execFailure.message.trim();
+}
+
+async function deleteOneRef(input: {
+    cwd: string;
+    branch: string;
+    side: DeleteSide;
+}): Promise<RefDeleteResult> {
+    const { cwd, branch, side } = input;
+    const command = side === 'origin'
+        ? `git push --delete origin ${shellSingleQuote(branch)}`
+        : `git branch -D ${shellSingleQuote(branch)}`;
+    const result = await execAsync(command, { cwd });
+    if (result.success) {
+        return { branch, side, ok: true };
+    }
+    return { branch, side, ok: false, error: gitDeleteError(result.data) };
+}
+
+/**
+ * Deletes one ref per command. A batched `git push --delete` or `git branch -D`
+ * can remove some refs and still exit non-zero, which hides which branch failed.
+ */
+async function deleteRefs(executionWorkspacePath: string, refs: DiscoveredRefs): Promise<RefDeleteResult[]> {
+    const remoteBranches = [...new Set(refs.remoteBranches)];
+    const localBranches = [...new Set(refs.localBranches)];
     const allBranches = [...new Set([...remoteBranches, ...localBranches])];
 
     await removeWorktreesForBranches(executionWorkspacePath, allBranches);
 
-    if (remoteBranches.length > 0) {
-        const remoteRefs = remoteBranches.map(b => `${REFS_HEADS_PREFIX}${b}`);
-        await execAsync(`git push --delete origin ${remoteRefs.join(' ')}`, { cwd: executionWorkspacePath });
+    const results: RefDeleteResult[] = [];
+    for (const branch of remoteBranches) {
+        results.push(await deleteOneRef({ cwd: executionWorkspacePath, branch, side: 'origin' }));
     }
-    if (localBranches.length > 0) {
-        await execAsync(`git branch -D ${localBranches.join(' ')}`, { cwd: executionWorkspacePath });
+    for (const branch of localBranches) {
+        results.push(await deleteOneRef({ cwd: executionWorkspacePath, branch, side: 'local' }));
     }
+    return results;
+}
+
+/** A branch is deleted only when every copy `clean` targeted was removed. */
+function deletedBranchNames(refs: DiscoveredRefs, results: RefDeleteResult[]): string[] {
+    const ordered = [...new Set([...refs.remoteBranches, ...refs.localBranches])];
+    return ordered.filter((branch) => {
+        const attempts = results.filter((result) => result.branch === branch);
+        return attempts.length > 0 && attempts.every((result) => result.ok);
+    });
+}
+
+function isDeleteFailure(result: RefDeleteResult): result is Extract<RefDeleteResult, { ok: false }> {
+    return !result.ok;
+}
+
+function formatDeleteFailure(result: Extract<RefDeleteResult, { ok: false }>): string {
+    return `Could not delete ${result.side} branch "${result.branch}": ${result.error}`;
 }
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
@@ -188,8 +254,20 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             lumpBranchGlob({ lumpName }),
         );
 
-    await deleteRefs(executionWorkspacePath, refs);
-    const deletedBranches = [...new Set([...refs.remoteBranches, ...refs.localBranches])];
+    const deleteResults = await deleteRefs(executionWorkspacePath, refs);
+    const deletedBranches = deletedBranchNames(refs, deleteResults);
+    const failures = deleteResults.filter(isDeleteFailure);
+
+    if (failures.length > 0) {
+        const failedBranchCount = new Set(failures.map((result) => result.branch)).size;
+        return failure({
+            messages: [
+                ...failures.map(formatDeleteFailure),
+                `Cleaned ${deletedBranches.length} branch(es); ${failedBranchCount} could not be deleted.`,
+            ],
+            data: { deletedBranches },
+        });
+    }
 
     return success({
         messages: [`Cleaned ${deletedBranches.length} branch(es)`],

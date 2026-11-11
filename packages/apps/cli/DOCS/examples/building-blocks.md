@@ -23,7 +23,7 @@ lumpcode lump-status --lumpName smokeTest
 
 ## Retry until green
 
-Run your checks after the agent, and give it the output when they fail. A branch is only pushed when the checks pass; after the last attempt the context fails and stays `toDo`.
+Run your checks after the agent, and give it the output when they fail. If the check is still red after the last attempt, the branch is still pushed and `lumpVariables.__VALIDATION_FAILED__` is `true` (`false` when a check passed). Pass `pushOnValidationFailure: false` to withhold that push: the context fails and stays `toDo`.
 
 ```ts config.ts
 import { defineConfig } from '@lumpcode/cli-utils'
@@ -136,7 +136,7 @@ export function stopDevServer(workspacePath: string): void {
 }
 ```
 
-Call `startDevServer` from `postSetupWorkspaceFn` and `stopDevServer` from `postTeardownWorkspaceFn`. A full lump that uses it: [Labelled bugs, verified in a browser](issue-queues.md#labelled-bugs-verified-in-a-browser). Shared code goes in `.lumpcode/helpers/`, imported with a relative path.
+Call `startDevServer` from `postSetupWorkspaceFn` and `stopDevServer` from `postTeardownWorkspaceFn`. A full lump that uses it: [Labelled bugs, verified in a browser](issue-queues.md#labelled-bugs-verified-in-a-browser). Shared code goes in `.lumpcode/helpers/`. Helpers there may be `.ts` and imported with a relative path from `config.ts`, `config.js`, or a `.js` hook module.
 
 ## Open a pull request after push
 
@@ -182,7 +182,7 @@ import fs from 'node:fs'
 disabled: () => fs.readdirSync('.lumpcode/lumps/refactors/backlogItems/todo').length >= 3,
 ```
 
-To pause by hand, set `"disabled": true`, push, and merge. The worker keeps running and skips the lump. Capping open PRs is built in: `maximumNumberOfConcurrentBranches`.
+To pause by hand, set `"disabled": true`, push, and merge. The worker keeps running and skips the lump. Capping a lump's open branches is built in: [`maximumNumberOfConcurrentBranches`](../start/worker.md#day-to-day-on-your-laptop).
 
 ## Different schedules per lump
 
@@ -202,6 +202,8 @@ Commit one file per daemon under `.lumpcode/daemons/` and the worker starts them
   "cronSetup": "0 7 * * *"
 }
 ```
+
+A daily daemon that is busy or blocked at its fire time catches up the same day; it does not wait for tomorrow.
 
 On the worker, run `lumpcode start --superviseOnly` once so only these files start daemons. Change a file, push, and the worker restarts that daemon. Details: [Daemon files](../config/daemons.md).
 

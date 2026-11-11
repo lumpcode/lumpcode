@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: post-command-exec-fn-return-null
+workflow:
+  - impl
+task: >-
+  A postCommandExecFn that returns null fails to type-check (core
+  PostCommandExecFn and CLI LumpJsConfigPostCommandExecFn only allow void or
+  steps) even though the engine and CLI wrapper already treat null as "no
+  follow-on steps"; widen both return types to accept null and undefined, like
+  CommandFn.
+priority: 41

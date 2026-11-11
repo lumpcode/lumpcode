@@ -75,12 +75,13 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `baseBranch` | Exact execution branch. Omit to use the concrete discovery / primary branch. JS/TS may use `({ effectiveDiscoveryBranch, contexts }) => string`. |
 | `discoveryBranch` / `discoveryBranches` | Where a dedicated worker finds this lump. Mutually exclusive. Globs allowed. Ignored for `run` in shared mode. |
 | `disabled` | Soft-skip on `run` and on the worker (exit 0). Boolean, function, or module path. |
-| `maximumNumberOfConcurrentBranches` | Skip the run when that many `lump/<name>/*` branches already exist on origin. |
+| `maximumNumberOfConcurrentBranches` | Skip the run when that many `lump/<name>/*` branches on origin are not merged yet. A branch whose tip is already in a non-lump branch (merge commit or fast-forward) does not count. |
 | `numberOfContextsPerBranch` | Default `1`. Raise it to group small diffs. |
 | `lumpVariables` | Bag for hooks and preset options (`model`, `agentPermissions`, `outputDetail`). |
 | `verbose` | Extra engine logs. Also on with `lumpcode run --verbose`. |
 | `keepHistory` | Write prompt/output YAML per context. Gitignored. |
 | `writeTranscripts` | Daemon only. Omit or `true` writes the transcript file. `false` skips it. Lump > local > project. |
+| `skipCommitAndPush` | `true` skips the worker commit and push. Steps still run in the branch workspace. [How a run works](../start/run.md). |
 | `registerCommands` | Extra command tags that appear only inside dynamic `steps`. |
 | `branchFn` | Custom work-branch name. Default `lump/<lumpName>/<contexts…>`. |
 | `setupFn` / `teardownFn` | Per-context hooks. Teardown always runs; failures are logged and do not block git. |

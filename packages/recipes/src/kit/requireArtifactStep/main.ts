@@ -3,7 +3,7 @@ import path from 'node:path';
 import type { LumpVariables, StepVariables } from '@lumpcode/cli-utils';
 import { pathExists } from '@lumpcode/core';
 
-import type { ValidationCommandFn } from '../getRecursiveSteps';
+import type { ValidationCommandFn } from '../getValidationLoopSteps';
 
 /** Validation command that fails when the artifact referenced by a context variable was not created. */
 export function requireArtifactStep<
@@ -13,7 +13,10 @@ export function requireArtifactStep<
     return async ({ context, workspacePath }) => {
         const artifactPath = context.variables[artifactPathVarName];
         if (typeof artifactPath !== 'string' || artifactPath.trim() === '') {
-            throw new Error(`Missing context variable ${artifactPathVarName}`);
+            throw new Error(
+                `requireArtifactStep('${artifactPathVarName}'): context "${context.name}" does not set ${artifactPathVarName} to a path. ` +
+                    `Set ${artifactPathVarName} in the context variables to the artifact path, relative to the workspace.`,
+            );
         }
 
         const fullPath = path.join(workspacePath, artifactPath);

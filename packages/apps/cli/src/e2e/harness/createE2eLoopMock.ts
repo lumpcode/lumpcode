@@ -31,11 +31,11 @@ function writeLoopMarker(attempts) {
 export default {
     baseBranch: 'main',
     getContextListFn: async () => [{ name: LOOP_CONTEXT, variables: { NAME: LOOP_CONTEXT } }],
-    steps: getRecursiveSteps(),
+    steps: getValidationLoopSteps(),
     numberOfContextsPerBranch: 1,
 };
 
-function getRecursiveSteps() {
+function getValidationLoopSteps() {
     return [
         {
             commandFn({ context }) {
@@ -64,7 +64,7 @@ function getRecursiveSteps() {
                 return [];
             }
             if (!contextRunState.loopIsValid) {
-                return getRecursiveSteps();
+                return getValidationLoopSteps();
             }
             writeLoopMarker(contextRunState.loopAttempts ?? SUCCESS_ATTEMPT);
             return [];

@@ -25,7 +25,7 @@ export default backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetS
     maximumNumberOfConcurrentBranches: 2,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'cursor-grok-4.6-high' },
+    lumpVariables: { model: 'grok-4.7-high' },
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     async resolveItem() {
         return { stage: 'implementation' };
@@ -47,6 +47,8 @@ Task name: ${TASK_NAME}
 
 Task:
 ${TASK}
+
+When @${BACKLOG_ITEM_DIR}/requirements.md exists, it is the decided plan. Follow it. Do not edit it.
 
 Surfaces: packages/apps/website/ (landing, meta titles/descriptions), packages/apps/cli/DOCS/ (the single source for GitHub docs and the website /docs), and related READMEs when needed.
 Follow the vocabulary and rules in @.agents/memory/writing/ (docs.md, website.md).

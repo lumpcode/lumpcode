@@ -5,11 +5,9 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as core from '@lumpcode/core';
 
 import { noopLogger } from '../noopLogger';
-import { LUMP_BRANCH_PREFIX } from '../../consts';
-import { writeMinimalLump } from '../../testing';
+import { createLumpWorkBranch, writeMinimalLump } from '../../testing';
 import { acquireWorkspacePathLock } from '../workspacePathLock';
 import { runLumpFromLumpName } from './main';
-import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeJsonFile } from '../writeJsonFile';
@@ -59,15 +57,6 @@ describe('runLumpFromLumpName', () => {
         return files.filter((f) => f.endsWith('.lock.json')).length;
     }
 
-    function createAndPushLumpBranch(lumpName: string, contextName: string) {
-        const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        execGit('checkout main', projectRoot);
-        execGit(`checkout -b ${branch}`, projectRoot);
-        execGit('commit --allow-empty -m "lump work"', projectRoot);
-        execGit(`push origin ${branch}`, projectRoot);
-        execGit('checkout main', projectRoot);
-    }
-
     it('releases the execution path lock when a dedicated lump is disabled', async () => {
         await writeMinimalLump(projectRoot, 'my-lump', { disabled: true });
 
@@ -84,8 +73,8 @@ describe('runLumpFromLumpName', () => {
 
     it('releases the execution path lock when tooManyOpenBranches skips in phase 2', async () => {
         await writeMinimalLump(projectRoot, 'my-lump', { maximumNumberOfConcurrentBranches: 2 });
-        createAndPushLumpBranch('my-lump', 'ctx-a');
-        createAndPushLumpBranch('my-lump', 'ctx-b');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
         const result = await callRunLumpFromLumpName();
 
@@ -220,8 +209,8 @@ describe('runLumpFromLumpName', () => {
             delete raw.maximumNumberOfConcurrentBranches;
             await writeJsonFile({ filePath: path.join(lumpDir, 'config.json'), data: raw });
 
-            createAndPushLumpBranch('my-lump', 'ctx-a');
-            createAndPushLumpBranch('my-lump', 'ctx-b');
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
             const result = await callRunLumpFromLumpName();
             expect(result.success).toBe(true);

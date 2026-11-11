@@ -6,7 +6,7 @@ import { command } from './main';
 import { LUMP_BRANCH_PREFIX, REFS_HEADS_PREFIX } from '../../consts';
 import { getGitCommitMessage } from '../../utils/getGitCommitMessage';
 import * as runProjectPreflightModule from '../../utils/runProjectPreflight';
-import { gitCurrentBranch, writeLocalJson } from '../../testing';
+import { createLumpWorkBranch, gitCurrentBranch, writeLocalJson } from '../../testing';
 import { execGit, initBareRemoteAndCheckout, createTempTestDirs, removeTempTestDirs } from '../../utils';
 import { writeJsonFile } from '../../utils/writeJsonFile';
 
@@ -45,22 +45,9 @@ describe('clean command', () => {
         return command.handlerMaker({ projectRoot });
     }
 
-    function setupLumpBranch(lumpName: string, contextName: string, opts: { push?: boolean } = { push: true }) {
-        const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        const message = getGitCommitMessage({ contextName, lumpName });
-        execGit('checkout main', projectRoot);
-        execGit(`checkout -b ${branch}`, projectRoot);
-        execGit(`commit --allow-empty -m "${message}"`, projectRoot);
-        if (opts.push) {
-            execGit(`push origin ${branch}`, projectRoot);
-        }
-        execGit('checkout main', projectRoot);
-        return branch;
-    }
-
     it('removes all lump branches from local and remote', async () => {
-        setupLumpBranch('myLump', 'button');
-        setupLumpBranch('myLump', 'form');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'form', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: {}, arguments: {} });
@@ -68,6 +55,7 @@ describe('clean command', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
 
+        expect(result.data.messages).toEqual([`Cleaned ${result.data.data!.deletedBranches.length} branch(es)`]);
         expect(result.data.data!.deletedBranches).toHaveLength(2);
 
         const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
@@ -79,8 +67,8 @@ describe('clean command', () => {
     });
 
     it('scopes cleanup to a single lump when lumpName is provided', async () => {
-        setupLumpBranch('alpha', 'ctx1');
-        setupLumpBranch('beta', 'ctx2');
+        createLumpWorkBranch({ projectRoot, lumpName: 'alpha', contextName: 'ctx1', useMarkerMessage: true });
+        createLumpWorkBranch({ projectRoot, lumpName: 'beta', contextName: 'ctx2', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'alpha' }, arguments: {} });
@@ -102,11 +90,12 @@ describe('clean command', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
 
+        expect(result.data.messages).toEqual(['Cleaned 0 branch(es)']);
         expect(result.data.data!.deletedBranches).toHaveLength(0);
     });
 
     it('cleans local-only branches that were never pushed', async () => {
-        setupLumpBranch('myLump', 'local-only', { push: false });
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'local-only', useMarkerMessage: true, push: false });
 
         const handle = makeHandler();
         const result = await handle({ options: {}, arguments: {} });
@@ -120,9 +109,80 @@ describe('clean command', () => {
         expect(localBranches).toBe('');
     });
 
+    function mergeIntoMainAndPush(branch: string) {
+        execGit('checkout main', projectRoot);
+        execGit(`merge --no-ff ${branch} -m "merge ${branch}"`, projectRoot);
+        execGit('push origin main', projectRoot);
+    }
+
+    it('contextName does not delete another lump branch cut from the merged base', async () => {
+        const button = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
+        mergeIntoMainAndPush(button);
+        const card = createLumpWorkBranch({ projectRoot, lumpName: 'otherLump', contextName: 'card', useMarkerMessage: true });
+
+        const handle = makeHandler();
+        const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        expect(result.data.data!.deletedBranches).not.toContain(card);
+        expect(result.data.data!.deletedBranches).not.toContain(button);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${card}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${button}`);
+
+        const localCard = execGit(`branch --list ${card}`, projectRoot);
+        expect(localCard).toContain('card');
+    });
+
+    it('contextName does not delete a same-lump branch cut from the merged base', async () => {
+        const button = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
+        mergeIntoMainAndPush(button);
+        const form = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'form', useMarkerMessage: true });
+
+        const handle = makeHandler();
+        const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        expect(result.data.data!.deletedBranches).not.toContain(form);
+        expect(result.data.data!.deletedBranches).not.toContain(button);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${form}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${button}`);
+    });
+
+    it('contextName does not delete another lump branch that contains an unmerged marker', async () => {
+        const button = createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
+        const card = `${LUMP_BRANCH_PREFIX}otherLump/card`;
+        const cardMessage = getGitCommitMessage({ contextName: 'card', lumpName: 'otherLump' });
+        execGit(`checkout ${button}`, projectRoot);
+        execGit(`checkout -b ${card}`, projectRoot);
+        execGit(`commit --allow-empty -m "${cardMessage}"`, projectRoot);
+        execGit(`push origin ${card}`, projectRoot);
+        execGit('checkout main', projectRoot);
+
+        const handle = makeHandler();
+        const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+
+        expect(result.data.data!.deletedBranches).toContain(button);
+        expect(result.data.data!.deletedBranches).not.toContain(card);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${button}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${card}`);
+    });
+
     it('contextName scopes cleanup to a single context', async () => {
-        setupLumpBranch('myLump', 'button');
-        setupLumpBranch('myLump', 'form');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'form', useMarkerMessage: true });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
@@ -139,13 +199,14 @@ describe('clean command', () => {
     });
 
     it('contextName finds a marker in the commit body', async () => {
-        const branch = `${LUMP_BRANCH_PREFIX}myLump/button`;
         const message = getGitCommitMessage({ contextName: 'button', lumpName: 'myLump' });
-        execGit('checkout main', projectRoot);
-        execGit(`checkout -b ${branch}`, projectRoot);
-        execGit(`commit --allow-empty -m "PR title" -m "* ${message}"`, projectRoot);
-        execGit(`push origin ${branch}`, projectRoot);
-        execGit('checkout main', projectRoot);
+        const branch = createLumpWorkBranch({
+            projectRoot,
+            lumpName: 'myLump',
+            contextName: 'button',
+            message: 'PR title',
+            commitBody: `* ${message}`,
+        });
 
         const handle = makeHandler();
         const result = await handle({ options: { lumpName: 'myLump', contextName: 'button' }, arguments: {} });
@@ -189,7 +250,7 @@ describe('clean command', () => {
     });
 
     it('does not call runProjectPreflight', async () => {
-        setupLumpBranch('myLump', 'button');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
         const spy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
         const handle = makeHandler();
         await handle({ options: {}, arguments: {} });
@@ -197,7 +258,7 @@ describe('clean command', () => {
     });
 
     it('does not switch integration branch during clean', async () => {
-        setupLumpBranch('myLump', 'button');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
         const branchBefore = gitCurrentBranch(projectRoot);
         const handle = makeHandler();
         await handle({ options: {}, arguments: {} });
@@ -210,7 +271,7 @@ describe('clean command', () => {
             mode: 'shared',
             primaryBranch: 'main',
         });
-        setupLumpBranch('myLump', 'button');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'button', useMarkerMessage: true });
 
         const handle = command.handlerMaker({ projectRoot, globalConfigFolderPath });
         const result = await handle({ options: {}, arguments: {} });
@@ -220,6 +281,120 @@ describe('clean command', () => {
         await expect(fs.access(path.join(globalConfigFolderPath, 'project-copies'))).rejects.toBeDefined();
     });
 
+    async function writePreReceiveHook(script: string) {
+        const hookPath = path.join(bareDir, 'hooks', 'pre-receive');
+        await fs.writeFile(hookPath, script);
+        await fs.chmod(hookPath, 0o755);
+    }
+
+    function refuseDeletesHook(): string {
+        return `#!/bin/sh
+while read -r _oldrev newrev refname; do
+    case "$newrev" in
+        0000000000000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000)
+            echo "refusing to delete \${refname}" >&2
+            exit 1
+            ;;
+    esac
+done
+exit 0
+`;
+    }
+
+    function refuseOneDeleteHook(ref: string): string {
+        return `#!/bin/sh
+while read -r _oldrev newrev refname; do
+    case "$newrev" in
+        0000000000000000000000000000000000000000|0000000000000000000000000000000000000000000000000000000000000000)
+            if [ "$refname" = ${JSON.stringify(ref)} ]; then
+                echo "refusing to delete \${refname}" >&2
+                exit 1
+            fi
+            ;;
+    esac
+done
+exit 0
+`;
+    }
+
+    it('fails and names both branches when origin refuses every delete', async () => {
+        const branchA = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'a', useMarkerMessage: true });
+        const branchB = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'b', useMarkerMessage: true });
+        await writePreReceiveHook(refuseDeletesHook());
+
+        const result = await makeHandler()({ options: { lumpName: 'demo' }, arguments: {} });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+
+        const originFailures = result.data.messages.filter((message) => message.startsWith('Could not delete origin branch'));
+        expect(originFailures).toHaveLength(2);
+        expect(originFailures.some((message) => message.includes(`"${branchA}"`) && message.includes('refusing to delete'))).toBe(true);
+        expect(originFailures.some((message) => message.includes(`"${branchB}"`) && message.includes('refusing to delete'))).toBe(true);
+        expect(result.data.messages.some((message) => message.startsWith('Could not delete local branch'))).toBe(false);
+        expect(result.data.messages.at(-1)).toBe('Cleaned 0 branch(es); 2 could not be deleted.');
+        expect(result.data.data.deletedBranches).toEqual([]);
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${branchA}`);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${branchB}`);
+    });
+
+    it('fails naming the checked-out branch and still deletes the other', async () => {
+        const other = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'a', useMarkerMessage: true });
+        const checkedOut = createLumpWorkBranch({
+            projectRoot,
+            lumpName: 'demo',
+            contextName: 'b',
+            useMarkerMessage: true,
+            checkoutMain: false,
+        });
+
+        const result = await makeHandler()({ options: { lumpName: 'demo' }, arguments: {} });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+
+        const localFailures = result.data.messages.filter((message) => message.startsWith('Could not delete local branch'));
+        expect(localFailures).toHaveLength(1);
+        expect(localFailures[0]).toContain(`"${checkedOut}"`);
+        expect(localFailures[0]).toMatch(/error:/i);
+        expect(result.data.messages.some((message) => message.startsWith('Could not delete origin branch'))).toBe(false);
+        expect(result.data.data.deletedBranches).toEqual([other]);
+        expect(result.data.messages.at(-1)).toBe('Cleaned 1 branch(es); 1 could not be deleted.');
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${other}`);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${checkedOut}`);
+
+        const localBranches = execGit(`branch --list "${LUMP_BRANCH_PREFIX}*"`, projectRoot);
+        expect(localBranches).not.toContain(other);
+        expect(localBranches).toContain(checkedOut);
+    });
+
+    it('deletes the branch origin accepts when a hook refuses only one', async () => {
+        const refused = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'a', useMarkerMessage: true });
+        const allowed = createLumpWorkBranch({ projectRoot, lumpName: 'demo', contextName: 'b', useMarkerMessage: true });
+        await writePreReceiveHook(refuseOneDeleteHook(`${REFS_HEADS_PREFIX}${refused}`));
+
+        const result = await makeHandler()({ options: { lumpName: 'demo' }, arguments: {} });
+
+        expect(result.success).toBe(false);
+        if (result.success) throw new Error('unreachable');
+
+        const originFailures = result.data.messages.filter((message) => message.startsWith('Could not delete origin branch'));
+        expect(originFailures).toHaveLength(1);
+        expect(originFailures[0]).toContain(`"${refused}"`);
+        expect(originFailures[0]).toContain('refusing to delete');
+        expect(result.data.messages.some((message) => message.includes(`"${allowed}"`))).toBe(false);
+        expect(result.data.data.deletedBranches).toEqual([allowed]);
+        expect(result.data.messages.at(-1)).toBe('Cleaned 1 branch(es); 1 could not be deleted.');
+
+        const remoteBranches = execGit('ls-remote --heads origin', projectRoot);
+        expect(remoteBranches).toContain(`${REFS_HEADS_PREFIX}${refused}`);
+        expect(remoteBranches).not.toContain(`${REFS_HEADS_PREFIX}${allowed}`);
+    });
+
     it('works with LC-MULTI without parsing effective list for branch switch', async () => {
         const localConfigFolderPath = path.join(projectRoot, '.lumpcode');
         await writeLocalJson(localConfigFolderPath, {
@@ -227,7 +402,7 @@ describe('clean command', () => {
             primaryBranch: 'main',
             primaryBranches: ['main', 'ver/0.0.9'],
         });
-        setupLumpBranch('myLump', 'ctx');
+        createLumpWorkBranch({ projectRoot, lumpName: 'myLump', contextName: 'ctx', useMarkerMessage: true });
         const branchBefore = gitCurrentBranch(projectRoot);
         const handle = makeHandler();
         const result = await handle({ options: {}, arguments: {} });

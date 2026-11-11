@@ -639,7 +639,7 @@ describe('executeStepsForContextList dynamic steps', () => {
         const SUCCESS_ATTEMPT = 4;
         const echoOk = () => ({ executable: 'echo', args: ['ok'] });
 
-        function getRecursiveSteps(): Steps {
+        function getValidationLoopSteps(): Steps {
             return [
                 {
                     commandFn({ context }) {
@@ -667,7 +667,7 @@ describe('executeStepsForContextList dynamic steps', () => {
                         return [];
                     }
                     if (!contextRunState.loopIsValid) {
-                        return getRecursiveSteps();
+                        return getValidationLoopSteps();
                     }
                     return [];
                 },
@@ -683,7 +683,7 @@ describe('executeStepsForContextList dynamic steps', () => {
             gitPushFn: stubGitPush,
             gitCommitMessageFn: stubGitCommitMessage,
             projectRoot,
-            steps: getRecursiveSteps(),
+            steps: getValidationLoopSteps(),
             setupFn: async () => ({ contextRunState: {} }),
             teardownFn: async () => undefined,
             setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),

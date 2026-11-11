@@ -35,7 +35,7 @@ Each machine sets a mode in its gitignored `.lumpcode/local.json`:
 | Mode | Where | What `lumpcode run` does |
 | --- | --- | --- |
 | `shared` | Your laptop | Runs the agent on your current branch. Dirty tree OK. No reset, no push. |
-| `dedicated` | A worker clone | Resets the clone to the remote, cuts `lump/<lumpName>/…`, commits, pushes. Wipes uncommitted work. |
+| `dedicated` | A worker clone | Resets the clone to the remote, cuts `lump/<lumpName>/…`, commits, pushes. `skipCommitAndPush` skips the commit and the push. Wipes uncommitted work. |
 
 `lumpcode start` (the worker) only runs in `dedicated` mode.
 

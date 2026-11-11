@@ -92,6 +92,9 @@ describe('requireArtifactStep', () => {
                 currentIteration: 0,
                 prevValidateCommandResult: null,
             }),
-        ).rejects.toThrow(/Missing context variable REQ_FILE/);
+        ).rejects.toThrow(
+            `requireArtifactStep('REQ_FILE'): context "ctx" does not set REQ_FILE to a path. ` +
+                'Set REQ_FILE in the context variables to the artifact path, relative to the workspace.',
+        );
     });
 });

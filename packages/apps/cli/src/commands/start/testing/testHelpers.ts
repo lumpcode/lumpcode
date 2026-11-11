@@ -7,7 +7,7 @@ import {
     writeLocalJson,
     writeMinimalLump,
 } from '../../../testing';
-import { command } from '../main';
+import { command, defaultCronPattern, type Input } from '../main';
 import {
     createTempTestDirs,
     daemonSchedulerFiles,
@@ -100,6 +100,33 @@ export function makeStartHandler(
         globalConfigFolderPath: deps.globalConfigFolderPath,
         skipEnsureSupervisor: true,
         ...overrides,
+    });
+}
+
+export function runForegroundStart(input: {
+    deps: StartHandlerDeps;
+    /** Merged after foreground + default cron, so callers can override either. */
+    options?: Partial<Input['options']>;
+    /**
+     * Foreground tests must not block on SIGINT.
+     * Omitted means an already-resolved shutdown (`async () => {}`).
+     * Pass a gate or assertion callback when the test has to observe mid-tick state.
+     */
+    waitForShutdownOverride?: () => Promise<void>;
+}): ReturnType<ReturnType<typeof command.handlerMaker>> {
+    const {
+        deps,
+        options,
+        waitForShutdownOverride = async () => {},
+    } = input;
+
+    return makeStartHandler(deps, { waitForShutdownOverride })({
+        options: {
+            foreground: true,
+            cronSetup: defaultCronPattern,
+            ...options,
+        },
+        arguments: {},
     });
 }
 

@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: child-tickets-inherit-parent-depends-on
+workflow:
+  - impl
+task: >-
+  featureBacklog gives a ticket under todo/<parent>/tickets/ only its own
+  dependsOn, rewritten to sibling names, so a parent's dependsOn gates only the
+  parent's completion and its tickets start before the items the parent waits
+  for are merged; make every ticket context also wait for its parent's
+  dependsOn.
+priority: 10

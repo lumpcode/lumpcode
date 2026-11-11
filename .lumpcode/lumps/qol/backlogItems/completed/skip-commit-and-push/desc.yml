@@ -1,0 +1,8 @@
+name: skip-commit-and-push
+workflow:
+  - directImpl
+task: >-
+  A lump can set skipCommitAndPush so a dedicated run still does its work in the
+  branch workspace, and does not commit or push lump/….
+priority: 0
+completedAt: '2026-11-11T11:04:27.132Z'

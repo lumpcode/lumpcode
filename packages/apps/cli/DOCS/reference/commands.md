@@ -12,7 +12,7 @@ Run `lumpcode` from the repo root that contains `.lumpcode/` and a git checkout 
 
 ### `lumpcode run <lumpName>`
 
-One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: "shared"`), the agent writes on this branch. After a successful walk with contexts, a TTY (not `--json`) offers `[c]` commit LUMP markers (no push) or `[e]` exit dirty. A dedicated worker still commits, pushes `lump/…`, and restores the checkout.
+One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: "shared"`), the agent writes on this branch. After a successful walk with contexts, a TTY (not `--json`) offers `[c]` commit LUMP markers (no push) or `[e]` exit dirty. A dedicated worker still commits and pushes `lump/…` unless the lump sets `skipCommitAndPush`, and restores the checkout.
 
 | Option | Role |
 | --- | --- |
@@ -27,9 +27,9 @@ Validate and preview. Does **not** reset git, run the agent, commit, or push.
 | Option | Role |
 | --- | --- |
 | `--contexts` | Print resolved names and variables. |
-| `--todoOnly` | With the flags below, only what `run` would pick next. |
+| `--todoOnly` | Filter the listed contexts and prompts. |
 | `--prompts` | Resolved prompt text and agent argv. |
-| `--plan` | Dry-run of branch, git strings, batch. |
+| `--plan` | Dry-run of the branch, git strings, and batch `run` would pick next (remote todo). |
 | `--contextName` | One context. |
 | `--discoveryBranch` | Concrete discovery (shared: filter only). |
 
@@ -83,6 +83,8 @@ Detach a daemon (omit `--foreground` to background). Dedicated-only (`sharedMode
 
 Project and local config are frozen at start; restart to pick up edits. `daemon-status` sets `localConfigStale` when those files changed. Empty include match still stays up. Overlapping filtered daemons are allowed; locks coordinate. Start fails if that id is already running or a peer has corrupt meta.
 
+A cron fire that lands while a tick is running is not dropped; one catch-up tick runs when that tick ends. A lump that times out waiting on a workspace lock is retried every minute until the next scheduled fire.
+
 A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). Several names or globs get `d-` plus 6 hex.
 
 ### `lumpcode stop`
@@ -93,7 +95,7 @@ A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). S
 | `--all` | Every daemon for this project, then the supervisor. |
 | `--force` | Tree-kill immediately. Does not need readable meta. |
 
-Idle stop: SIGTERM, wait 5s, remove pid/meta/desired. Mid-run graceful stop **refuses** (`daemonBusy`). Corrupt meta without `--force` also refuses. `--all` is the only way to stop the supervisor `start` launched; you do not run that process yourself.
+Idle stop: SIGTERM, wait 5s, remove pid/meta/desired. Mid-run graceful stop **refuses** (`daemonBusy`). Corrupt meta without `--force` also refuses. `--all` is the only way to stop the supervisor `start` launched; you do not run that process yourself. With `--all`, a daemon still running after the 5s SIGTERM wait, or mid-run, is waited for (up to 15 min) before the supervisor stops; `--force` skips the wait.
 
 ### `lumpcode restart [--daemonId]`
 
@@ -149,7 +151,7 @@ One row after refresh. `--setToFinished` writes an empty marker commit on `baseB
 
 ### `lumpcode clean`
 
-`git fetch --all`, then deletes matching remote refs and local branches, plus worktrees under `.lumpcode/worktrees/`. `--lumpName` scopes to `lump/<name>/*`. `--contextName` requires `--lumpName` and matches branches that contain that marker.
+`git fetch --all`, then deletes matching remote refs and local branches, plus worktrees under `.lumpcode/worktrees/`. `--lumpName` scopes to `lump/<name>/*`. `--contextName` requires `--lumpName` and deletes `lump/<lumpName>/*` branches whose unmerged commits carry that marker.
 
 ### `lumpcode reset-presets`
 

@@ -74,7 +74,7 @@ const defaultStubLinesJson = `{
   },
   "prompt": {
     "promptTemplate": "Improve the code at @{FILE}.",
-    "command": "claude"
+    "command": "claude-code"
   }
 }
 `;
@@ -86,7 +86,7 @@ const defaultStubLinesJs = `export default {
   },
   prompt: {
     promptTemplate: 'Improve the code at @{FILE}.',
-    command: 'claude',
+    command: 'claude-code',
   },
 };
 `;

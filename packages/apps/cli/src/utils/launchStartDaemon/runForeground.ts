@@ -1,5 +1,3 @@
-import { Cron } from 'croner';
-
 import type { Failure, Logger, Success } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
@@ -8,19 +6,23 @@ import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
 import { claimPidAndWriteMeta, removeOwnPidArtifacts } from '../claimPidAndWriteMeta';
 import { createCliLogger } from '../createCliLogger';
 import { createDaemonLiveMetaWriter, type DaemonLiveMetaWriter } from '../daemonLiveMeta';
+import { createDaemonTickScheduler, type TickTrigger } from '../daemonTickScheduler';
 import { discoverDedicatedLumpsForScanBranch } from '../discoverDedicatedLumpsForScanBranch';
 import { discoverLoadableLumps } from '../discoverLoadableLumpNames';
 import { expandPrimaryBranches } from '../expandPrimaryBranches';
 import { filterLumpNames } from '../filterLumpNames';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { installDaemonProcessGuards } from '../installDaemonProcessGuards';
-import { installProcessShutdown } from '../installProcessShutdown';
+import { installProcessShutdown, type ProcessShutdown } from '../installProcessShutdown';
 import { fingerprintResolvedLocalConfig } from '../localConfigFingerprint';
 import type { LumpLine } from '../lumpLine';
 import { readDaemonMeta, type DaemonMetaWrite } from '../readDaemonMeta';
 import { reorderDedicatedLumpLines } from '../reorderDedicatedLumpLines';
 import { resolvePrimaryBranches } from '../resolvePrimaryBranches';
-import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
+import {
+    isRunLumpLockWaitTimeoutFailure,
+    runLumpFromJsConfigFailureMessage,
+} from '../runLumpFromJsConfig';
 import { runLumpFromLumpName } from '../runLumpFromLumpName';
 import { prepareLumpTranscriptFile } from '../lumpTranscriptFilePath';
 import { retainLumpcodeLogs } from '../retainLumpcodeLogs';
@@ -42,19 +44,6 @@ import { validateDaemonLaunch } from '../validateDaemonLaunch';
 async function shouldDrainDaemon(desiredFilePath: string): Promise<boolean> {
     const desiredResult = await readStartDaemonDesired(desiredFilePath);
     return desiredResult.success && desiredResult.data?.stopping === true;
-}
-
-function nextTickAtIso(cronSetup: string, job?: Cron): string | undefined {
-    let probe: Cron | undefined;
-    try {
-        const source = job ?? (probe = new Cron(cronSetup, { paused: true, protect: true }));
-        const next = source.nextRun();
-        return next instanceof Date ? next.toISOString() : undefined;
-    } catch {
-        return undefined;
-    } finally {
-        probe?.stop();
-    }
 }
 
 type TickSession = {
@@ -229,15 +218,42 @@ async function collectTickLumpLines(session: TickSession): Promise<CollectTickLu
     return { kind: 'run', items: names.map((lumpName) => ({ lumpName })) };
 }
 
+function lumpLineListLabel(input: {
+    mode: ResolvedProjectLocalConfig['mode'];
+    items: LumpLine[];
+}): string {
+    if (input.mode === 'dedicated') {
+        return input.items.map((item) => `${item.lumpName}@${item.effectiveDiscoveryBranch}`).join(', ');
+    }
+    return input.items.map((item) => item.lumpName).join(', ');
+}
+
+function tickRunningMessage(input: {
+    ticks: number;
+    trigger: TickTrigger;
+    count: number;
+    label: string;
+}): string {
+    const catchUp =
+        input.trigger === 'missedFire'
+            ? ' (catch-up: missed fire)'
+            : input.trigger === 'lockRetry'
+              ? ' (catch-up: lock retry)'
+              : '';
+    const labels = input.count > 0 ? ` [${input.label}]` : '';
+    return `tick ${input.ticks}${catchUp} — running ${input.count} lump(s)…${labels}`;
+}
+
 async function runLumpLine(
     session: TickSession,
     lumpLine: LumpLine,
     tickStartedAt: string,
-): Promise<void> {
+): Promise<boolean> {
     const { lumpName } = lumpLine;
     const abortController = new AbortController();
     session.daemonLumpAbortControllers.add(abortController);
     await session.liveMeta.beginLumpLine(lumpLine);
+    let owed = false;
     try {
         const jsConfForVerbose = await getJsConfigFromLumpName({
             lumpName,
@@ -294,6 +310,7 @@ async function runLumpLine(
             session.logger.error(
                 `lump "${lumpName}": ${runLumpFromJsConfigFailureMessage(runLumpRes.data)}`,
             );
+            owed = isRunLumpLockWaitTimeoutFailure(runLumpRes.data);
         } else if (runLumpRes.data.skipped) {
             if (runLumpRes.data.reason === 'disabled') {
                 session.logger.info(`lump "${lumpName}": skipped (disabled)`);
@@ -315,6 +332,29 @@ async function runLumpLine(
         session.daemonLumpAbortControllers.delete(abortController);
         await session.liveMeta.endLumpLine(lumpLine);
     }
+    return owed;
+}
+
+async function runCollectedLines(input: {
+    session: TickSession;
+    items: LumpLine[];
+    tickStartedAt: string;
+}): Promise<LumpLine[]> {
+    const owed: LumpLine[] = [];
+    const seen = new Set<string>();
+    await runLumpLinesWithConcurrency({
+        items: input.items,
+        concurrency: input.session.effectiveConcurrency,
+        runLumpLine: async (line) => {
+            const isOwed = await runLumpLine(input.session, line, input.tickStartedAt);
+            if (!isOwed) return;
+            const key = `${line.lumpName}\0${line.effectiveDiscoveryBranch ?? ''}`;
+            if (seen.has(key)) return;
+            seen.add(key);
+            owed.push({ ...line });
+        },
+    });
+    return owed;
 }
 
 export type RunForegroundStartDaemonInput = {
@@ -434,17 +474,6 @@ export async function runForegroundStartDaemon(
     });
     await liveMeta.writeFingerprintAtStart(fingerprintResolvedLocalConfig(frozenLocalConfig));
     await liveMeta.setTickPhase('idle');
-    await liveMeta.setNextTickAt(nextTickAtIso(recipe.cronSetup));
-
-    const shutdown = installProcessShutdown({
-        logger,
-        signalMessage: (signal) => `signal ${signal}; shutting down`,
-        onSignal: async () => {
-            await markStartDaemonDesiredStopping({ desiredFilePath });
-            abortAllDaemonLumpRuns();
-        },
-        waitForShutdownOverride,
-    });
 
     const session: TickSession = {
         recipe,
@@ -464,16 +493,20 @@ export async function runForegroundStartDaemon(
     };
 
     let ticks = 0;
-    let cronJob: Cron | undefined;
-    const runTick = async (): Promise<void> => {
+    let shutdown: ProcessShutdown | undefined;
+    const runTick = async (input: {
+        trigger: TickTrigger;
+        onlyLines?: LumpLine[];
+    }): Promise<{ owedLines: LumpLine[] }> => {
         const tickStartedAt = new Date().toISOString();
         logger.info(`${tickStartedAt} - runTick`);
         if (await shouldDrainDaemon(desiredFilePath)) {
             logger.info('desired.json is stopping; draining and skipping tick.');
-            shutdown.shutdown();
-            return;
+            shutdown?.shutdown();
+            return { owedLines: [] };
         }
         await liveMeta.setTickPhase('running');
+        let owedLines: LumpLine[] = [];
         try {
             try {
                 const retainResult = await retainLumpcodeLogs({
@@ -490,51 +523,85 @@ export async function runForegroundStartDaemon(
                 const message = error instanceof Error ? error.message : String(error);
                 logger.warn(`log retention failed: ${message}`);
             }
-            const collected = await collectTickLumpLines(session);
-            switch (collected.kind) {
-                case 'noop':
-                    break;
-                case 'expand-failed':
-                    ticks += 1;
-                    break;
-                case 'run': {
-                    ticks += 1;
-                    const label =
-                        frozenLocalConfig.mode === 'dedicated'
-                            ? collected.items
-                                  .map((e) => `${e.lumpName}@${e.effectiveDiscoveryBranch}`)
-                                  .join(', ')
-                            : collected.items.map((e) => e.lumpName).join(', ');
-                    logger.info(
-                        `tick ${ticks} — running ${collected.items.length} lump(s)…` +
-                            (collected.items.length ? ` [${label}]` : ''),
-                    );
-                    if (collected.items.length === 0) {
+            let items: LumpLine[];
+            if (input.onlyLines !== undefined) {
+                items = input.onlyLines;
+            } else {
+                const collected = await collectTickLumpLines(session);
+                switch (collected.kind) {
+                    case 'noop':
+                        return { owedLines: [] };
+                    case 'expand-failed':
+                        ticks += 1;
+                        return { owedLines: [] };
+                    case 'run':
+                        items = collected.items;
                         break;
+                    default: {
+                        const _exhaustive: never = collected;
+                        return _exhaustive;
                     }
-                    await runLumpLinesWithConcurrency({
-                        items: collected.items,
-                        concurrency: effectiveConcurrency,
-                        runLumpLine: (line) => runLumpLine(session, line, tickStartedAt),
-                    });
-                    break;
-                }
-                default: {
-                    const _exhaustive: never = collected;
-                    return _exhaustive;
                 }
             }
+            ticks += 1;
+            logger.info(
+                tickRunningMessage({
+                    ticks,
+                    trigger: input.trigger,
+                    count: items.length,
+                    label: lumpLineListLabel({
+                        mode: frozenLocalConfig.mode,
+                        items,
+                    }),
+                }),
+            );
+            if (items.length === 0) {
+                return { owedLines: [] };
+            }
+            owedLines = await runCollectedLines({
+                session,
+                items,
+                tickStartedAt,
+            });
+            return { owedLines };
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e);
             logger.error(`tick failed: ${msg}`);
+            return { owedLines };
         } finally {
             await liveMeta.setTickPhase('idle');
-            await liveMeta.setNextTickAt(nextTickAtIso(recipe.cronSetup, cronJob));
             if (await shouldDrainDaemon(desiredFilePath)) {
-                shutdown.shutdown();
+                shutdown?.shutdown();
             }
         }
     };
+
+    const schedulerResult = await createDaemonTickScheduler({
+        cronSetup: recipe.cronSetup,
+        name: `lumpcode-${recipe.daemonId}`,
+        logger,
+        runTick,
+        shouldStop: () => shouldDrainDaemon(desiredFilePath),
+        onNextTickAtChange: (iso) => liveMeta.setNextTickAt(iso),
+    });
+    if (!schedulerResult.success) {
+        await removeOwnPidArtifacts({
+            pidFilePath,
+            extraFilePaths: [metaFilePath, desiredFilePath],
+        });
+        return failure({ messages: [schedulerResult.data] });
+    }
+    const scheduler = schedulerResult.data;
+
+    shutdown = installProcessShutdown({
+        logger,
+        signalMessage: (signal) => `signal ${signal}; shutting down`,
+        onSignal: async () => {
+            await markStartDaemonDesiredStopping({ desiredFilePath });
+            abortAllDaemonLumpRuns();
+        },
+        waitForShutdownOverride,
+    });
 
     logger.info(
         `Lumpcode daemon id="${recipe.daemonId}" on ${recipe.cronSetup}. First run now, then on schedule. Press Ctrl+C to stop.`,
@@ -542,30 +609,8 @@ export async function runForegroundStartDaemon(
 
     const disposeGuards = installDaemonProcessGuards({ logger });
     try {
-        await runTick();
-
-        try {
-            cronJob = new Cron(
-                recipe.cronSetup,
-                { protect: true, name: `lumpcode-${recipe.daemonId}` },
-                async () => {
-                    await runTick();
-                },
-            );
-        } catch (e) {
-            await removeOwnPidArtifacts({
-                pidFilePath,
-                extraFilePaths: [metaFilePath, desiredFilePath],
-            });
-            const msg = e instanceof Error ? e.message : String(e);
-            return failure({
-                messages: [`Failed to start scheduler for "${recipe.cronSetup}": ${msg}`],
-            });
-        }
-
-        await liveMeta.setNextTickAt(nextTickAtIso(recipe.cronSetup, cronJob));
+        await scheduler.start();
         await shutdown.promise;
-        cronJob?.stop();
 
         const draining = await shouldDrainDaemon(desiredFilePath);
         await removeOwnPidArtifacts({
@@ -573,6 +618,7 @@ export async function runForegroundStartDaemon(
             extraFilePaths: draining ? [metaFilePath, desiredFilePath] : [metaFilePath],
         });
     } finally {
+        scheduler.stop();
         shutdown.dispose();
         disposeGuards();
     }

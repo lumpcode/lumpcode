@@ -1,3 +1,4 @@
 {
-    "projectName": "lumpcode"
+    "projectName": "lumpcode",
+    "refreshCommand": "npm run build && npm cache verify"
 }

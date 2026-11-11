@@ -16,7 +16,7 @@ Each example is a lump running on a real repo, cut down to the pattern. Find the
 | Turn a pile of notes into tickets | [Triage an inbox into lanes](pipelines.md#triage-an-inbox-into-lanes) |
 | Find duplicated code and refactor it | [Find, file, implement](pipelines.md#find-file-implement) |
 | Start one campaign after another is merged | [Wait on another lump](pipelines.md#wait-on-another-lump) |
-| Never push code that fails your checks | [Retry until green](building-blocks.md#retry-until-green) |
+| Retry checks, and still push when the last attempt is red | [Retry until green](building-blocks.md#retry-until-green) |
 | Skip an expensive step when it is not needed | [Run a step only when needed](building-blocks.md#run-a-step-only-when-needed) |
 | Give the agent a running app to test against | [Start a dev server for the agent](building-blocks.md#start-a-dev-server-for-the-agent) |
 | Open a PR on GitHub, Azure DevOps, or GitLab | [Open a pull request after push](building-blocks.md#open-a-pull-request-after-push) |
@@ -28,6 +28,6 @@ New to lumps? Start with the [smoke test](building-blocks.md#smoke-test) and [Wr
 ## What the good ones have in common
 
 - **The list shrinks by itself.** Discovery skips work that is already done (a component with no `<style>` left, a file that already has a test), so re-running is always safe.
-- **A check gates every branch.** Lint, typecheck, or tests run after the agent, and failures go back to the agent with the output. See [Retry until green](building-blocks.md#retry-until-green).
-- **Review stays small.** `numberOfContextsPerBranch` groups tiny diffs; `maximumNumberOfConcurrentBranches` stops the worker from piling up PRs while you are away.
+- **A check runs on every branch.** Lint, typecheck, or tests run after the agent, and failures go back to the agent with the output. A still-red last attempt is pushed unless you withhold it. See [Retry until green](building-blocks.md#retry-until-green).
+- **Review stays small.** `numberOfContextsPerBranch` groups tiny diffs; `maximumNumberOfConcurrentBranches` stops the worker from piling up branches while you are away.
 - **Prompts point at the repo.** Long instructions live in a prompt file or a skill the repo already has (`Follow @.agents/skills/…/SKILL.md`), so the config stays short.

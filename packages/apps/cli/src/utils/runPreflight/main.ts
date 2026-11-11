@@ -36,7 +36,7 @@ export interface RunPreflightOutput {
  * Dedicated-only reset of `projectBaseBranch` in `sourceProjectRoot`
  * (destructive: `git reset --hard origin/<projectBaseBranch>` wipes any
  * uncommitted work). Shared mode returns the source checkout and does not
- * fetch, switch, or reset.
+ * fetch, switch, reset, or copy it. A dirty tree stays dirty.
  *
  * The recovery path for crashed dedicated lumps relies on this pre-flight: a
  * lump that dies mid-run leaves the workspace on its branch, and the next

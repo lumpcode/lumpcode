@@ -1,8 +1,10 @@
 # Lumpcode
 
-Lumpcode runs your coding agent through work too big for one chat: a migration, a ticket backlog, a test suite to build out. It takes one item at a time, runs the agent (Cursor, Claude Code, Copilot, Codex, OpenCode, or your own), and pushes a branch you review as a normal PR. Progress lives in your git history, so it always picks up where it left off. No account, no database.
+Lumpcode is the simplest way to set up software factories in your repo.
 
-You describe the campaign once as a **lump**: what to work on, what to prompt, which agent. That is **loop engineering**: you design the loop, Lumpcode runs it. Rehearse a lump on your laptop, then leave a **worker** running on a second clone and merge the branches as they arrive.
+A **lump** is one factory: a folder in `.lumpcode/` that says what to work on, what to prompt, and which agent to run (Cursor, Claude Code, Copilot, Codex, OpenCode, or your own). Make it as narrow as one migration or as broad as a spec backlog that keeps growing. You own it and commit it like the rest of your code, so changing a factory is a pull request.
+
+Lumpcode runs your coding agent through the lump piece by piece and pushes a branch for each, which you review as a PR or let your CI merge. Progress lives in your git history, so it always picks up where it left off. No account, no database. Rehearse a lump on your laptop, then leave a **worker** running on a second clone while the branches arrive.
 
 Lumpcode is in **early development**. Expect rough edges and frequent improvements.
 

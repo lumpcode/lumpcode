@@ -89,6 +89,23 @@ describe('getToDoContextList', () => {
         expect(result.data.map((c) => c.name)).toEqual([]);
     });
 
+    it('keeps the scan error when the project root cannot be read', async () => {
+        const missingRoot = join(projectRoot, 'missing');
+
+        const result = await getToDoContextList({
+            getContextListFn: async () => [],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot: missingRoot,
+            baseBranch,
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) return;
+        expect(result.data.message).toContain('Failed to get code base paths');
+        expect(result.data.message).toContain(`Cannot read directory ${missingRoot}`);
+    });
+
     it('soft-falls to all toDo when refreshRemoteTrackingRefsFn fails', async () => {
         await git(projectRoot, 'commit --allow-empty -m "LUMP:finished-ctx"');
         await git(projectRoot, 'push origin main');

@@ -12,8 +12,9 @@ import {
     runLumpFromJsConfig,
     runLumpFromJsConfigFailureMessage,
 } from './main';
-import { LUMP_BRANCH_PREFIX } from '../../consts';
 import type { LumpJsConfig } from '../../types';
+import { LUMP_BRANCH_PREFIX } from '../../consts';
+import { createLumpWorkBranch } from '../../testing';
 import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
@@ -95,26 +96,9 @@ describe('runLumpFromJsConfig', () => {
         });
     }
 
-    function createAndPushLumpBranch(lumpName: string, contextName: string) {
-        const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        execGit('checkout main', projectRoot);
-        execGit(`checkout -b ${branch}`, projectRoot);
-        execGit(`commit --allow-empty -m "lump work"`, projectRoot);
-        execGit(`push origin ${branch}`, projectRoot);
-        execGit('checkout main', projectRoot);
-    }
-
-    function createLocalOnlyLumpBranch(lumpName: string, contextName: string) {
-        const branch = `${LUMP_BRANCH_PREFIX}${lumpName}/${contextName}`;
-        execGit('checkout main', projectRoot);
-        execGit(`checkout -b ${branch}`, projectRoot);
-        execGit(`commit --allow-empty -m "lump work"`, projectRoot);
-        execGit('checkout main', projectRoot);
-    }
-
     it('skips running when the number of open branches meets maximumNumberOfConcurrentBranches', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
-        createAndPushLumpBranch('my-lump', 'ctx-b');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
         const result = await callRunLumpFromJsConfig(makeJsConfig({ maximumNumberOfConcurrentBranches: 2 }));
 
@@ -129,9 +113,9 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('skips when the number of open branches exceeds maximumNumberOfConcurrentBranches', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
-        createAndPushLumpBranch('my-lump', 'ctx-b');
-        createAndPushLumpBranch('my-lump', 'ctx-c');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-c' });
 
         const result = await callRunLumpFromJsConfig(makeJsConfig({ maximumNumberOfConcurrentBranches: 2 }));
 
@@ -141,8 +125,33 @@ describe('runLumpFromJsConfig', () => {
         expect(core.runLump).not.toHaveBeenCalled();
     });
 
+    it('does not skip when the only lump branch on origin is already merged', async () => {
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+        execGit('checkout main', projectRoot);
+        execGit(`merge --no-ff ${LUMP_BRANCH_PREFIX}my-lump/ctx-a -m "merge"`, projectRoot);
+        execGit('push origin main', projectRoot);
+        execGit('fetch origin main', projectRoot);
+
+        vi.mocked(core.runLump).mockResolvedValue(
+            core.success({
+                result: {
+                    branchName: 'some-branch',
+                    contextNames: ['ctx1'],
+                    contextRunStateList: [],
+                },
+            } as unknown as core.RunLumpOutput),
+        );
+
+        const result = await callRunLumpFromJsConfig(makeJsConfig({ maximumNumberOfConcurrentBranches: 1 }));
+
+        expect(result.success).toBe(true);
+        if (!result.success) throw new Error('unreachable');
+        expect(result.data.skipped).toBe(false);
+        expect(core.runLump).toHaveBeenCalledOnce();
+    });
+
     it('runs normally when the number of open branches is below maximumNumberOfConcurrentBranches', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
 
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
@@ -163,8 +172,8 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('does not count local-only branches toward maximumNumberOfConcurrentBranches', async () => {
-        createLocalOnlyLumpBranch('my-lump', 'ctx-a');
-        createLocalOnlyLumpBranch('my-lump', 'ctx-b');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a', push: false });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b', push: false });
 
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
@@ -185,9 +194,9 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('runs normally when maximumNumberOfConcurrentBranches is not set', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
-        createAndPushLumpBranch('my-lump', 'ctx-b');
-        createAndPushLumpBranch('my-lump', 'ctx-c');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-c' });
 
         vi.mocked(core.runLump).mockResolvedValue(
             core.success({
@@ -281,8 +290,8 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('does not acquire lock when run is skipped for tooManyOpenBranches', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
-        createAndPushLumpBranch('my-lump', 'ctx-b');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
         const preflightSpy = vi.spyOn(runProjectPreflightModule, 'runProjectPreflight');
 
@@ -298,8 +307,8 @@ describe('runLumpFromJsConfig', () => {
     });
 
     it('releases a phase-1 releaseLock when tooManyOpenBranches skips', async () => {
-        createAndPushLumpBranch('my-lump', 'ctx-a');
-        createAndPushLumpBranch('my-lump', 'ctx-b');
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+        createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
         const held = await acquireWorkspacePathLock({
             globalConfigFolderPath,
@@ -468,8 +477,8 @@ describe('runLumpFromJsConfig', () => {
         });
 
         it('does not skip for tooManyOpenBranches in shared mode', async () => {
-            createAndPushLumpBranch('my-lump', 'ctx-a');
-            createAndPushLumpBranch('my-lump', 'ctx-b');
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
             vi.mocked(core.runLump).mockResolvedValue(
                 core.success({
                     result: {
@@ -708,8 +717,8 @@ describe('runLumpFromJsConfig', () => {
     describe('branch cap from project/local (clean-local-project-json-config C*)', () => {
         it('C1: cap on resolved (project), lump omits → tooManyOpenBranches', async () => {
             const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
-            createAndPushLumpBranch('my-lump', 'ctx-a');
-            createAndPushLumpBranch('my-lump', 'ctx-b');
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
             const jsConfig = applyLumpConfigDefaults({
                 jsConfig: makeJsConfig(),
@@ -734,8 +743,8 @@ describe('runLumpFromJsConfig', () => {
 
         it('C2: local cap wins in resolved over project', async () => {
             const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
-            createAndPushLumpBranch('my-lump', 'ctx-a');
-            createAndPushLumpBranch('my-lump', 'ctx-b');
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
             const jsConfig = applyLumpConfigDefaults({
                 jsConfig: makeJsConfig(),
@@ -759,8 +768,8 @@ describe('runLumpFromJsConfig', () => {
 
         it('C3: lump cap wins over resolved', async () => {
             const { applyLumpConfigDefaults } = await import('../applyLumpConfigDefaults');
-            createAndPushLumpBranch('my-lump', 'ctx-a');
-            createAndPushLumpBranch('my-lump', 'ctx-b');
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-a' });
+            createLumpWorkBranch({ projectRoot, lumpName: 'my-lump', contextName: 'ctx-b' });
 
             vi.mocked(core.runLump).mockResolvedValue(
                 core.success({

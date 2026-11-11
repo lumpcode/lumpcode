@@ -159,8 +159,10 @@ export async function planLumpFromJsConfig(input: {
         codeBasePaths: codeBasePathsResult.data,
         lumpVariables,
     });
+    const resolvedContextNames = new Set(contexts.map((c) => c.name));
 
-    if (todoOnly) {
+    let todoContexts: typeof contexts | undefined;
+    if (todoOnly || depth === 'plan') {
         const refreshRemoteTrackingRefsFn = makeLockedRefreshRemoteTrackingRefsFn({
             gitLock: {
                 globalConfigFolderPath,
@@ -180,15 +182,22 @@ export async function planLumpFromJsConfig(input: {
         if (!todoResult.success) {
             return failure(todoResult.data.message);
         }
-        const todoNames = new Set(todoResult.data.map((c) => c.name));
-        contexts = contexts.filter((c) => todoNames.has(c.name));
+        todoContexts = todoResult.data;
         baseOutput.todoContextNames = todoResult.data.map((c) => c.name);
+        if (todoOnly) {
+            const todoNames = new Set(todoContexts.map((c) => c.name));
+            contexts = contexts.filter((c) => todoNames.has(c.name));
+        }
     }
 
     if (contextName) {
         contexts = contexts.filter((c) => c.name === contextName);
         if (contexts.length === 0) {
-            return failure(`Context "${contextName}" not found in resolved context list`);
+            return failure(
+                resolvedContextNames.has(contextName)
+                    ? `Context "${contextName}" of lump "${lumpName}" is not toDo (it is branchPushed, finished, or waiting on dependsOnContexts). Drop --todoOnly to preview it anyway.`
+                    : `Context "${contextName}" is not in the context list of lump "${lumpName}". Run lumpcode lump-plan ${lumpName} --contexts to list context names.`,
+            );
         }
     }
 
@@ -251,7 +260,10 @@ export async function planLumpFromJsConfig(input: {
     }
 
     const numberOfContextsPerBranch = runLumpInput.numberOfContextsPerBranch ?? 1;
-    const batchContexts = contexts.slice(0, numberOfContextsPerBranch);
+    const planSource = (todoContexts ?? []).filter((context) =>
+        contextName === undefined || context.name === contextName,
+    );
+    const batchContexts = planSource.slice(0, numberOfContextsPerBranch);
 
     if (batchContexts.length === 0) {
         baseOutput.plan = {

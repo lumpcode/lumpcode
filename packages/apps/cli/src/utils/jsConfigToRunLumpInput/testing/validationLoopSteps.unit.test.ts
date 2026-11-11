@@ -81,7 +81,9 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
             steps: [recursiveFn],
         }));
         const wrapper = data.steps[0] as Function;
-        await expect(wrapper(promptFnInput())).rejects.toThrow('Command test-agent not registered in recursive call');
+        await expect(wrapper(promptFnInput())).rejects.toThrow(
+            `Command "test-agent" is used by a step returned at run time but is not registered. Add it to registerCommands in the lump config: registerCommands: ['test-agent'].`,
+        );
     });
 
     it('should allow pre-registered commands in recursive items via registerCommands', async () => {
@@ -143,7 +145,7 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
         const SUCCESS_ATTEMPT = 4;
         const echoOk = () => ({ executable: 'echo', args: ['ok'] });
 
-        function getRecursiveSteps(): LumpJsConfigSteps {
+        function getValidationLoopSteps(): LumpJsConfigSteps {
             return [
                 {
                     commandFn({ context }) {
@@ -171,7 +173,7 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
                         return [];
                     }
                     if (!contextRunState.loopIsValid) {
-                        return getRecursiveSteps();
+                        return getValidationLoopSteps();
                     }
                     return [];
                 }) as LumpJsConfigSteps[number],
@@ -187,7 +189,7 @@ describe('jsConfigToRunLumpInput recursive steps', () => {
             const resolved = assertSuccess(await jsConfigToRunLumpInput({
                 config: {
                     getContextListFn: () => [{ name: 'loopCtx', variables: { NAME: 'loopCtx' } }],
-                    steps: getRecursiveSteps(),
+                    steps: getValidationLoopSteps(),
                     numberOfContextsPerBranch: 1,
                 } as LumpJsConfig,
                 lumpName: 'loop-lump',

@@ -101,7 +101,10 @@ export async function jsConfigToRunLumpInput({
     localConfig?: LocalConfig;
     /** Concrete discovery branch bound for author context source + baseBranch resolve. */
     effectiveDiscoveryBranch?: string;
-    /** When set, workspace setup/teardown and git add+commit/push use the common-dir lock. */
+    /**
+     * When set, workspace setup/teardown use the common-dir lock.
+     * Git add+commit/push use it unless the lump sets `skipCommitAndPush`.
+     */
     gitLock?: GitCommonDirLockContext;
     /** Plan path: skip composing postSetup/postTeardown (no invoke, no command splice). */
     skipPostWorkspaceHooks?: boolean;
@@ -131,6 +134,7 @@ export async function jsConfigToRunLumpInput({
         postTeardownWorkspaceFn: postTeardownWorkspaceFnField,
         postTeardownWorkspaceCommand,
         verbose: _configVerbose,
+        skipCommitAndPush,
         ...rest
     } = config;
 
@@ -253,7 +257,7 @@ export async function jsConfigToRunLumpInput({
     }
 
     const gitCommitMessageFn = makeGitCommitMessageFnFromLumpName(lumpName);
-    const gatedGitFns = mode === 'shared'
+    const gatedGitFns = mode === 'shared' || skipCommitAndPush === true
         ? makeSharedNoopGitFns()
         : gitLock
             ? makeGatedGitFns({ gitLock })
@@ -889,7 +893,7 @@ async function resolveCommandFn({
             }
         } else if (!commandModules.has(command)) {
             if (inRecursiveCall) {
-                throw new Error(`Command ${command} not registered in recursive call. Please register the command before in the registerCommands field.`);
+                throw new Error(`Command "${command}" is used by a step returned at run time but is not registered. Add it to registerCommands in the lump config: registerCommands: ['${command}'].`);
             }
             const commandPath = await getCommandPath(command, configPaths);
             const loadResult = await loadCommandModule({
@@ -905,7 +909,7 @@ async function resolveCommandFn({
         return success(fn);
     }
 
-    return failure('Step must have a command or commandFn');
+    return failure('A step has no command to run. Set command on the step or at the top of the lump config, or set a default command in .lumpcode/project.json or .lumpcode/local.json.');
 }
 
 async function loadCommandModule({
