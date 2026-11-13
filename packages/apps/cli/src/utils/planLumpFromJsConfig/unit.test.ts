@@ -492,6 +492,44 @@ describe('planLumpFromJsConfig', () => {
         });
     });
 
+    describe('shared mode open-branch cap', () => {
+        it('plan depth does not skip for tooManyOpenBranches in shared mode', async () => {
+            createLumpWorkBranch({ projectRoot, lumpName: 'preview-lump', contextName: 'ctx-a' });
+
+            await writeJsonFile({
+                filePath: path.join(localConfigFolderPath, 'local.json'),
+                data: { mode: 'shared', primaryBranch: 'main' },
+            });
+            await fs.writeFile(
+                path.join(localConfigFolderPath, 'lumps', 'preview-lump', 'config.js'),
+                `export default {
+  maximumNumberOfConcurrentBranches: 1,
+  getContextListFn: () => [{ name: 'ctx1', variables: { FILE: 'a.ts' } }],
+  prompt: {
+    promptFn: () => 'preview prompt',
+    commandFn: () => ({ executable: 'test-cli', args: [] }),
+  },
+};
+`,
+                'utf-8',
+            );
+
+            const result = await planLumpFromJsConfig({
+                lumpName: 'preview-lump',
+                localConfigFolderPath,
+                globalConfigFolderPath,
+                projectRoot,
+                depth: 'plan',
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) throw new Error('unreachable');
+            expect(result.data.mode).toBe('shared');
+            expect(result.data.plan?.skipped).toBeUndefined();
+            expect(result.data.plan?.contextNames).toEqual(['ctx1']);
+            expect(result.data.plan?.branchName).toBe('main');
+        });
+    });
+
     describe('plan skips post workspace hooks', () => {
         it('does not splice postSetupWorkspaceCommand into setupWorkspaceCommand', async () => {
             await fs.writeFile(
