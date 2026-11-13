@@ -1,6 +1,7 @@
 // PRESET COMMAND : DO NOT MODIFY THIS FILE
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
+import { resolvePresetExtraArgs } from './utils/resolvePresetExtraArgs.js';
 import { createCodexSession } from './utils/createCodexSession.js';
 import {
     initialPresetChatRunState,
@@ -31,6 +32,7 @@ export const command = (async ({
     if (chatId == null) return null;
 
     const agentPermissions = resolveAgentPermissions({ lumpVariables, stepVariables });
+    const extraArgs = resolvePresetExtraArgs({ lumpVariables, stepVariables });
     const optionArgs = resolveCodexArgs({ agentPermissions, model });
 
     return {
@@ -38,6 +40,7 @@ export const command = (async ({
         args: [
             'exec',
             ...optionArgs,
+            ...extraArgs,
             'resume',
             chatId,
             trimmedPrompt,

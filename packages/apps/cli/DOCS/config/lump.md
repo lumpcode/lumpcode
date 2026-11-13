@@ -77,7 +77,7 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `disabled` | Soft-skip on `run` and on the worker (exit 0). Boolean, function, or module path. |
 | `maximumNumberOfConcurrentBranches` | Skip the run when that many `lump/<name>/*` branches on origin are not merged yet. A branch whose tip is already in a non-lump branch (merge commit or fast-forward) does not count. |
 | `numberOfContextsPerBranch` | Default `1`. Raise it to group small diffs. |
-| `lumpVariables` | Bag for hooks and preset options (`model`, `agentPermissions`, `outputDetail`). |
+| `lumpVariables` | Bag for hooks and preset options (`model`, `agentPermissions`, `extraArgs`, `outputDetail`). |
 | `verbose` | Extra engine logs. Also on with `lumpcode run --verbose`. |
 | `keepHistory` | Write prompt/output YAML per context. Gitignored. |
 | `writeTranscripts` | Daemon only. Omit or `true` writes the transcript file. `false` skips it. Lump > local > project. |

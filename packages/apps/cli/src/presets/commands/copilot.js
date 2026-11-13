@@ -3,6 +3,7 @@
 import { randomUUID } from 'node:crypto';
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
+import { resolvePresetExtraArgs } from './utils/resolvePresetExtraArgs.js';
 import {
     initialPresetChatRunState,
     resolvePresetChatSession,
@@ -32,6 +33,7 @@ export const command = (async ({
     if (chatId == null) return null;
 
     const agentPermissions = resolveAgentPermissions({ lumpVariables, stepVariables });
+    const extraArgs = resolvePresetExtraArgs({ lumpVariables, stepVariables });
     const permissionArgs = resolveCopilotToolArgs({ agentPermissions });
 
     return {
@@ -47,6 +49,7 @@ export const command = (async ({
             model,
             '--session-id',
             chatId,
+            ...extraArgs,
         ],
     };
 });

@@ -20,6 +20,7 @@ import {
   type OpenCodeAgentPermissions,
   type OpenCodePresetLumpVariables,
   type OpenCodePresetStepVariables,
+  type PresetExtraArgsVariables,
   type PresetSessionStepVariables,
 } from '@lumpcode/cli-utils';
 
@@ -104,15 +105,19 @@ describe('preset contracts from @lumpcode/cli-utils (P1–P12)', () => {
     }>();
   });
 
-  it('P4: lump contracts are model + agentPermissions only', () => {
-    expectTypeOf<CursorPresetLumpVariables>().toEqualTypeOf<{
-      model?: string;
-      agentPermissions?: CursorAgentPermissions;
-    }>();
-    expectTypeOf<CopilotPresetLumpVariables>().toEqualTypeOf<{
-      model?: string;
-      agentPermissions?: CopilotAgentPermissions;
-    }>();
+  it('P4: lump contracts are model, agentPermissions, and extraArgs', () => {
+    expectTypeOf<CursorPresetLumpVariables>().toEqualTypeOf<
+      {
+        model?: string;
+        agentPermissions?: CursorAgentPermissions;
+      } & PresetExtraArgsVariables
+    >();
+    expectTypeOf<CopilotPresetLumpVariables>().toEqualTypeOf<
+      {
+        model?: string;
+        agentPermissions?: CopilotAgentPermissions;
+      } & PresetExtraArgsVariables
+    >();
     const cursorOk: CursorPresetLumpVariables = validCursorLump;
     const copilotOk: CopilotPresetLumpVariables = validCopilotLump;
     void cursorOk;
@@ -188,7 +193,7 @@ describe('preset contracts from @lumpcode/cli-utils (P1–P12)', () => {
     type ClosedCursorLump = {
       model?: string;
       agentPermissions?: CursorAgentPermissions;
-    };
+    } & PresetExtraArgsVariables;
     expectTypeOf<CursorPresetLumpVariables>().toEqualTypeOf<ClosedCursorLump>();
   });
 });
@@ -232,19 +237,25 @@ describe('claude-code / opencode / codex preset contracts (T1–T9)', () => {
     }>();
   });
 
-  it('T3: each *PresetLumpVariables is model + agentPermissions only', () => {
-    expectTypeOf<ClaudeCodePresetLumpVariables>().toEqualTypeOf<{
-      model?: string;
-      agentPermissions?: ClaudeCodeAgentPermissions;
-    }>();
-    expectTypeOf<OpenCodePresetLumpVariables>().toEqualTypeOf<{
-      model?: string;
-      agentPermissions?: OpenCodeAgentPermissions;
-    }>();
-    expectTypeOf<CodexPresetLumpVariables>().toEqualTypeOf<{
-      model?: string;
-      agentPermissions?: CodexAgentPermissions;
-    }>();
+  it('T3: each *PresetLumpVariables is model, agentPermissions, and extraArgs', () => {
+    expectTypeOf<ClaudeCodePresetLumpVariables>().toEqualTypeOf<
+      {
+        model?: string;
+        agentPermissions?: ClaudeCodeAgentPermissions;
+      } & PresetExtraArgsVariables
+    >();
+    expectTypeOf<OpenCodePresetLumpVariables>().toEqualTypeOf<
+      {
+        model?: string;
+        agentPermissions?: OpenCodeAgentPermissions;
+      } & PresetExtraArgsVariables
+    >();
+    expectTypeOf<CodexPresetLumpVariables>().toEqualTypeOf<
+      {
+        model?: string;
+        agentPermissions?: CodexAgentPermissions;
+      } & PresetExtraArgsVariables
+    >();
     const claudeOk: ClaudeCodePresetLumpVariables = validClaudeCodeLump;
     const openCodeOk: OpenCodePresetLumpVariables = validOpenCodeLump;
     const codexOk: CodexPresetLumpVariables = validCodexLump;
@@ -372,17 +383,75 @@ describe('claude-code / opencode / codex preset contracts (T1–T9)', () => {
     type ClosedClaudeCodeLump = {
       model?: string;
       agentPermissions?: ClaudeCodeAgentPermissions;
-    };
+    } & PresetExtraArgsVariables;
     type ClosedOpenCodeLump = {
       model?: string;
       agentPermissions?: OpenCodeAgentPermissions;
-    };
+    } & PresetExtraArgsVariables;
     type ClosedCodexLump = {
       model?: string;
       agentPermissions?: CodexAgentPermissions;
-    };
+    } & PresetExtraArgsVariables;
     expectTypeOf<ClaudeCodePresetLumpVariables>().toEqualTypeOf<ClosedClaudeCodeLump>();
     expectTypeOf<OpenCodePresetLumpVariables>().toEqualTypeOf<ClosedOpenCodeLump>();
     expectTypeOf<CodexPresetLumpVariables>().toEqualTypeOf<ClosedCodexLump>();
+  });
+});
+
+describe('extraArgs on shipped preset variables', () => {
+  it('accepts a string list on lump and step variables', () => {
+    const cursorLump: CursorPresetLumpVariables = { extraArgs: ['--x'] };
+    const cursorStep: CursorPresetStepVariables = { extraArgs: ['--x'] };
+    const copilotLump: CopilotPresetLumpVariables = { extraArgs: ['--x'] };
+    const copilotStep: CopilotPresetStepVariables = { extraArgs: ['--x'] };
+    const claudeLump: ClaudeCodePresetLumpVariables = { extraArgs: ['--x'] };
+    const claudeStep: ClaudeCodePresetStepVariables = { extraArgs: ['--x'] };
+    const openCodeLump: OpenCodePresetLumpVariables = { extraArgs: ['--x'] };
+    const openCodeStep: OpenCodePresetStepVariables = { extraArgs: ['--x'] };
+    const codexLump: CodexPresetLumpVariables = { extraArgs: ['--x'] };
+    const codexStep: CodexPresetStepVariables = { extraArgs: ['--x'] };
+    void cursorLump;
+    void cursorStep;
+    void copilotLump;
+    void copilotStep;
+    void claudeLump;
+    void claudeStep;
+    void openCodeLump;
+    void openCodeStep;
+    void codexLump;
+    void codexStep;
+  });
+
+  it('rejects a string extraArgs', () => {
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badCursorLump: CursorPresetLumpVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badCursorStep: CursorPresetStepVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badCopilotLump: CopilotPresetLumpVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badCopilotStep: CopilotPresetStepVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badClaudeLump: ClaudeCodePresetLumpVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badClaudeStep: ClaudeCodePresetStepVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badOpenCodeLump: OpenCodePresetLumpVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badOpenCodeStep: OpenCodePresetStepVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badCodexLump: CodexPresetLumpVariables = { extraArgs: '--x' };
+    // @ts-expect-error — extraArgs must be an array of strings
+    const badCodexStep: CodexPresetStepVariables = { extraArgs: '--x' };
+    void badCursorLump;
+    void badCursorStep;
+    void badCopilotLump;
+    void badCopilotStep;
+    void badClaudeLump;
+    void badClaudeStep;
+    void badOpenCodeLump;
+    void badOpenCodeStep;
+    void badCodexLump;
+    void badCodexStep;
   });
 });
