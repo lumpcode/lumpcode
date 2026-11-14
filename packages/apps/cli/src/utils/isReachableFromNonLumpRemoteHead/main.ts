@@ -17,10 +17,11 @@ export function isNonLumpRemoteTrackingRef(refShortName: string): boolean {
  * True when `commitHash` is contained in at least one local `refs/remotes/origin/`
  * ref whose branch name does not start with `lump/`.
  *
- * This is the merged rule for the open-branch cap: a merge commit or fast-forward
- * onto `origin/main`, `origin/dev`, `origin/feature/x`, or `origin/HEAD` counts.
- * A tip contained only by `origin/lump/...` does not. A missing object, a squash
- * or rebase merge, or any git failure returns false. Never throws.
+ * Tip fallback for the open-branch cap: a merge commit or fast-forward onto
+ * `origin/main`, `origin/dev`, `origin/feature/x`, or `origin/HEAD`. A tip
+ * contained only by `origin/lump/...` does not. A missing object, a squash or
+ * rebase (the marker-line check in `countOpenLumpBranches` covers those), or
+ * any git failure returns false. Never throws.
  */
 export async function isReachableFromNonLumpRemoteHead(input: {
     cwd: string;
