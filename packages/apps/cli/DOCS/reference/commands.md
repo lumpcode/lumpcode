@@ -124,6 +124,10 @@ Follows the operational log by default. `--noFollow` prints and exits. `--lines`
 > [!NOTE]
 > Verbose lump logs can grow without bound. `stop --all` deletes them as part of teardown.
 
+### `lumpcode supervisor-log`
+
+Reads this project's supervisor log (`~/.lumpcode/supervisor/<project>.log`): when the supervisor starts or adopts daemons, and why it skips or rejects a committed [daemon file](../config/daemons.md). Same flags as `daemon-log` without `--daemonId`: follows by default, `--noFollow` prints and exits, `--lines` omitted is last 10 and `--lines 0` is the whole file, `--json` with `--noFollow` prints `{ logFilePath, lines, projectName }`. Fails when the supervisor never ran for this project; start it with `lumpcode start` or `lumpcode start --superviseOnly`.
+
 ### `lumpcode transcript`
 
 Print or follow a daemon session file, not the operational log. `--lumpName` is required unless `--list`. Follows live by default (last 10 lines, then live). `--noFollow` prints and exits. `--lines` omitted is 10; `0` is the whole file. `--json` print requires `--noFollow`. `--list` catalogs stamps and discovery branches, newest stamp first (`<stamp>  <lumpName>  <discoveryBranch>`). `--json --list` is allowed. `--list` cannot combine with `--stamp`, `--lines`, or `--noFollow`. Same newest stamp on two branches needs `--discoveryBranch`. Empty catalog is success. Missing file fails and points at `--list`.

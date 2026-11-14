@@ -54,6 +54,12 @@ export {
     Injections as DaemonLogInjections,
 } from './daemon-log';
 export {
+    command as supervisorLog,
+    Input as SupervisorLogInput,
+    Output as SupervisorLogOutput,
+    Injections as SupervisorLogInjections,
+} from './supervisor-log';
+export {
     command as transcript,
     Input as TranscriptInput,
     Output as TranscriptOutput,

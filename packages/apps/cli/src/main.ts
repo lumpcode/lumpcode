@@ -110,6 +110,11 @@ export async function main() {
                 localConfigFolderPath,
                 globalConfigFolderPath,
             },
+            supervisorLog: {
+                projectRoot: process.cwd(),
+                localConfigFolderPath,
+                globalConfigFolderPath,
+            },
             transcript: {
                 projectRoot: process.cwd(),
                 localConfigFolderPath,

@@ -86,7 +86,7 @@ The cap is **per lump name**, across every discovery line. A dedicated worker no
 2. A `lumpcode start` daemon already using that id is left alone. Stop it, or pick another file stem.
 3. `maxParallelRun` in the file plus `workspaceStrategy: checkout` is refused.
 4. Wait for the next supervisor pass (about 30s, then every 5 minutes after a successful snapshot), or `lumpcode restart`.
-5. `lumpcode daemon-status` should show that id. The log names parse and allowlist failures.
+5. `lumpcode daemon-status` should show that id. `lumpcode supervisor-log --noFollow --lines 100` names parse and allowlist failures.
 
 ## JSON config cannot see my function
 
