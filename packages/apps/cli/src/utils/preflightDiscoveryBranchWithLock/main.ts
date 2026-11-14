@@ -41,7 +41,6 @@ export async function preflightDiscoveryBranchWithLock<T>(input: {
         projectName: projectNameInput,
         logger,
         holdForRun,
-        workspaceStrategy = localConfig.workspaceStrategy ?? 'checkout',
         fn,
     } = input;
 
@@ -107,9 +106,7 @@ export async function preflightDiscoveryBranchWithLock<T>(input: {
         return releaseAndFail(fnResult.data);
     }
 
-    const keepLockForRun = holdForRun && workspaceStrategy === 'checkout';
-
-    if (!keepLockForRun) {
+    if (!holdForRun) {
         await releaseLock();
         return success({
             data: fnResult.data,
