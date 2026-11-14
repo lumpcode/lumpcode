@@ -50,7 +50,7 @@ There is no undo inside Lumpcode. Recover from git if the work was committed; if
 1. The lump must be on the branch the worker tracks (usually the primary). Push and merge; wait for the next cron (default five minutes), or `lumpcode restart`.
 2. `--include` / `--exclude` on that worker may filter it out.
 3. Lump `"disabled": true` soft-skips (exit 0). Local `"disabled": true` pauses every lump on that machine.
-4. `maximumNumberOfConcurrentBranches` can skip while older `lump/<name>/*` branches are still open. Unmerged branches, and squash or rebase merges, still count. Merge with a merge commit or fast-forward, delete the branch, or run `lumpcode clean --lumpName <name>`.
+4. `maximumNumberOfConcurrentBranches` can skip while older `lump/<name>/*` branches are still open. A branch stops counting when its `LUMP:` lines are already on a non-lump branch, or when its tip is. Keep the line if you squash. Otherwise delete the branch or run `lumpcode clean --lumpName <name>`. See [Day to day](../start/worker.md#day-to-day-on-your-laptop).
 5. Dedicated discovery allowlist: the lump’s `discoveryBranch` must match configured `primaryBranches`. Launch fails closed on a mismatch; check the worker log.
 6. TypeScript lumps that import `@lumpcode/recipes` need `npm install` on the worker clone. The global CLI does not provide those packages.
 
@@ -76,7 +76,7 @@ Names must match `^[a-zA-Z0-9_-]+$` and be unique. No `/` in a context `name`. U
 
 ## Too many open branches
 
-The cap is **per lump name**, across every discovery line. A dedicated worker now picks the strongest remaining batch first (context `priority`), so a hotter `feature/*` line is not stuck behind the primary. You can still skip when the cap is already full of open `lump/<name>/*` branches. Merge, raise the cap, or split lumps.
+The cap is **per lump name**, across every discovery line. A dedicated worker now picks the strongest remaining batch first (context `priority`), so a hotter `feature/*` line is not stuck behind the primary. You can still skip when the cap is already full of open `lump/<name>/*` branches. Keeping the `LUMP:` line is what frees a squashed branch. Merge, raise the cap, or split lumps. See [Day to day](../start/worker.md#day-to-day-on-your-laptop).
 
 ## Committed daemon file never starts
 
