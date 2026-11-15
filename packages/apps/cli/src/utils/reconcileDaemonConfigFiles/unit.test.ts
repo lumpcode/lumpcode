@@ -10,6 +10,7 @@ import { isProcessAlive, shellSingleQuote, type Logger } from '@lumpcode/core';
 
 import {
     createIntegrationBranch,
+    createSpyLogger,
     daemonConfigFileJson,
     initBareRemoteAndCheckout,
     writeLocalJson,
@@ -28,16 +29,6 @@ import { readJsonFile } from '../readJsonFile';
 import { resolveGitCommonDir } from '../resolveGitCommonDir';
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { reconcileDaemonConfigFiles } from './main';
-
-function createLogger(): Logger {
-    return {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => createLogger(),
-    };
-}
 
 function mockSpawn(): typeof nodeSpawn {
     return vi.fn(() => ({ pid: 42_424, unref: vi.fn() })) as unknown as typeof nodeSpawn;
@@ -221,7 +212,7 @@ describe('reconcileDaemonConfigFiles', () => {
             primaryBranch: 'dev',
             workspaceStrategy: 'checkout',
         });
-        logger = createLogger();
+        logger = createSpyLogger();
     });
 
     afterEach(async () => {

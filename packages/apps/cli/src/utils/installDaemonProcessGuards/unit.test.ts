@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
 
+import { createSpyLogger } from '../../testing';
 import { installDaemonProcessGuards } from './main';
 
 function addedListener<E extends 'SIGHUP' | 'uncaughtException' | 'unhandledRejection'>(
@@ -20,13 +21,7 @@ describe('installDaemonProcessGuards', () => {
     });
 
     it('logs and ignores SIGHUP without exiting', () => {
-        const logger = {
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
-            verbose: vi.fn(),
-            child: vi.fn(),
-        };
+        const logger = createSpyLogger();
         const exit = vi.fn();
         const before = process.listeners('SIGHUP');
         const dispose = installDaemonProcessGuards({ logger, exit });
@@ -40,13 +35,7 @@ describe('installDaemonProcessGuards', () => {
     });
 
     it('logs uncaughtException and exits 1', () => {
-        const logger = {
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
-            verbose: vi.fn(),
-            child: vi.fn(),
-        };
+        const logger = createSpyLogger();
         const exit = vi.fn();
         const before = process.listeners('uncaughtException');
         const dispose = installDaemonProcessGuards({ logger, exit });
@@ -61,13 +50,7 @@ describe('installDaemonProcessGuards', () => {
     });
 
     it('logs unhandledRejection and exits 1 once', () => {
-        const logger = {
-            info: vi.fn(),
-            warn: vi.fn(),
-            error: vi.fn(),
-            verbose: vi.fn(),
-            child: vi.fn(),
-        };
+        const logger = createSpyLogger();
         const exit = vi.fn();
         const beforeUnhandled = process.listeners('unhandledRejection');
         const beforeUncaught = process.listeners('uncaughtException');

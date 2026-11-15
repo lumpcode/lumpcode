@@ -1,12 +1,11 @@
 import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
-
-import type { Logger } from '@lumpcode/core';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 
 import type { LocalConfig } from '../../types/LocalConfig';
 import {
     createIntegrationBranch,
+    createSpyLogger,
     initBareRemoteAndCheckout,
     writeLocalJson,
     writeMinimalLump,
@@ -16,21 +15,6 @@ import { validateDaemonLaunch } from './main';
 import { writeJsonFile } from '../writeJsonFile';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeLumpConfigJson } from '../writeLumpConfigJson';
-
-function createLogger(): Logger & { warnings: string[] } {
-    const warnings: string[] = [];
-    const logger: Logger & { warnings: string[] } = {
-        warnings,
-        info: vi.fn(),
-        warn: (message: string) => {
-            warnings.push(message);
-        },
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => logger,
-    };
-    return logger;
-}
 
 function launchTestLocalConfig(
     config: Pick<LocalConfig, 'mode'> & Partial<Omit<LocalConfig, 'mode'>> & { refreshCommand?: string },
@@ -68,7 +52,7 @@ describe('validateDaemonLaunch', () => {
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'v0.0.9'), { recursive: true });
         gitCommitAllAndPush({ cwd: projectRoot, message: 'alpha and empty v0.0.9 dir' });
 
-        const logger = createLogger();
+        const logger = createSpyLogger();
         const result = await validateDaemonLaunch({
             projectRoot,
             localConfigFolderPath,
@@ -98,7 +82,7 @@ describe('validateDaemonLaunch', () => {
             ],
         });
 
-        const logger = createLogger();
+        const logger = createSpyLogger();
         const result = await validateDaemonLaunch({
             projectRoot,
             localConfigFolderPath,
@@ -124,7 +108,7 @@ describe('validateDaemonLaunch', () => {
             await writeMinimalLump(projectRoot, 'alpha');
             gitCommitAllAndPush({ cwd: projectRoot, message: 'alpha' });
 
-            const logger = createLogger();
+            const logger = createSpyLogger();
             const result = await validateDaemonLaunch({
                 projectRoot,
                 localConfigFolderPath,
@@ -148,7 +132,7 @@ describe('validateDaemonLaunch', () => {
             gitCommitAllAndPush({ cwd: projectRoot, message: 'dup' });
             // Second copy with same name cannot exist as sibling dirs; assert via
             // discoveryBranches multi-match on one scan is still one LoadableLump.
-            const logger = createLogger();
+            const logger = createSpyLogger();
             const result = await validateDaemonLaunch({
                 projectRoot,
                 localConfigFolderPath,
@@ -169,7 +153,7 @@ describe('validateDaemonLaunch', () => {
             });
             gitCommitAllAndPush({ cwd: projectRoot, message: 'hotfix lump' });
 
-            const logger = createLogger();
+            const logger = createSpyLogger();
             const result = await validateDaemonLaunch({
                 projectRoot,
                 localConfigFolderPath,
@@ -205,7 +189,7 @@ describe('validateDaemonLaunch', () => {
                 primaryBranch: 'main',
                 refreshCommand,
             }),
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
