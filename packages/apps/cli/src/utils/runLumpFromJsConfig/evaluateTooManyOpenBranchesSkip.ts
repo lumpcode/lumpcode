@@ -1,4 +1,5 @@
 import type { LumpJsConfig } from '../../types';
+import type { Mode } from '../../types/Mode';
 import { countOpenLumpBranches } from '../countOpenLumpBranches';
 import type { RunLumpFromJsConfigSuccess } from './main';
 
@@ -11,8 +12,13 @@ export async function evaluateTooManyOpenBranchesSkip(input: {
     jsConfig: LumpJsConfig;
     lumpName: string;
     executionWorkspacePath: string;
+    mode: Mode;
 }): Promise<TooManyOpenBranchesSkip | null> {
-    const { jsConfig, lumpName, executionWorkspacePath } = input;
+    const { jsConfig, lumpName, executionWorkspacePath, mode } = input;
+    if (mode === 'shared') {
+        return null;
+    }
+
     const { maximumNumberOfConcurrentBranches } = jsConfig;
     if (
         typeof maximumNumberOfConcurrentBranches !== 'number' ||
