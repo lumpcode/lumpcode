@@ -16,5 +16,6 @@ export type {
   OpenCodeAgentPermissions,
   OpenCodePresetLumpVariables,
   OpenCodePresetStepVariables,
+  PresetExtraArgsVariables,
   PresetSessionStepVariables,
 } from './presets';

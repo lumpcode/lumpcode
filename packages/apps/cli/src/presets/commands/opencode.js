@@ -1,6 +1,7 @@
 // PRESET COMMAND : DO NOT MODIFY THIS FILE
 
 import { resolveAgentPermissions } from './utils/resolveAgentPermissions.js';
+import { resolvePresetExtraArgs } from './utils/resolvePresetExtraArgs.js';
 import { createOpenCodeSession } from './utils/createOpenCodeSession.js';
 import {
     initialPresetChatRunState,
@@ -31,6 +32,7 @@ export const command = (async ({
     if (chatId == null) return null;
 
     const agentPermissions = resolveAgentPermissions({ lumpVariables, stepVariables });
+    const extraArgs = resolvePresetExtraArgs({ lumpVariables, stepVariables });
     const optionArgs = resolveOpenCodeArgs({ agentPermissions, model });
 
     return {
@@ -43,6 +45,7 @@ export const command = (async ({
             '-s',
             chatId,
             ...optionArgs,
+            ...extraArgs,
         ],
     };
 });

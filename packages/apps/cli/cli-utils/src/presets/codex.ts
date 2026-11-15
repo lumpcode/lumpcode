@@ -1,3 +1,4 @@
+import type { PresetExtraArgsVariables } from './extraArgs';
 import type { PresetSessionStepVariables } from './session';
 
 export type CodexAgentPermissions = {
@@ -9,7 +10,7 @@ export type CodexAgentPermissions = {
 export type CodexPresetLumpVariables = {
   model?: string;
   agentPermissions?: CodexAgentPermissions;
-};
+} & PresetExtraArgsVariables;
 
 export type CodexPresetStepVariables = CodexPresetLumpVariables &
   PresetSessionStepVariables;
