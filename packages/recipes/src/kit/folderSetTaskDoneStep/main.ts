@@ -66,7 +66,10 @@ export function folderSetTaskDoneStep<
             const itemDirRelative = variables.BACKLOG_ITEM_DIR;
 
             if (!itemsDirRelative || (!itemDirRelative && !taskName)) {
-                throw new Error('Backlog items directory and task name are required');
+                throw new Error(
+                    `folderSetTaskDoneStep: context "${context.name}" must set ${input.itemsDirVarName} to the backlog items directory ` +
+                        `and either BACKLOG_ITEM_DIR or ${nameVarName} to the item to move.`,
+                );
             }
 
             const itemsDir = path.join(workspacePath, itemsDirRelative);

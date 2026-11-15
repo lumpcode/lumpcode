@@ -196,6 +196,24 @@ describe('folderSetTaskDoneStep', () => {
         ).resolves.toBeUndefined();
     });
 
+    it('names the context variables to set when the item is not identified', async () => {
+        const step = folderSetTaskDoneStep({ itemsDirVarName: 'BACKLOG_ITEMS_DIR' });
+        await expect(
+            step.commandFn!({
+                context: {
+                    name: 'alpha',
+                    variables: {
+                        BACKLOG_ITEMS_DIR: itemsDirRelative,
+                    },
+                },
+                workspacePath,
+            } as never),
+        ).rejects.toThrow(
+            'folderSetTaskDoneStep: context "alpha" must set BACKLOG_ITEMS_DIR to the backlog items directory ' +
+                'and either BACKLOG_ITEM_DIR or TASK_NAME to the item to move.',
+        );
+    });
+
     it('sets continueOnError true', () => {
         const step = folderSetTaskDoneStep({ itemsDirVarName: 'BACKLOG_ITEMS_DIR' });
         expect(step.continueOnError).toBe(true);
