@@ -151,7 +151,7 @@ With `--json`, startup is one object that includes `url` and, when the warning a
 
 ### `lumpcode context-status <lumpName> <contextName>`
 
-One row after refresh. `--setToFinished` writes an empty marker commit on `baseBranch` and pushes that branch. Use after a squash that dropped the `LUMP:` line.
+One row after refresh. `--discoveryBranch` as on `lump-plan`. `--setToFinished` writes an empty marker commit on the lump's [base branch](../start/terms.md#branches) and pushes that branch. Use after a squash that dropped the `LUMP:` line.
 
 ### `lumpcode clean`
 
