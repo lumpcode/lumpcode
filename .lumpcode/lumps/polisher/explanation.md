@@ -1,21 +1,21 @@
-# Say which baseBranch value was rejected and why
+# Say which context variables folderSetTaskDoneStep needs to find the item
 
-A lump's `baseBranch` must be an exact branch name. `jsConfigToRunLumpInput` (`packages/apps/cli/src/utils/jsConfigToRunLumpInput/main.ts`) rejects a pattern such as `feature/*`, and also rejects a `baseBranch` function that returns a pattern, an empty string, or a non-string. The errors did not show the rejected value or that the problem was a pattern:
-
-```
-baseBranch must be a concrete branch name
-baseBranch function must return a non-empty concrete branch name
-```
-
-The sibling check for `--discoveryBranch` already says `not a pattern (got "...")`. That matters most for the function form, where the operator never typed the value. The messages now match that wording and show what was rejected:
+`folderSetTaskDoneStep` (`packages/recipes/src/kit/folderSetTaskDoneStep/main.ts`) moves a finished backlog item from `todo/` to `completed/`. It needs two things from the context: the items directory, read from the variable the caller names in `itemsDirVarName` (the `backlog` recipe uses `BACKLOG_ITEMS_DIR`), and the item, read from either `BACKLOG_ITEM_DIR` or the `nameVarName` variable (default `TASK_NAME`). When any of these was missing, the step threw:
 
 ```
-baseBranch must be a concrete branch name, not a pattern (got "feature/*")
-baseBranch function must return a non-empty concrete branch name, not a pattern (got "exec/*")
+Backlog items directory and task name are required
 ```
 
-A non-string return shows its type instead (`got undefined`). The inline function and the file-path module function had the same three-line check, so both now call one private helper, `checkBaseBranchFnResult`. The same inputs still fail at the same point; only the text changed. No docs or memory quoted the old strings. `context-status` has its own `baseBranch` message, which I left alone.
+That message did not name a variable or the context. It also said "task name" was required, when `BACKLOG_ITEM_DIR` alone is enough. The step has `continueOnError: true`, so the item quietly stays in `todo/` and this line in the history is the only clue. The message now uses the same form as `requireArtifactStep`, naming the context and the variables to set:
 
-Tests: in `testing/dynamicDiscoveryBranch.unit.test.ts`, B3 now expects the new string. A new B3b covers a `baseBranch` function that returns a pattern.
+```
+folderSetTaskDoneStep: context "alpha" must set BACKLOG_ITEMS_DIR to the backlog items directory and either BACKLOG_ITEM_DIR or TASK_NAME to the item to move.
+```
 
-Checks: `npm run test -w=@lumpcode/cli` (167 files, 1286 tests pass) and root `npm run build` (passes). One earlier full-suite run failed `sparseCronCatchUp.unit.test.ts` on a timing-based retry test. It passed 3 of 3 runs alone and on the next full run. It does not touch this code.
+Both variable names come from the step's own options, so a custom `itemsDirVarName` or `nameVarName` shows up as configured. The condition and when the step throws are unchanged; only the text changed. No docs or memory quoted the old string.
+
+Tests: `folderSetTaskDoneStep/unit.test.ts` adds a case where a context sets only `BACKLOG_ITEMS_DIR`, and it expects the full new message.
+
+Checks: `npm run test -w=@lumpcode/recipes` (9 files, 107 tests pass) and root `npm run build` (passes).
+
+Follow-up for the trimmer lump: `packages/apps/cli/src/utils/formatDeamonLumpScopeCliOutput` has no callers outside its own test.
