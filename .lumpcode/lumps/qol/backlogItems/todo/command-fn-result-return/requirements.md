@@ -1,4 +1,4 @@
-# Requirements: `commandFn` may return an in-process result
+# Requirements: `commandFn` may return a shell string or an in-process result
 
 | Field | Value |
 | --- | --- |
@@ -16,15 +16,17 @@ A step's `commandFn` ([`CommandFn`](../../../../../../packages/core/src/types/Co
 
 ## Goals
 
-1. `commandFn` may return `{ commandResult, commandSucceeded }` and the engine uses it as the step outcome without spawning.
-2. The outcome flows exactly like a spawned command's: `keepHistory` entry, `postCommandExecFn` input, and `continueOnError` on failure.
-3. The same union applies wherever a `CommandFn` is accepted: inline `command` on JS/TS steps, `commandFn` on core `Step`, and command modules.
-4. `lump-plan --prompts` / `--plan` shows that a step resolved in-process.
+1. `commandFn` may return a string. The engine spawns that string as one shell command line. It is not parsed into `executable` and `args`.
+2. `commandFn` may return `{ commandResult, commandSucceeded }` and the engine uses it as the step outcome without spawning.
+3. The in-process outcome flows exactly like a spawned command's: `keepHistory` entry, `postCommandExecFn` input, and `continueOnError` on failure.
+4. The same union applies wherever a `CommandFn` is accepted: inline `command` on JS/TS steps, `commandFn` on core `Step`, and command modules.
+5. A string `command` field with no whitespace stays a tag or a module path. A string `command` field that contains whitespace is a shell line, same as a string returned from `commandFn`.
+6. `lump-plan --prompts` / `--plan` shows that a step resolved in-process.
 
 ## Non-goals
 
-- Plain shell strings as a return (qol `command-as-shell-string`, `command-descriptor-or-string-returns`).
-- Returning steps from `commandFn` (IDEAS `commandFn-return-step-or-result`, step half).
+- Git and workspace hooks (`command-descriptor-or-string-returns`).
+- Returning steps from `commandFn`.
 - Changing `CommandDescriptor`, skip semantics, or `postCommandExecFn` return types.
 - Daemon transcript events for in-process results. No process runs, so `onCommandOutput` emits nothing, like a skip.
 - JSON lump configs (no inline functions there).
@@ -42,7 +44,7 @@ Contract in `packages/core/src/types/CommandFn.ts`:
 | Name | Shape |
 | --- | --- |
 | `CommandFnResult` (new, exported from `@lumpcode/core` types) | `{ commandResult: string; commandSucceeded: boolean }` |
-| `CommandFn` return | `MaybePromise<CommandDescriptor \| CommandFnResult \| null \| undefined \| void>` |
+| `CommandFn` return | `MaybePromise<CommandDescriptor \| string \| CommandFnResult \| null \| undefined \| void>` |
 
 A returned object with an own `commandResult` key is a `CommandFnResult`; any other non-null object is a `CommandDescriptor`. An object with `commandResult` that is not a string, or `commandSucceeded` that is not a boolean, fails the step walk (`reason: 'stepWalkFailed'`). The message says `commandFn` returned an invalid result and names the expected shape.
 
@@ -51,6 +53,7 @@ Engine behavior per return value:
 | Return | Spawn | `keepHistory` entry | `postCommandExecFn` input | Walk |
 | --- | --- | --- | --- | --- |
 | `CommandDescriptor` | yes | yes | spawn output (unchanged) | unchanged |
+| string | yes, as one shell command line | yes | spawn output | unchanged |
 | nullish | no | no | `''`, `true` (unchanged) | continues |
 | `CommandFnResult`, `commandSucceeded: true` | no | yes | the returned values | continues |
 | `CommandFnResult`, `commandSucceeded: false`, `continueOnError: true` | no | yes | the returned values | continues |
@@ -95,14 +98,16 @@ No CLI resolver change is needed: inline `command` functions and command modules
 | Document | Change |
 | --- | --- |
 | `packages/apps/cli/DOCS/config/types.md` | `CommandFn` signature gains the result shape; the skip paragraph adds the in-process result row and its `continueOnError` / history behavior. |
-| `packages/apps/cli/DOCS/author/agents.md` | Inline `CommandFn` bullet: third option, return `{ commandResult, commandSucceeded }` to finish in-process. |
+| `packages/apps/cli/DOCS/author/agents.md` | Inline `CommandFn` bullet: return a string to spawn a shell line, or `{ commandResult, commandSucceeded }` to finish in-process. A string `command` field with whitespace is a shell line. |
 | `packages/core/README.md` | `commandFn` row mentions the result shape. |
 
 ## Acceptance criteria
 
 1. A JS/TS step returning `{ commandResult: 'ok', commandSucceeded: true }` spawns nothing, and its `postCommandExecFn` receives `commandResult: 'ok'`.
-2. A failed result without `continueOnError` fails the context with `reason: 'stepWalkFailed'` and the message contains the result text.
-3. With `keepHistory: true`, a result step appends one history entry; a nullish skip still appends none.
-4. `lump-plan --prompts` shows the in-process line for that step.
-5. The `commandResult` key check exists only in `isCommandFnResult`.
-6. `npm run test -w=@lumpcode/core`, `npm run build -w=@lumpcode/cli`, and `npm run test -w=@lumpcode/cli` are green.
+2. A JS/TS step returning `'npm run test'` spawns that shell line and does not treat it as a tag.
+3. A string `command` field with no whitespace is still a tag or a module path. A string `command` field that contains whitespace is a shell line.
+4. A failed result without `continueOnError` fails the context with `reason: 'stepWalkFailed'` and the message contains the result text.
+5. With `keepHistory: true`, a result step appends one history entry; a nullish skip still appends none.
+6. `lump-plan --prompts` shows the in-process line for that step.
+7. The `commandResult` key check exists only in `isCommandFnResult`.
+8. `npm run test -w=@lumpcode/core`, `npm run build -w=@lumpcode/cli`, and `npm run test -w=@lumpcode/cli` are green.

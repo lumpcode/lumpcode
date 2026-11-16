@@ -28,6 +28,12 @@ const inputSchema = z.object({
             .string()
             .optional()
             .describe('Discovery branch override (dedicated mode; must be listed in primaryBranches)'),
+        contextName: z
+            .string()
+            .optional()
+            .describe(
+                'Run this context when it is toDo and its dependsOnContexts are finished. Ignores priority',
+            ),
     }),
     arguments: z.object({
         lumpName: z.string().describe('The name of the lump to run'),
@@ -50,6 +56,7 @@ export interface Injections {
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async input => {
     const lumpName = input.arguments.lumpName;
     const discoveryBranchOpt = input.options.discoveryBranch?.trim() || undefined;
+    const contextName = input.options.contextName?.trim() || undefined;
     const { json, verbose: cliVerbose } = input.options;
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = injections;
 
@@ -121,6 +128,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             effectiveDiscoveryBranch: discoveryResult.data,
             discoveryBranchOpt,
             signal: abortController.signal,
+            contextName,
             liveStepWrite: (text) => {
                 process.stdout.write(text);
             },

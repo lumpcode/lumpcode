@@ -27,7 +27,7 @@ An operator on a worker can already ask `lumpcode daemon-status` what is running
 
 - Stop, force-stop, stop all, start, restart, or editing `.lumpcode/local.json` (`worker-dashboard-controls`).
 - Tailing `daemon-log`, or any other log viewer.
-- Git campaign progress (`toDo` / `branchPushed` / `finished`). That stays parked on `local-status-dashboard-mvp` and `cli-status-dashboard`.
+- Git campaign progress (`toDo` / `branchPushed` / `finished`). That stays parked on `local-status-dashboard-mvp`.
 - A token, TLS, nginx, or opening a browser.
 - Publishing `@lumpcode/dashboard`, or a second install (`npx @lumpcode/dashboard`).
 - Sub-tickets. One backlog item.

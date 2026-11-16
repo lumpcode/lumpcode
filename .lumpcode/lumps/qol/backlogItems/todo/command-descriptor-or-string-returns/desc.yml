@@ -1,13 +1,14 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: command-descriptor-or-string-returns
-manualReq: true
 workflow: [manualReq, testImpl, impl]
 task: >-
-  Broaden the cleaner-core-git-fns follow-up: unify all hooks and injectors that
-  return a shell command for core/CLI to run so their return type is
-  CommandDescriptor | string (structured { executable, args, env? } or a plain
-  string executed via sh -c / platform shell). Reconsider nullish / "already
-  done" semantics in that design. Likely surfaces include git command-return
-  payloads, setupWorkspace/teardownWorkspace command fields, and similar
-  command-string injectors — without prescribing every call site in this item.
+  Git and workspace hooks may return a CommandDescriptor or a shell string.
+  gitAddCommitFn today returns success('git add . && git commit …') for the
+  engine to run, or success(null) when the commit is already done. Workspace
+  setup returns { command: 'git switch … && git switch -c …', workspacePath }.
+  A descriptor is { executable, args, env? }, so a branch name with a space
+  is an argument and not part of a shell line. A string is still allowed.
+  What null means stays for the human plan. This does not change a step
+  command. That is command-fn-result-return: a step may return a shell string
+  to spawn, or { commandResult, commandSucceeded } and spawn nothing.
 priority: 1

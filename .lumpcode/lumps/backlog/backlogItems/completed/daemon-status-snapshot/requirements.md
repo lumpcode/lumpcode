@@ -42,7 +42,7 @@ Operators and a future worker dashboard need a **one-shot**, file-shaped view of
 
 - `lumpcode dashboard`, `@lumpcode/dashboard`, or polling UI (`worker-dashboard-readonly`).
 - `daemon-meta-desired-dedup` (split recipe vs live overlay onto `desired.json`).
-- Unified `cli-status-dashboard` / merging `lump-status` into one command.
+- Merging `lump-status`, `context-status`, and `daemon-status` into one command.
 - Published JSON Schema for `daemon-status` output.
 - Exporting snapshot types from `@lumpcode/cli-utils` (dashboard ticket may copy documented JSON or add types later).
 - Surfacing discovery-only work (`__discovery__`), tick collect/score, or lock holders in `inFlightRuns`.

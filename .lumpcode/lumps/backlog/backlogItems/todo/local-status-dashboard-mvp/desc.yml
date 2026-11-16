@@ -7,7 +7,7 @@ task: >-
   finished) with the remote as source of truth. Not this slice: the worker
   operator UI is `worker-dashboard-readonly` / `worker-dashboard-controls`
   (live daemon snapshot, not campaign progress). Unpark after that path ships
-  if a git board is still wanted. Complements parked `cli-status-dashboard`.
+  if a git board is still wanted.
 priority: 31
 dependsOn:
   - worker-dashboard-readonly

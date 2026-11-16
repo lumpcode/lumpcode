@@ -1,0 +1,37 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: daemon-orchestration
+workflow: [manualReq, impl]
+task: >-
+  A daemon that runs many lumps needs two per-lump knobs: priority and weight.
+  Priority is order. A lower number runs sooner, the same meaning as context
+  priority and backlog priority. Example: ideasToBacklog before qol. Weight is
+  share. Example: 60% of lump A, 25% of lump B, and 15% of lump C. Priority
+  alone can leave the smaller lump waiting while the higher one still has
+  work. Weight is what reserves that share. Requirements define both fields,
+  the default when a lump sets neither, and how the two combine on one tick.
+  Do not treat include-list order as either knob.
+  The git-reviewed place is the committed file-daemon recipe
+  .lumpcode/daemons/<daemonId>.{json,yml,yaml} (daemonConfig.schema.json).
+  Today that file only has discoveryBranch, cronSetup, include, exclude,
+  disabled, and maxParallelRun. include and exclude are flat glob lists.
+  normalizeDaemonConfigFile sorts them for hashing, so list order is not a
+  signal. Requirements choose the YAML/JSON shape (sibling maps, objects
+  inside include, or a lumps table). That shape is not decided here.
+  The dedicated tick is the consumer. Collect still emits one line per
+  matching (lumpName, scanBranch). scoreDedicatedLumpLine and
+  reorderDedicatedLumpLines today fill those lines from context priorities
+  inside each lump. This ticket adds the daemon's lump priority and weight
+  on top of that. maxParallelRun stays the concurrency cap (worktree only).
+  It is not the share and not the order.
+  Context priority still ranks work inside one runLump. This does not replace
+  it. Shared-mode collect has no score/reorder; the dedicated tick is the
+  first consumer. Not daemon-versus-daemon priority across file daemons. Not
+  tick-line-slot-count (invoke count versus how many discovery lines
+  matched). Not numberOfContextsPerBranch, not
+  maximumNumberOfConcurrentBranches, not overlapping ticks, and not
+  memory-pressure-run-gate.
+  Requirements also say whether lumpcode start --include gets the same knobs
+  or stays a membership list. Touch: daemon config schema and normalize/hash,
+  dedicated collect/score/reorder, /docs/config/daemons, and the CLI daemon
+  concepts.
+priority: 33

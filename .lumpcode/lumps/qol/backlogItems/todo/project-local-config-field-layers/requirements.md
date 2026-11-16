@@ -9,29 +9,31 @@
 
 ## Problem statement and motivation
 
-Which file a field may live in (`.lumpcode/project.json`, `.lumpcode/local.json`, or both with local winning) is written down five times in `packages/apps/cli`:
+Which file a field may live in (`.lumpcode/project.json`, `.lumpcode/local.json`, or both with local winning), and whether the lump config may set it too, is written down in `packages/apps/cli`:
 
 1. `projectJsonConfigSchema` and `localJsonConfigSchema` in `utils/projectLocalConfigSchema/main.ts` spread `sharedPrimaryFields`, `sharedLumpDefaultFields`, and `sharedRefreshCommandField` by hand.
 2. `resolvedProjectLocalConfigSchema` in the same file repeats every field.
 3. `SHARED_KEYS` in `utils/readProjectLocalConfig/main.ts` lists the shared keys again, and `mergeProjectAndLocalConfig` copies each local-only key with its own `if`.
 4. `ProjectJsonConfig` and `LocalJsonConfig` (`types/`) are hand-written `Pick` lists.
 5. `src/schemas/projectConfig.schema.json` and `localConfig.schema.json` list the properties again, with no test tying them to the Zod schemas.
+6. `LUMP_DEFAULT_KEYS` in `utils/applyLumpConfigDefaults/main.ts` lists `command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `writeTranscripts`, and `verbose` again. The lump value wins when it is not `undefined`.
 
 Adding `refreshCommand` touched all five, plus four new merge tests (M13–M16). A field added to the Zod schema but missed in `SHARED_KEYS` passes file validation and is then silently dropped by the merge.
 
 ## Goals
 
 1. One table in `utils/projectLocalConfigSchema` says, for every field, which layer owns it and what its Zod schema is.
-2. The three Zod schemas, the merge, the key lists, and the `ProjectJsonConfig` / `LocalJsonConfig` types are derived from that table.
+2. The three Zod schemas, the merge, the key lists, the `ProjectJsonConfig` / `LocalJsonConfig` types, and `LUMP_DEFAULT_KEYS` are derived from that table.
 3. Merge tests run over the table, so a new shared field gets local-wins, project-only, and local-only coverage without new hand-written cases.
 4. A test fails when the JSON schema files list different properties than the table.
-5. No change to what either file accepts, to merge results, or to error messages from `readProjectJson`, `readLocalConfig`, and `readProjectLocalConfig`.
+5. No change to what either file accepts, to merge results, to the lump overlay order, or to error messages from `readProjectJson`, `readLocalConfig`, and `readProjectLocalConfig`.
 
 ## Non-goals
 
 - Changing merge semantics, defaults, or which layer owns any field.
 - Generating the JSON schema files from Zod. They stay hand-written; a test only checks their property lists.
-- Touching lump-level overlay (`lump > local > project` for `command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `writeTranscripts`) in `jsConfigToRunLumpInput` or elsewhere.
+- Changing the lump overlay order. It stays lump, then local, then project, and only when the lump value is `undefined`.
+- Lump-only fields (`steps`, prompts, hooks, and the rest of `lumpConfig.schema.json`). This table is the project and local fields, plus the mark that says the lump config may set that field too.
 - Daemon file config (`daemonConfig.schema.json`, `daemonConfigFileSchema`).
 - Docs changes. Operator-visible behavior does not change.
 
@@ -45,11 +47,13 @@ Adding `refreshCommand` touched all five, plus four new merge tests (M13–M16).
 
 ### Field layers (current fields, unchanged)
 
-| Layer | Fields | Merge |
-| --- | --- | --- |
-| `project` | `projectName` (required in `project.json`) | From `project.json` |
-| `local` | `mode` (required in `local.json`), `workspaceStrategy`, `disabled`, `maxParallelRun`, `verbose`, `logRetention` | From `local.json`; `workspaceStrategy` defaults to `checkout` |
-| `shared` | `primaryBranch`, `primaryBranches`, `projectBaseBranch`, `command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `writeTranscripts`, `refreshCommand` | `local.json` value when defined, else `project.json` value, else absent |
+| Layer | Fields | Merge | Also on the lump |
+| --- | --- | --- | --- |
+| `project` | `projectName` (required in `project.json`) | From `project.json` | no |
+| `local` | `mode` (required in `local.json`), `workspaceStrategy`, `disabled`, `maxParallelRun`, `logRetention` | From `local.json`; `workspaceStrategy` defaults to `checkout` | no |
+| `local` | `verbose` | From `local.json` | yes. Lump wins when set |
+| `shared` | `primaryBranch`, `primaryBranches`, `projectBaseBranch`, `refreshCommand` | `local.json` when defined, else `project.json`, else absent | no |
+| `shared` | `command`, `maximumNumberOfConcurrentBranches`, `keepHistory`, `writeTranscripts` | `local.json` when defined, else `project.json`, else absent | yes. Lump wins when set |
 
 A key placed in the wrong file still fails strict validation of that file, with today's message.
 
@@ -57,7 +61,7 @@ A key placed in the wrong file still fails strict validation of that file, with 
 
 The table and everything derived from it live in `utils/projectLocalConfigSchema/` (a sibling file such as `fieldLayers.ts` in that folder is fine; re-export from `main.ts`/`index.ts`). Nothing outside this module lists field names by layer.
 
-- `projectLocalConfigFields`: a const table keyed by field name. Each entry has `layer: 'project' | 'local' | 'shared'`, the field's Zod schema (today's schema and messages, including the custom `maxParallelRun`, `logRetention`, `primaryBranches`, and `command` refinements), and whether the field is required in its file. Container shape is free.
+- `projectLocalConfigFields`: a const table keyed by field name. Each entry has `layer: 'project' | 'local' | 'shared'`, `onLump: boolean`, the field's Zod schema (today's schema and messages, including the custom `maxParallelRun`, `logRetention`, `primaryBranches`, and `command` refinements), and whether the field is required in its file. Container shape is free.
 - Derived key-union types: `ProjectJsonKey` (project + shared), `LocalJsonKey` (local + shared), `SharedProjectLocalKey`.
 - Derived runtime key lists: shared keys and local-only keys, typed with those unions.
 - `projectJsonConfigSchema`, `localJsonConfigSchema`: built from the table, still wrapped in `ignoredJsonSchemaKey(... .strict())`. Same exports, same names.
@@ -68,6 +72,8 @@ The table and everything derived from it live in `utils/projectLocalConfigSchema
 
 `mergeProjectAndLocalConfig({ project, local })` keeps its signature and result. It loops over the derived key lists instead of naming fields; `SHARED_KEYS` in `readProjectLocalConfig/main.ts` is deleted. `projectName` from project, `mode` from local, and the `workspaceStrategy` default stay explicit because they are not plain copies.
 
+`applyLumpConfigDefaults` keeps its signature and the same overlay. `LUMP_DEFAULT_KEYS` is deleted. The keys it copies are the table rows with `onLump: true`.
+
 ## Technical approach
 
 | Step | File | Change |
@@ -75,7 +81,8 @@ The table and everything derived from it live in `utils/projectLocalConfigSchema
 | 1 | `packages/apps/cli/src/utils/projectLocalConfigSchema/` | Add the field table; rebuild the three schemas, key unions, and key lists from it. Remove `sharedPrimaryFields`, `sharedLumpDefaultFields`, `sharedRefreshCommandField`, `logRetentionField` as separate spreads (they may stay as table entries' values) |
 | 2 | `packages/apps/cli/src/types/ProjectJsonConfig.ts`, `LocalJsonConfig.ts` | `Pick` with the derived key unions |
 | 3 | `packages/apps/cli/src/utils/readProjectLocalConfig/main.ts` | Drop `SHARED_KEYS` and per-field `if`s; merge from the derived lists |
-| 4 | Tests | Rows below |
+| 4 | `packages/apps/cli/src/utils/applyLumpConfigDefaults/main.ts` | Drop `LUMP_DEFAULT_KEYS`; copy the table rows with `onLump: true` |
+| 5 | Tests | Rows below |
 
 `readProjectJson` and `readLocalConfig` keep importing the file schemas by name; they do not change.
 

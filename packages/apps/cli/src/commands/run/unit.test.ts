@@ -209,6 +209,23 @@ describe('run command — multi discovery branches', () => {
         );
     });
 
+    it('passes --contextName through to the lump run', async () => {
+        await setupMultiBranchLocal();
+        const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');
+
+        await makeHandler()({
+            options: { contextName: ' README ' },
+            arguments: { lumpName: 'releaseLine' },
+        });
+
+        expect(runLumpSpy).toHaveBeenCalledWith(
+            expect.objectContaining({ contextName: 'README' }),
+        );
+        expect(vi.mocked(core.runLump)).toHaveBeenCalledWith(
+            expect.objectContaining({ contextName: 'README' }),
+        );
+    });
+
     it('streams step output to stdout and does not create a transcript file', async () => {
         await setupMultiBranchLocal();
         const runLumpSpy = vi.spyOn(runLumpFromLumpNameModule, 'runLumpFromLumpName');

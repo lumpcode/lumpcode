@@ -115,4 +115,76 @@ describe('runLump failure reason preservation (R1/R2)', () => {
             expect((result.data as { reason?: string }).reason).toBe('gitAddCommitFailed');
         }
     });
+
+    it('runs the named context and skips a better-priority neighbor', async () => {
+        const ran: string[] = [];
+        const result = await runLump({
+            projectRoot,
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            contextName: 'later',
+            numberOfContextsPerBranch: 1,
+            getContextListFn: async () => [
+                { name: 'sooner', variables: {}, options: { priority: 0 } },
+                { name: 'later', variables: {}, options: { priority: 5 } },
+            ],
+            steps: [{
+                commandFn: ({ context }) => {
+                    ran.push(context.name);
+                    return { executable: 'echo', args: ['ok'] };
+                },
+            }],
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            gitAddCommitFn: () => success('echo git-add-commit'),
+            gitPushFn: () => success('echo git-push'),
+            gitCommitMessageFn: () => 'LUMP:ctx',
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(ran).toEqual(['later']);
+        expect(result.data.result.contextNames).toEqual(['later']);
+    });
+
+    it('fails before steps when the named context is waiting on dependsOnContexts', async () => {
+        const ran: string[] = [];
+        const result = await runLump({
+            projectRoot,
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            contextName: 'later',
+            getContextListFn: async () => [
+                {
+                    name: 'later',
+                    variables: {},
+                    options: { dependsOnContexts: ['dep'] },
+                },
+            ],
+            steps: [{
+                commandFn: ({ context }) => {
+                    ran.push(context.name);
+                    return { executable: 'echo', args: ['ok'] };
+                },
+            }],
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            gitAddCommitFn: () => success('echo git-add-commit'),
+            gitPushFn: () => success('echo git-push'),
+            gitCommitMessageFn: () => 'LUMP:ctx',
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) return;
+        expect(result.data.message).toBe(
+            'Context "later" is waiting on dependsOnContexts: dep.',
+        );
+        expect(ran).toEqual([]);
+    });
 });
