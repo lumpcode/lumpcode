@@ -1,0 +1,1 @@
+export { killProcessGroup } from './main';

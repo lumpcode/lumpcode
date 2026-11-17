@@ -111,6 +111,15 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         expect(meta.daemonId).toBe('global');
     });
 
+    it('writes stepProcessGroups while steps run and omits them when none are left', async () => {
+        await writer.setStepProcessGroups([4321, 4400]);
+        expect((await readMeta()).stepProcessGroups).toEqual([4321, 4400]);
+
+        await writer.setStepProcessGroups([]);
+        expect('stepProcessGroups' in (await readRaw())).toBe(false);
+        expect((await readMeta()).daemonId).toBe('global');
+    });
+
     it('dedupes a second beginLumpLine for the same run key and keeps contextName', async () => {
         await writer.beginLumpLine({ lumpName: 'backlog' });
         await writer.setContextName({ lumpName: 'backlog', contextName: 'ctx-a' });

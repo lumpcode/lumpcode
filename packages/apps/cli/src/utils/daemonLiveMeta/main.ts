@@ -11,6 +11,7 @@ export type DaemonLiveMetaWriter = {
     endLumpLine: (line: LumpLine) => Promise<void>;
     setTickPhase: (phase: 'idle' | 'running') => Promise<void>;
     setNextTickAt: (iso: string | undefined) => Promise<void>;
+    setStepProcessGroups: (pgids: number[]) => Promise<void>;
 };
 
 export type CreateDaemonLiveMetaWriterInput = {
@@ -56,6 +57,7 @@ export function createDaemonLiveMetaWriter(
     let tickPhase: 'idle' | 'running' | undefined;
     let nextTickAt: string | undefined;
     let localConfigFingerprint: string | undefined;
+    let stepProcessGroups: number[] = [];
     let chain: Promise<void> = Promise.resolve();
 
     const persist = async (overrides?: PersistOverrides): Promise<void> => {
@@ -75,6 +77,9 @@ export function createDaemonLiveMetaWriter(
         }
         if (tickAt !== undefined) {
             data.nextTickAt = tickAt;
+        }
+        if (stepProcessGroups.length > 0) {
+            data.stepProcessGroups = stepProcessGroups;
         }
         const written = await writeJsonFile({
             filePath: metaFilePath,
@@ -145,6 +150,11 @@ export function createDaemonLiveMetaWriter(
         setNextTickAt: (iso) =>
             enqueue(async () => {
                 nextTickAt = iso;
+                await persist();
+            }),
+        setStepProcessGroups: (pgids) =>
+            enqueue(async () => {
+                stepProcessGroups = [...pgids];
                 await persist();
             }),
     };

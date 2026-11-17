@@ -3,10 +3,12 @@ import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process'
 import { Failure, Logger, Success } from '../../types';
 import {
     failure,
+    killProcessGroup,
     killProcessTree,
     killSystemdScope,
     resolveSpawnExecutable,
     success,
+    trackStepProcessGroup,
     wrapInSystemdScope,
 } from '../../utils';
 
@@ -18,6 +20,19 @@ function stderrMessagePreview(stderr: string): string {
     if (stderr.length <= STDERR_MESSAGE_PREVIEW_CHARS) return stderr;
     return `${stderr.slice(0, STDERR_MESSAGE_PREVIEW_CHARS)}…`;
 }
+
+/**
+ * Where the child runs so that whatever it leaves behind can be killed once it
+ * exits, times out, or is aborted.
+ * - `systemdScope`: a transient `systemd-run --user --scope` unit (cgroup).
+ *   Only after `detectSystemdScope()` reports it available.
+ * - `processGroup`: a new process group, tracked by `trackStepProcessGroup`
+ *   while it runs. Misses processes that leave the group (`setsid`,
+ *   daemonizing). Ignored on Windows.
+ */
+export type ExecBinaryIsolation =
+    | { kind: 'systemdScope'; unitName: string }
+    | { kind: 'processGroup' };
 
 export type ExecBinaryChunk = {
     stream: 'stdout' | 'stderr';
@@ -36,13 +51,8 @@ export type ExecBinaryInput = {
     killGraceMs?: number;
     /** Invoked from the stdout/stderr listeners while those listeners still concatenate. */
     onChunk?: (input: ExecBinaryChunk) => void;
-    /**
-     * Run inside this transient `systemd-run --user --scope` unit and kill
-     * whatever is left in it once the child exits, times out, or is aborted.
-     * Only pass a name after `detectSystemdScope()` reports it available.
-     */
-    systemdScopeUnit?: string;
-    /** Receives scope cleanup failures. */
+    isolation?: ExecBinaryIsolation;
+    /** Receives isolation cleanup failures. */
     logger?: Logger;
 };
 
@@ -70,9 +80,12 @@ export function execBinary(
         signal,
         killGraceMs = 5000,
         onChunk,
-        systemdScopeUnit,
+        isolation: requestedIsolation,
         logger,
     } = input;
+    const isolation = requestedIsolation?.kind === 'processGroup' && process.platform === 'win32'
+        ? undefined
+        : requestedIsolation;
 
     return new Promise((resolve) => {
         let settled = false;
@@ -81,16 +94,25 @@ export function execBinary(
         let stdout = '';
         let stderr = '';
         let timeout: ReturnType<typeof setTimeout> | undefined;
-        let scopeCleanup: Promise<boolean> | undefined;
+        let leftoverCleanup: Promise<boolean> | undefined;
+        let untrackProcessGroup: (() => void) | undefined;
 
-        const cleanUpScope = (): Promise<boolean> => {
-            if (systemdScopeUnit === undefined) return Promise.resolve(false);
-            scopeCleanup ??= killSystemdScope({ unitName: systemdScopeUnit, graceMs: killGraceMs })
-                .then((result) => {
-                    if (!result.success) logger?.warn(result.data);
-                    return result.success;
-                });
-            return scopeCleanup;
+        const killIsolation = (pid: number) => {
+            if (isolation?.kind === 'systemdScope') {
+                return killSystemdScope({ unitName: isolation.unitName, graceMs: killGraceMs });
+            }
+            return killProcessGroup({ pgid: pid, graceMs: killGraceMs });
+        };
+
+        const cleanUpLeftovers = (): Promise<boolean> => {
+            const pid = child?.pid;
+            if (isolation === undefined || pid == null) return Promise.resolve(false);
+            leftoverCleanup ??= killIsolation(pid).then((result) => {
+                untrackProcessGroup?.();
+                if (!result.success) logger?.warn(result.data);
+                return result.success;
+            });
+            return leftoverCleanup;
         };
 
         const finish = (
@@ -99,6 +121,7 @@ export function execBinary(
             if (settled) return;
             settled = true;
             if (timeout !== undefined) clearTimeout(timeout);
+            untrackProcessGroup?.();
             if (signal) {
                 signal.removeEventListener('abort', onAbort);
             }
@@ -109,8 +132,8 @@ export function execBinary(
             if (settled || canceling) return;
             canceling = true;
             const pid = child?.pid;
-            const scopeKilled = pid != null && await cleanUpScope();
-            if (pid != null && !scopeKilled) {
+            const isolationKilled = await cleanUpLeftovers();
+            if (pid != null && !isolationKilled) {
                 await killProcessTree({ pid, graceMs: killGraceMs });
             }
             finish(failure({
@@ -137,17 +160,22 @@ export function execBinary(
         }
 
         const resolved = resolveSpawnExecutable(binaryPath, args);
-        const { executable: resolvedExecutable, args: resolvedArgs } = systemdScopeUnit !== undefined
-            ? wrapInSystemdScope({ ...resolved, unitName: systemdScopeUnit })
+        const { executable: resolvedExecutable, args: resolvedArgs } = isolation?.kind === 'systemdScope'
+            ? wrapInSystemdScope({ ...resolved, unitName: isolation.unitName })
             : resolved;
 
         const spawnOptions: SpawnOptions = {
             ...(cwd !== undefined ? { cwd } : {}),
             ...(env !== undefined ? { env } : {}),
             ...(stdio !== undefined ? { stdio } : {}),
+            // On Unix, `detached` makes the child the leader of a new process group.
+            ...(isolation?.kind === 'processGroup' ? { detached: true } : {}),
         };
 
         child = spawn(resolvedExecutable, resolvedArgs, spawnOptions);
+        if (isolation?.kind === 'processGroup' && child.pid != null) {
+            untrackProcessGroup = trackStepProcessGroup(child.pid);
+        }
 
         // Start the timeout only after the OS has spawned the process so
         // timeoutMillis measures command runtime, not spawn/setup overhead.
@@ -184,11 +212,11 @@ export function execBinary(
         // only arrives once they are gone.
         child.on('exit', () => {
             if (settled || canceling) return;
-            void cleanUpScope();
+            void cleanUpLeftovers();
         });
         child.on('close', async (code, exitSignal) => {
             if (settled || canceling) return;
-            await cleanUpScope();
+            await cleanUpLeftovers();
             if (settled || canceling) return;
             if (code === 0) {
                 finish(success({ stdout, stderr }));

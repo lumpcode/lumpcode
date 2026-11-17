@@ -72,7 +72,10 @@ The preset needs `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` on 
 
 ## `systemd --user is not available`
 
-On Linux, each step runs in its own `systemd --user` scope. When the step ends, fails, times out, or is stopped, every process still in that scope is killed, including background processes the agent left behind. The daemon prints this warning at startup when it cannot create a scope (not Linux, or no user session bus). Steps still run, but leftover processes keep running after the step ends. On a worker VM, enable lingering for the worker user (`loginctl enable-linger <user>`) and start the daemon from that user's session.
+When a step ends, fails, times out, or is stopped, Lumpcode kills the processes it left behind, such as an `npm run dev &` the agent started. On Linux with a `systemd --user` session, each step runs in its own scope and nothing it starts can escape. The daemon prints this warning at startup when it cannot create a scope:
+
+- **macOS, or Linux without a user session bus:** each step runs in its own process group instead. Background processes are still killed, but a process that deliberately leaves its group (`setsid`, a tool that daemonizes) keeps running. On a Linux worker VM, enable lingering for the worker user (`loginctl enable-linger <user>`) and start the daemon from that user's session to get full cleanup.
+- **Windows:** leftover processes are not cleaned up.
 
 ## Context name rejected
 

@@ -12,9 +12,14 @@ import {
     waitForPidGone,
     waitForReadyFile,
 } from '../../testing/processTreeTestHelpers';
-import { detectSystemdScope, systemdScopeUnitName } from '../../utils';
+import {
+    detectSystemdScope,
+    listStepProcessGroups,
+    onStepProcessGroupsChange,
+    systemdScopeUnitName,
+} from '../../utils';
 import { windowsNpmCmdShimBody } from '../../utils/resolveSpawnExecutable/windowsNpmCmdShimBody';
-import { execBinary } from './main';
+import { execBinary, type ExecBinaryIsolation } from './main';
 
 const scopeSupport = await detectSystemdScope();
 
@@ -432,12 +437,28 @@ describe('execBinary object API + kill on timeout/abort (E1–E9)', () => {
     });
 });
 
-describe.skipIf(!scopeSupport.available)('execBinary in a systemd scope', () => {
+const isolationCases: Array<{ name: string; enabled: boolean; isolation: () => ExecBinaryIsolation }> = [
+    {
+        name: 'a systemd scope',
+        enabled: scopeSupport.available,
+        isolation: () => ({
+            kind: 'systemdScope',
+            unitName: systemdScopeUnitName({ lumpName: 'execBinary', contextName: 'test', stepIndex: 0 }),
+        }),
+    },
+    {
+        name: 'its own process group',
+        enabled: process.platform !== 'win32',
+        isolation: () => ({ kind: 'processGroup' }),
+    },
+];
+
+describe.each(isolationCases)('execBinary in $name', ({ enabled, isolation }) => {
     const activePids = new Set<number>();
     let tmpDir = '';
 
     beforeEach(async () => {
-        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lumpcode-execbinary-scope-'));
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lumpcode-execbinary-isolation-'));
     });
 
     afterEach(async () => {
@@ -452,17 +473,13 @@ describe.skipIf(!scopeSupport.available)('execBinary in a systemd scope', () => 
         await fs.rm(tmpDir, { recursive: true, force: true });
     });
 
-    function scopeUnit(): string {
-        return systemdScopeUnitName({ lumpName: 'execBinary', contextName: 'test', stepIndex: 0 });
-    }
-
-    it('returns once the child exits even though an orphan holds stdout, and the orphan is gone', async () => {
+    it.skipIf(!enabled)('returns once the child exits even though an orphan holds stdout, and the orphan is gone', async () => {
         const readyFile = path.join(tmpDir, 'ready.json');
         const resultPromise = execBinary({
             binaryPath: 'sh',
             args: orphanLeavingShellArgs({ readyFile, tail: 'echo done' }),
             timeoutMillis: 60_000,
-            systemdScopeUnit: scopeUnit(),
+            isolation: isolation(),
         });
 
         const { pids } = await waitForReadyFile(readyFile);
@@ -476,14 +493,14 @@ describe.skipIf(!scopeSupport.available)('execBinary in a systemd scope', () => 
         }
     });
 
-    it('kills the orphan on timeout', async () => {
+    it.skipIf(!enabled)('kills the orphan on timeout', async () => {
         const readyFile = path.join(tmpDir, 'ready-timeout.json');
         const resultPromise = execBinary({
             binaryPath: 'sh',
             args: orphanLeavingShellArgs({ readyFile, tail: 'sleep 60' }),
             timeoutMillis: 3000,
             killGraceMs: 0,
-            systemdScopeUnit: scopeUnit(),
+            isolation: isolation(),
         });
 
         const { pids } = await waitForReadyFile(readyFile);
@@ -497,16 +514,39 @@ describe.skipIf(!scopeSupport.available)('execBinary in a systemd scope', () => 
         }
     });
 
-    it('reports the signal of the scoped command', async () => {
+    it.skipIf(!enabled)('reports the signal of the isolated command', async () => {
         const result = await execBinary({
             binaryPath: process.execPath,
             args: ['-e', 'process.kill(process.pid, "SIGTERM")'],
-            systemdScopeUnit: scopeUnit(),
+            isolation: isolation(),
         });
         expect(result.success).toBe(false);
         if (!result.success) {
             expect(result.data.signal).toBe('SIGTERM');
             expect(result.data.message).toBe('Process exited by signal SIGTERM');
+        }
+    });
+});
+
+describe.skipIf(process.platform === 'win32')('execBinary process group tracking', () => {
+    it('tracks the group only while the command runs', async () => {
+        const seen: number[][] = [];
+        const stop = onStepProcessGroupsChange((pgids) => {
+            seen.push(pgids);
+        });
+        try {
+            const result = await execBinary({
+                binaryPath: 'sh',
+                args: ['-c', 'echo $$'],
+                isolation: { kind: 'processGroup' },
+            });
+            expect(result.success).toBe(true);
+            if (!result.success) return;
+            const pid = Number.parseInt(result.data.stdout.trim(), 10);
+            expect(seen).toEqual([[pid], []]);
+            expect(listStepProcessGroups()).toEqual([]);
+        } finally {
+            stop();
         }
     });
 });

@@ -1,4 +1,8 @@
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
+import { promisify } from 'node:util';
+
+const execFileAsync = promisify(execFile);
 
 /** Signal-0 probe: true when the pid is still running. */
 export function probeAlive(pid: number): boolean {
@@ -12,13 +16,13 @@ export function probeAlive(pid: number): boolean {
 
 /**
  * Like `probeAlive`, but a zombie counts as gone: its reaper may not have
- * collected it yet even though it no longer runs. Linux only.
+ * collected it yet even though it no longer runs. Unix only.
  */
 export async function isRunning(pid: number): Promise<boolean> {
     try {
-        const stat = await fs.readFile(`/proc/${pid}/stat`, 'utf8');
-        const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
-        return state !== 'Z' && state !== 'X';
+        const { stdout } = await execFileAsync('ps', ['-o', 'stat=', '-p', String(pid)]);
+        const state = stdout.trim();
+        return state !== '' && !state.startsWith('Z');
     } catch {
         return false;
     }

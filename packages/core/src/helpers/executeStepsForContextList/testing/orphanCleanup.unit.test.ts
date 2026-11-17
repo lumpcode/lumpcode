@@ -4,7 +4,6 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import type { Logger, Step } from '../../../types';
-import { detectSystemdScope } from '../../../utils';
 import {
     isRunning,
     orphanLeavingShellArgs,
@@ -19,7 +18,6 @@ import {
     stubGitPush,
 } from './testHelpers';
 
-const scopeSupport = await detectSystemdScope();
 
 function warnCapturingLogger(warnings: string[]): Logger {
     const logger: Logger = {
@@ -78,7 +76,7 @@ describe('executeStepsForContextList leftover processes', () => {
         });
     }
 
-    describe.skipIf(!scopeSupport.available)('in a systemd scope', () => {
+    describe.skipIf(process.platform === 'win32')('in a systemd scope or its own process group', () => {
         it.each([
             { outcome: 'succeeds', tail: 'exit 0', walkSucceeds: true },
             { outcome: 'fails', tail: 'exit 3', walkSucceeds: false },

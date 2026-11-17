@@ -76,6 +76,7 @@ async function orphanKillDaemon(input: {
         return;
     }
     const { pidFilePath, metaFilePath } = daemonSchedulerFiles({ daemonsDir, projectName, daemonId });
+    await killPublishedStepProcessGroups({ metaFilePath, daemonId, logger });
     await unlinkSchedulerFiles({ pidFilePath, metaFilePath });
 }
 
@@ -85,11 +86,12 @@ async function orphanKillDaemon(input: {
  */
 async function killDeadDaemonProcessGroup(input: {
     pidFilePath: string;
+    metaFilePath: string;
     daemonId: string;
     logger: Logger;
 }): Promise<void> {
     if (process.platform === 'win32') return;
-    const { pidFilePath, daemonId, logger } = input;
+    const { pidFilePath, metaFilePath, daemonId, logger } = input;
     let raw: string;
     try {
         raw = await fs.readFile(pidFilePath, 'utf8');
@@ -100,12 +102,36 @@ async function killDeadDaemonProcessGroup(input: {
     if (!Number.isInteger(pid) || pid <= 1) return;
     if (isProcessAlive(pid, { onProbeError: 'alive' })) return;
     logger.info(`killing orphaned process group for daemon "${daemonId}" (pid ${pid})`);
+    killGroupBestEffort({ pgid: pid, daemonId, logger });
+    await killPublishedStepProcessGroups({ metaFilePath, daemonId, logger });
+}
+
+/**
+ * Steps that ran without a systemd scope have their own process group, out of
+ * reach of the daemon's group kill. The daemon publishes them in its meta.
+ */
+async function killPublishedStepProcessGroups(input: {
+    metaFilePath: string;
+    daemonId: string;
+    logger: Logger;
+}): Promise<void> {
+    if (process.platform === 'win32') return;
+    const { metaFilePath, daemonId, logger } = input;
+    const meta = await readDaemonMeta(metaFilePath);
+    for (const pgid of meta.success ? meta.data.stepProcessGroups ?? [] : []) {
+        logger.info(`killing step process group ${pgid} left by daemon "${daemonId}"`);
+        killGroupBestEffort({ pgid, daemonId, logger });
+    }
+}
+
+function killGroupBestEffort(input: { pgid: number; daemonId: string; logger: Logger }): void {
+    const { pgid, daemonId, logger } = input;
     try {
-        process.kill(-pid, 'SIGKILL');
+        process.kill(-pgid, 'SIGKILL');
     } catch (error: unknown) {
         if (nodeErrnoCode(error) === 'ESRCH') return;
         const message = error instanceof Error ? error.message : String(error);
-        logger.warn(`process group kill for "${daemonId}" pid ${pid} failed: ${message}`);
+        logger.warn(`process group kill for "${daemonId}" pgid ${pgid} failed: ${message}`);
     }
 }
 
@@ -224,7 +250,7 @@ export async function runSuperviseLocalPass(
         const live = running[daemonId] !== undefined;
         if (desired.stopping === true) {
             if (!live) {
-                await killDeadDaemonProcessGroup({ pidFilePath, daemonId, logger });
+                await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
                 await unlinkSchedulerFiles({ pidFilePath, metaFilePath, desiredFilePath });
             }
             continue;
@@ -232,7 +258,7 @@ export async function runSuperviseLocalPass(
         if (live) {
             continue;
         }
-        await killDeadDaemonProcessGroup({ pidFilePath, daemonId, logger });
+        await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
         await spawnDesiredDaemon({
             projectName,
             daemonsDir,

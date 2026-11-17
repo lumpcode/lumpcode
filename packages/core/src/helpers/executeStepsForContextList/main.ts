@@ -358,15 +358,16 @@ export async function executeStepsForContextList<
                                 cwd: workspacePath,
                                 signal,
                                 logger,
-                                ...(scopeSupport.available
+                                isolation: scopeSupport.available
                                     ? {
-                                        systemdScopeUnit: systemdScopeUnitName({
+                                        kind: 'systemdScope',
+                                        unitName: systemdScopeUnitName({
                                             lumpName,
                                             contextName: context.name,
                                             stepIndex: compositeStepIndex,
                                         }),
                                     }
-                                    : {}),
+                                    : { kind: 'processGroup' },
                                 ...(env != null ? { env: { ...process.env, ...env } } : {}),
                                 ...(onCommandOutput
                                     ? {
