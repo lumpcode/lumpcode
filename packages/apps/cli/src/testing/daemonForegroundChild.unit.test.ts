@@ -16,10 +16,8 @@ const childScript = fileURLToPath(new URL('./daemonForegroundChild.cjs', import.
 const PARENT_HARNESS = `
 'use strict';
 const fs = require('node:fs');
-const net = require('node:net');
 const { spawn } = require('node:child_process');
 
-const sock = process.env.SOCK;
 const readyFile = process.env.READY_FILE;
 const releaseFile = process.env.RELEASE_FILE;
 const mode = process.env.MODE;
@@ -27,78 +25,63 @@ const childScript = process.env.CHILD_SCRIPT;
 const stayOnly = process.env.STAY_ONLY === '1';
 const pidFile = process.env.PID_FILE;
 
-const sockets = new Set();
-const server = net.createServer((socket) => {
-    socket.unref();
-    sockets.add(socket);
-    socket.on('close', () => sockets.delete(socket));
+const child = spawn(process.execPath, [childScript], {
+    detached: true,
+    stdio: 'ignore',
+    env: {
+        ...process.env,
+        LUMPCODE_DAEMON_PARENT_PID: String(process.pid),
+        LUMPCODE_DAEMON_STAY_ALIVE_ONLY: stayOnly ? '1' : '',
+        LUMPCODE_DAEMON_PROJECT_ROOT: process.env.PROJECT_ROOT || '',
+        LUMPCODE_DAEMON_GLOBAL_CONFIG: process.env.GLOBAL_CONFIG || '',
+    },
 });
-server.unref();
-server.on('error', (err) => {
-    fs.writeFileSync(readyFile, JSON.stringify({ error: String(err && err.message ? err.message : err) }));
-    process.exit(1);
-});
-try { fs.unlinkSync(sock); } catch { /* absent */ }
-server.listen(sock, () => {
-    const child = spawn(process.execPath, [childScript], {
-        detached: true,
-        stdio: 'ignore',
-        env: {
-            ...process.env,
-            LUMPCODE_DAEMON_PARENT_PID: String(process.pid),
-            LUMPCODE_DAEMON_PARENT_SOCK: sock,
-            LUMPCODE_DAEMON_STAY_ALIVE_ONLY: stayOnly ? '1' : '',
-            LUMPCODE_DAEMON_PROJECT_ROOT: process.env.PROJECT_ROOT || '',
-            LUMPCODE_DAEMON_GLOBAL_CONFIG: process.env.GLOBAL_CONFIG || '',
-        },
-    });
-    child.unref();
-    const deadline = Date.now() + 5000;
-    const finish = (childPid) => {
-        fs.writeFileSync(readyFile, JSON.stringify({ childPid, parentPid: process.pid }));
-        if (mode === 'sigkill') {
-            process.kill(process.pid, 'SIGKILL');
-            return;
-        }
-        if (mode === 'exit') {
-            process.exit(0);
-            return;
-        }
-        const hold = () => {
-            if (fs.existsSync(releaseFile)) process.exit(0);
-            else setTimeout(hold, 20);
-        };
-        hold();
+child.unref();
+const deadline = Date.now() + 5000;
+function finish(childPid) {
+    fs.writeFileSync(readyFile, JSON.stringify({ childPid, parentPid: process.pid }));
+    if (mode === 'sigkill') {
+        process.kill(process.pid, 'SIGKILL');
+        return;
+    }
+    if (mode === 'exit') {
+        process.exit(0);
+        return;
+    }
+    const hold = () => {
+        if (fs.existsSync(releaseFile)) process.exit(0);
+        else setTimeout(hold, 20);
     };
-    const wait = () => {
-        let childPid = child.pid;
-        if (!stayOnly && pidFile && fs.existsSync(pidFile)) {
-            const written = Number(fs.readFileSync(pidFile, 'utf8'));
-            if (Number.isInteger(written) && written > 0) childPid = written;
+    hold();
+}
+function wait() {
+    let childPid = child.pid;
+    if (!stayOnly && pidFile && fs.existsSync(pidFile)) {
+        const written = Number(fs.readFileSync(pidFile, 'utf8'));
+        if (Number.isInteger(written) && written > 0) childPid = written;
+    }
+    let alive = false;
+    try { process.kill(childPid, 0); alive = true; } catch { /* not yet */ }
+    if (!alive || (!stayOnly && !(pidFile && fs.existsSync(pidFile)))) {
+        if (Date.now() > deadline) {
+            fs.writeFileSync(readyFile, JSON.stringify({ error: 'child did not stay up', childPid }));
+            process.exit(1);
         }
-        let alive = false;
-        try { process.kill(childPid, 0); alive = true; } catch { /* not yet */ }
-        if (!alive || (!stayOnly && !(pidFile && fs.existsSync(pidFile)))) {
-            if (Date.now() > deadline) {
-                fs.writeFileSync(readyFile, JSON.stringify({ error: 'child did not stay up', childPid }));
-                process.exit(1);
-            }
-            setTimeout(wait, 20);
+        setTimeout(wait, 20);
+        return;
+    }
+    setTimeout(() => {
+        try {
+            process.kill(childPid, 0);
+        } catch {
+            fs.writeFileSync(readyFile, JSON.stringify({ error: 'child exited while parent lived', childPid }));
+            process.exit(1);
             return;
         }
-        setTimeout(() => {
-            try {
-                process.kill(childPid, 0);
-            } catch {
-                fs.writeFileSync(readyFile, JSON.stringify({ error: 'child exited while parent lived', childPid }));
-                process.exit(1);
-                return;
-            }
-            finish(childPid);
-        }, 150);
-    };
-    wait();
-});
+        finish(childPid);
+    }, 150);
+}
+wait();
 `;
 
 function probeAlive(pid: number): boolean {
@@ -148,13 +131,11 @@ describe('daemonForegroundChild', () => {
         const harnessPath = path.join(dir, 'parent.cjs');
         const readyFile = path.join(dir, 'ready.json');
         const releaseFile = path.join(dir, 'release');
-        const sock = path.join(dir, 'parent.sock');
         await fs.writeFile(harnessPath, PARENT_HARNESS);
         const parent = spawn(process.execPath, [harnessPath], {
             stdio: ['ignore', 'ignore', 'pipe'],
             env: {
                 ...process.env,
-                SOCK: sock,
                 READY_FILE: readyFile,
                 RELEASE_FILE: releaseFile,
                 MODE: input.mode,
@@ -206,7 +187,7 @@ describe('daemonForegroundChild', () => {
         const { childPid, parentPid, releaseFile } = await spawnWatchedChild({ mode: 'stay' });
         expect(probeAlive(childPid)).toBe(true);
         expect(probeAlive(parentPid)).toBe(true);
-        await new Promise((resolve) => setTimeout(resolve, 200));
+        await new Promise((resolve) => setTimeout(resolve, 1200));
         expect(probeAlive(childPid)).toBe(true);
 
         await fs.writeFile(releaseFile, 'go\n');
@@ -245,7 +226,6 @@ describe('daemonForegroundChild', () => {
                 LUMPCODE_DAEMON_PROJECT_ROOT: projectRoot,
                 LUMPCODE_DAEMON_GLOBAL_CONFIG: globalConfig,
                 LUMPCODE_DAEMON_PARENT_PID: String(dead.pid),
-                LUMPCODE_DAEMON_PARENT_SOCK: path.join(os.tmpdir(), 'lc-dfc-nobody.sock'),
                 LUMPCODE_DAEMON_STAY_ALIVE_ONLY: '',
             },
         });

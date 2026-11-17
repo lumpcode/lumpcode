@@ -1,13 +1,11 @@
 'use strict';
 
 const fs = require('node:fs');
-const net = require('node:net');
 const path = require('node:path');
 
-// Stay up only while the spawning test process holds LUMPCODE_DAEMON_PARENT_SOCK.
-// When that process dies the socket closes and this process exits. A stand-in
-// whose parent is already gone exits immediately, instead of idling on a timer
-// after init adopts it.
+// The spawning test records its pid. When that process dies, this one is
+// reparented and the pid no longer matches, so it exits instead of idling under init.
+const PARENT_CHECK_MS = 1000;
 
 function parentGone(parentPid) {
     if (!Number.isInteger(parentPid) || parentPid <= 0) return true;
@@ -20,41 +18,12 @@ function parentGone(parentPid) {
     }
 }
 
-function attachToParent(parentPid, sock) {
-    if (parentGone(parentPid)) process.exit(0);
-
-    const socket = net.connect({ path: sock });
-    let connected = false;
-    let finished = false;
-
-    const retry = () => {
-        if (finished) return;
-        finished = true;
-        socket.destroy();
-        if (parentGone(parentPid)) process.exit(0);
-        setTimeout(() => attachToParent(parentPid, sock), 50);
-    };
-
-    socket.on('connect', () => {
-        connected = true;
-        // This handle is the keepalive. Do not unref it.
-        socket.ref();
-    });
-    socket.on('error', () => {
-        if (connected) process.exit(0);
-        else retry();
-    });
-    socket.on('close', () => {
-        if (connected) process.exit(0);
-        else retry();
-    });
-}
-
-function beginParentWatch() {
+function watchParent() {
     const parentPid = Number(process.env.LUMPCODE_DAEMON_PARENT_PID);
-    const sock = process.env.LUMPCODE_DAEMON_PARENT_SOCK || '';
-    if (!sock || parentGone(parentPid)) process.exit(0);
-    attachToParent(parentPid, sock);
+    if (parentGone(parentPid)) process.exit(0);
+    setInterval(() => {
+        if (parentGone(parentPid)) process.exit(0);
+    }, PARENT_CHECK_MS);
 }
 
 const stayOnly = process.env.LUMPCODE_DAEMON_STAY_ALIVE_ONLY === '1';
@@ -71,7 +40,7 @@ if (!stayOnly && (!projectRoot || !globalConfig)) {
     process.exit(1);
 }
 
-beginParentWatch();
+watchParent();
 
 if (!stayOnly) {
     const projectJson = JSON.parse(

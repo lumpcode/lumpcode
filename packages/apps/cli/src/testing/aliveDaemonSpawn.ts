@@ -1,6 +1,4 @@
-import { readFileSync, unlinkSync } from 'node:fs';
-import * as net from 'node:net';
-import * as os from 'node:os';
+import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn as nodeSpawn } from 'node:child_process';
@@ -9,61 +7,6 @@ import type { SpawnOptions } from 'node:child_process';
 import { getDaemonTestGlobalConfigFolder } from './daemonTestEnv';
 
 const childScript = fileURLToPath(new URL('./daemonForegroundChild.cjs', import.meta.url));
-
-/**
- * One unref'd server for this test process. Children connect and stay up only
- * while the socket is open, so they exit when this process dies — including
- * SIGKILL, which reparents them to init. Accepted sockets are unref'd (so the
- * test run can finish) and retained (so GC does not close them early).
- */
-let parentWatch:
-    | { server: net.Server; sockPath: string; sockets: Set<net.Socket> }
-    | undefined;
-
-function parentWatchAddress(): string {
-    if (process.platform === 'win32') {
-        return `\\\\.\\pipe\\lumpcode-daemon-test-parent-${process.pid}`;
-    }
-    return path.join(os.tmpdir(), `lumpcode-daemon-test-parent-${process.pid}.sock`);
-}
-
-function ensureParentWatchServer(): string {
-    if (parentWatch) return parentWatch.sockPath;
-
-    const sockPath = parentWatchAddress();
-    if (process.platform !== 'win32') {
-        try {
-            unlinkSync(sockPath);
-        } catch {
-            // absent
-        }
-    }
-
-    const sockets = new Set<net.Socket>();
-    const server = net.createServer((socket) => {
-        socket.unref();
-        sockets.add(socket);
-        socket.on('close', () => {
-            sockets.delete(socket);
-        });
-    });
-    server.unref();
-    server.on('error', () => {
-        // A listen failure must not crash the test runner. The child exits if it cannot attach.
-    });
-    server.listen(sockPath);
-    process.on('exit', () => {
-        if (process.platform === 'win32') return;
-        try {
-            unlinkSync(sockPath);
-        } catch {
-            // already gone
-        }
-    });
-    // Retain the server. An unref'd handle with no JS reference can be collected and closed.
-    parentWatch = { server, sockPath, sockets };
-    return sockPath;
-}
 
 function spawnEnv(options: SpawnOptions, extra: Record<string, string>): NodeJS.ProcessEnv {
     const fromOptions =
@@ -74,8 +17,8 @@ function spawnEnv(options: SpawnOptions, extra: Record<string, string>): NodeJS.
         ...process.env,
         ...fromOptions,
         ...extra,
+        // Recorded at spawn so a child reparented before it reads process.ppid still knows who to watch.
         LUMPCODE_DAEMON_PARENT_PID: String(process.pid),
-        LUMPCODE_DAEMON_PARENT_SOCK: ensureParentWatchServer(),
     };
 }
 
