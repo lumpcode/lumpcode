@@ -1,7 +1,16 @@
 import { spawn as nodeSpawn } from 'node:child_process';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { killProcessTree, type Logger, success, type Failure, type Success } from '@lumpcode/core';
+import {
+    isProcessAlive,
+    killProcessTree,
+    nodeErrnoCode,
+    type Logger,
+    success,
+    type Failure,
+    type Success,
+} from '@lumpcode/core';
 
 import { daemonSchedulerFiles, listDaemonIds, unlinkSchedulerFiles } from '../daemonSchedulerFiles';
 import { getProjectName } from '../getProjectName';
@@ -68,6 +77,36 @@ async function orphanKillDaemon(input: {
     }
     const { pidFilePath, metaFilePath } = daemonSchedulerFiles({ daemonsDir, projectName, daemonId });
     await unlinkSchedulerFiles({ pidFilePath, metaFilePath });
+}
+
+/**
+ * The pid in a detached daemon's pid file is its process group id.
+ * After that process dies, children stay in the group until something kills `-pid`.
+ */
+async function killDeadDaemonProcessGroup(input: {
+    pidFilePath: string;
+    daemonId: string;
+    logger: Logger;
+}): Promise<void> {
+    if (process.platform === 'win32') return;
+    const { pidFilePath, daemonId, logger } = input;
+    let raw: string;
+    try {
+        raw = await fs.readFile(pidFilePath, 'utf8');
+    } catch {
+        return;
+    }
+    const pid = Number.parseInt(raw.trim(), 10);
+    if (!Number.isInteger(pid) || pid <= 1) return;
+    if (isProcessAlive(pid, { onProbeError: 'alive' })) return;
+    logger.info(`killing orphaned process group for daemon "${daemonId}" (pid ${pid})`);
+    try {
+        process.kill(-pid, 'SIGKILL');
+    } catch (error: unknown) {
+        if (nodeErrnoCode(error) === 'ESRCH') return;
+        const message = error instanceof Error ? error.message : String(error);
+        logger.warn(`process group kill for "${daemonId}" pid ${pid} failed: ${message}`);
+    }
 }
 
 async function spawnDesiredDaemon(input: {
@@ -185,6 +224,7 @@ export async function runSuperviseLocalPass(
         const live = running[daemonId] !== undefined;
         if (desired.stopping === true) {
             if (!live) {
+                await killDeadDaemonProcessGroup({ pidFilePath, daemonId, logger });
                 await unlinkSchedulerFiles({ pidFilePath, metaFilePath, desiredFilePath });
             }
             continue;
@@ -192,6 +232,7 @@ export async function runSuperviseLocalPass(
         if (live) {
             continue;
         }
+        await killDeadDaemonProcessGroup({ pidFilePath, daemonId, logger });
         await spawnDesiredDaemon({
             projectName,
             daemonsDir,
