@@ -1,5 +1,5 @@
 import type { Failure, Logger, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { detectSystemdScope, failure, success } from '@lumpcode/core';
 
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
@@ -606,6 +606,12 @@ export async function runForegroundStartDaemon(
     logger.info(
         `Lumpcode daemon id="${recipe.daemonId}" on ${recipe.cronSetup}. First run now, then on schedule. Press Ctrl+C to stop.`,
     );
+    const scopeSupport = await detectSystemdScope();
+    if (!scopeSupport.available) {
+        logger.warn(
+            `systemd --user is not available (${scopeSupport.reason}); agent steps run without their own cgroup, so processes they leave behind are not cleaned up.`,
+        );
+    }
 
     const disposeGuards = installDaemonProcessGuards({ logger });
     try {

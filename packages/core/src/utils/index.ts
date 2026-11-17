@@ -13,3 +13,4 @@ export * from './commitMessageIncludesMarker';
 export * from './nodeErrnoCode';
 export * from './isProcessAlive';
 export * from './killProcessTree';
+export * from './systemdScope';

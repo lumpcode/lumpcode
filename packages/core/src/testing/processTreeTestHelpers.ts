@@ -10,6 +10,34 @@ export function probeAlive(pid: number): boolean {
     }
 }
 
+/**
+ * Like `probeAlive`, but a zombie counts as gone: its reaper may not have
+ * collected it yet even though it no longer runs. Linux only.
+ */
+export async function isRunning(pid: number): Promise<boolean> {
+    try {
+        const stat = await fs.readFile(`/proc/${pid}/stat`, 'utf8');
+        const state = stat.slice(stat.lastIndexOf(')') + 2, stat.lastIndexOf(')') + 3);
+        return state !== 'Z' && state !== 'X';
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * `sh -c` command that starts a busy-looping node from a subshell, writes its
+ * pid to `readyFile` (`waitForReadyFile` contract), then runs `tail`. The
+ * subshell exits first, so the node is already reparented out of the process
+ * tree while `tail` runs.
+ */
+export function orphanLeavingShellArgs(input: { readyFile: string; tail: string }): string[] {
+    const { readyFile, tail } = input;
+    return [
+        '-c',
+        `('${process.execPath}' -e 'while(true){}' & echo "{\\"pids\\":[$!]}" > '${readyFile}'); ${tail}`,
+    ];
+}
+
 async function sleep(ms: number): Promise<void> {
     await new Promise((resolve) => setTimeout(resolve, ms));
 }
