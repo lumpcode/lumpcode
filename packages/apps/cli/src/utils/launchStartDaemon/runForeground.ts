@@ -1,5 +1,5 @@
 import type { Failure, Logger, Success } from '@lumpcode/core';
-import { detectSystemdScope, failure, onStepProcessGroupsChange, success } from '@lumpcode/core';
+import { detectSystemdScope, failure, onLiveStepIsolationChange, success } from '@lumpcode/core';
 
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
@@ -615,8 +615,8 @@ export async function runForegroundStartDaemon(
         );
     }
 
-    const stopPublishingStepGroups = onStepProcessGroupsChange((pgids) => {
-        liveMeta.setStepProcessGroups(pgids).catch(() => {
+    const stopPublishingStepIsolation = onLiveStepIsolationChange((live) => {
+        liveMeta.setLiveStepIsolation(live).catch(() => {
             // the writer already logged the failure
         });
     });
@@ -634,7 +634,7 @@ export async function runForegroundStartDaemon(
         scheduler.stop();
         shutdown.dispose();
         disposeGuards();
-        stopPublishingStepGroups();
+        stopPublishingStepIsolation();
     }
 
     return success({

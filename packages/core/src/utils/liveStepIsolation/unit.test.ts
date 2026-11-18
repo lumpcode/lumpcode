@@ -10,15 +10,33 @@ import {
     orphanLeavingShellArgs,
     waitForReadyFile,
 } from '../../testing/processTreeTestHelpers';
+import { detectSystemdScope, systemdScopeUnitName } from '../systemdScope';
 
 const coreDistEntry = fileURLToPath(new URL('../../../dist/index.cjs', import.meta.url));
+const scopeSupport = await detectSystemdScope();
 
-describe.skipIf(process.platform === 'win32')('step process groups on process exit', () => {
+const isolationCases = [
+    {
+        name: 'its own process group',
+        enabled: process.platform !== 'win32',
+        isolation: () => ({ kind: 'processGroup' }),
+    },
+    {
+        name: 'a systemd scope',
+        enabled: scopeSupport.available,
+        isolation: () => ({
+            kind: 'systemdScope',
+            unitName: systemdScopeUnitName({ lumpName: 'exitHook', contextName: 'test', stepIndex: 0 }),
+        }),
+    },
+];
+
+describe.each(isolationCases)('live step isolation on process exit, in $name', ({ enabled, isolation }) => {
     const activePids = new Set<number>();
     let tmpDir = '';
 
     beforeEach(async () => {
-        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lumpcode-step-groups-'));
+        tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'lumpcode-live-step-isolation-'));
     });
 
     afterEach(async () => {
@@ -33,13 +51,13 @@ describe.skipIf(process.platform === 'win32')('step process groups on process ex
         await fs.rm(tmpDir, { recursive: true, force: true });
     });
 
-    it('kills a running step group, orphans included, when the owning process force-exits', async () => {
+    it.skipIf(!enabled)('kills a running step box, orphans included, when the owning process force-exits', async () => {
         const readyFile = path.join(tmpDir, 'ready.json');
         const args = orphanLeavingShellArgs({ readyFile, tail: 'sleep 60' });
         const script = `
 const fs = require('node:fs');
 const { execBinary } = require(${JSON.stringify(coreDistEntry)});
-void execBinary({ binaryPath: 'sh', args: ${JSON.stringify(args)}, timeoutMillis: 60000, isolation: { kind: 'processGroup' } });
+void execBinary({ binaryPath: 'sh', args: ${JSON.stringify(args)}, timeoutMillis: 60000, isolation: ${JSON.stringify(isolation())} });
 const poll = setInterval(() => {
     if (fs.existsSync(${JSON.stringify(readyFile)})) {
         clearInterval(poll);

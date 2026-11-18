@@ -1,4 +1,4 @@
-import type { Logger } from '@lumpcode/core';
+import type { LiveStepIsolation, Logger } from '@lumpcode/core';
 
 import type { LumpLine } from '../lumpLine';
 import type { DaemonInFlightRun, DaemonMetaWrite } from '../readDaemonMeta';
@@ -11,7 +11,7 @@ export type DaemonLiveMetaWriter = {
     endLumpLine: (line: LumpLine) => Promise<void>;
     setTickPhase: (phase: 'idle' | 'running') => Promise<void>;
     setNextTickAt: (iso: string | undefined) => Promise<void>;
-    setStepProcessGroups: (pgids: number[]) => Promise<void>;
+    setLiveStepIsolation: (live: LiveStepIsolation) => Promise<void>;
 };
 
 export type CreateDaemonLiveMetaWriterInput = {
@@ -57,7 +57,7 @@ export function createDaemonLiveMetaWriter(
     let tickPhase: 'idle' | 'running' | undefined;
     let nextTickAt: string | undefined;
     let localConfigFingerprint: string | undefined;
-    let stepProcessGroups: number[] = [];
+    let liveStepIsolation: LiveStepIsolation = { processGroups: [], systemdScopes: [] };
     let chain: Promise<void> = Promise.resolve();
 
     const persist = async (overrides?: PersistOverrides): Promise<void> => {
@@ -78,8 +78,11 @@ export function createDaemonLiveMetaWriter(
         if (tickAt !== undefined) {
             data.nextTickAt = tickAt;
         }
-        if (stepProcessGroups.length > 0) {
-            data.stepProcessGroups = stepProcessGroups;
+        if (liveStepIsolation.processGroups.length > 0) {
+            data.stepProcessGroups = liveStepIsolation.processGroups;
+        }
+        if (liveStepIsolation.systemdScopes.length > 0) {
+            data.stepSystemdScopes = liveStepIsolation.systemdScopes;
         }
         const written = await writeJsonFile({
             filePath: metaFilePath,
@@ -152,9 +155,12 @@ export function createDaemonLiveMetaWriter(
                 nextTickAt = iso;
                 await persist();
             }),
-        setStepProcessGroups: (pgids) =>
+        setLiveStepIsolation: (live) =>
             enqueue(async () => {
-                stepProcessGroups = [...pgids];
+                liveStepIsolation = {
+                    processGroups: [...live.processGroups],
+                    systemdScopes: [...live.systemdScopes],
+                };
                 await persist();
             }),
     };

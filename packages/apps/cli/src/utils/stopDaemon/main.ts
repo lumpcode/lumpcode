@@ -10,6 +10,7 @@ import {
 } from '@lumpcode/core';
 
 import { pollUntil } from '../pollUntil';
+import { killDaemonLeftovers } from '../killDaemonLeftovers';
 import { isDaemonMidRun, readDaemonMeta, type DaemonMetaReadErrorReason } from '../readDaemonMeta';
 import { readDaemonPidIfAlive } from '../readDaemonPidIfAlive';
 import { markStartDaemonDesiredStopping } from '../startDaemonDesired';
@@ -27,12 +28,18 @@ async function waitForPidExit(input: { pid: number; waitMs: number }): Promise<b
 async function signalDaemonProcess(input: {
     pid: number;
     force: boolean;
+    /** Daemon meta; `--force` kills the leftovers it lists. Absent for the supervisor. */
+    metaFilePath?: string;
+    logger?: Logger;
 }): Promise<Success<void> | Failure<string>> {
-    const { pid, force } = input;
+    const { pid, force, metaFilePath, logger } = input;
     if (force) {
         const killResult = await killProcessTree({ pid, graceMs: 0 });
         if (!killResult.success) {
             return killResult;
+        }
+        if (metaFilePath !== undefined) {
+            await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon pid ${pid}`, logger });
         }
         return success(undefined);
     }
@@ -56,9 +63,11 @@ async function stopPid(input: {
     pid: number;
     force: boolean;
     waitMs: number;
+    metaFilePath?: string;
+    logger?: Logger;
 }): Promise<Success<void> | Failure<StopPidCallFailure>> {
-    const { pid, force, waitMs } = input;
-    const signaled = await signalDaemonProcess({ pid, force });
+    const { pid, force, waitMs, metaFilePath, logger } = input;
+    const signaled = await signalDaemonProcess({ pid, force, metaFilePath, logger });
     if (!signaled.success) {
         const error: StopPidCallFailure = { cause: 'signal', message: signaled.data };
         return failure(error);
@@ -121,11 +130,15 @@ async function signalWaitUnlink(input: {
     unlinkPaths: Array<string | undefined>;
     force: boolean;
     waitMs: number;
+    metaFilePath?: string;
+    logger?: Logger;
 }): Promise<StopPidResult> {
     const stopped = await stopPid({
         pid: input.pid,
         force: input.force,
         waitMs: input.waitMs,
+        metaFilePath: input.metaFilePath,
+        logger: input.logger,
     });
     if (!stopped.success) {
         return {
@@ -183,7 +196,7 @@ export async function stopOneDaemon(input: StopDaemonFilesInput): Promise<StopOn
     }
 
     await markDesiredStopping({ desiredFilePath, logger });
-    return signalWaitUnlink({ pid, unlinkPaths, force, waitMs });
+    return signalWaitUnlink({ pid, unlinkPaths, force, waitMs, metaFilePath, logger });
 }
 
 /**
@@ -208,7 +221,7 @@ export async function drainOrStopOneDaemon(input: StopDaemonFilesInput): Promise
     }
 
     await markDesiredStopping({ desiredFilePath, logger });
-    return signalWaitUnlink({ pid, unlinkPaths, force, waitMs });
+    return signalWaitUnlink({ pid, unlinkPaths, force, waitMs, metaFilePath, logger });
 }
 
 /** Pid + supervisor meta only. Never reads daemon meta or desired.json. */

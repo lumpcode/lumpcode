@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { killBestEffort, startGroupWithOrphan, waitUntilPidGone } from '../../testing/groupWithOrphan';
 import { pollUntil } from '../pollUntil';
 import { writeJsonFile } from '../writeJsonFile';
 import { drainOrStopOneDaemon, stopOneDaemon, stopSupervisor } from './main';
@@ -183,6 +184,54 @@ setInterval(() => {}, 60000);`,
             }
             await fs.rm(readyDir, { recursive: true, force: true });
         }
+    });
+});
+
+describe.skipIf(process.platform === 'win32')('stop --force leftovers', () => {
+    let dir: string;
+    const pids: number[] = [];
+
+    beforeEach(async () => {
+        dir = await fs.mkdtemp(path.join(os.tmpdir(), 'lump-stop-force-leftovers-'));
+    });
+
+    afterEach(async () => {
+        killBestEffort(pids.splice(0));
+        await fs.rm(dir, { recursive: true, force: true });
+    });
+
+    it.each([
+        { name: 'stopOneDaemon', stop: stopOneDaemon },
+        { name: 'drainOrStopOneDaemon', stop: drainOrStopOneDaemon },
+    ])('$name kills orphans in the daemon group and in published step groups', async ({ stop }) => {
+        const daemon = await startGroupWithOrphan({ dir, mode: 'leader-stay' });
+        const step = await startGroupWithOrphan({ dir, mode: 'leader-exit' });
+        pids.push(daemon.leader, daemon.orphan, step.orphan);
+        const pidFilePath = path.join(dir, 'demo.global.daemon.pid');
+        const metaFilePath = path.join(dir, 'demo.global.daemon.meta.json');
+        const desiredFilePath = path.join(dir, 'demo.global.daemon.desired.json');
+        await fs.writeFile(pidFilePath, String(daemon.leader), 'utf8');
+        await writeJsonFile({
+            filePath: metaFilePath,
+            data: {
+                daemonId: 'global',
+                cronSetup: '*/5 * * * *',
+                workspaceStrategy: 'checkout',
+                inFlightRuns: [{ lumpName: 'backlog' }],
+                stepProcessGroups: [step.leader],
+            },
+        });
+        await writeJsonFile({
+            filePath: desiredFilePath,
+            data: { projectRoot: dir, daemonId: 'global', cronSetup: '*/5 * * * *' },
+        });
+
+        const result = await stop({ pidFilePath, metaFilePath, desiredFilePath, force: true, waitMs: 2000 });
+
+        expect(result.status).toBe('stopped');
+        await waitUntilPidGone(daemon.orphan);
+        await waitUntilPidGone(step.orphan);
+        await expect(fs.access(metaFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 });
 

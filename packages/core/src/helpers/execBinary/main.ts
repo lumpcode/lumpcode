@@ -8,7 +8,7 @@ import {
     killSystemdScope,
     resolveSpawnExecutable,
     success,
-    trackStepProcessGroup,
+    trackStepIsolation,
     wrapInSystemdScope,
 } from '../../utils';
 
@@ -26,9 +26,9 @@ function stderrMessagePreview(stderr: string): string {
  * exits, times out, or is aborted.
  * - `systemdScope`: a transient `systemd-run --user --scope` unit (cgroup).
  *   Only after `detectSystemdScope()` reports it available.
- * - `processGroup`: a new process group, tracked by `trackStepProcessGroup`
- *   while it runs. Misses processes that leave the group (`setsid`,
- *   daemonizing). Ignored on Windows.
+ * - `processGroup`: a new process group. Misses processes that leave the
+ *   group (`setsid`, daemonizing). Ignored on Windows.
+ * Either is tracked by `trackStepIsolation` while the command runs.
  */
 export type ExecBinaryIsolation =
     | { kind: 'systemdScope'; unitName: string }
@@ -95,7 +95,7 @@ export function execBinary(
         let stderr = '';
         let timeout: ReturnType<typeof setTimeout> | undefined;
         let leftoverCleanup: Promise<boolean> | undefined;
-        let untrackProcessGroup: (() => void) | undefined;
+        let untrackIsolation: (() => void) | undefined;
 
         const killIsolation = (pid: number) => {
             if (isolation?.kind === 'systemdScope') {
@@ -108,7 +108,7 @@ export function execBinary(
             const pid = child?.pid;
             if (isolation === undefined || pid == null) return Promise.resolve(false);
             leftoverCleanup ??= killIsolation(pid).then((result) => {
-                untrackProcessGroup?.();
+                untrackIsolation?.();
                 if (!result.success) logger?.warn(result.data);
                 return result.success;
             });
@@ -121,7 +121,7 @@ export function execBinary(
             if (settled) return;
             settled = true;
             if (timeout !== undefined) clearTimeout(timeout);
-            untrackProcessGroup?.();
+            untrackIsolation?.();
             if (signal) {
                 signal.removeEventListener('abort', onAbort);
             }
@@ -173,8 +173,10 @@ export function execBinary(
         };
 
         child = spawn(resolvedExecutable, resolvedArgs, spawnOptions);
-        if (isolation?.kind === 'processGroup' && child.pid != null) {
-            untrackProcessGroup = trackStepProcessGroup(child.pid);
+        if (isolation !== undefined && child.pid != null) {
+            untrackIsolation = trackStepIsolation(isolation.kind === 'processGroup'
+                ? { kind: 'processGroup', pgid: child.pid }
+                : isolation);
         }
 
         // Start the timeout only after the OS has spawned the process so

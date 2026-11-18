@@ -14,8 +14,9 @@ import {
 } from '../../testing/processTreeTestHelpers';
 import {
     detectSystemdScope,
-    listStepProcessGroups,
-    onStepProcessGroupsChange,
+    listLiveStepIsolation,
+    onLiveStepIsolationChange,
+    type LiveStepIsolation,
     systemdScopeUnitName,
 } from '../../utils';
 import { windowsNpmCmdShimBody } from '../../utils/resolveSpawnExecutable/windowsNpmCmdShimBody';
@@ -528,23 +529,27 @@ describe.each(isolationCases)('execBinary in $name', ({ enabled, isolation }) =>
     });
 });
 
-describe.skipIf(process.platform === 'win32')('execBinary process group tracking', () => {
-    it('tracks the group only while the command runs', async () => {
-        const seen: number[][] = [];
-        const stop = onStepProcessGroupsChange((pgids) => {
-            seen.push(pgids);
+describe.each(isolationCases)('execBinary tracking of $name', ({ enabled, isolation }) => {
+    it.skipIf(!enabled)('tracks the box only while the command runs', async () => {
+        const seen: LiveStepIsolation[] = [];
+        const stop = onLiveStepIsolationChange((live) => {
+            seen.push(live);
         });
+        const requested = isolation();
         try {
             const result = await execBinary({
                 binaryPath: 'sh',
                 args: ['-c', 'echo $$'],
-                isolation: { kind: 'processGroup' },
+                isolation: requested,
             });
             expect(result.success).toBe(true);
             if (!result.success) return;
             const pid = Number.parseInt(result.data.stdout.trim(), 10);
-            expect(seen).toEqual([[pid], []]);
-            expect(listStepProcessGroups()).toEqual([]);
+            const whileRunning: LiveStepIsolation = requested.kind === 'processGroup'
+                ? { processGroups: [pid], systemdScopes: [] }
+                : { processGroups: [], systemdScopes: [requested.unitName] };
+            expect(seen).toEqual([whileRunning, { processGroups: [], systemdScopes: [] }]);
+            expect(listLiveStepIsolation()).toEqual({ processGroups: [], systemdScopes: [] });
         } finally {
             stop();
         }

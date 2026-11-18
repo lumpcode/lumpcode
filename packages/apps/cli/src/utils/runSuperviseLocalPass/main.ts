@@ -5,7 +5,6 @@ import * as path from 'node:path';
 import {
     isProcessAlive,
     killProcessTree,
-    nodeErrnoCode,
     type Logger,
     success,
     type Failure,
@@ -14,6 +13,7 @@ import {
 
 import { daemonSchedulerFiles, listDaemonIds, unlinkSchedulerFiles } from '../daemonSchedulerFiles';
 import { getProjectName } from '../getProjectName';
+import { killDaemonLeftovers } from '../killDaemonLeftovers';
 import { listRunningProjectDaemons, hasRunningDaemonMeta } from '../listRunningProjectDaemons';
 import { readDaemonMeta } from '../readDaemonMeta';
 import { spawnDetachedLumpcodeWithPidFile } from '../spawnDetachedLumpcodeWithPidFile';
@@ -76,14 +76,11 @@ async function orphanKillDaemon(input: {
         return;
     }
     const { pidFilePath, metaFilePath } = daemonSchedulerFiles({ daemonsDir, projectName, daemonId });
-    await killPublishedStepProcessGroups({ metaFilePath, daemonId, logger });
+    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
     await unlinkSchedulerFiles({ pidFilePath, metaFilePath });
 }
 
-/**
- * The pid in a detached daemon's pid file is its process group id.
- * After that process dies, children stay in the group until something kills `-pid`.
- */
+/** A dead daemon's leftovers, killed before respawn or before unlinking for `stopping`. */
 async function killDeadDaemonProcessGroup(input: {
     pidFilePath: string;
     metaFilePath: string;
@@ -102,37 +99,7 @@ async function killDeadDaemonProcessGroup(input: {
     if (!Number.isInteger(pid) || pid <= 1) return;
     if (isProcessAlive(pid, { onProbeError: 'alive' })) return;
     logger.info(`killing orphaned process group for daemon "${daemonId}" (pid ${pid})`);
-    killGroupBestEffort({ pgid: pid, daemonId, logger });
-    await killPublishedStepProcessGroups({ metaFilePath, daemonId, logger });
-}
-
-/**
- * Steps that ran without a systemd scope have their own process group, out of
- * reach of the daemon's group kill. The daemon publishes them in its meta.
- */
-async function killPublishedStepProcessGroups(input: {
-    metaFilePath: string;
-    daemonId: string;
-    logger: Logger;
-}): Promise<void> {
-    if (process.platform === 'win32') return;
-    const { metaFilePath, daemonId, logger } = input;
-    const meta = await readDaemonMeta(metaFilePath);
-    for (const pgid of meta.success ? meta.data.stepProcessGroups ?? [] : []) {
-        logger.info(`killing step process group ${pgid} left by daemon "${daemonId}"`);
-        killGroupBestEffort({ pgid, daemonId, logger });
-    }
-}
-
-function killGroupBestEffort(input: { pgid: number; daemonId: string; logger: Logger }): void {
-    const { pgid, daemonId, logger } = input;
-    try {
-        process.kill(-pgid, 'SIGKILL');
-    } catch (error: unknown) {
-        if (nodeErrnoCode(error) === 'ESRCH') return;
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn(`process group kill for "${daemonId}" pgid ${pgid} failed: ${message}`);
-    }
+    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
 }
 
 async function spawnDesiredDaemon(input: {

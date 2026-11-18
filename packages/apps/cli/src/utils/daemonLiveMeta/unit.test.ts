@@ -111,13 +111,18 @@ describe('createDaemonLiveMetaWriter (daemon-live-meta-core)', () => {
         expect(meta.daemonId).toBe('global');
     });
 
-    it('writes stepProcessGroups while steps run and omits them when none are left', async () => {
-        await writer.setStepProcessGroups([4321, 4400]);
-        expect((await readMeta()).stepProcessGroups).toEqual([4321, 4400]);
+    it('writes live step groups and scopes while steps run and omits them when none are left', async () => {
+        await writer.setLiveStepIsolation({ processGroups: [4321, 4400], systemdScopes: ['lump-a-ctx-0-abc123.scope'] });
+        let meta = await readMeta();
+        expect(meta.stepProcessGroups).toEqual([4321, 4400]);
+        expect(meta.stepSystemdScopes).toEqual(['lump-a-ctx-0-abc123.scope']);
 
-        await writer.setStepProcessGroups([]);
-        expect('stepProcessGroups' in (await readRaw())).toBe(false);
-        expect((await readMeta()).daemonId).toBe('global');
+        await writer.setLiveStepIsolation({ processGroups: [], systemdScopes: [] });
+        const raw = await readRaw();
+        expect('stepProcessGroups' in raw).toBe(false);
+        expect('stepSystemdScopes' in raw).toBe(false);
+        meta = await readMeta();
+        expect(meta.daemonId).toBe('global');
     });
 
     it('dedupes a second beginLumpLine for the same run key and keeps contextName', async () => {

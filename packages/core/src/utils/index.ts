@@ -14,5 +14,5 @@ export * from './nodeErrnoCode';
 export * from './isProcessAlive';
 export * from './killProcessTree';
 export * from './killProcessGroup';
-export * from './stepProcessGroups';
+export * from './liveStepIsolation';
 export * from './systemdScope';
