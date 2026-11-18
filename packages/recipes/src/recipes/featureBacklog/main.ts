@@ -1,11 +1,18 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 import type { LumpJsConfig, LumpVariables, StepVariables } from '@lumpcode/cli-utils';
+import { load as loadYaml } from 'js-yaml';
 
 import {
     projectRootFromConfigUrl,
     requireArtifactStep,
+    resolveBacklogPaths,
     resolveImplValidateCommand,
     retryUntilGreen,
+    validateBaseBacklogItem,
 } from '../../kit';
+import type { BaseBacklogItem } from '../../types';
 import { defineRecipe } from '../../types';
 import { backlog } from '../backlog';
 import {
@@ -58,6 +65,56 @@ export {
     defaultTestPlanPrompt,
 } from './defaultPrompts';
 
+function mergeUniqueDependsOn(...lists: (string[] | undefined)[]): string[] | undefined {
+    const merged = [...new Set(lists.flatMap((l) => l ?? []))];
+    return merged.length > 0 ? merged : undefined;
+}
+
+function parentDependsOnFromDesc(input: {
+    projectRoot: string;
+    backlogItemsDir: string;
+    parentName: string;
+}): string[] {
+    const descPath = path.join(
+        input.projectRoot,
+        input.backlogItemsDir,
+        'todo',
+        input.parentName,
+        'desc.yml',
+    );
+    let rawText: string;
+    try {
+        rawText = fs.readFileSync(descPath, 'utf-8');
+    } catch (error) {
+        const err = error as NodeJS.ErrnoException;
+        if (err.code === 'ENOENT') {
+            return [];
+        }
+        throw error;
+    }
+    const raw = loadYaml(rawText);
+    const baseItem = validateBaseBacklogItem(raw, `in folder "${input.parentName}"`);
+    if (baseItem.name !== input.parentName) {
+        throw new Error(
+            `Backlog item folder "${input.parentName}" desc.yml name "${baseItem.name}" must match folder name`,
+        );
+    }
+    return baseItem.dependsOn ?? [];
+}
+
+function ticketDependsOn(input: {
+    projectRoot: string;
+    backlogItemsDir: string;
+    parentName: string;
+    ownDependsOn: string[] | undefined;
+}): string[] | undefined {
+    const siblingContexts = input.ownDependsOn?.map((dep) => `${input.parentName}-${dep}`);
+    return mergeUniqueDependsOn(
+        parentDependsOnFromDesc(input),
+        siblingContexts,
+    );
+}
+
 export const featureBacklog = defineRecipe(function featureBacklog<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
@@ -77,6 +134,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
         itemDiscoveryBranchPrefix,
     });
     const projectRoot = projectRootFromConfigUrl(configUrl);
+    const backlogPaths = resolveBacklogPaths(configUrl, { backlogItemsDir });
     const runImplValidation = resolveImplValidateCommand<V, SV>(
         implValidateCommand ??
             'echo "No implementation validation command provided. I say, trust but verify, but well..."',
@@ -91,7 +149,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
             discovery.primaryDiscoveryBranch,
             `${discovery.itemDiscoveryBranchPrefix}/*`,
         ],
-        parseItem(baseItem, folderName, raw) {
+        parseItem(baseItem: BaseBacklogItem, folderName, raw) {
             assertValidFeatureItemName(baseItem.name);
             const record = raw as Record<string, unknown>;
             const parentName = parentNameFromTodoRelativeDir(folderName);
@@ -100,7 +158,12 @@ export const featureBacklog = defineRecipe(function featureBacklog<
                 todoRelativeDir: folderName,
                 parentName,
                 dependsOn: parentName
-                    ? baseItem.dependsOn?.map((dep) => `${parentName}-${dep}`)
+                    ? ticketDependsOn({
+                          projectRoot,
+                          backlogItemsDir: backlogPaths.backlogItemsDir,
+                          parentName,
+                          ownDependsOn: baseItem.dependsOn,
+                      })
                     : baseItem.dependsOn,
                 manual: parseManual(baseItem.name, record),
                 workflow: parseFeatureWorkflow(baseItem.name, raw),
