@@ -23,4 +23,5 @@ export type {
   CodexPresetLumpVariables,
   CodexPresetStepVariables,
 } from './codex';
+export type { PresetExtraArgsVariables } from './extraArgs';
 export type { PresetSessionStepVariables } from './session';

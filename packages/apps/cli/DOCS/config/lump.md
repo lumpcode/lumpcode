@@ -75,9 +75,9 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `baseBranch` | Exact execution branch. Omit to use the concrete discovery / primary branch. JS/TS may use `({ effectiveDiscoveryBranch, contexts }) => string`. |
 | `discoveryBranch` / `discoveryBranches` | Where a dedicated worker finds this lump. Mutually exclusive. Globs allowed. Ignored for `run` in shared mode. |
 | `disabled` | Soft-skip on `run` and on the worker (exit 0). Boolean, function, or module path. |
-| `maximumNumberOfConcurrentBranches` | Skip the run when that many `lump/<name>/*` branches on origin are not merged yet. A branch whose tip is already in a non-lump branch (merge commit or fast-forward) does not count. |
+| `maximumNumberOfConcurrentBranches` | Skip the run when that many `lump/<name>/*` branches on origin are still open. A branch stops counting when every `LUMP: <name> - <context>` line it carries is already on a non-lump branch, or when its tip already is. [Day to day](../start/worker.md#day-to-day-on-your-laptop). |
 | `numberOfContextsPerBranch` | Default `1`. Raise it to group small diffs. |
-| `lumpVariables` | Bag for hooks and preset options (`model`, `agentPermissions`, `outputDetail`). |
+| `lumpVariables` | Bag for hooks and preset options (`model`, `agentPermissions`, `extraArgs`, `outputDetail`). |
 | `verbose` | Extra engine logs. Also on with `lumpcode run --verbose`. |
 | `keepHistory` | Write prompt/output YAML per context. Gitignored. |
 | `writeTranscripts` | Daemon only. Omit or `true` writes the transcript file. `false` skips it. Lump > local > project. |

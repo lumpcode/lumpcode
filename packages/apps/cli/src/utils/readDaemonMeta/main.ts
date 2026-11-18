@@ -34,6 +34,8 @@ const daemonMetaSchema = z.object({
     nextTickAt: z.string().min(1).optional(),
     tickPhase: z.enum(['idle', 'running']).optional(),
     localConfigFingerprint: z.string().min(1).optional(),
+    stepProcessGroups: z.array(z.number().int().positive()).optional(),
+    stepSystemdScopes: z.array(z.string().min(1)).optional(),
 });
 
 export type DaemonInFlightRun = {
@@ -61,6 +63,10 @@ export type DaemonMeta = {
     nextTickAt?: string;
     tickPhase?: 'idle' | 'running';
     localConfigFingerprint?: string;
+    /** Process groups of running steps; killed by `killDaemonLeftovers` if the daemon dies or is force-stopped. */
+    stepProcessGroups?: number[];
+    /** systemd scope units of running steps; same as `stepProcessGroups`. */
+    stepSystemdScopes?: string[];
 };
 
 export type DaemonMetaReadErrorReason = 'missing' | 'invalid' | 'io';

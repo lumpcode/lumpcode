@@ -1,10 +1,19 @@
 import { spawn as nodeSpawn } from 'node:child_process';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
-import { killProcessTree, type Logger, success, type Failure, type Success } from '@lumpcode/core';
+import {
+    isProcessAlive,
+    killProcessTree,
+    type Logger,
+    success,
+    type Failure,
+    type Success,
+} from '@lumpcode/core';
 
 import { daemonSchedulerFiles, listDaemonIds, unlinkSchedulerFiles } from '../daemonSchedulerFiles';
 import { getProjectName } from '../getProjectName';
+import { killDaemonLeftovers } from '../killDaemonLeftovers';
 import { listRunningProjectDaemons, hasRunningDaemonMeta } from '../listRunningProjectDaemons';
 import { readDaemonMeta } from '../readDaemonMeta';
 import { spawnDetachedLumpcodeWithPidFile } from '../spawnDetachedLumpcodeWithPidFile';
@@ -67,7 +76,30 @@ async function orphanKillDaemon(input: {
         return;
     }
     const { pidFilePath, metaFilePath } = daemonSchedulerFiles({ daemonsDir, projectName, daemonId });
+    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
     await unlinkSchedulerFiles({ pidFilePath, metaFilePath });
+}
+
+/** A dead daemon's leftovers, killed before respawn or before unlinking for `stopping`. */
+async function killDeadDaemonProcessGroup(input: {
+    pidFilePath: string;
+    metaFilePath: string;
+    daemonId: string;
+    logger: Logger;
+}): Promise<void> {
+    if (process.platform === 'win32') return;
+    const { pidFilePath, metaFilePath, daemonId, logger } = input;
+    let raw: string;
+    try {
+        raw = await fs.readFile(pidFilePath, 'utf8');
+    } catch {
+        return;
+    }
+    const pid = Number.parseInt(raw.trim(), 10);
+    if (!Number.isInteger(pid) || pid <= 1) return;
+    if (isProcessAlive(pid, { onProbeError: 'alive' })) return;
+    logger.info(`killing orphaned process group for daemon "${daemonId}" (pid ${pid})`);
+    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
 }
 
 async function spawnDesiredDaemon(input: {
@@ -185,6 +217,7 @@ export async function runSuperviseLocalPass(
         const live = running[daemonId] !== undefined;
         if (desired.stopping === true) {
             if (!live) {
+                await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
                 await unlinkSchedulerFiles({ pidFilePath, metaFilePath, desiredFilePath });
             }
             continue;
@@ -192,6 +225,7 @@ export async function runSuperviseLocalPass(
         if (live) {
             continue;
         }
+        await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
         await spawnDesiredDaemon({
             projectName,
             daemonsDir,

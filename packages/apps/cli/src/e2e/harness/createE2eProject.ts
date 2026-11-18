@@ -8,7 +8,6 @@ import {
     createE2eAgentCommandModule,
     createE2eMockAgentScript,
     defaultE2eLumpConfigJson,
-    defaultE2eTsLumpConfig,
     E2E_MOCK_AGENT_SCRIPT_BASENAME,
 } from './createE2eAgentCommandModule';
 import {

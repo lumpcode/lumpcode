@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { failure, success } from '@lumpcode/core';
+import { detectSystemdScope, failure, success } from '@lumpcode/core';
 
 import {
     createIntegrationBranch,
@@ -461,6 +461,29 @@ describe('start command — parallel global daemon (parallel-global-daemon-workt
             ).toBe(true);
         } finally {
             retainSpy.mockRestore();
+            runLumpSpy.mockRestore();
+            warnSpy.mockRestore();
+        }
+    });
+
+    it('says at startup when systemd --user is not available for agent step cgroups', async () => {
+        await writeLocal();
+        await writeLumps(['alpha']);
+
+        const scopeSupport = await detectSystemdScope();
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const runLumpSpy = vi
+            .spyOn(await import('../../../utils/runLumpFromLumpName'), 'runLumpFromLumpName')
+            .mockResolvedValue(runSuccess);
+
+        try {
+            const result = await runForegroundStart({ deps: deps() });
+            expect(result.success).toBe(true);
+            const warned = warnSpy.mock.calls.some((call) =>
+                String(call[0]).includes('systemd --user is not available'),
+            );
+            expect(warned).toBe(!scopeSupport.available);
+        } finally {
             runLumpSpy.mockRestore();
             warnSpy.mockRestore();
         }

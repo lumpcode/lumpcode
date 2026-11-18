@@ -2,12 +2,12 @@ import * as path from 'node:path';
 import * as fs from 'node:fs/promises';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 
-import type { Logger } from '@lumpcode/core';
 import * as core from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
 import {
     createIntegrationBranch,
+    createSpyLogger,
     gitCurrentBranch,
     initBareRemoteAndCheckout,
     writeLocalJson,
@@ -17,16 +17,6 @@ import { discoverDedicatedLumpsForScanBranch } from './main';
 import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { writeJsonFile } from '../writeJsonFile';
-
-function createLogger(): Logger {
-    return {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => createLogger(),
-    };
-}
 
 describe('discoverDedicatedLumpsForScanBranch', () => {
     let projectRoot: string;
@@ -82,7 +72,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
                 primaryBranches: ['main', 'ver/0.0.9'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -106,7 +96,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
                 primaryBranches: ['main', 'ver/0.0.9'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
             afterMatched: async ({ matchingLumps, scanBranch }) => {
                 branchSeenInHook = gitCurrentBranch(projectRoot);
                 lumpsSeenInHook = matchingLumps.map((l) => l.lumpName);
@@ -134,7 +124,7 @@ describe('discoverDedicatedLumpsForScanBranch', () => {
                 primaryBranches: ['main', 'ver/0.0.9'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -209,7 +199,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -234,7 +224,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
                 primaryBranches: ['main', 'feature/*'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -258,7 +248,7 @@ describe('discoverDedicatedLumpsForScanBranch patterns (dynamic-discovery-branch
                 primaryBranches: ['main', 'feature/*', 'release/1'],
                 workspaceStrategy: 'checkout',
             },
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -329,7 +319,7 @@ describe('discoverDedicatedLumpsForScanBranch (daemon-primary-branch-refresh-com
 
     it('R1: refreshCommand runs on main after checkout; logs start and ok', async () => {
         await seedBranchOnlyFixtures();
-        const logger = createLogger();
+        const logger = createSpyLogger();
         const markerName = 'refresh.marker';
         const input: DiscoverWithRefresh = {
             scanBranch: 'main',
@@ -349,7 +339,7 @@ describe('discoverDedicatedLumpsForScanBranch (daemon-primary-branch-refresh-com
         const marker = await fs.readFile(path.join(projectRoot, markerName), 'utf-8');
         expect(marker.trim()).toBe('main');
 
-        const infoLines = (logger.info as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0]));
+        const infoLines = logger.info.mock.calls.map((c) => String(c[0]));
         expect(infoLines.some((line) => /refreshCommand on "main":/.test(line))).toBe(true);
         expect(infoLines.some((line) => line === 'refreshCommand on "main": ok')).toBe(true);
     });
@@ -363,7 +353,7 @@ describe('discoverDedicatedLumpsForScanBranch (daemon-primary-branch-refresh-com
             localConfigFolderPath,
             globalConfigFolderPath,
             localConfig: dedicatedLocal,
-            logger: createLogger(),
+            logger: createSpyLogger(),
             refreshCommand: branchMarkerRefreshCommand(markerName),
         };
 
@@ -384,7 +374,7 @@ describe('discoverDedicatedLumpsForScanBranch (daemon-primary-branch-refresh-com
             localConfigFolderPath,
             globalConfigFolderPath,
             localConfig: dedicatedLocal,
-            logger: createLogger(),
+            logger: createSpyLogger(),
             refreshCommand: 'node -e "process.exit(1)"',
         };
 
@@ -404,7 +394,7 @@ describe('discoverDedicatedLumpsForScanBranch (daemon-primary-branch-refresh-com
             localConfigFolderPath,
             globalConfigFolderPath,
             localConfig: dedicatedLocal,
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -425,7 +415,7 @@ describe('discoverDedicatedLumpsForScanBranch (daemon-primary-branch-refresh-com
                 localConfigFolderPath,
                 globalConfigFolderPath,
                 localConfig: dedicatedLocal,
-                logger: createLogger(),
+                logger: createSpyLogger(),
                 refreshCommand: 'npm i',
             };
             const result = await discoverDedicatedLumpsForScanBranch(input);
@@ -462,7 +452,7 @@ describe('discoverDedicatedLumpsForScanBranch (daemon-primary-branch-refresh-com
                 localConfigFolderPath,
                 globalConfigFolderPath,
                 localConfig: dedicatedLocal,
-                logger: createLogger(),
+                logger: createSpyLogger(),
                 refreshCommand: 'npm i',
             };
             const result = await discoverDedicatedLumpsForScanBranch(input);

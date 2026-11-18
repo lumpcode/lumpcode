@@ -1,3 +1,4 @@
+import type { PresetExtraArgsVariables } from './extraArgs';
 import type { PresetSessionStepVariables } from './session';
 
 export type OpenCodeAgentPermissions = {
@@ -8,7 +9,7 @@ export type OpenCodeAgentPermissions = {
 export type OpenCodePresetLumpVariables = {
   model?: string;
   agentPermissions?: OpenCodeAgentPermissions;
-};
+} & PresetExtraArgsVariables;
 
 export type OpenCodePresetStepVariables = OpenCodePresetLumpVariables &
   PresetSessionStepVariables;

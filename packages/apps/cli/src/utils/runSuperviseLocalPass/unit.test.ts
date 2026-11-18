@@ -4,6 +4,8 @@ import * as path from 'node:path';
 import { spawn as nodeSpawn } from 'node:child_process';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { isProcessAlive } from '@lumpcode/core';
+
 import { noopLogger } from '../noopLogger';
 import { writeJsonFile } from '../writeJsonFile';
 import { writeStartDaemonDesired } from '../startDaemonDesired';
@@ -220,4 +222,173 @@ describe('runSuperviseLocalPass', () => {
         const meta = JSON.parse(await fs.readFile(metaFilePath, 'utf8')) as { cronSetup: string };
         expect(meta.cronSetup).toBe('*/9 * * * *');
     });
+
+    async function waitForFile(filePath: string): Promise<string> {
+        const deadline = Date.now() + 5000;
+        while (Date.now() < deadline) {
+            try {
+                return await fs.readFile(filePath, 'utf8');
+            } catch {
+                await new Promise((resolve) => setTimeout(resolve, 20));
+            }
+        }
+        throw new Error(`timed out waiting for ${filePath}`);
+    }
+
+    async function waitUntilDead(pid: number): Promise<void> {
+        const deadline = Date.now() + 5000;
+        while (isProcessAlive(pid, { onProbeError: 'dead' })) {
+            if (Date.now() > deadline) throw new Error(`pid ${pid} still alive`);
+            await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+    }
+
+    /** Detached leader exits and leaves a child in its process group. */
+    async function orphanedProcessGroup(): Promise<{ leaderPid: number; childPid: number }> {
+        const readyFile = path.join(tmp, `group-ready-${Date.now()}`);
+        const parent = nodeSpawn(
+            process.execPath,
+            [
+                '-e',
+                `
+                const { spawn } = require('child_process');
+                const fs = require('fs');
+                const child = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000000)'], { stdio: 'ignore' });
+                child.unref();
+                fs.writeFileSync(process.argv[1], JSON.stringify({ leader: process.pid, child: child.pid }));
+                setTimeout(() => process.exit(0), 50);
+                `,
+                readyFile,
+            ],
+            { detached: true, stdio: 'ignore' },
+        );
+        parent.unref();
+        const parsed = JSON.parse(await waitForFile(readyFile)) as { leader: number; child: number };
+        await waitUntilDead(parsed.leader);
+        return { leaderPid: parsed.leader, childPid: parsed.child };
+    }
+
+    it.skipIf(process.platform === 'win32')(
+        'kills the dead daemon process group before spawning a replacement',
+        async () => {
+            const { leaderPid, childPid } = await orphanedProcessGroup();
+            try {
+                await writeDesiredAndMeta({
+                    daemonId: 'global',
+                    cronSetup: '*/7 * * * *',
+                    workspaceStrategy: 'worktree',
+                });
+                await fs.writeFile(
+                    path.join(daemonsDir, `${projectName}.global.daemon.pid`),
+                    String(leaderPid),
+                    'utf8',
+                );
+                const spawnFn = vi.fn(() => ({ pid: 4242, unref: vi.fn() })) as unknown as typeof nodeSpawn;
+                const result = await runSuperviseLocalPass({
+                    projectName,
+                    projectRoot,
+                    daemonsDir,
+                    logger: noopLogger,
+                    spawnFn,
+                });
+                expect(result.success).toBe(true);
+                expect(spawnFn).toHaveBeenCalledOnce();
+                await waitUntilDead(childPid);
+            } finally {
+                try {
+                    process.kill(childPid, 'SIGKILL');
+                } catch {
+                    // already dead
+                }
+            }
+        },
+    );
+
+    it.skipIf(process.platform === 'win32')(
+        'kills the step process groups a dead daemon published in its meta',
+        async () => {
+            const daemonGroup = await orphanedProcessGroup();
+            const stepGroup = await orphanedProcessGroup();
+            try {
+                const { metaFilePath } = await writeDesiredAndMeta({
+                    daemonId: 'global',
+                    cronSetup: '*/7 * * * *',
+                    workspaceStrategy: 'worktree',
+                });
+                const meta = JSON.parse(await fs.readFile(metaFilePath, 'utf8')) as Record<string, unknown>;
+                await writeJsonFile({
+                    filePath: metaFilePath,
+                    data: { ...meta, stepProcessGroups: [stepGroup.leaderPid] },
+                    trailingNewline: true,
+                });
+                await fs.writeFile(
+                    path.join(daemonsDir, `${projectName}.global.daemon.pid`),
+                    String(daemonGroup.leaderPid),
+                    'utf8',
+                );
+                const spawnFn = vi.fn(() => ({ pid: 4242, unref: vi.fn() })) as unknown as typeof nodeSpawn;
+                const result = await runSuperviseLocalPass({
+                    projectName,
+                    projectRoot,
+                    daemonsDir,
+                    logger: noopLogger,
+                    spawnFn,
+                });
+                expect(result.success).toBe(true);
+                expect(spawnFn).toHaveBeenCalledOnce();
+                await waitUntilDead(stepGroup.childPid);
+                await waitUntilDead(daemonGroup.childPid);
+            } finally {
+                for (const pid of [daemonGroup.childPid, stepGroup.childPid]) {
+                    try {
+                        process.kill(pid, 'SIGKILL');
+                    } catch {
+                        // already dead
+                    }
+                }
+            }
+        },
+    );
+
+    it.skipIf(process.platform === 'win32')(
+        'kills the dead daemon process group when stopping, without spawning',
+        async () => {
+            const group = await orphanedProcessGroup();
+            const desiredFilePath = path.join(daemonsDir, `${projectName}.agents.daemon.desired.json`);
+            try {
+                await writeStartDaemonDesired({
+                    desiredFilePath,
+                    desired: {
+                        projectRoot,
+                        daemonId: 'agents',
+                        cronSetup: '*/5 * * * *',
+                        stopping: true,
+                    },
+                });
+                await fs.writeFile(
+                    path.join(daemonsDir, `${projectName}.agents.daemon.pid`),
+                    String(group.leaderPid),
+                    'utf8',
+                );
+                const spawnFn = vi.fn() as unknown as typeof nodeSpawn;
+                const result = await runSuperviseLocalPass({
+                    projectName,
+                    projectRoot,
+                    daemonsDir,
+                    logger: noopLogger,
+                    spawnFn,
+                });
+                expect(result.success).toBe(true);
+                expect(spawnFn).not.toHaveBeenCalled();
+                await waitUntilDead(group.childPid);
+                await expect(fs.access(desiredFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+            } finally {
+                try {
+                    process.kill(group.childPid, 'SIGKILL');
+                } catch {
+                    // already dead
+                }
+            }
+        },
+    );
 });

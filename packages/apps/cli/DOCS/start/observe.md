@@ -7,6 +7,7 @@ A worker runs unattended, but you can see everything it does: a live dashboard, 
 | Is the worker up, what is it running right now? | `lumpcode dashboard` or `lumpcode daemon-status` |
 | What is the agent doing on this lump? | `lumpcode transcript --lumpName <lumpName>` |
 | Why did a pass skip or fail? | `lumpcode daemon-log` |
+| Why did a daemon not start or restart? | `lumpcode supervisor-log` |
 | Which items are done, pushed, or left? | `lumpcode lump-status --lumpName <lumpName>` |
 
 All of these run on the worker clone. `lump-status` also works on your laptop, because status comes from git.
@@ -49,9 +50,12 @@ lumpcode daemon-status            # every daemon for this project, plus the supe
 lumpcode daemon-status --json     # inFlightRuns, nextTickAt, localConfigStale, …
 lumpcode daemon-log               # follow the scheduler log
 lumpcode daemon-log --noFollow --lines 100
+lumpcode supervisor-log           # follow the supervisor log
 ```
 
 The daemon log is the scheduler's own story: which lumps it found, which it skipped and why (disabled, too many open branches, a busy workspace), and errors. The agent's output is in the transcript, not here.
+
+The supervisor log is the story of the daemons themselves: which ones the supervisor started or brought back, and why a committed [daemon file](../config/daemons.md) was skipped. `supervisor-log` takes the same `--noFollow`, `--lines`, and `--json` flags as `daemon-log`.
 
 `localConfigStale: true` means you edited `local.json` or `project.json` after the worker started. Run `lumpcode restart`.
 

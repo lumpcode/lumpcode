@@ -50,7 +50,7 @@ There is no undo inside Lumpcode. Recover from git if the work was committed; if
 1. The lump must be on the branch the worker tracks (usually the primary). Push and merge; wait for the next cron (default five minutes), or `lumpcode restart`.
 2. `--include` / `--exclude` on that worker may filter it out.
 3. Lump `"disabled": true` soft-skips (exit 0). Local `"disabled": true` pauses every lump on that machine.
-4. `maximumNumberOfConcurrentBranches` can skip while older `lump/<name>/*` branches are still open. Unmerged branches, and squash or rebase merges, still count. Merge with a merge commit or fast-forward, delete the branch, or run `lumpcode clean --lumpName <name>`.
+4. `maximumNumberOfConcurrentBranches` can skip while older `lump/<name>/*` branches are still open. A branch stops counting when its `LUMP:` lines are already on a non-lump branch, or when its tip is. Keep the line if you squash. Otherwise delete the branch or run `lumpcode clean --lumpName <name>`. See [Day to day](../start/worker.md#day-to-day-on-your-laptop).
 5. Dedicated discovery allowlist: the lump’s `discoveryBranch` must match configured `primaryBranches`. Launch fails closed on a mismatch; check the worker log.
 6. TypeScript lumps that import `@lumpcode/recipes` need `npm install` on the worker clone. The global CLI does not provide those packages.
 
@@ -70,13 +70,20 @@ Captures that include dots or spaces become illegal context names. Slug them in 
 
 The preset needs `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` on `PATH` **on the machine that runs the lump**. A laptop install does not help the worker VM. Log in / auth that CLI on the worker too.
 
+## `systemd --user is not available`
+
+When a step ends, fails, times out, or is stopped, Lumpcode kills the processes it left behind, such as an `npm run dev &` the agent started. On Linux with a `systemd --user` session, each step runs in its own scope and nothing it starts can escape. The daemon prints this warning at startup when it cannot create a scope:
+
+- **macOS, or Linux without a user session bus:** each step runs in its own process group instead. Background processes are still killed, but a process that deliberately leaves its group (`setsid`, a tool that daemonizes) keeps running. On a Linux worker VM, enable lingering for the worker user (`loginctl enable-linger <user>`) and start the daemon from that user's session to get full cleanup.
+- **Windows:** leftover processes are not cleaned up.
+
 ## Context name rejected
 
 Names must match `^[a-zA-Z0-9_-]+$` and be unique. No `/` in a context `name`. Use `/` only in `dependsOnContexts` as `otherLump/contextName`. Captures from path templates that include dots or spaces will fail; slug them in `contextMatchFn` / `getContextListFn`.
 
 ## Too many open branches
 
-The cap is **per lump name**, across every discovery line. A dedicated worker now picks the strongest remaining batch first (context `priority`), so a hotter `feature/*` line is not stuck behind the primary. You can still skip when the cap is already full of open `lump/<name>/*` branches. Merge, raise the cap, or split lumps.
+The cap is **per lump name**, across every discovery line. A dedicated worker now picks the strongest remaining batch first (context `priority`), so a hotter `feature/*` line is not stuck behind the primary. You can still skip when the cap is already full of open `lump/<name>/*` branches. Keeping the `LUMP:` line is what frees a squashed branch. Merge, raise the cap, or split lumps. See [Day to day](../start/worker.md#day-to-day-on-your-laptop).
 
 ## Committed daemon file never starts
 
@@ -86,7 +93,7 @@ The cap is **per lump name**, across every discovery line. A dedicated worker no
 2. A `lumpcode start` daemon already using that id is left alone. Stop it, or pick another file stem.
 3. `maxParallelRun` in the file plus `workspaceStrategy: checkout` is refused.
 4. Wait for the next supervisor pass (about 30s, then every 5 minutes after a successful snapshot), or `lumpcode restart`.
-5. `lumpcode daemon-status` should show that id. The log names parse and allowlist failures.
+5. `lumpcode daemon-status` should show that id. `lumpcode supervisor-log --noFollow --lines 100` names parse and allowlist failures.
 
 ## JSON config cannot see my function
 

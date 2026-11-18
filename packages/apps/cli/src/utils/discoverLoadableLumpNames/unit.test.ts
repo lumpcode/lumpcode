@@ -1,27 +1,11 @@
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs/promises';
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
+import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 
-import type { Logger } from '@lumpcode/core';
-
+import { createSpyLogger } from '../../testing';
 import { writeLumpConfigJson } from '../writeLumpConfigJson';
 import { discoverLoadableLumpNames, discoverLoadableLumps } from './main';
-
-function createLogger(): Logger & { warnings: string[] } {
-    const warnings: string[] = [];
-    const logger: Logger & { warnings: string[] } = {
-        warnings,
-        info: vi.fn(),
-        warn: (message: string) => {
-            warnings.push(message);
-        },
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => logger,
-    };
-    return logger;
-}
 
 describe('discoverLoadableLumps', () => {
     let localConfigFolderPath: string;
@@ -39,7 +23,7 @@ describe('discoverLoadableLumps', () => {
         await writeLumpConfigJson({ localConfigFolderPath, lumpName: 'alpha' });
         await fs.mkdir(path.join(localConfigFolderPath, 'lumps', 'v0.0.9'), { recursive: true });
 
-        const logger = createLogger();
+        const logger = createSpyLogger();
         const lumps = await discoverLoadableLumps({ localConfigFolderPath, logger });
 
         expect(lumps.map((l) => l.lumpName)).toEqual(['alpha']);

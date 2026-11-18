@@ -60,6 +60,14 @@ export default defineConfig({
 | `opencode` | `auto` (default on), `agent` |
 | `codex` | `sandbox` (default `workspace-write`), `addDirs`; `dangerouslyBypassApprovalsAndSandbox` only when `true` |
 
+`extraArgs` is a string list passed to the harness as is. A step list replaces the lump list, and `[]` clears it. Each preset appends the list after its own arguments. Codex places the list before `resume`, where the strings are `codex exec` options.
+
+Effort goes through `extraArgs`, or the model slug on Cursor (for example `claude-opus-5-5-high`). If `extraArgs` is ignored after an upgrade, run `lumpcode reset-presets`.
+
+```ts config.ts
+lumpVariables: { extraArgs: ['-c', 'model_reasoning_effort=high'] }
+```
+
 Unattended Cursor: a dedicated `cli-config.json` that denies `git commit` / `git push`, pointed at with `agentPermissions.cursorConfigDir`:
 
 ```json cli-config.json

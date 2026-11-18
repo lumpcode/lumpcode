@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: preset-effort-and-custom-args
 workflow:
   - impl
@@ -8,3 +7,4 @@ task: >-
   unchanged, so operators can set effort and other harness flags without a
   custom command module; no typed per-harness effort key.
 priority: 2
+completedAt: '2026-11-11T13:05:14.516Z'

@@ -1,4 +1,4 @@
-import type { Logger } from '@lumpcode/core';
+import type { LiveStepIsolation, Logger } from '@lumpcode/core';
 
 import type { LumpLine } from '../lumpLine';
 import type { DaemonInFlightRun, DaemonMetaWrite } from '../readDaemonMeta';
@@ -11,6 +11,7 @@ export type DaemonLiveMetaWriter = {
     endLumpLine: (line: LumpLine) => Promise<void>;
     setTickPhase: (phase: 'idle' | 'running') => Promise<void>;
     setNextTickAt: (iso: string | undefined) => Promise<void>;
+    setLiveStepIsolation: (live: LiveStepIsolation) => Promise<void>;
 };
 
 export type CreateDaemonLiveMetaWriterInput = {
@@ -56,6 +57,7 @@ export function createDaemonLiveMetaWriter(
     let tickPhase: 'idle' | 'running' | undefined;
     let nextTickAt: string | undefined;
     let localConfigFingerprint: string | undefined;
+    let liveStepIsolation: LiveStepIsolation = { processGroups: [], systemdScopes: [] };
     let chain: Promise<void> = Promise.resolve();
 
     const persist = async (overrides?: PersistOverrides): Promise<void> => {
@@ -75,6 +77,12 @@ export function createDaemonLiveMetaWriter(
         }
         if (tickAt !== undefined) {
             data.nextTickAt = tickAt;
+        }
+        if (liveStepIsolation.processGroups.length > 0) {
+            data.stepProcessGroups = liveStepIsolation.processGroups;
+        }
+        if (liveStepIsolation.systemdScopes.length > 0) {
+            data.stepSystemdScopes = liveStepIsolation.systemdScopes;
         }
         const written = await writeJsonFile({
             filePath: metaFilePath,
@@ -145,6 +153,14 @@ export function createDaemonLiveMetaWriter(
         setNextTickAt: (iso) =>
             enqueue(async () => {
                 nextTickAt = iso;
+                await persist();
+            }),
+        setLiveStepIsolation: (live) =>
+            enqueue(async () => {
+                liveStepIsolation = {
+                    processGroups: [...live.processGroups],
+                    systemdScopes: [...live.systemdScopes],
+                };
                 await persist();
             }),
     };

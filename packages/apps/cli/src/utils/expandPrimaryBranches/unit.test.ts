@@ -3,26 +3,16 @@ import * as path from 'node:path';
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 
-import type { Logger } from '@lumpcode/core';
 import { failure, success } from '@lumpcode/core';
 
 import type { LocalConfig } from '../../types/LocalConfig';
+import { createSpyLogger } from '../../testing';
 import { createTempTestDirs, removeTempTestDirs } from '../createTempTestDirs';
 import { execGit } from '../execGit';
 import { initBareRemoteAndCheckout } from '../initBareRemoteAndCheckout';
 import * as listRemoteHeadBranchesModule from '../listRemoteHeadBranches';
 import { discoveryRulesMatchScanBranch } from '../resolveLumpBranches';
 import { expandPrimaryBranches } from './main';
-
-function createLogger(): Logger {
-    return {
-        info: vi.fn(),
-        warn: vi.fn(),
-        error: vi.fn(),
-        verbose: vi.fn(),
-        child: () => createLogger(),
-    };
-}
 
 function expandTestLocalConfig(
     config: Pick<LocalConfig, 'mode' | 'primaryBranches'>,
@@ -62,7 +52,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -85,7 +75,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -97,7 +87,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
             success([]),
         );
-        const logger = createLogger();
+        const logger = createSpyLogger();
 
         const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
@@ -112,10 +102,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
         expect(result.data).toEqual(['main']);
-        expect(
-            (logger.info as ReturnType<typeof vi.fn>).mock.calls.length +
-                (logger.warn as ReturnType<typeof vi.fn>).mock.calls.length,
-        ).toBeGreaterThan(0);
+        expect(logger.info.mock.calls.length + logger.warn.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('X4: ls-remote timeout returns Failure', async () => {
@@ -130,7 +117,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(false);
@@ -142,7 +129,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         vi.spyOn(listRemoteHeadBranchesModule, 'listRemoteHeadBranches').mockResolvedValue(
             failure({ message: 'git failed', reason: 'exit' as const }),
         );
-        const logger = createLogger();
+        const logger = createSpyLogger();
 
         const localConfig = expandTestLocalConfig({
             mode: 'dedicated',
@@ -157,10 +144,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         expect(result.success).toBe(true);
         if (!result.success) throw new Error('unreachable');
         expect(result.data).toEqual(['main']);
-        expect(
-            (logger.info as ReturnType<typeof vi.fn>).mock.calls.length +
-                (logger.warn as ReturnType<typeof vi.fn>).mock.calls.length,
-        ).toBeGreaterThan(0);
+        expect(logger.info.mock.calls.length + logger.warn.mock.calls.length).toBeGreaterThan(0);
     });
 
     it('X5: dedupes when glob also returns an exact entry', async () => {
@@ -175,7 +159,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -196,7 +180,7 @@ describe('expandPrimaryBranches (dynamic-discovery-branch X*)', () => {
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -232,7 +216,7 @@ describe('expandPrimaryBranches primary-first order (daemon-primary-branch-refre
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);
@@ -252,7 +236,7 @@ describe('expandPrimaryBranches primary-first order (daemon-primary-branch-refre
         const result = await expandPrimaryBranches({
             localConfig,
             cwd: '/tmp/repo',
-            logger: createLogger(),
+            logger: createSpyLogger(),
         });
 
         expect(result.success).toBe(true);

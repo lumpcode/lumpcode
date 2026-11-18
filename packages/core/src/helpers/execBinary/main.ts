@@ -1,7 +1,16 @@
 import { spawn, type ChildProcess, type SpawnOptions } from 'node:child_process';
 
-import { Failure, Success } from '../../types';
-import { failure, killProcessTree, resolveSpawnExecutable, success } from '../../utils';
+import { Failure, Logger, Success } from '../../types';
+import {
+    failure,
+    killProcessGroup,
+    killProcessTree,
+    killSystemdScope,
+    resolveSpawnExecutable,
+    success,
+    trackStepIsolation,
+    wrapInSystemdScope,
+} from '../../utils';
 
 export type ExecBinaryFailureReason = 'timeout' | 'aborted' | 'exit' | 'spawn';
 
@@ -11,6 +20,19 @@ function stderrMessagePreview(stderr: string): string {
     if (stderr.length <= STDERR_MESSAGE_PREVIEW_CHARS) return stderr;
     return `${stderr.slice(0, STDERR_MESSAGE_PREVIEW_CHARS)}…`;
 }
+
+/**
+ * Where the child runs so that whatever it leaves behind can be killed once it
+ * exits, times out, or is aborted.
+ * - `systemdScope`: a transient `systemd-run --user --scope` unit (cgroup).
+ *   Only after `detectSystemdScope()` reports it available.
+ * - `processGroup`: a new process group. Misses processes that leave the
+ *   group (`setsid`, daemonizing). Ignored on Windows.
+ * Either is tracked by `trackStepIsolation` while the command runs.
+ */
+export type ExecBinaryIsolation =
+    | { kind: 'systemdScope'; unitName: string }
+    | { kind: 'processGroup' };
 
 export type ExecBinaryChunk = {
     stream: 'stdout' | 'stderr';
@@ -29,6 +51,9 @@ export type ExecBinaryInput = {
     killGraceMs?: number;
     /** Invoked from the stdout/stderr listeners while those listeners still concatenate. */
     onChunk?: (input: ExecBinaryChunk) => void;
+    isolation?: ExecBinaryIsolation;
+    /** Receives isolation cleanup failures. */
+    logger?: Logger;
 };
 
 export type ExecBinaryFailure = {
@@ -36,6 +61,7 @@ export type ExecBinaryFailure = {
     binaryPath: string;
     args: string[];
     code?: number;
+    signal?: NodeJS.Signals;
     stdout?: string;
     stderr?: string;
     reason?: ExecBinaryFailureReason;
@@ -54,7 +80,12 @@ export function execBinary(
         signal,
         killGraceMs = 5000,
         onChunk,
+        isolation: requestedIsolation,
+        logger,
     } = input;
+    const isolation = requestedIsolation?.kind === 'processGroup' && process.platform === 'win32'
+        ? undefined
+        : requestedIsolation;
 
     return new Promise((resolve) => {
         let settled = false;
@@ -63,6 +94,26 @@ export function execBinary(
         let stdout = '';
         let stderr = '';
         let timeout: ReturnType<typeof setTimeout> | undefined;
+        let leftoverCleanup: Promise<boolean> | undefined;
+        let untrackIsolation: (() => void) | undefined;
+
+        const killIsolation = (pid: number) => {
+            if (isolation?.kind === 'systemdScope') {
+                return killSystemdScope({ unitName: isolation.unitName, graceMs: killGraceMs });
+            }
+            return killProcessGroup({ pgid: pid, graceMs: killGraceMs });
+        };
+
+        const cleanUpLeftovers = (): Promise<boolean> => {
+            const pid = child?.pid;
+            if (isolation === undefined || pid == null) return Promise.resolve(false);
+            leftoverCleanup ??= killIsolation(pid).then((result) => {
+                untrackIsolation?.();
+                if (!result.success) logger?.warn(result.data);
+                return result.success;
+            });
+            return leftoverCleanup;
+        };
 
         const finish = (
             result: Success<{ stdout: string; stderr: string }> | Failure<ExecBinaryFailure>,
@@ -70,6 +121,7 @@ export function execBinary(
             if (settled) return;
             settled = true;
             if (timeout !== undefined) clearTimeout(timeout);
+            untrackIsolation?.();
             if (signal) {
                 signal.removeEventListener('abort', onAbort);
             }
@@ -80,7 +132,8 @@ export function execBinary(
             if (settled || canceling) return;
             canceling = true;
             const pid = child?.pid;
-            if (pid != null) {
+            const isolationKilled = await cleanUpLeftovers();
+            if (pid != null && !isolationKilled) {
                 await killProcessTree({ pid, graceMs: killGraceMs });
             }
             finish(failure({
@@ -106,18 +159,25 @@ export function execBinary(
             signal.addEventListener('abort', onAbort, { once: true });
         }
 
-        const { executable: resolvedExecutable, args: resolvedArgs } = resolveSpawnExecutable(
-            binaryPath,
-            args,
-        );
+        const resolved = resolveSpawnExecutable(binaryPath, args);
+        const { executable: resolvedExecutable, args: resolvedArgs } = isolation?.kind === 'systemdScope'
+            ? wrapInSystemdScope({ ...resolved, unitName: isolation.unitName })
+            : resolved;
 
         const spawnOptions: SpawnOptions = {
             ...(cwd !== undefined ? { cwd } : {}),
             ...(env !== undefined ? { env } : {}),
             ...(stdio !== undefined ? { stdio } : {}),
+            // On Unix, `detached` makes the child the leader of a new process group.
+            ...(isolation?.kind === 'processGroup' ? { detached: true } : {}),
         };
 
         child = spawn(resolvedExecutable, resolvedArgs, spawnOptions);
+        if (isolation !== undefined && child.pid != null) {
+            untrackIsolation = trackStepIsolation(isolation.kind === 'processGroup'
+                ? { kind: 'processGroup', pgid: child.pid }
+                : isolation);
+        }
 
         // Start the timeout only after the OS has spawned the process so
         // timeoutMillis measures command runtime, not spawn/setup overhead.
@@ -150,20 +210,30 @@ export function execBinary(
                 reason: 'spawn',
             }));
         });
-        child.on('close', (code) => {
+        // Processes left in the scope can hold stdout/stderr open, so 'close'
+        // only arrives once they are gone.
+        child.on('exit', () => {
+            if (settled || canceling) return;
+            void cleanUpLeftovers();
+        });
+        child.on('close', async (code, exitSignal) => {
+            if (settled || canceling) return;
+            await cleanUpLeftovers();
             if (settled || canceling) return;
             if (code === 0) {
                 finish(success({ stdout, stderr }));
                 return;
             }
+            const exitedBy = code === null && exitSignal
+                ? `Process exited by signal ${exitSignal}`
+                : `Process exited with code ${code}`;
             const preview = stderrMessagePreview(stderr);
             finish(failure({
-                message: preview
-                    ? `Process exited with code ${code}: ${preview}`
-                    : `Process exited with code ${code}`,
+                message: preview ? `${exitedBy}: ${preview}` : exitedBy,
                 binaryPath,
                 args,
                 code: code ?? undefined,
+                ...(code === null && exitSignal ? { signal: exitSignal } : {}),
                 stdout,
                 stderr,
                 reason: 'exit',

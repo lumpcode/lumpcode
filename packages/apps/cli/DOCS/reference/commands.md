@@ -93,7 +93,7 @@ A single exact `--include=myLump` auto-ids as `myLump` (then `myLump-2`, …). S
 | --- | --- |
 | `--daemonId` | Default `global`. |
 | `--all` | Every daemon for this project, then the supervisor. |
-| `--force` | Tree-kill immediately. Does not need readable meta. |
+| `--force` | Kill the daemon immediately, along with processes its running steps left behind. Does not need readable meta. |
 
 Idle stop: SIGTERM, wait 5s, remove pid/meta/desired. Mid-run graceful stop **refuses** (`daemonBusy`). Corrupt meta without `--force` also refuses. `--all` is the only way to stop the supervisor `start` launched; you do not run that process yourself. With `--all`, a daemon still running after the 5s SIGTERM wait, or mid-run, is waited for (up to 15 min) before the supervisor stops; `--force` skips the wait.
 
@@ -123,6 +123,10 @@ Follows the operational log by default. `--noFollow` prints and exits. `--lines`
 
 > [!NOTE]
 > Verbose lump logs can grow without bound. `stop --all` deletes them as part of teardown.
+
+### `lumpcode supervisor-log`
+
+Reads this project's supervisor log (`~/.lumpcode/supervisor/<project>.log`): when the supervisor starts or adopts daemons, and why it skips or rejects a committed [daemon file](../config/daemons.md). Same flags as `daemon-log` without `--daemonId`: follows by default, `--noFollow` prints and exits, `--lines` omitted is last 10 and `--lines 0` is the whole file, `--json` with `--noFollow` prints `{ logFilePath, lines, projectName }`. Fails when the supervisor never ran for this project; start it with `lumpcode start` or `lumpcode start --superviseOnly`.
 
 ### `lumpcode transcript`
 

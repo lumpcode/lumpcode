@@ -8,6 +8,20 @@ import { getDaemonTestGlobalConfigFolder } from './daemonTestEnv';
 
 const childScript = fileURLToPath(new URL('./daemonForegroundChild.cjs', import.meta.url));
 
+function spawnEnv(options: SpawnOptions, extra: Record<string, string>): NodeJS.ProcessEnv {
+    const fromOptions =
+        typeof options.env === 'object' && options.env !== null && !Array.isArray(options.env)
+            ? options.env
+            : {};
+    return {
+        ...process.env,
+        ...fromOptions,
+        ...extra,
+        // Recorded at spawn so a child reparented before it reads process.ppid still knows who to watch.
+        LUMPCODE_DAEMON_PARENT_PID: String(process.pid),
+    };
+}
+
 function parseSpawnArg(args: readonly string[], flag: string): string | undefined {
     const index = args.indexOf(flag);
     if (index < 0 || index + 1 >= args.length) {
@@ -19,6 +33,8 @@ function parseSpawnArg(args: readonly string[], flag: string): string | undefine
 /**
  * Spawn fn for daemon command tests: starts a detached child that writes PID/meta
  * the same way foreground `start` does, then stays alive for stop/status checks.
+ * The child exits when this test process dies, so a run that never reaches stop
+ * cannot leave an orphan idling under init.
  */
 export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
     execPath: string,
@@ -26,9 +42,10 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
     options: SpawnOptions,
 ) => {
     if (args.includes('supervise')) {
-        return nodeSpawn(execPath, ['-e', 'setInterval(() => {}, 60000)'], {
+        return nodeSpawn(execPath, [childScript], {
             ...options,
             stdio: 'ignore',
+            env: spawnEnv(options, { LUMPCODE_DAEMON_STAY_ALIVE_ONLY: '1' }),
         });
     }
 
@@ -54,11 +71,7 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
     return nodeSpawn(execPath, [childScript], {
         ...options,
         stdio: 'ignore',
-        env: {
-            ...process.env,
-            ...(typeof options.env === 'object' && options.env !== null && !Array.isArray(options.env)
-                ? options.env
-                : {}),
+        env: spawnEnv(options, {
             LUMPCODE_DAEMON_PROJECT_ROOT: projectRoot,
             LUMPCODE_DAEMON_GLOBAL_CONFIG: getDaemonTestGlobalConfigFolder(),
             LUMPCODE_DAEMON_CRON_SETUP: cronSetup,
@@ -66,6 +79,7 @@ export const aliveDaemonSpawnFn: typeof nodeSpawn = ((
             LUMPCODE_DAEMON_INCLUDE: include,
             LUMPCODE_DAEMON_EXCLUDE: exclude,
             LUMPCODE_DAEMON_WORKSPACE_STRATEGY: workspaceStrategy,
-        },
+            LUMPCODE_DAEMON_STAY_ALIVE_ONLY: '',
+        }),
     });
 }) as typeof nodeSpawn;

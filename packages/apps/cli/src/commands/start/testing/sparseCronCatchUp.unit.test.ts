@@ -1,3 +1,4 @@
+import * as fs from 'node:fs/promises';
 import { failure } from '@lumpcode/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -7,6 +8,7 @@ import {
     setDaemonTickSchedulerTestSeam,
 } from '../../../utils/daemonTickScheduler';
 import {
+    daemonMetaPath,
     runForegroundStart,
     runLumpSuccess,
     setupStartTestRepo,
@@ -84,10 +86,21 @@ describe('start command — sparse cron catch-up', () => {
 
         try {
             const result = await runUntilShutdown(async () => {
-                await vi.waitFor(() => {
+                await vi.waitFor(async () => {
                     const logged = logSpy.mock.calls.map((call) => String(call[0])).join('\n');
                     if (!logged.includes('workspace lock wait timed out; retry in 60s')) {
                         throw new Error('retry not scheduled');
+                    }
+                    // The retry log is written while the tick is still publishing
+                    // nextTickAt. Advancing the manual clock before that publish
+                    // finishes fires the retry while the tick is busy, and the
+                    // scheduler drops it.
+                    const raw = JSON.parse(
+                        await fs.readFile(daemonMetaPath(globalConfigFolderPath, projectName), 'utf8'),
+                    ) as { nextTickAt?: string };
+                    const retryAt = new Date(clock.now() + CATCH_UP_RETRY_DELAY_MS).toISOString();
+                    if (raw.nextTickAt !== retryAt) {
+                        throw new Error(`next tick is ${raw.nextTickAt}, want ${retryAt}`);
                     }
                 }, waitForOpts);
                 clock.advance(CATCH_UP_RETRY_DELAY_MS);

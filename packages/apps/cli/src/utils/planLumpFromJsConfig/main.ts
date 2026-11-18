@@ -13,7 +13,7 @@ import {
 } from '@lumpcode/core';
 
 import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
-import { countOpenLumpBranches } from '../countOpenLumpBranches';
+import { evaluateTooManyOpenBranchesSkip } from '../runLumpFromJsConfig/evaluateTooManyOpenBranchesSkip';
 import { getJsConfigFromLumpName } from '../getJsConfigFromLumpName';
 import { jsConfigToRunLumpInput } from '../jsConfigToRunLumpInput';
 import { makeLockedRefreshRemoteTrackingRefsFn } from '../makeLockedRefreshRemoteTrackingRefsFn';
@@ -237,26 +237,25 @@ export async function planLumpFromJsConfig(input: {
 
     // depth === 'plan'
 
-    const { maximumNumberOfConcurrentBranches } = jsConfig;
-    if (
-        typeof maximumNumberOfConcurrentBranches === 'number' &&
-        maximumNumberOfConcurrentBranches >= 0
-    ) {
-        const openBranchCount = await countOpenLumpBranches({ executionWorkspacePath, lumpName });
-        if (openBranchCount >= maximumNumberOfConcurrentBranches) {
-            baseOutput.plan = {
-                skipped: {
-                    reason: 'tooManyOpenBranches',
-                    openBranchCount,
-                    maximumNumberOfConcurrentBranches,
-                    reasonDetail:
-                        `Lump "${lumpName}" has ${openBranchCount} open branch(es), ` +
-                        `which meets or exceeds maximumNumberOfConcurrentBranches ` +
-                        `(${maximumNumberOfConcurrentBranches}).`,
-                },
-            };
-            return success(baseOutput);
-        }
+    const tooManySkip = await evaluateTooManyOpenBranchesSkip({
+        jsConfig,
+        lumpName,
+        executionWorkspacePath,
+        mode,
+    });
+    if (tooManySkip) {
+        baseOutput.plan = {
+            skipped: {
+                reason: tooManySkip.reason,
+                openBranchCount: tooManySkip.openBranchCount,
+                maximumNumberOfConcurrentBranches: tooManySkip.maximumNumberOfConcurrentBranches,
+                reasonDetail:
+                    `Lump "${lumpName}" has ${tooManySkip.openBranchCount} open branch(es), ` +
+                    `which meets or exceeds maximumNumberOfConcurrentBranches ` +
+                    `(${tooManySkip.maximumNumberOfConcurrentBranches}).`,
+            },
+        };
+        return success(baseOutput);
     }
 
     const numberOfContextsPerBranch = runLumpInput.numberOfContextsPerBranch ?? 1;
