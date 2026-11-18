@@ -35,6 +35,7 @@ Failure<ExecuteStepsFailureData>
         signal,
         refreshRemoteTrackingRefsFn,
         onCommandOutput,
+        lumpName,
     } = input;
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -97,6 +98,7 @@ Failure<ExecuteStepsFailureData>
         getKeepHistoryFilePathFn,
         signal,
         onCommandOutput,
+        lumpName,
     });
 
     if (!executeStepsResult.success) {
@@ -141,6 +143,8 @@ export interface RunLumpInput<
     refreshRemoteTrackingRefsFn?: RefreshRemoteTrackingRefsFn;
     /** Live step feed. Omitted callers keep today's buffered command output. */
     onCommandOutput?: (event: CommandOutputEvent) => void;
+    /** Names the per-step systemd scope unit (`lump-<lumpName>-<context>-<step>-…`). */
+    lumpName?: string;
 }
 
 export interface RunLumpOutput {

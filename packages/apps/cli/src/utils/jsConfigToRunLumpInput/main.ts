@@ -355,6 +355,7 @@ export async function jsConfigToRunLumpInput({
         teardownWorkspaceFn,
         getKeepHistoryFilePathFn,
         logger,
+        lumpName,
         ...(liveStep ? { onCommandOutput: liveStep.onCommandOutput } : {}),
     };
 

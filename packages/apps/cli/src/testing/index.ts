@@ -18,6 +18,7 @@ export {
 export type { TranspileCacheMeta, TsLumpProjectContext } from './tsLumpFixtures';
 export { createLumpWorkBranch } from './createLumpWorkBranch';
 export { createSpyLogger, type SpyLogger } from './createSpyLogger';
+export { killBestEffort, startGroupWithOrphan, waitUntilPidGone } from './groupWithOrphan';
 export {
     assertCheckoutBranch,
     createIntegrationBranch,

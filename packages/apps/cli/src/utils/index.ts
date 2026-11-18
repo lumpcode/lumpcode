@@ -58,6 +58,7 @@ export * from './isReachableFromNonLumpRemoteHead';
 export * from './isValidLumpName';
 export * from './jsConfigToRunLumpInput';
 export * from './jsonConfigToJsConfig';
+export * from './killDaemonLeftovers';
 export * from './launchStartDaemon';
 export * from './listRemoteHeadBranches';
 export * from './listRunningProjectDaemons';

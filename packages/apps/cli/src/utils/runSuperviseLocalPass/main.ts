@@ -5,7 +5,6 @@ import * as path from 'node:path';
 import {
     isProcessAlive,
     killProcessTree,
-    nodeErrnoCode,
     type Logger,
     success,
     type Failure,
@@ -14,6 +13,7 @@ import {
 
 import { daemonSchedulerFiles, listDaemonIds, unlinkSchedulerFiles } from '../daemonSchedulerFiles';
 import { getProjectName } from '../getProjectName';
+import { killDaemonLeftovers } from '../killDaemonLeftovers';
 import { listRunningProjectDaemons, hasRunningDaemonMeta } from '../listRunningProjectDaemons';
 import { readDaemonMeta } from '../readDaemonMeta';
 import { spawnDetachedLumpcodeWithPidFile } from '../spawnDetachedLumpcodeWithPidFile';
@@ -76,20 +76,19 @@ async function orphanKillDaemon(input: {
         return;
     }
     const { pidFilePath, metaFilePath } = daemonSchedulerFiles({ daemonsDir, projectName, daemonId });
+    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
     await unlinkSchedulerFiles({ pidFilePath, metaFilePath });
 }
 
-/**
- * The pid in a detached daemon's pid file is its process group id.
- * After that process dies, children stay in the group until something kills `-pid`.
- */
+/** A dead daemon's leftovers, killed before respawn or before unlinking for `stopping`. */
 async function killDeadDaemonProcessGroup(input: {
     pidFilePath: string;
+    metaFilePath: string;
     daemonId: string;
     logger: Logger;
 }): Promise<void> {
     if (process.platform === 'win32') return;
-    const { pidFilePath, daemonId, logger } = input;
+    const { pidFilePath, metaFilePath, daemonId, logger } = input;
     let raw: string;
     try {
         raw = await fs.readFile(pidFilePath, 'utf8');
@@ -100,13 +99,7 @@ async function killDeadDaemonProcessGroup(input: {
     if (!Number.isInteger(pid) || pid <= 1) return;
     if (isProcessAlive(pid, { onProbeError: 'alive' })) return;
     logger.info(`killing orphaned process group for daemon "${daemonId}" (pid ${pid})`);
-    try {
-        process.kill(-pid, 'SIGKILL');
-    } catch (error: unknown) {
-        if (nodeErrnoCode(error) === 'ESRCH') return;
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn(`process group kill for "${daemonId}" pid ${pid} failed: ${message}`);
-    }
+    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
 }
 
 async function spawnDesiredDaemon(input: {
@@ -224,7 +217,7 @@ export async function runSuperviseLocalPass(
         const live = running[daemonId] !== undefined;
         if (desired.stopping === true) {
             if (!live) {
-                await killDeadDaemonProcessGroup({ pidFilePath, daemonId, logger });
+                await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
                 await unlinkSchedulerFiles({ pidFilePath, metaFilePath, desiredFilePath });
             }
             continue;
@@ -232,7 +225,7 @@ export async function runSuperviseLocalPass(
         if (live) {
             continue;
         }
-        await killDeadDaemonProcessGroup({ pidFilePath, daemonId, logger });
+        await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
         await spawnDesiredDaemon({
             projectName,
             daemonsDir,

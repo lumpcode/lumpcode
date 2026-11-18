@@ -305,6 +305,52 @@ describe('runSuperviseLocalPass', () => {
     );
 
     it.skipIf(process.platform === 'win32')(
+        'kills the step process groups a dead daemon published in its meta',
+        async () => {
+            const daemonGroup = await orphanedProcessGroup();
+            const stepGroup = await orphanedProcessGroup();
+            try {
+                const { metaFilePath } = await writeDesiredAndMeta({
+                    daemonId: 'global',
+                    cronSetup: '*/7 * * * *',
+                    workspaceStrategy: 'worktree',
+                });
+                const meta = JSON.parse(await fs.readFile(metaFilePath, 'utf8')) as Record<string, unknown>;
+                await writeJsonFile({
+                    filePath: metaFilePath,
+                    data: { ...meta, stepProcessGroups: [stepGroup.leaderPid] },
+                    trailingNewline: true,
+                });
+                await fs.writeFile(
+                    path.join(daemonsDir, `${projectName}.global.daemon.pid`),
+                    String(daemonGroup.leaderPid),
+                    'utf8',
+                );
+                const spawnFn = vi.fn(() => ({ pid: 4242, unref: vi.fn() })) as unknown as typeof nodeSpawn;
+                const result = await runSuperviseLocalPass({
+                    projectName,
+                    projectRoot,
+                    daemonsDir,
+                    logger: noopLogger,
+                    spawnFn,
+                });
+                expect(result.success).toBe(true);
+                expect(spawnFn).toHaveBeenCalledOnce();
+                await waitUntilDead(stepGroup.childPid);
+                await waitUntilDead(daemonGroup.childPid);
+            } finally {
+                for (const pid of [daemonGroup.childPid, stepGroup.childPid]) {
+                    try {
+                        process.kill(pid, 'SIGKILL');
+                    } catch {
+                        // already dead
+                    }
+                }
+            }
+        },
+    );
+
+    it.skipIf(process.platform === 'win32')(
         'kills the dead daemon process group when stopping, without spawning',
         async () => {
             const group = await orphanedProcessGroup();

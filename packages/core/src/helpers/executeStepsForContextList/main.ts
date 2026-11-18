@@ -18,9 +18,11 @@ import {
 import {
     appendHistoryEntry,
     createConsoleLogger,
+    detectSystemdScope,
     failure,
     formatExecFailureMessage,
     success,
+    systemdScopeUnitName,
 } from '../../utils';
 import { GitAndWorkspaceFnsInput } from '../../types/GitAndWorkspaceFnsInput';
 import type { RunLumpInput } from '../../usages';
@@ -150,6 +152,7 @@ export type ExecuteStepsForContextListParams<
     /** When aborted, in-flight commands are killed and the step walk stops (ignores continueOnError). */
     signal?: AbortSignal;
     onCommandOutput?: RunLumpInput<V, SV>['onCommandOutput'];
+    lumpName?: string;
 }
 
 export async function executeStepsForContextList<
@@ -173,6 +176,7 @@ export async function executeStepsForContextList<
     logger: loggerInput,
     signal,
     onCommandOutput,
+    lumpName,
 }: ExecuteStepsForContextListParams<V, SV>) {
     const logger = loggerInput ?? createConsoleLogger({});
     const contextNames = contextList.map(context => context.name);
@@ -345,6 +349,7 @@ export async function executeStepsForContextList<
                                 ...(commandName ? { commandName } : {}),
                             });
 
+                            const scopeSupport = await detectSystemdScope();
                             const commandExec = await execBinary({
                                 binaryPath: executable,
                                 args,
@@ -352,6 +357,17 @@ export async function executeStepsForContextList<
                                 stdio: ['inherit', 'pipe', 'pipe'],
                                 cwd: workspacePath,
                                 signal,
+                                logger,
+                                isolation: scopeSupport.available
+                                    ? {
+                                        kind: 'systemdScope',
+                                        unitName: systemdScopeUnitName({
+                                            lumpName,
+                                            contextName: context.name,
+                                            stepIndex: compositeStepIndex,
+                                        }),
+                                    }
+                                    : { kind: 'processGroup' },
                                 ...(env != null ? { env: { ...process.env, ...env } } : {}),
                                 ...(onCommandOutput
                                     ? {
@@ -376,6 +392,11 @@ export async function executeStepsForContextList<
                             logger.verbose(`commandExec ${JSON.stringify(commandExec)}`);
 
                             if (!commandExec.success) {
+                                if (commandExec.data.signal) {
+                                    logger.warn(
+                                        `Step ${JSON.stringify(compositeStepIndex)} command exited by signal ${commandExec.data.signal}`,
+                                    );
+                                }
                                 const aborted = commandExec.data.reason === 'aborted';
                                 if (aborted || !continueOnError) {
                                     stepWalkFailure = {

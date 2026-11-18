@@ -1,5 +1,5 @@
 import type { Failure, Logger, Success } from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { detectSystemdScope, failure, onLiveStepIsolationChange, success } from '@lumpcode/core';
 
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { applyLumpConfigDefaults } from '../applyLumpConfigDefaults';
@@ -606,7 +606,20 @@ export async function runForegroundStartDaemon(
     logger.info(
         `Lumpcode daemon id="${recipe.daemonId}" on ${recipe.cronSetup}. First run now, then on schedule. Press Ctrl+C to stop.`,
     );
+    const scopeSupport = await detectSystemdScope();
+    if (!scopeSupport.available) {
+        logger.warn(
+            process.platform === 'win32'
+                ? `systemd --user is not available (${scopeSupport.reason}); processes that agent steps leave behind are not cleaned up on Windows.`
+                : `systemd --user is not available (${scopeSupport.reason}); agent steps run in their own process group instead, so processes that leave that group are not cleaned up.`,
+        );
+    }
 
+    const stopPublishingStepIsolation = onLiveStepIsolationChange((live) => {
+        liveMeta.setLiveStepIsolation(live).catch(() => {
+            // the writer already logged the failure
+        });
+    });
     const disposeGuards = installDaemonProcessGuards({ logger });
     try {
         await scheduler.start();
@@ -621,6 +634,7 @@ export async function runForegroundStartDaemon(
         scheduler.stop();
         shutdown.dispose();
         disposeGuards();
+        stopPublishingStepIsolation();
     }
 
     return success({

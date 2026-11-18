@@ -70,6 +70,13 @@ Captures that include dots or spaces become illegal context names. Slug them in 
 
 The preset needs `cursor-agent`, `copilot`, `claude`, `opencode`, or `codex` on `PATH` **on the machine that runs the lump**. A laptop install does not help the worker VM. Log in / auth that CLI on the worker too.
 
+## `systemd --user is not available`
+
+When a step ends, fails, times out, or is stopped, Lumpcode kills the processes it left behind, such as an `npm run dev &` the agent started. On Linux with a `systemd --user` session, each step runs in its own scope and nothing it starts can escape. The daemon prints this warning at startup when it cannot create a scope:
+
+- **macOS, or Linux without a user session bus:** each step runs in its own process group instead. Background processes are still killed, but a process that deliberately leaves its group (`setsid`, a tool that daemonizes) keeps running. On a Linux worker VM, enable lingering for the worker user (`loginctl enable-linger <user>`) and start the daemon from that user's session to get full cleanup.
+- **Windows:** leftover processes are not cleaned up.
+
 ## Context name rejected
 
 Names must match `^[a-zA-Z0-9_-]+$` and be unique. No `/` in a context `name`. Use `/` only in `dependsOnContexts` as `otherLump/contextName`. Captures from path templates that include dots or spaces will fail; slug them in `contextMatchFn` / `getContextListFn`.
