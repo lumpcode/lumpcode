@@ -21,9 +21,10 @@ export async function resolvePresetChatSession(input) {
 
     if (!chatId) {
         const agentLabel = setupStateKey.replace(/Setup$/, '');
+        const knownIndexes = Object.keys(chatState.chatsIds ?? {});
         throw new Error(
             chatIdIndex != null
-                ? `Chat ID not found for index: ${chatIdIndex}`
+                ? `chatIdIndex "${chatIdIndex}" names no chat. Known chat indexes: ${knownIndexes.length > 0 ? knownIndexes.join(', ') : 'none'}. A step with newChat: true stores its chat under its own step index ("1", or "1.0" when nested) for later steps to reuse.`
                 : `Chat ID not found in ${agentLabel} setup state`,
         );
     }
