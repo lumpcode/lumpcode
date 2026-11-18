@@ -7,6 +7,8 @@ import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import type { ContextStatusRecordItem } from '../../types/ContextStatusRecord';
 import { commandFailure } from '../../utils/commandFailure';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
+import { readProjectLocalConfig } from '../../utils/readProjectLocalConfig';
+import { resolveInspectBaseBranch } from '../../utils/resolveInspectBaseBranch';
 import { setContextToFinishedStatus } from '../../utils/setContextToFinishedStatus';
 import { updateContextStatusRecord } from '../../utils/updateContextStatusRecord';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
@@ -17,6 +19,12 @@ const inputSchema = z.object({
             .boolean()
             .optional()
             .describe('Create marker commit on baseBranch and push (mark context finished)'),
+        discoveryBranch: z
+            .string()
+            .optional()
+            .describe(
+                'Concrete discovery branch for context filtering (must match lump discovery rules; required when rules are pattern-only)',
+            ),
     }),
     arguments: z.object({
         lumpName: z.string().describe('Name of the lump containing the context'),
@@ -43,6 +51,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { projectRoot, localConfigFolderPath } = injections;
     const { lumpName, contextName } = input.arguments;
     const setToFinished = input.options.setToFinished ?? false;
+    const discoveryBranchOpt = input.options.discoveryBranch?.trim() || undefined;
 
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
@@ -50,16 +59,27 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
     if (!jsConfResult.success) return commandFailure(jsConfResult.data);
     const jsConfig = jsConfResult.data;
-    const baseBranch = jsConfig.baseBranch;
-    if (typeof baseBranch !== 'string' || !baseBranch.trim()) {
+    const baseBranchRaw = jsConfig.baseBranch;
+    if (baseBranchRaw !== undefined && (typeof baseBranchRaw !== 'string' || !baseBranchRaw.trim())) {
         return failure({
             messages: [
-                typeof baseBranch === 'undefined'
-                    ? `Lump "${lumpName}" is missing baseBranch in its config.`
-                    : `Lump "${lumpName}" baseBranch must be a concrete branch string for context-status.`,
+                `Lump "${lumpName}" baseBranch must be a concrete branch string for context-status.`,
             ],
         });
     }
+
+    const localConfigResult = await readProjectLocalConfig({ localConfigFolderPath });
+    if (!localConfigResult.success) return commandFailure(localConfigResult.data);
+
+    const baseResult = await resolveInspectBaseBranch({
+        lumpName,
+        lumpConfig: jsConfig,
+        localConfig: localConfigResult.data,
+        localConfigFolderPath,
+        discoveryBranchOpt,
+    });
+    if (!baseResult.success) return commandFailure(baseResult.data);
+    const baseBranch = baseResult.data;
 
     if (setToFinished) {
         const finishResult = await setContextToFinishedStatus({
