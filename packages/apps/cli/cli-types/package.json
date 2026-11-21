@@ -2,6 +2,7 @@
   "name": "@lumpcode/cli-types",
   "version": "0.10.0",
   "description": "Types and defineX helpers for Lumpcode CLI lump config and command modules",
+  "homepage": "https://www.lumpcode.com/docs/config/types",
   "keywords": [
     "lumpcode",
     "typescript",

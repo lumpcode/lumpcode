@@ -2,7 +2,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { docsPrerenderRoutes, docsRedirects } from './app/utils/docsNav'
-import { siteDescription, siteTitle } from './app/utils/site'
+import { siteDescription, siteTitle, themeBootScript } from './app/utils/site'
 
 const websiteRoot = dirname(fileURLToPath(import.meta.url))
 const siteUrl = 'https://www.lumpcode.com'
@@ -69,19 +69,21 @@ export default defineNuxtConfig({
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {
           rel: 'stylesheet',
-          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap',
+          href: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap',
         },
       ],
-      script:
-        process.env.NODE_ENV === 'production'
+      script: [
+        { innerHTML: themeBootScript, tagPosition: 'head' },
+        ...(process.env.NODE_ENV === 'production'
           ? [
               {
                 src: 'https://static.cloudflareinsights.com/beacon.min.js?token=ac58ed5f0ef24c40a2dfc24e153c64c7',
-                type: 'module',
-                tagPosition: 'bodyClose',
+                type: 'module' as const,
+                tagPosition: 'bodyClose' as const,
               },
             ]
-          : [],
+          : []),
+      ],
     },
   },
   nitro: {

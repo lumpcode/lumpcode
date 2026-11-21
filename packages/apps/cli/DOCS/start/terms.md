@@ -43,7 +43,7 @@ Each machine sets a mode in its gitignored `.lumpcode/local.json`:
 
 - **Primary branch**: your integration branch (`main`, `dev`), set in `project.json` or `local.json`.
 - **Base branch**: where a lump's work branches off and where `finished` is read. The primary unless the lump sets `baseBranch`.
-- **Work branch**: on a worker, `lump/<lumpName>/<contextName>` by default. That is what you open as a PR.
+- **Work branch**: on a worker, `lump/<lumpName>/<contextName>` by default. That is what becomes a PR, opened by you or automatically after the push.
 
 ## Words you will see in logs
 

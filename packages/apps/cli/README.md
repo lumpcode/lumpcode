@@ -1,10 +1,10 @@
 # Lumpcode CLI
 
-Lumpcode is the simplest way to set up software factories in your repo.
+**The simplest software factory lives in your repo.** Open source and git only: no account, no database, nothing to deploy.
 
-A **lump** is one factory: a folder in `.lumpcode/` that says what to work on, what to prompt, and which agent to run. Make it as narrow as one migration or as broad as a spec backlog that keeps growing. You own it and commit it like the rest of your code.
+A **lump** is one factory, as code: a folder in `.lumpcode/` that says what to work on, what to prompt, which agent to run, and how to check the result. Make it as narrow as one migration or as broad as a spec backlog that keeps growing. You commit it like the rest of your code. Start with one, grow a fleet.
 
-Lumpcode runs your coding agent through the lump piece by piece and pushes a branch for each, which you review as a PR or let your CI merge. Progress lives in your git history, so it always picks up where it left off. No account, no database.
+Lumpcode runs your coding agent through the lump piece by piece, inside your repo, so the agent has your skills, `AGENTS.md`, and docs from the first run. It pushes a branch for each piece of work, which you review as a PR or let your CI merge. Git is the only state, so it always picks up where it left off.
 
 Full docs: [lumpcode.com/docs](https://www.lumpcode.com/docs/start/overview).
 
@@ -65,7 +65,7 @@ lumpcode transcript --lumpName portToVue   # follow the agent
 lumpcode stop
 ```
 
-Each pass takes the next unfinished context, runs the agent, and pushes `lump/portToVue/<context>`. You open the PR and merge. New lumps are picked up when you merge them, with no restart. Guide: [Leave a worker running](https://www.lumpcode.com/docs/start/worker).
+Each pass takes the next unfinished context, runs the agent, and pushes `lump/portToVue/<context>`. Open the PR yourself, or have it [opened automatically after the push](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/author/recipes.md#open-a-pull-request-after-push); then review and merge. New lumps are picked up when you merge them, with no restart. Another folder is enough to start; an always-on machine is what the worker is built for. Guide: [Leave a worker running](https://www.lumpcode.com/docs/start/worker).
 
 ## Docs
 
@@ -84,7 +84,7 @@ Each pass takes the next unfinished context, runs the agent, and pushes `lump/po
 | Package | Role |
 | --- | --- |
 | [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils) | `defineConfig` and typed helpers for `config.ts` |
-| [`@lumpcode/recipes`](https://www.npmjs.com/package/@lumpcode/recipes) | Retry loops, folder backlogs, PR opening |
+| [`@lumpcode/recipes`](https://www.npmjs.com/package/@lumpcode/recipes) | Plug-and-run factories in one function call (`featureBacklog`, …), plus a kit: retry until green, open a PR after push |
 
 Install both in your project (not globally) when your lumps import them, so a worker clone gets them from `npm install`.
 

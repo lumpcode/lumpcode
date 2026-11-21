@@ -2,6 +2,7 @@
   "name": "@lumpcode/cli-utils",
   "version": "0.10.0",
   "description": "Types, defineX helpers, and runtime utilities for Lumpcode lump configs and recipes",
+  "homepage": "https://www.lumpcode.com/docs/config/types",
   "keywords": [
     "lumpcode",
     "loop-engineering",

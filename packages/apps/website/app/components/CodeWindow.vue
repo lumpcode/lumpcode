@@ -2,9 +2,25 @@
 const props = defineProps<{
   filename: string
   code: string
+  /** Wrap each line in a span so wrapped lines keep a hanging indent (see .code-lines). */
+  lines?: boolean
 }>()
 
-const highlighted = computed(() => highlightSnippet(props.code, props.filename))
+const highlighted = computed(() => {
+  const html = highlightSnippet(props.code, props.filename)
+  if (!props.lines) {
+    return html
+  }
+  // Highlighted tokens never span a newline for the snippets that use this (JSON, trees).
+  return html
+    .replace(/\n$/, '')
+    .split('\n')
+    .map((line) => {
+      const indent = /^ */.exec(line.replace(/<[^>]+>/g, ''))?.[0].length ?? 0
+      return `<span class="code-line" style="--indent:${indent}ch">${line || ' '}</span>`
+    })
+    .join('')
+})
 
 const copied = ref(false)
 let resetTimer: ReturnType<typeof setTimeout> | undefined
@@ -40,6 +56,6 @@ onBeforeUnmount(() => {
         {{ copied ? 'Copied' : 'Copy' }}
       </button>
     </div>
-    <pre><code v-html="highlighted"></code></pre>
+    <pre :class="{ 'code-lines': lines }"><code v-html="highlighted"></code></pre>
   </div>
 </template>

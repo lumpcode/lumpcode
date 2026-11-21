@@ -1,12 +1,14 @@
 # Lumpcode
 
-Lumpcode is the simplest way to set up software factories in your repo.
+**The simplest software factory lives in your repo.** Lumpcode is open source and git only: no account, no database, nothing to deploy.
 
-A **lump** is one factory: a folder in `.lumpcode/` that says what to work on, what to prompt, and which agent to run (Cursor, Claude Code, Copilot, Codex, OpenCode, or your own). Make it as narrow as one migration or as broad as a spec backlog that keeps growing. You own it and commit it like the rest of your code, so changing a factory is a pull request.
+A **lump** is one factory, as code: a folder in `.lumpcode/` that says what to work on, what to prompt, which agent to run (Cursor, Claude Code, Copilot, Codex, OpenCode, or your own), and how to check the result. Make it as narrow as one migration or as broad as a spec backlog that keeps growing. You commit it like the rest of your code, so changing a factory is a pull request. Start with one, grow a fleet of small factories, one per flow.
 
-Lumpcode runs your coding agent through the lump piece by piece and pushes a branch for each, which you review as a PR or let your CI merge. Progress lives in your git history, so it always picks up where it left off. No account, no database. Rehearse a lump on your laptop, then leave a **worker** running on a second clone while the branches arrive.
+Lumpcode runs your coding agent through the lump piece by piece, inside your repo, so the agent has your skills, `AGENTS.md`, and docs from the first run. It pushes a branch for each piece of work, which you review as a PR (opened by you, or automatically after the push) or let your CI merge. Git is the only state: progress lives in your branches and commits, so it always picks up where it left off.
 
-Lumpcode is in **early development**. Expect rough edges and frequent improvements.
+Try a lump on your laptop, then leave a **worker** running: a second clone you never edit, or better, an always-on machine. That is what Lumpcode is built for.
+
+**Built by its own fleet.** Close to half of the pull requests merged into this repo came from its own lumps: one hunts bugs and another fixes them, one turns ideas into tickets for four backlogs, and small ones polish, trim, and rewrite. Read them in [`.lumpcode/lumps/`](.lumpcode/lumps).
 
 ## Quick start
 
@@ -51,7 +53,7 @@ Start at [lumpcode.com/docs](https://www.lumpcode.com/docs/start/overview) or br
 | --- | --- |
 | [`@lumpcode/cli`](packages/apps/cli) | The `lumpcode` command. This is what you install. |
 | [`@lumpcode/cli-utils`](packages/apps/cli/cli-utils) | `defineConfig` and typed helpers for `config.ts` |
-| [`@lumpcode/recipes`](packages/recipes) | Retry loops, folder backlogs, PR opening, ready-made lump factories |
+| [`@lumpcode/recipes`](packages/recipes) | Plug-and-run factories in one function call (`featureBacklog`, …), plus a kit: retry until green, open a PR after push |
 | [`@lumpcode/core`](packages/core) | The engine behind the CLI. Not meant for direct use. |
 | [`@lumpcode/cli-types`](packages/apps/cli/cli-types) | Types only; prefer `@lumpcode/cli-utils` |
 | `packages/apps/website` | [lumpcode.com](https://www.lumpcode.com), not published |
@@ -68,4 +70,4 @@ Open source under [Apache 2.0](LICENSE). Contributing: see [GIT-FLOW.md](GIT-FLO
   <sub>Photo: <a href="https://commons.wikimedia.org/wiki/File:Merivarblane.jpg">Tiit Hunt</a>, <a href="https://creativecommons.org/licenses/by-sa/3.0/">CC BY-SA 3.0</a>, via Wikimedia Commons (resized).</sub>
 </p>
 
-**LUMP** also stands for **Loop Using Multiple Prompts**.
+The name has a second reading: **LUMP**, a **Loop Using Multiple Prompts**. That is where it started; a lump today is a whole factory.

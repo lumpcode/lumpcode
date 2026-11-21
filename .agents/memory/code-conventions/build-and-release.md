@@ -17,6 +17,7 @@ Git flow, CI, E2E, npm publishing, and worker VM scripts.
 ## npm publish
 
 - Publishable `package.json` files: include `repository` (link to `lumpcode/lumpcode`) and relevant `keywords`
+- All published packages share one version for now (core, cli-types, cli-utils, recipes, cli bump together, e.g. `set-npm-versions.mjs --patch` with no `--packages`); `--packages` exists but is not the current practice. Docs/README/metadata-only changes still need a new version to reach npm (same version cannot be republished); a patch is the right bump when no feature landed
 - Version/publish scripts (`scripts/set-npm-versions.mjs`, `scripts/publish-npm.mjs`) share catalog `scripts/npm-packages.mjs` (ids: `core`, `cli-types`, `cli-utils`, `recipes`, `cli`, `lumpcode`); `--packages` selects a subset (omit = all); `--ignore-packages` excludes ids after that selection (same aliases/forms; errors if selection empties); selective bumps only rewrite internal `@lumpcode/*` deps when both ends are in the selection; version early-exit must compare every selected package, not only `core`
 - `@lumpcode/cli` `files` must ship the full postinstall chain (`scripts/esbuild-sidecar.mjs`, `scripts/native-binary.mjs`, `scripts/postinstall.mjs`)
 - Before publish: smoke-test the packed tarball (`npm pack --dry-run | rg scripts/`, extract, `import './scripts/native-binary.mjs'`, `LUMPCODE_SKIP_BINARY=1 node scripts/postinstall.mjs`)

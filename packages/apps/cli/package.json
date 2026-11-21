@@ -1,7 +1,8 @@
 {
   "name": "@lumpcode/cli",
   "version": "0.10.0",
-  "description": "The simplest way to set up software factories in your repo: lumps defined in code you commit, run by your CLI coding agent, one git branch per piece of work",
+  "description": "The simplest software factory lives in your repo: lumps you commit as code, run by your CLI coding agent, one git branch per piece of work. Open source, git only.",
+  "homepage": "https://www.lumpcode.com",
   "keywords": [
     "lumpcode",
     "cli",
@@ -16,7 +17,9 @@
     "git",
     "codemod",
     "daemon",
-    "devtools"
+    "devtools",
+    "software-factory",
+    "software-factories"
   ],
   "license": "Apache-2.0",
   "author": "",

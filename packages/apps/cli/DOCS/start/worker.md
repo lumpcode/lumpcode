@@ -6,7 +6,7 @@ A worker is a second clone of your repo that runs every lump on a schedule and p
 
 1. **Start it once.** On a clone you never edit, `lumpcode start` runs in the background and checks for work every five minutes.
 2. **Push a new lump.** Nothing to deploy, register, or restart. The worker fetches your primary branch and finds the lump on its next pass.
-3. **Branches arrive.** One `lump/<lumpName>/…` branch per run. You open the PR, adjust it if needed, and merge. The next pass skips what you merged.
+3. **Branches arrive.** One `lump/<lumpName>/…` branch per run. Open the PR yourself or have it [opened automatically](../author/recipes.md#open-a-pull-request-after-push), adjust it if needed, and merge. The next pass skips what you merged.
 
 ## 1. Commit `.lumpcode/` first
 
@@ -16,7 +16,7 @@ Writing TypeScript lumps that import `@lumpcode/cli-utils` or `@lumpcode/recipes
 
 ## 2. Make a second clone
 
-Clone the same repo into a folder you never edit. Another directory on your laptop is enough (`~/lumpcode-worker`). An always-on machine is an upgrade, not a requirement.
+Clone the same repo into a folder you never edit. Another directory on your laptop is enough (`~/lumpcode-worker`). An always-on machine, such as a small server or VM, is the setup Lumpcode is built for, but you do not need one to start.
 
 That clone needs:
 
