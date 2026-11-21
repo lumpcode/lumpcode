@@ -6,6 +6,9 @@ useHead({
 
 useReveal()
 
+// Decided once per page view so both hero layers agree; server markup assumes it plays.
+const schoolPlays = import.meta.client ? claimSchoolPass() : true
+
 const positioningSplit = positioningLine.indexOf('A software factory')
 const positioningLead = positioningLine.slice(0, positioningSplit).trim()
 const positioningPunch = positioningLine.slice(positioningSplit)
@@ -14,8 +17,8 @@ const positioningPunch = positioningLine.slice(positioningSplit)
 <template>
   <div class="landing">
     <section class="hero-stage">
-      <Aquarium />
-      <Aquarium layer="school" />
+      <Aquarium :school-plays="schoolPlays" />
+      <Aquarium layer="school" :school-plays="schoolPlays" />
       <div class="wrap hero">
         <div class="hero-copy">
           <p class="hero-kicker enter" style="--i: 0">
@@ -34,7 +37,7 @@ const positioningPunch = positioningLine.slice(positioningSplit)
             Lumpcode runs your coding agent through it, inside your repo with your skills and docs already there, and pushes a branch for each piece of work. You review each branch as a pull request, or let your CI merge it.
           </p>
           <p class="lede-lump enter" style="--i: 5">
-            No account, no database, nothing to deploy: git is the only state.
+            No account, no database, no backend: git is the only state.
           </p>
           <div class="hero-actions enter" style="--i: 6">
             <NuxtLink class="btn btn-primary" :to="docs.firstPr">
@@ -193,7 +196,7 @@ const positioningPunch = positioningLine.slice(positioningSplit)
 
     <section class="section wrap" id="worker">
       <div class="ocean" data-reveal>
-        <Aquarium />
+        <Aquarium :school-plays="schoolPlays" />
         <div class="ocean-inner">
           <div class="ocean-copy">
             <h2 class="worker-title">{{ workerTitle }}</h2>
