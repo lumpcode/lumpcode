@@ -50,7 +50,24 @@ describe('resolvePresetChatSession', () => {
                 stepVariables: { chatIdIndex: '2' },
                 createChatId: () => 'new',
             }),
-        ).rejects.toThrow('Chat ID not found for index: 2');
+        ).rejects.toThrow(
+            'chatIdIndex "2" names no chat. Known chat indexes: none. A step with newChat: true stores its chat under its own step index ("1", or "1.0" when nested) for later steps to reuse.',
+        );
+    });
+
+    it('lists the stored chat indexes when chatIdIndex lookup misses', async () => {
+        await expect(
+            resolvePresetChatSession({
+                prompt: 'hi',
+                contextRunState: {
+                    cursorSetup: { setupChatId: 'main', chatsIds: { '0': 'main', '1.2': 'branch' } },
+                },
+                setupStateKey: 'cursorSetup',
+                stepIndex: 3,
+                stepVariables: { chatIdIndex: '1' },
+                createChatId: () => 'new',
+            }),
+        ).rejects.toThrow('Known chat indexes: 0, 1.2.');
     });
 
     it('resolves setupChatId and stores new chat under dotted stepIndex', async () => {

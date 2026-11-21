@@ -4,27 +4,48 @@ import type { DashboardView } from './types';
 
 const ROOT_CSS = `:root {
   --bg: #000514;
+  --bg-deep: #00030d;
   --bg-elevated: #07101c;
-  --bg-card: #0a1422;
+  --surface: rgb(10 20 34 / 62%);
+  --surface-solid: #0a1422;
+  --surface-hover: rgb(14 28 46 / 80%);
+  --header-bg: rgb(0 5 20 / 72%);
+  --overlay: rgb(0 5 20 / 70%);
   --teal: #38b0ab;
   --teal-bright: #4ec9c3;
+  --teal-soft: #7fe0db;
   --teal-dim: #247a76;
-  --teal-glow: rgb(56 176 171 / 16%);
+  --teal-glow: rgb(56 176 171 / 18%);
+  --teal-wash: rgb(56 176 171 / 9%);
+  --on-teal: #00110f;
   --text: #eef4f6;
   --text-soft: #c5d4dc;
   --text-muted: #8fa3b0;
   --border: rgb(56 176 171 / 16%);
   --border-strong: rgb(56 176 171 / 34%);
-  --shadow: 0 18px 50px rgb(0 0 0 / 35%);
+  --warn: #d4a054;
+  --warn-text: #e6c07b;
+  --warn-wash: rgb(212 160 84 / 9%);
+  --shadow: 0 18px 50px rgb(0 0 0 / 38%);
+  --shadow-soft: 0 10px 30px rgb(0 0 0 / 25%);
+  --fish-body: #3cb4ad;
+  --fish-shade: #2fa19b;
+  --fish-dark: #238982;
+  --fish-deep: #1a6e69;
+  --fish-eye: #000514;
+  --fish-opacity: 0.55;
   --radius: 14px;
+  --radius-lg: 22px;
   --font: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --header-h: 4.25rem;
-  --max: 68rem;
+  --max: 72rem;
   --ease: 180ms ease;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --space-prose: 0.75rem;
-  --space-block: 1.1rem;
-  --space-section: 3rem;
+  --space-block: 1.25rem;
+  --space-section: 5.5rem;
+  color-scheme: dark;
 }`;
 
 const PAGE_CSS = `
@@ -48,7 +69,7 @@ h2, h3, p { margin: 0 0 0.75rem; }
 h2 { font-size: 1.15rem; color: var(--text-soft); }
 .lede { color: var(--text-soft); }
 .note { border: 1px solid var(--border-strong); background: var(--bg-elevated); border-radius: 8px; padding: 0.75rem 1rem; }
-.card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; margin: 0 0 1rem; }
+.card { background: var(--surface-solid); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.15rem; margin: 0 0 1rem; }
 dt { color: var(--text-muted); margin-top: 0.35rem; }
 dd { margin: 0; font-family: var(--mono); font-size: 0.92em; }
 .meta { color: var(--text-muted); }

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: dashboard-match-website-look
+workflow: [directImpl]
+task: >-
+  Align the read-only worker dashboard (packages/apps/dashboard/src/page.ts) with the
+  redesigned website, visuals only. Remove the 3rem grid from the body background
+  (keep the top teal glow, matching website main.css), and replace the embedded
+  logo-mark.png (dark square) with an inline SVG of the website's Lumpfish
+  (packages/apps/website/app/components/Lumpfish.vue, static, no animation) for both
+  the header mark and the favicon, then delete logo-mark.png and logoMark.ts if unused.
+  Keep ROOT_CSS a verbatim copy of the website's first :root block (page.unit.test.ts
+  enforces it), stay dark-only and read-only (no buttons, no forms), and update the
+  page tests that assert the data:image/png logo.
+priority: 6

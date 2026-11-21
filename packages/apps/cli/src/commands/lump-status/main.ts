@@ -11,9 +11,7 @@ import { discoverLoadableLumpNames } from '../../utils/discoverLoadableLumpNames
 import { applyLumpConfigDefaults } from '../../utils/applyLumpConfigDefaults';
 import { getJsConfigFromLumpName } from '../../utils/getJsConfigFromLumpName';
 import { readProjectLocalConfig } from '../../utils/readProjectLocalConfig';
-import { resolveEffectiveDiscoveryBranch } from '../../utils/resolveEffectiveDiscoveryBranch';
-import { resolveLumpBaseBranch } from '../../utils/resolveLumpBranches';
-import { resolvePrimaryBranch } from '../../utils/resolvePrimaryBranches';
+import { resolveInspectBaseBranch } from '../../utils/resolveInspectBaseBranch';
 import { updateContextStatusRecord } from '../../utils/updateContextStatusRecord';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
@@ -88,23 +86,17 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
             resolved: resolvedResult.data,
         });
 
-        const discoveryResult = await resolveEffectiveDiscoveryBranch({
-            discoveryBranchOpt,
+        const baseResult = await resolveInspectBaseBranch({
             lumpName,
-            localConfigFolderPath,
-            localConfig,
-            honorDiscoveryBranchOptInShared: true,
-        });
-        if (!discoveryResult.success) {
-            return failure({ messages: [discoveryResult.data] });
-        }
-
-        const resolvedBaseBranch = resolveLumpBaseBranch({
             lumpConfig: jsConfig,
-            primaryBranch: resolvePrimaryBranch(localConfig),
-            mode: localConfig.mode,
-            effectiveDiscoveryBranch: discoveryResult.data,
+            localConfig,
+            localConfigFolderPath,
+            discoveryBranchOpt,
         });
+        if (!baseResult.success) {
+            return failure({ messages: [baseResult.data] });
+        }
+        const resolvedBaseBranch = baseResult.data;
 
         const updateResult = await updateContextStatusRecord({
             projectRoot,

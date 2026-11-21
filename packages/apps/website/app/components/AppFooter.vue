@@ -4,15 +4,12 @@
       <div class="footer-grid">
         <div class="footer-brand">
           <NuxtLink class="brand" to="/" aria-label="Lumpcode">
-            <img
-              class="brand-lockup"
-              src="/logo-lockup.png"
-              alt=""
-              width="142"
-              height="38"
-            >
+            <BrandMark />
           </NuxtLink>
-          <p>Named after the lumpfish.</p>
+          <p>
+            Named after the lumpfish.
+            <span class="footer-species">Cyclopterus lumpus.</span>
+          </p>
         </div>
         <div class="footer-col">
           <h2>Product</h2>
@@ -43,9 +40,8 @@
       <div class="footer-meta">
         <span>
           <a class="footer-version" :href="cliVersionUrl">v{{ cliVersion }}</a>
-          · Apache 2.0. Early development.
+          · Apache 2.0.
         </span>
-        <span>LUMP: Loop Using Multiple Prompts</span>
       </div>
     </div>
   </footer>

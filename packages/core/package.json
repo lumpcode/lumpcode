@@ -1,7 +1,8 @@
 {
   "name": "@lumpcode/core",
-  "version": "0.10.0",
+  "version": "0.10.1",
   "description": "Core engine for Lumpcode agent loops — runLump orchestrates prompts across contexts with git-tracked progress",
+  "homepage": "https://www.lumpcode.com",
   "keywords": [
     "lumpcode",
     "loop-engineering",
@@ -12,7 +13,8 @@
     "git",
     "codemod",
     "llm",
-    "agentic"
+    "agentic",
+    "software-factory"
   ],
   "license": "Apache-2.0",
   "author": "",

@@ -1,14 +1,16 @@
 {
   "name": "@lumpcode/recipes",
-  "version": "0.10.0",
-  "description": "Lumpcode lump recipes and kit helpers",
+  "version": "0.10.1",
+  "description": "Plug-and-run software factories for Lumpcode (featureBacklog, backlog, …) plus a kit: retry until green, folder backlogs, open a PR after push",
+  "homepage": "https://www.lumpcode.com/docs/author/recipes",
   "keywords": [
     "lumpcode",
     "loop-engineering",
     "agent-loop",
     "coding-agent",
     "lump-config",
-    "recipes"
+    "recipes",
+    "software-factory"
   ],
   "license": "Apache-2.0",
   "author": "",
@@ -47,8 +49,8 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "@lumpcode/cli-utils": "^0.10.0",
-    "@lumpcode/core": "^0.10.0",
+    "@lumpcode/cli-utils": "^0.10.1",
+    "@lumpcode/core": "^0.10.1",
     "js-yaml": "^5.0.0"
   },
   "devDependencies": {

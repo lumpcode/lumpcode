@@ -87,10 +87,6 @@ export function getDocPage(path: string): DocPage | undefined {
   return docsByPath.get(withoutTrailingSlash(path))
 }
 
-export function listDocPages(): DocPage[] {
-  return [...docsByPath.values()]
-}
-
 export function searchDocs(query: string): DocsSearchHit[] {
   return searchSections(docsSections, query)
 }

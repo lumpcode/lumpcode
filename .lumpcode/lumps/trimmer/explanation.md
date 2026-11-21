@@ -1,15 +1,17 @@
-# Drop the unused `defaultE2eTsLumpConfig` import from `createE2eProject.ts`
+# Remove uncalled `listDocPages` from the website docs loader
 
-Removed `defaultE2eTsLumpConfig` from the import list in `packages/apps/cli/src/e2e/harness/createE2eProject.ts`. The file imported it from `./createE2eAgentCommandModule` and never used it. The function itself stays, because `ts-config-scenarios.test.ts` uses it. The previous trimmer note listed this import as a follow-up candidate. No behavior changes.
+Removed `listDocPages` from `packages/apps/website/app/utils/loadDocs.ts`. It returned every loaded docs page as an array, and nothing on the website calls it. It came in with the website docs (`c97fbef`) and has never had a caller. `getDocPage` still reads the same `docsByPath` map, and `DocPage` is still its return type, so neither goes away. The website is private, so this is not published surface. No page output changes.
 
 ## Why it is unused
 
-- `rg --hidden 'defaultE2eTsLumpConfig'` across the repo (excluding `node_modules`, `.git`, and `dist`) matches the definition in `createE2eAgentCommandModule.ts`, the removed import line, the uses in `ts-config-scenarios.test.ts`, and the previous trimmer note. After the import, `createE2eProject.ts` never mentioned the name again.
-- `ts-config-scenarios.test.ts` imports the function through the `./harness` barrel. `harness/index.ts` re-exports `./createE2eAgentCommandModule` directly with `export *`, so the test does not depend on `createE2eProject.ts`. An `import` is not a re-export in any case.
-- The module is still imported for `createE2eAgentCommandModule`, `createE2eMockAgentScript`, `defaultE2eLumpConfigJson`, and `E2E_MOCK_AGENT_SCRIPT_BASENAME`, so dropping one named binding changes no load order or side effects.
+- `rg --hidden -w listDocPages` across the repo (excluding `node_modules` and `dist`) matched only the definition. That search covers `.vue` templates, which matters because Nuxt auto-imports everything in `app/utils/`, so a component could call it without an `import` line. None does.
+- `loadDocs` itself is reached only through that auto-import, and `nuxt.config.ts` imports `./app/utils/docsNav`, not `loadDocs`. Neither file builds a call from a string or uses a dynamic import.
+- `git log -S listDocPages` shows only the commit that added it and a later docs cleanup, which touched nearby lines but left the function as it was.
 
 ## Checks
 
-- `npm run test -w=@lumpcode/cli`: 172 files and 1337 tests passed, no type errors. The first run failed one test in `npm-pack-postinstall.unit.test.mjs` only because this fresh worktree had no `dist/index.js`. After `npm run build` it passed.
-- `npm run build`: passed. Turbo served every task from cache, because the `@lumpcode/cli#build` inputs exclude `src/e2e/**`.
-- Ad hoc `tsc --noEmit` over `src/e2e/**`, using a throwaway config (since deleted) that extends `tsconfig.typecheck.json`: the same 3 errors before and after the change, in `gitHelpers.ts` and `runLumpFromLumpName/main.ts`, not in the edited file.
+- The website has no `test` script. Instead I ran `npm run typecheck -w=@lumpcode/website` (`nuxt typecheck`), which passed. To confirm it covers this file, I added a temporary `app/utils` module that imported `listDocPages`. The typecheck failed with TS2305, as expected, and I then deleted the probe.
+- `npm run generate` in `packages/apps/website`: passed, and 56 routes were prerendered, including every `/docs/*` page.
+- `npm run build`: passed. All 6 tasks came from cache, because the website is outside that script.
+
+A follow-up candidate: `docsItemByPath` in `packages/apps/website/app/utils/docsNav.ts` came in with the same commit and also has no callers.

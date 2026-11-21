@@ -1,30 +1,11 @@
 # @lumpcode/recipes
 
-Ready-made lumps and helpers for [Lumpcode](https://www.npmjs.com/package/@lumpcode/cli): retry until your checks pass, ticket backlogs as folders in git, find-then-implement refactor pipelines, and opening a GitHub PR after each push.
+Plug-and-run software factories for [Lumpcode](https://www.npmjs.com/package/@lumpcode/cli). A **recipe** is a whole lump in one function call: `featureBacklog({…})` turns ticket folders in git into requirements, tests, code, and checks. The **kit** holds the smaller pieces: retry until your checks pass, folder backlogs, find-then-implement pipelines, and opening a GitHub PR after each push.
 
 Install the CLI with `npm install -g @lumpcode/cli`. Add this package to your **project** (not globally) so a worker clone gets it from `npm install`:
 
 ```bash
 npm install --save-dev @lumpcode/recipes @lumpcode/cli-utils
-```
-
-## Retry until green
-
-Run your checks after the agent; on failure, hand it the output and try again. A still-red last attempt is still committed and pushed. Pass `pushOnValidationFailure: false` to withhold that push. The `lumpVariables.__VALIDATION_FAILED__` flag can be renamed with `validationFailedVariableName`.
-
-```ts
-// .lumpcode/lumps/typedExports/config.ts
-import { defineConfig } from '@lumpcode/cli-utils'
-import { retryUntilGreen, shellCommand } from '@lumpcode/recipes'
-
-export default defineConfig({
-  command: 'cursor',
-  contextListJson: { FILE: 'src/utils/{NAME}.ts' },
-  steps: retryUntilGreen({
-    steps: [{ promptTemplate: 'Add an explicit return type to every export in @{FILE}.' }],
-    validationCommandFn: () => shellCommand('npm run typecheck && npm test'),
-  }),
-})
 ```
 
 ## A ticket backlog
@@ -51,6 +32,25 @@ name: export-csv
 task: Add a "Download CSV" button to the orders table.
 priority: 1
 workflow: [req, impl]
+```
+
+## Kit: retry until green
+
+Run your checks after the agent; on failure, hand it the output and try again. A still-red last attempt is still committed and pushed. Pass `pushOnValidationFailure: false` to withhold that push. The `lumpVariables.__VALIDATION_FAILED__` flag can be renamed with `validationFailedVariableName`.
+
+```ts
+// .lumpcode/lumps/typedExports/config.ts
+import { defineConfig } from '@lumpcode/cli-utils'
+import { retryUntilGreen, shellCommand } from '@lumpcode/recipes'
+
+export default defineConfig({
+  command: 'cursor',
+  contextListJson: { FILE: 'src/utils/{NAME}.ts' },
+  steps: retryUntilGreen({
+    steps: [{ promptTemplate: 'Add an explicit return type to every export in @{FILE}.' }],
+    validationCommandFn: () => shellCommand('npm run typecheck && npm test'),
+  }),
+})
 ```
 
 ## What is in the box
