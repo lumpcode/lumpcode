@@ -3,9 +3,10 @@ export const siteUrl = 'https://www.lumpcode.com'
 export const siteTitle = 'Lumpcode — The simplest software factory lives in your repo'
 
 export const siteDescription =
-  'The simplest way to set up software factories in your repo: lumps defined in code you commit, run by your coding agent, one branch per piece of work.'
+  'Open-source micro software factories as code: lumps you commit to your repo, run by your coding agent, one branch per piece of work, with git as the only state.'
 
 export const githubRepoUrl = 'https://github.com/lumpcode/lumpcode'
+export const repoLumpsUrl = `${githubRepoUrl}/tree/dev/.lumpcode/lumps`
 export const npmCliUrl = 'https://www.npmjs.com/package/@lumpcode/cli'
 
 export const docs = {
@@ -22,6 +23,7 @@ export const docs = {
   examples: '/docs/examples/overview',
   observe: '/docs/start/observe',
   backlog: '/docs/author/backlog',
+  customAgent: '/docs/author/agents#custom-command-module',
 } as const
 
 export const skillInstall = 'npx skills add lumpcode/skills'
@@ -56,35 +58,80 @@ export const exampleBranches = [
 export const exampleBranchesFooter = '38 components still to go.'
 
 export const positioningLine =
-  'Your coding agent already handles one task: one branch, one pull request. Lumpcode runs the whole list.'
+  'Your coding agent already handles one task: one branch, one pull request. A software factory runs the whole list, and keeps running.'
 
 export const sdlcLine =
-  'It takes two commands to run a first lump on an existing repo, and it stays the same tool when one lump becomes a dozen that feed each other.'
+  'Start small, grow big. Two commands, lumpcode setup and lumpcode run, take an existing repo to a first lump, and it stays the same tool when one lump becomes a dozen that feed each other.'
 
-export const useWhen = [
-  'AI coding refactoring across hundreds of files',
-  'An ordered ticket backlog, one PR each',
-  'Docs, tests, hardening or cleanup that runs for weeks',
+export const factoryKindsTitle = 'A fleet of micro software factories.'
+
+export const factoryKindsLead =
+  'A lump is just code, so it can be whatever factory your flow needs. Lumpcode only fixes the shape: a list of work, the prompts, the agent, one branch per piece of work, state in git. Start with one, grow a fleet.'
+
+export const factoryKindsLabel = 'For example'
+
+export const factoryKinds = [
+  {
+    title: 'A one-time migration',
+    body: 'Port every component, apply a codemod, rename an API. The list shrinks as branches merge, and the lump is done when it is empty.',
+  },
+  {
+    title: 'Background hygiene',
+    body: 'Tests where they are missing, docs that drifted, what your linter or static analysis reports. A few branches at a time, for months.',
+  },
+  {
+    title: 'Tickets from your tracker',
+    body: 'Markdown ticket folders in your repo, or a query on Jira or Azure DevOps. One branch per ticket, in the order you set.',
+  },
+  {
+    title: 'Labelled bugs',
+    body: 'GitHub issues your team labels for the agent, one fix per branch.',
+  },
+  {
+    title: 'Factories that feed each other',
+    body: 'One lump hunts bugs and files them as tickets; another fixes them once that pull request is merged.',
+  },
 ] as const
 
-export const useWhenMore =
-  'And many more: retry until your test command passes, a Jira board as the context list, one lump waiting on another to merge...'
+export const factoryKindsOwn = {
+  title: 'Your own flow',
+  body: 'Anything a command can list becomes the work. Configs can be TypeScript, so the factory is whatever you write.',
+} as const
+
+export const fleetTitle = 'Lumpcode is built by its own fleet.'
+
+export const fleetBody =
+  'Close to half of the pull requests merged into Lumpcode came from lump branches. One lump hunts bugs and another fixes them; one turns loose ideas into tickets for four backlogs, and each of those backlogs is a single recipe call. Small ones polish, trim, and rewrite, one change per branch.'
 
 export const lumpsTree = `.lumpcode/lumps/
-├── normalizeUtils/     one PR per file
-├── ticketBacklog/      one PR per ticket
-├── docsSweep/          one PR per stale page
-└── deadCode/           one PR per unused export
+├── bugHunter/      files bugs as tickets
+├── bugfixes/       fixes them, one branch each
+├── autoTriage/     turns ideas into tickets
+├── backlog/        features
+├── qol/            quality of life
+├── docs/           docs and website
+├── polisher/       one small polish per branch
+├── trimmer/        removes one unused piece
+└── writer/         one wording fix per branch
 `
+
+export const asCodeTitle = 'Factories as code.'
+
+export const asCodeLead =
+  'A lump is a folder of config and prompts, committed and reviewed like the rest of your code. Changing a factory is a pull request; Lumpcode stores nothing of its own.'
 
 export const features = [
   {
-    title: 'Any factory you can describe',
-    body: 'File sweeps, ticket queues, doc passes, cleanup. Each item can run several prompts in order, gated on your build or tests and retried with the failure output.',
+    title: 'Your repo is the context',
+    body: 'From the first run, the agent sees what your editor\'s agent sees: your skills, AGENTS.md, docs, and conventions. Nothing to upload or index.',
   },
   {
-    title: 'Close the laptop; your remote still knows what is left',
-    body: 'There is no database. What is finished and what remains are read from the branches and commits already on your git remote.',
+    title: 'Git is the only state',
+    body: 'No database. What is finished and what remains are read from the branches on your git remote, so any clone picks up where another stopped.',
+  },
+  {
+    title: 'Plug-and-run recipes',
+    body: 'Run `npm i @lumpcode/recipes` in your repo. A recipe is a whole factory in one function call: `featureBacklog({…})` turns ticket folders into requirements, tests, code, and checks. Its kit has smaller pieces, like retry until green.',
   },
   {
     title: 'Use the agent you already have',
@@ -107,17 +154,58 @@ export const steps = [
     body: 'One config file says what to work on, what to prompt, and which agent to use. Every item it matches becomes one context.',
   },
   {
-    title: 'Run it',
-    body: 'Lumpcode takes the next unfinished context, runs your agent on it, then commits the result and pushes a branch. One context per branch by default; group several when the diffs are small.',
+    title: 'Start a worker',
+    body: 'On a clone you never edit, lumpcode start runs your agent on the next unfinished context and pushes a branch, then moves on: one context per branch by default, several when the diffs are small. Try one pass by hand first with lumpcode run.',
   },
   {
     title: 'Review, adjust, then merge',
-    body: 'Open that branch as a pull request. Push fixes to it if the agent got something wrong, and merge when it looks right. The next run skips what you merged and picks up the next context.',
+    body: 'Review each branch as a pull request: open it yourself, or have it opened automatically after the push. Push fixes if the agent got something wrong, and merge when it looks right. The next run skips what you merged.',
   },
 ] as const
 
-export const rangeLead =
-  'A list, a prompt, an agent. Start with a JSON file. The same CLI runs TypeScript configs, multi-step pipelines, and validation that retries until it passes.'
+// Visuals under the three "What you do." steps. The terminal is an illustration, not literal CLI output.
+export const stepConfigFile = 'lumps/addTests/config.ts'
+
+export const stepConfig = `export default defineConfig({
+  command: 'claude',
+  contextListJson: {
+    FILE: 'src/utils/{NAME}.ts',
+  },
+  steps: retryUntilGreen({
+    steps: [{
+      promptTemplate: 'Add tests for @{FILE}.',
+    }],
+    validationCommandFn: () =>
+      shellCommand('npm test'),
+    maxIterations: 3,
+  }),
+})
+`
+
+export const stepTerminal = [
+  { tag: '$', text: 'lumpcode start', tone: 'cmd' },
+  { tag: 'worker', text: 'up, every 5 min', tone: 'muted' },
+  { tag: '$', text: 'lumpcode transcript --lumpName addTests', tone: 'cmd' },
+  { tag: 'context', text: 'formatDate', tone: 'muted' },
+  { tag: 'check', text: 'npm test  ✗ attempt 1/3', tone: 'bad' },
+  { tag: 'agent', text: 'fixing with the failure', tone: 'muted' },
+  { tag: 'check', text: 'npm test  ✓', tone: 'good' },
+  { tag: 'push', text: 'lump/addTests/formatDate', tone: 'accent' },
+  { tag: 'context', text: 'parseQuery', tone: 'muted' },
+] as const
+
+export const stepPullRequest = {
+  title: 'Add tests for formatDate',
+  branch: 'lump/addTests/formatDate',
+  stats: '+48 −2',
+  events: [
+    { kind: 'open', text: 'Opened automatically after the push' },
+    { kind: 'check', text: 'npm test passed' },
+    { kind: 'comment', text: 'You: Cover the UTC midnight case too.' },
+    { kind: 'commit', text: 'You pushed: test: cover UTC midnight' },
+  ],
+  footer: 'Next run skips formatDate.',
+} as const
 
 export const objectionTitle = 'You could script this. Or not.'
 
@@ -134,45 +222,31 @@ export const objectionCases = [
     body: 'A bad result is one pull request you adjust or close, not a 200-file diff to untangle. If the prompt needs tweaking, the first PR shows it.',
   },
   {
-    title: 'Validation and retry',
-    body: 'Gate each run on your build or test command and feed the failure output back to the agent, instead of finding out at review time.',
+    title: 'Clean workspaces',
+    body: 'On a worker, each run gets its own checkout or git worktree, set up and torn down under a git lock, so lumps running side by side never collide.',
   },
   {
-    title: 'Unattended',
-    body: 'Point a separate clone at the same lump and leave it running. It keeps pushing reviewable branches while you do something else.',
+    title: 'Nothing left running',
+    body: 'Every step runs in its own process group and is cleaned up when it ends. If a worker crashes, it is restarted and whatever it left behind is stopped.',
   },
 ] as const
 
-export const workerTitle = 'Then stop running it yourself.'
+export const workerTitle = 'Built to run without you.'
 
 export const workerLine =
   'A one-off run is how you try it. A worker is how you use it.'
 
 export const workerLead =
-  'A second clone you never edit, even another folder on this laptop: git access, an agent CLI, and lumpcode start. It picks up every lump in the repo and pushes branches while you do something else. This is how Lumpcode is meant to run.'
+  'Start with a second clone you never edit, even another folder on this laptop. The best setup is an always-on machine, a small server or VM with git access and your agent CLI, running lumpcode start. Push a new lump and the worker finds it on its next pass: nothing to deploy, register, or restart.'
 
-export const workerSteps = [
-  {
-    title: 'Start it once',
-    body: 'On a clone you never develop in, run lumpcode start. It discovers every lump in the repo and works through them on a schedule.',
-  },
-  {
-    title: 'Push a new lump',
-    body: 'Nothing to deploy, register, or restart. The worker fetches your primary branch on its next pass and finds the new lump on its own.',
-  },
-  {
-    title: 'Branches arrive',
-    body: 'It works through each lump context by context and pushes a branch per run. You open the pull requests and merge from wherever you are.',
-  },
-] as const
 
 export const workerBranches = [
-  { name: 'lump/ticketBacklog/LUMP-214', state: 'open', label: 'pushed' },
-  { name: 'lump/docsSweep/cli-commands', state: 'open', label: 'pushed' },
-  { name: 'lump/normalizeUtils/slugify', state: 'running', label: 'running' },
+  { name: 'lump/bugfixes/missing-base-branch', state: 'open', label: 'pushed' },
+  { name: 'lump/polisher/2026-11-16', state: 'open', label: 'pushed' },
+  { name: 'lump/backlog/daemon-config-files', state: 'running', label: 'running' },
 ] as const
 
-export const workerBranchesFooter = 'Pushed overnight, from three different lumps.'
+export const workerBranchesFooter = 'Overnight, from three different lumps.'
 
 export const agents = [
   'Cursor',
@@ -181,3 +255,8 @@ export const agents = [
   'Codex',
   'OpenCode',
 ] as const
+
+export const themeStorageKey = 'lumpcode-theme'
+
+/** Runs in <head> before paint so the stored or system theme never flashes. */
+export const themeBootScript = `(function(){var d=document.documentElement;d.classList.add('js');var t=null;try{t=localStorage.getItem('${'lumpcode-theme'}')}catch(e){}var m=window.matchMedia('(prefers-color-scheme: light)');function set(v){d.dataset.theme=v}set(t==='light'||t==='dark'?t:(m.matches?'light':'dark'));if(m.addEventListener){m.addEventListener('change',function(e){var s=null;try{s=localStorage.getItem('${'lumpcode-theme'}')}catch(x){}if(!s){set(e.matches?'light':'dark')}})}})();`

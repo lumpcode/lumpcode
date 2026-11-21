@@ -9,13 +9,7 @@ const { open, toggleSidebar } = useDocsSidebar()
   <header class="site-header">
     <div class="wrap site-header-inner">
       <NuxtLink class="brand" to="/" aria-label="Lumpcode">
-        <img
-          class="brand-lockup"
-          src="/logo-lockup.png"
-          alt=""
-          width="142"
-          height="38"
-        >
+        <BrandMark />
       </NuxtLink>
       <nav class="nav" aria-label="Primary">
         <NuxtLink
@@ -34,6 +28,7 @@ const { open, toggleSidebar } = useDocsSidebar()
           Docs
         </NuxtLink>
         <a class="nav-optional" :href="githubRepoUrl">GitHub</a>
+        <ThemeToggle />
         <button
           v-if="isDocs"
           class="docs-nav-toggle"

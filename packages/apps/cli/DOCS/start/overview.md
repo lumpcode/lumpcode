@@ -1,6 +1,6 @@
 # Overview
 
-Lumpcode runs your coding agent through work too big for one chat, one reviewable branch at a time. You need git and a CLI agent. There is no account and no database.
+Lumpcode runs your coding agent through work too big for one chat, one reviewable branch at a time. Each lump is a small software factory as code, committed in your repo. You need git and a CLI agent. There is no account and no database.
 
 ## What it does
 
@@ -10,13 +10,13 @@ Some work is a list, not a task: two hundred components to migrate, forty ticket
 - **what to tell the agent**: one prompt, or several steps gated on your build or tests
 - **which agent**: Cursor, Claude Code, Copilot, Codex, OpenCode, or your own
 
-Lumpcode takes the next unfinished item, runs the agent on it, commits the result, and pushes a branch. You open that branch as a pull request, fix it if the agent missed, and merge. The next run skips what you merged.
+Each piece of work is a **context**. Lumpcode takes the next unfinished one, runs the agent on it inside your repo, where your skills, `AGENTS.md`, and docs already are, commits the result, and pushes a branch. Open that branch as a pull request yourself, or have it [opened automatically after the push](../author/recipes.md#open-a-pull-request-after-push). Fix it if the agent missed, and merge. The next run skips what you merged.
 
 ```text
 .lumpcode/lumps/portToVue/config.json     what to work on, what to prompt, which agent
           │
           ▼
-worker (lumpcode start)                   next unfinished item, one branch
+worker (lumpcode start)                   next unfinished context, one branch
           │
           ▼
 lump/portToVue/UserCard  →  PR  →  merge  →  next pass picks DataTable
@@ -45,6 +45,6 @@ On your laptop, `lumpcode run` rehearses the same loop in place on your current 
 | --- | --- |
 | [`@lumpcode/cli`](https://www.npmjs.com/package/@lumpcode/cli) | Always. This is the `lumpcode` command. |
 | [`@lumpcode/cli-utils`](https://www.npmjs.com/package/@lumpcode/cli-utils) | You write `config.ts` and want `defineConfig` and typed helpers. |
-| [`@lumpcode/recipes`](https://www.npmjs.com/package/@lumpcode/recipes) | You want retry loops, folder backlogs, or opening a PR after push. |
+| [`@lumpcode/recipes`](https://www.npmjs.com/package/@lumpcode/recipes) | You want a plug-and-run factory in one call (`featureBacklog`, …) or kit pieces: retry until green, open a PR after push. |
 
 Add the last two to the project `package.json`, not only globally, so a worker clone gets them from `npm install`.
