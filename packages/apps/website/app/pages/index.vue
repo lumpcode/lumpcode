@@ -2,6 +2,7 @@
 useHead({
   title: siteTitle,
   titleTemplate: '%s',
+  script: [homeStructuredData()],
 })
 
 useReveal()

@@ -19,7 +19,15 @@
     "daemon",
     "devtools",
     "software-factory",
-    "software-factories"
+    "software-factories",
+    "claude-code",
+    "codex",
+    "cursor",
+    "copilot",
+    "opencode",
+    "ai-coding-agent",
+    "autonomous-agent",
+    "migration"
   ],
   "license": "Apache-2.0",
   "author": "",

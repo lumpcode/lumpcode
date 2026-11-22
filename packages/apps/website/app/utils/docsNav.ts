@@ -19,6 +19,7 @@ export const docsNav: DocsNavSection[] = [
       { title: 'Watch it work', path: '/docs/start/observe' },
       { title: 'Core terms', path: '/docs/start/terms' },
       { title: 'How a run works', path: '/docs/start/run' },
+      { title: 'What is a software factory', path: '/docs/start/software-factory' },
     ],
   },
   {

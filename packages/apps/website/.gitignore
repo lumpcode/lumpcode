@@ -6,3 +6,7 @@ node_modules
 public/schemas
 public/sitemap.xml
 public/_redirects
+public/llms.txt
+public/llms-full.txt
+public/docs
+public/_headers

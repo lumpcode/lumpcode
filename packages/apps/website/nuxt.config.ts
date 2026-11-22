@@ -2,10 +2,10 @@ import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { docsPrerenderRoutes, docsRedirects } from './app/utils/docsNav'
-import { siteDescription, siteTitle, themeBootScript } from './app/utils/site'
+import { siteDescription, siteTitle, siteUrl, themeBootScript } from './app/utils/site'
+import { generateSeoFiles } from './seo/generateSeoFiles'
 
 const websiteRoot = dirname(fileURLToPath(import.meta.url))
-const siteUrl = 'https://www.lumpcode.com'
 const publicSchemaDir = join(websiteRoot, 'public/schemas')
 mkdirSync(publicSchemaDir, { recursive: true })
 const schemaCopies: Array<{ fromDir: string; name: string }> = [
@@ -20,15 +20,8 @@ for (const { fromDir, name } of schemaCopies) {
   copyFileSync(join(fromDir, name), join(publicSchemaDir, name))
 }
 
-const sitemapPaths = ['/', ...docsPrerenderRoutes]
-writeFileSync(
-  join(websiteRoot, 'public/sitemap.xml'),
-  `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemapPaths.map((path) => `  <url><loc>${siteUrl}${path === '/' ? '' : path}</loc></url>`).join('\n')}
-</urlset>
-`,
-)
+generateSeoFiles({ websiteRoot })
+
 // Cloudflare Pages/Workers parse status as a number. Netlify's `301!` is ignored and /docs 404s.
 writeFileSync(
   join(websiteRoot, 'public/_redirects'),

@@ -95,7 +95,7 @@ export const factoryKinds = [
 
 export const factoryKindsOwn = {
   title: 'Your own flow',
-  body: 'Anything a command can list becomes the work. Configs can be TypeScript, so the factory is whatever you write.',
+  body: 'Anything your code can list becomes the work. Configs can be TypeScript, so the factory is whatever you write.',
 } as const
 
 export const fleetTitle = 'Lumpcode is built by its own fleet.'
