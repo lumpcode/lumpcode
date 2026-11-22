@@ -629,6 +629,7 @@ section[id] {
 
 .aq-fish {
   position: absolute;
+  top: var(--top);
   left: 0;
   width: var(--size);
   opacity: 0;
@@ -661,7 +662,7 @@ section[id] {
 
 .aq-drifter {
   opacity: 0.16;
-  transform: translateX(-12vw);
+  transform: translateX(calc(-14vw - var(--size)));
 }
 
 :root[data-theme='light'] .aq-drifter {
@@ -698,9 +699,10 @@ section[id] {
   }
 }
 
+/* Start a full fish width past 14vw: on narrow screens 14vw is less than a big fish. */
 @keyframes drift-right {
   from {
-    transform: translateX(-14vw);
+    transform: translateX(calc(-14vw - var(--size)));
   }
 
   to {
@@ -714,7 +716,7 @@ section[id] {
   }
 
   to {
-    transform: translateX(-14vw) scaleX(-1);
+    transform: translateX(calc(-14vw - var(--size))) scaleX(-1);
   }
 }
 
@@ -2332,6 +2334,10 @@ section[id] {
 @media (max-width: 900px) {
   :root {
     --space-section: 4rem;
+  }
+
+  .hero-stage .aq-drifter {
+    top: var(--top-narrow, var(--top));
   }
 
   .hero,

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="190 185 650 650">
+  <!-- The Lumpfish from app/components/Lumpfish.vue in its teal colours. Source for the brand renders in brand/. -->
+  <defs>
+    <clipPath id="b">
+      <path d="M298 488C306 352 432 270 566 270C708 270 806 362 826 486C846 616 758 742 612 764C470 786 334 724 302 604C296 566 296 524 298 488Z"/>
+    </clipPath>
+  </defs>
+  <path fill="#2fa19b" d="M306 520C272 492 236 470 214 478C196 486 196 520 204 552C212 586 206 612 222 622C244 634 278 604 308 576Z"/>
+  <path fill="none" stroke="#238982" stroke-width="7" stroke-linecap="round" d="M218 510L276 530M220 552L280 552M222 592L276 572"/>
+  <g fill="#3cb4ad">
+    <circle cx="324" cy="436" r="24"/><circle cx="356" cy="364" r="24"/><circle cx="410" cy="310" r="26"/>
+    <circle cx="472" cy="280" r="27"/><circle cx="548" cy="268" r="28"/><circle cx="634" cy="290" r="24"/>
+    <path d="M298 488C306 352 432 270 566 270C708 270 806 362 826 486C846 616 758 742 612 764C470 786 334 724 302 604C296 566 296 524 298 488Z"/>
+  </g>
+  <g clip-path="url(#b)" fill="#2fa19b">
+    <path d="M280 600C340 690 460 712 560 708C660 704 760 660 860 560L860 800L280 800Z"/>
+    <path opacity="0.55" d="M540 560C590 600 660 616 720 604C770 594 812 566 840 530L860 800L520 800C556 720 560 640 540 560Z"/>
+  </g>
+  <g fill="#238982" opacity="0.75">
+    <ellipse cx="442" cy="342" rx="15" ry="13"/><ellipse cx="382" cy="400" rx="14" ry="15"/><ellipse cx="346" cy="472" rx="12" ry="14"/>
+    <circle cx="410" cy="458" r="9"/><circle cx="476" cy="370" r="7"/><circle cx="516" cy="332" r="7"/>
+    <circle cx="524" cy="394" r="7"/><circle cx="392" cy="562" r="8"/>
+  </g>
+  <path fill="#238982" d="M470 600C462 566 494 552 530 558C562 564 578 586 570 614C562 640 528 648 500 640C482 634 474 620 470 600Z"/>
+  <path fill="none" stroke="#1a6e69" stroke-width="7" stroke-linecap="round" d="M482 576L534 586M478 602L536 604M484 626L530 620"/>
+  <circle fill="#000514" cx="658" cy="528" r="33"/><circle fill="#3cb4ad" cx="670" cy="514" r="10"/>
+  <ellipse fill="#000514" cx="800" cy="504" rx="22" ry="31"/><circle fill="#3cb4ad" cx="806" cy="492" r="7"/>
+</svg>

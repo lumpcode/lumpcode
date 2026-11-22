@@ -6,10 +6,14 @@ import { randomCargo, type Cargo } from '~/utils/fishCargo'
  * then a few slow drifters and bubbles keep the water alive.
  * Fixed values keep server and client markup identical.
  */
-const props = withDefaults(defineProps<{ layer?: 'back' | 'school' }>(), { layer: 'back' })
+// `schoolPlays`: whether the school crosses on this page view, decided once by the page (claimSchoolPass)
+// so every layer agrees. It only matters on the client.
+const props = withDefaults(defineProps<{ layer?: 'back' | 'school'; schoolPlays?: boolean }>(), {
+  layer: 'back',
+  schoolPlays: true,
+})
 
-// The school crosses once per browser session, then leaves the DOM so nothing keeps animating.
-const schoolSessionKey = 'lumpcode-school-seen'
+// The school leaves the DOM once it has crossed, so nothing keeps animating.
 const schoolDoneAfterMs = 9000
 const showSchool = ref(true)
 let schoolTimer: ReturnType<typeof setTimeout> | undefined
@@ -51,12 +55,47 @@ function shuffled<T>(items: readonly T[]): T[] {
 // Server markup uses the palette order; the client shuffles before the school appears.
 const schoolTints = ref<Tint[]>([...schoolPalette])
 
-const drifters: readonly { top: number; size: number; delay: number; duration: number; reverse: boolean; tint: Tint }[] = [
-  { top: 70, size: 6, delay: 7, duration: 46, reverse: false, tint: 'teal' },
-  { top: 12, size: 3.2, delay: 15, duration: 58, reverse: true, tint: 'coral' },
-  { top: 44, size: 1.8, delay: 27, duration: 64, reverse: false, tint: 'amber' },
-  { top: 84, size: 2.6, delay: 36, duration: 52, reverse: true, tint: 'violet' },
+// `start` is seconds after the water opens: once the school has mostly crossed, or right after load
+// when it does not play. The first drifter always carries a diff on its first pass.
+// `top` is % of the section; `topNarrow` is in screen heights, used in the hero on narrow screens,
+// where the stacked hero is so tall that a % puts fish far below the first screen.
+const drifters: readonly {
+  top: number
+  topNarrow: number
+  size: number
+  start: number
+  duration: number
+  reverse: boolean
+  tint: Tint
+}[] = [
+  { top: 70, topNarrow: 62, size: 6, start: 0, duration: 46, reverse: false, tint: 'teal' },
+  { top: 28, topNarrow: 30, size: 1.4, start: 3, duration: 60, reverse: true, tint: 'deep' },
+  { top: 12, topNarrow: 18, size: 3.2, start: 5, duration: 58, reverse: true, tint: 'coral' },
+  { top: 56, topNarrow: 84, size: 4, start: 8, duration: 50, reverse: false, tint: 'ocean' },
+  { top: 44, topNarrow: 45, size: 1.8, start: 11, duration: 64, reverse: false, tint: 'amber' },
+  { top: 92, topNarrow: 110, size: 2.2, start: 14, duration: 56, reverse: true, tint: 'aqua' },
+  { top: 84, topNarrow: 135, size: 2.6, start: 17, duration: 52, reverse: true, tint: 'violet' },
+  { top: 34, topNarrow: 160, size: 3, start: 23, duration: 54, reverse: false, tint: 'olive' },
 ]
+
+const waterOpensAfterSchool = 6
+const waterOpensWithoutSchool = 1.9
+// Drifters swim from 14vw plus their own width off one edge to 12vw past the other (see drift-right).
+// Skip the part of that run spent off screen, so each fish reaches the edge when its turn comes.
+const edgeMarginPx = 4
+
+function drifterDelays(opensAt: number, viewportPx: number): number[] {
+  const remPx = 16
+  return drifters.map((fish) => {
+    const sizePx = fish.size * remPx
+    const runPx = 1.26 * viewportPx + sizePx
+    const hiddenPx = (fish.reverse ? 0.12 * viewportPx : 0.14 * viewportPx) - edgeMarginPx
+    return opensAt + fish.start - fish.duration * Math.max(0, hiddenPx) / runPx
+  })
+}
+
+// Server markup assumes the school plays on a desktop-width screen; the client corrects both.
+const drifterDelay = ref(drifterDelays(waterOpensAfterSchool, 1440))
 
 // Cargo is picked on the client only, so prerendered markup stays stable.
 const drifterCargo = ref<(Cargo | null)[]>(drifters.map(() => null))
@@ -73,15 +112,9 @@ function onDrifterLoop(index: number, event: AnimationEvent) {
 }
 
 onMounted(() => {
+  const { schoolPlays } = props
   if (props.layer === 'school') {
-    let seen = false
-    try {
-      seen = sessionStorage.getItem(schoolSessionKey) === '1'
-      sessionStorage.setItem(schoolSessionKey, '1')
-    } catch {
-      // Storage can be blocked; the school then plays on every load.
-    }
-    if (seen) {
+    if (!schoolPlays) {
       showSchool.value = false
       return
     }
@@ -90,7 +123,13 @@ onMounted(() => {
     }, schoolDoneAfterMs)
   }
   schoolTints.value = shuffled(schoolPalette)
-  drifterCargo.value = drifters.map((fish) => (fish.size >= 2 ? maybeCargo(0.6) : null))
+  drifterDelay.value = drifterDelays(
+    schoolPlays ? waterOpensAfterSchool : waterOpensWithoutSchool,
+    window.innerWidth,
+  )
+  drifterCargo.value = drifters.map((fish, index) =>
+    index === 0 ? { kind: 'patch' } : fish.size >= 2 ? maybeCargo(0.6) : null,
+  )
 })
 
 onBeforeUnmount(() => {
@@ -125,7 +164,7 @@ const bubbles = [
       class="aq-fish aq-school"
       :class="fishClass(fish.size, schoolTints[index] ?? 'teal')"
       :style="{
-        top: `${fish.top}%`,
+        '--top': `${fish.top}%`,
         '--size': `${fish.size}rem`,
         '--delay': `${fish.delay}s`,
         '--duration': `${fish.duration}s`,
@@ -145,9 +184,10 @@ const bubbles = [
       class="aq-fish aq-drifter"
       :class="[fishClass(fish.size, fish.tint), { 'is-reverse': fish.reverse }]"
       :style="{
-        top: `${fish.top}%`,
+        '--top': `${fish.top}%`,
+        '--top-narrow': `${fish.topNarrow}svh`,
         '--size': `${fish.size}rem`,
-        '--delay': `${fish.delay}s`,
+        '--delay': `${drifterDelay[index]}s`,
         '--duration': `${fish.duration}s`,
       }"
       @animationiteration="onDrifterLoop(index, $event)"

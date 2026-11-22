@@ -63,8 +63,9 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: `${siteUrl}/og.png` },
       ],
       link: [
-        { rel: 'icon', type: 'image/png', href: '/logo-mark.png' },
-        { rel: 'apple-touch-icon', href: '/logo-mark.png' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '512x512', href: '/logo-mark.png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {

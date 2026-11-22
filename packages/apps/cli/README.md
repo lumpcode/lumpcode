@@ -1,6 +1,6 @@
 # Lumpcode CLI
 
-**The simplest software factory lives in your repo.** Open source and git only: no account, no database, nothing to deploy.
+**The simplest software factory lives in your repo.** Open source and git only: no account, no database, no backend.
 
 A **lump** is one factory, as code: a folder in `.lumpcode/` that says what to work on, what to prompt, which agent to run, and how to check the result. Make it as narrow as one migration or as broad as a spec backlog that keeps growing. You commit it like the rest of your code. Start with one, grow a fleet.
 
