@@ -9,6 +9,9 @@ useReveal()
 // Decided once per page view so both hero layers agree; server markup assumes it plays.
 const schoolPlays = import.meta.client ? claimSchoolPass() : true
 
+const ocean = ref<HTMLElement | null>(null)
+useOceanStir(ocean)
+
 const positioningSplit = positioningLine.indexOf('A software factory')
 const positioningLead = positioningLine.slice(0, positioningSplit).trim()
 const positioningPunch = positioningLine.slice(positioningSplit)
@@ -195,7 +198,8 @@ const positioningPunch = positioningLine.slice(positioningSplit)
     </section>
 
     <section class="section wrap" id="worker">
-      <div class="ocean" data-reveal>
+      <div ref="ocean" class="ocean" data-reveal>
+        <div class="ocean-light" aria-hidden="true" />
         <Aquarium :school-plays="schoolPlays" />
         <div class="ocean-inner">
           <div class="ocean-copy">

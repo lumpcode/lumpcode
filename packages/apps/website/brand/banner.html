@@ -1,0 +1,124 @@
+<!doctype html>
+<!--
+  Profile banners: ?variant=x (X header, 1500x500) or ?variant=linkedin (LinkedIn profile, 1584x396).
+  Both platforms cover the bottom left with the profile photo, so the copy sits centre-right
+  and the fish keep to the top left and the right edge. Rendered by brand/render.mjs into assets/.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="brand.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Plus+Jakarta+Sans:wght@500;650;800&display=block">
+<style>
+  html, body { margin: 0; overflow: hidden; }
+  body { width: var(--w); height: var(--h); }
+  body.x { --w: 1500px; --h: 500px; }
+  body.linkedin { --w: 1584px; --h: 396px; }
+
+  .copy { position: absolute; }
+  .brand { display: flex; align-items: center; }
+  .brand .lumpfish { height: auto; }
+  .brand .word { width: auto; }
+  h1 {
+    margin: 0;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 1.06;
+  }
+  h1 span { display: block; white-space: nowrap; }
+  h1 .accent { color: var(--teal-bright); }
+  .meta {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 500;
+  }
+  .meta b { color: var(--teal); font-weight: 500; }
+  .meta .site { color: var(--text); }
+  .meta .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+
+  /* X: 1500 x 500. Photo over the bottom left; phones crop a little top and bottom. */
+  .x .copy { left: 560px; top: 92px; }
+  .x .brand { gap: 14px; margin-bottom: 30px; }
+  .x .brand .lumpfish { width: 66px; }
+  .x .brand .word { height: 40px; }
+  .x h1 { font-size: 60px; margin-bottom: 32px; }
+  .x .meta { gap: 18px; font-size: 21px; }
+
+  /* LinkedIn: 1584 x 396. Photo over the left of the bottom half. */
+  .linkedin .copy { left: 620px; top: 70px; }
+  .linkedin .brand { gap: 12px; margin-bottom: 24px; }
+  .linkedin .brand .lumpfish { width: 56px; }
+  .linkedin .brand .word { height: 34px; }
+  .linkedin h1 { font-size: 52px; margin-bottom: 26px; }
+  .linkedin .meta { gap: 16px; font-size: 19px; }
+</style>
+</head>
+<body>
+<script src="fish.js"></script>
+<div class="rays"></div>
+<div class="school"></div>
+
+<div class="copy">
+  <div class="brand">
+    <svg class="lumpfish" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg>
+    <img class="word" src="../public/wordmark.svg" alt="lumpcode">
+  </div>
+  <h1>
+    <span>The simplest software factory</span>
+    <span class="accent">lives in your repo.</span>
+  </h1>
+  <p class="meta">
+    <span class="site">lumpcode.com</span>
+    <span class="dot"></span>
+    <span><b>$</b> npm install -g @lumpcode/cli</span>
+  </p>
+</div>
+
+<script>
+  const variant = new URLSearchParams(location.search).get('variant') === 'linkedin' ? 'linkedin' : 'x'
+  document.body.classList.add(variant)
+
+  const fish = '<svg class="lumpfish" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg>'
+  const patch = '<span class="cargo"><span class="cargo-file cargo-patch"><span class="patch-line"></span><span class="patch-line is-del"></span><span class="patch-line is-add"></span><span class="patch-line is-add is-short"></span><span class="patch-line is-short"></span></span></span>'
+  const ts = '<span class="cargo"><span class="cargo-file" style="--ext: #3178c6"><span class="cargo-file-lines"></span><span class="cargo-file-ext">.ts</span></span></span>'
+
+  // [left, top, width, tint, cargo, far]
+  const layouts = {
+    x: [
+      [70, 60, 190, '', patch],
+      [300, 40, 92, 'fish-aqua', ts],
+      [410, 150, 54, 'fish-ocean', '', true],
+      [250, 200, 40, '', '', true],
+      [1330, 60, 70, 'fish-ocean', '', true],
+      [1300, 330, 120, 'fish-deep', patch],
+      [1420, 260, 44, '', '', true],
+    ],
+    linkedin: [
+      [60, 34, 150, '', patch],
+      [250, 30, 80, 'fish-aqua', ts],
+      [380, 110, 46, 'fish-ocean', '', true],
+      [1420, 40, 64, 'fish-ocean', '', true],
+      [1400, 220, 110, 'fish-deep', patch],
+      [1520, 150, 40, '', '', true],
+    ],
+  }
+  const bubbles = {
+    x: [[420, 60, 12], [438, 34, 8], [1460, 200, 12], [1250, 110, 9]],
+    linkedin: [[350, 40, 10], [366, 18, 7], [1540, 110, 10], [1350, 70, 8]],
+  }
+
+  const school = document.querySelector('.school')
+  for (const [left, top, width, tint, cargo, far] of layouts[variant]) {
+    const style = `left:${left}px; top:${top}px; width:${width}px; --cargo:${Math.round(width * 0.14)}px`
+    school.insertAdjacentHTML('beforeend', cargo
+      ? `<div class="carrier ${tint}" style="${style}">${fish}${cargo}</div>`
+      : fish.replace('class="lumpfish"', `class="lumpfish ${tint} ${far ? 'far' : ''}" style="${style}"`))
+  }
+  for (const [left, top, size] of bubbles[variant]) {
+    school.insertAdjacentHTML('beforeend', `<span class="bubble" style="left:${left}px; top:${top}px; width:${size}px; height:${size}px"></span>`)
+  }
+</script>
+</body>
+</html>

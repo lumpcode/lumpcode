@@ -353,11 +353,21 @@ section[id] {
   animation: fish-tail 0.32s ease-in-out 3;
 }
 
+/* The wordmark SVG spans ascender to descender; sized in em so the mobile font-size still scales it. */
 .brand-word {
+  display: block;
   font-size: 1.42rem;
-  font-weight: 800;
-  letter-spacing: -0.045em;
-  line-height: 1;
+  line-height: 0;
+}
+
+.brand-word svg {
+  display: block;
+  width: auto;
+  height: 0.98em;
+}
+
+.brand-word g {
+  fill: currentColor;
 }
 
 .nav {
@@ -1898,6 +1908,49 @@ section[id] {
 
 .ocean .aq-drifter:has(.cargo) {
   opacity: 0.55;
+}
+
+/* Hover with a mouse stirs the water (useOceanStir): a light follows the pointer,
+   fish brighten and swim faster, and the call to action glows. The card itself is not a link. */
+.ocean-light {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle 24rem at var(--mx, 50%) var(--my, 50%), rgb(78 201 195 / 16%), transparent 70%);
+  transition: opacity 500ms ease;
+}
+
+.ocean .aq-drifter {
+  transition: opacity 600ms ease;
+}
+
+.ocean .btn-primary {
+  transition:
+    background var(--ease),
+    border-color var(--ease),
+    color var(--ease),
+    box-shadow 500ms ease,
+    transform var(--ease);
+}
+
+@media (hover: hover) {
+  .ocean:hover .ocean-light {
+    opacity: 1;
+  }
+
+  .ocean:hover .aq-drifter {
+    opacity: 0.34;
+  }
+
+  .ocean:hover .aq-drifter:has(.cargo) {
+    opacity: 0.8;
+  }
+
+  .ocean:hover .btn-primary {
+    box-shadow: 0 0 0 4px rgb(78 201 195 / 18%), 0 10px 30px rgb(56 176 171 / 35%);
+  }
 }
 
 .ocean-inner {
