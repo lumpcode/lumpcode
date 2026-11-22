@@ -30,6 +30,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # Full history: the sitemap's <lastmod> comes from each docs page's last commit.
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
