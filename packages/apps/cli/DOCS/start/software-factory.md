@@ -8,7 +8,7 @@ Your coding agent already handles one task well: one branch, one pull request. A
 
 In Lumpcode, one factory is a **lump**: a folder in `.lumpcode/lumps/` that says
 
-- **what to work on**: a path pattern, a ticket folder, or a command that lists the work
+- **what to work on**: a path pattern, a ticket folder, or a function that returns the work
 - **what to tell the agent**: one prompt, or several steps gated on your build or tests
 - **which agent runs it**: Cursor, Claude Code, Copilot CLI, Codex, OpenCode, or your own
 - **how to check the result**: your build, your tests, your review
@@ -31,6 +31,17 @@ Lumpcode does not ask you to model your whole delivery process. A lump can be as
 Each piece of work is a **context**: a file, a group of files, or a ticket. Lumpcode takes the next unfinished context, runs your agent on it inside your repo, where your skills, `AGENTS.md`, and docs already are, commits the result, and pushes a branch. You review each branch as a pull request, opened by you or [automatically after the push](../author/recipes.md#open-a-pull-request-after-push), or let your CI merge it. The next run skips what you merged.
 
 Progress lives in branches and commits on your git remote. There is no account, no database, and no backend, so any clone picks up where another stopped. Try one pass on your laptop with `lumpcode run`, then leave a [worker](worker.md) running with `lumpcode start` on a second clone or an always-on machine.
+
+## Make it your own
+
+A lump is code, so each part of the factory can be swapped for your own:
+
+- **The work list**: path patterns, a fixed list, or a [`getContextListFn`](../author/contexts.md#built-in-code-getcontextlistfn) that queries any source on every pass: a ticket folder, your issue tracker, a code-quality server.
+- **The steps**: prompts, plain commands like `npm test`, or a [function that decides what runs next](../author/prompts.md#decide-what-runs-next).
+- **The agent**: a shipped preset, or a [command module](../author/agents.md#custom-command-module) for any other CLI.
+- **The config**: `config.json` to start, `config.ts` when you want logic, types, and shared helpers. See [Write a lump](../author/write-a-lump.md).
+- **Around each run**: [hooks](../config/advanced.md#when-hooks-run) to install dependencies, prepare each context, or act after the push.
+- **Ready-made pieces**: [`@lumpcode/recipes`](../author/recipes.md) turns a folder of tickets into a whole factory in one call, and its kit adds retry until green or opening a pull request after the push.
 
 ## Compared with other ways to run an agent
 
