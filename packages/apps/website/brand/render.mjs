@@ -1,5 +1,5 @@
 // Renders the brand images from brand/*.html with a local headless Chrome:
-// the social share image, the logo mark and lockup, and the Apple touch icon.
+// the social share image, the logo mark and lockup, the Apple touch icon, and the X and LinkedIn banners.
 // Usage: npm run brand -w=@lumpcode/website   (override the browser with CHROME_PATH)
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
@@ -17,6 +17,8 @@ const targets = [
   { page: 'logo.html?layout=lockup&fish=180', out: join(website, 'public/logo-lockup.png'), width: 850, height: 228, transparent: true },
   { page: 'logo.html?layout=mark&bg=dark&fish=720', out: join(repo, 'assets/lumpcode-logo-mark.png'), width: 1024, height: 1024 },
   { page: 'logo.html?layout=lockup&bg=dark&fish=260', out: join(repo, 'assets/lumpcode-logo-lockup.png'), width: 1536, height: 1024 },
+  { page: 'banner.html?variant=x', out: join(repo, 'assets/lumpcode-banner-x.png'), width: 1500, height: 500 },
+  { page: 'banner.html?variant=linkedin', out: join(repo, 'assets/lumpcode-banner-linkedin.png'), width: 1584, height: 396 },
 ]
 
 const candidates = [

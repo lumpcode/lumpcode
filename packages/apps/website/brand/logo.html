@@ -2,7 +2,7 @@
 <!--
   Logo renders: the mark alone or the lockup (mark + wordmark), as in the site header.
   Query: layout=mark|lockup, bg=dark|none, fish=<px width of the fish>, w and h=<px image size>.
-  The fish is public/favicon.svg; the wordmark matches .brand-word in app/assets/css/main.css.
+  The fish is public/favicon.svg and the wordmark public/wordmark.svg, sized like .brand-word in the site header.
   Rendered by brand/render.mjs.
 -->
 <html lang="en">
@@ -23,19 +23,16 @@
   .mark { display: inline-flex; align-items: center; }
   /* favicon.svg is square; the fish itself spans 650 x 540 of it, centred. */
   .mark img { display: block; margin: calc(var(--fish) * -0.0846) 0; width: var(--fish); }
-  /* Header proportions: fish 2.35rem, gap 0.5rem, word 1.42rem. */
-  .word {
-    margin-left: calc(var(--fish) * 0.2128);
-    color: #eef4f6;
-    font-size: calc(var(--fish) * 0.6043);
-    font-weight: 800;
-    letter-spacing: -0.045em;
-    line-height: 1;
+  /* Header proportions: fish 2.35rem, gap 0.5rem, wordmark 0.98 x 1.42rem tall. */
+  .mark img.word {
+    margin: 0 0 0 calc(var(--fish) * 0.2128);
+    width: auto;
+    height: calc(var(--fish) * 0.5922);
   }
 </style>
 </head>
 <body>
-<span class="mark"><img src="../public/favicon.svg" alt=""><span class="word">lumpcode</span></span>
+<span class="mark"><img src="../public/favicon.svg" alt=""><img class="word" src="../public/wordmark.svg" alt="lumpcode"></span>
 <script>
   const params = new URLSearchParams(location.search)
   document.documentElement.style.setProperty('--fish', `${params.get('fish') ?? 300}px`)
