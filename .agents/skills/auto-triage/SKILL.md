@@ -18,6 +18,8 @@ Turn waiting ideas and idle todos into work the other lumps can implement on `de
 
 Read both before you choose. Skip a candidate that duplicates an open todo.
 
+A todo whose `workflow` array contains `manualReq` is waiting for a human `requirements.md`. Leave that folder untouched: do not edit it, do not add `requirements.md`, and do not split or replace it. A boolean `manualReq` field is ignored. Only the workflow stage counts. The run's validation command fails if one of these folders changed.
+
 ## What one run produces
 
 1 to 5 items, total, across lanes. Prefer several small, interesting updates a reviewer can merge one at a time. When the best candidate is one large idea or one oversized todo, split that one candidate into 2–5 small items instead of promoting it whole.
@@ -39,7 +41,7 @@ Each slice:
 
 `backlog`, `qol`, and `bugfixes` are `featureBacklog` lumps. `docs` is implementation-only and reads `requirements.md` when that file exists.
 
-After this run, no lane has more than 5 todo directories that contain `desc.yml`. If a lane is already at 5, do not add a folder there. You may still fill `requirements.md` on a desc-only item already in that lane.
+After this run, no lane has more than 5 todo directories that contain `desc.yml`. If a lane is already at 5, do not add a folder there. You may still fill `requirements.md` on a desc-only item already in that lane, except one whose `workflow` contains `manualReq`.
 
 ## Files for every item
 
@@ -69,7 +71,7 @@ When you promote an idea, delete that entry from `IDEAS.yaml`. When you split on
 
 ## Idle todos
 
-You may replace one todo that has `desc.yml` and no `requirements.md` and no `testPlan.md` when its task is too big for one PR: delete that folder and add the slices in the same change. Leave any todo that already has `requirements.md`.
+You may replace one todo that has `desc.yml` and no `requirements.md` and no `testPlan.md` when its task is too big for one PR: delete that folder and add the slices in the same change. Leave any todo that already has `requirements.md`. Do not replace a todo whose `workflow` contains `manualReq`, even when it has no `requirements.md`.
 
 ## Bounds
 

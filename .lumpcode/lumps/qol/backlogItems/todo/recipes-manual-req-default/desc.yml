@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: recipes-manual-req-default
-workflow: [manualReq, testImpl, impl]
+workflow: [directImpl]
 task: >-
-  In recipes (e.g. featureBacklog / backlog), default manualReq to true so
-  requirements are authored by a human unless explicitly opted out.
+  If a featureBacklog item omits workflow, the default is
+  [manualReq, testImpl, impl].
 priority: 4

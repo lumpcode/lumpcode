@@ -19,7 +19,7 @@
 
 ## Goals
 
-1. The page stops, force-stops, and restarts one daemon, stops or force-stops all daemons plus the supervisor, and starts the supervisor alone.
+1. The page has one Stop button on each running daemon, with a force checkbox, and one Stop all button at the top with a force checkbox. A daemon whose status has `daemonConfigFile` can be stopped only with force, on its row or from Stop all, for when it is stuck. A graceful stop of that daemon is not offered: the supervisor starts the file again. The page also restarts one daemon, starts the supervisor alone, and starts a daemon. Blank include and exclude starts the unfiltered global daemon (`lumpcode start` with no filter). Filled include and/or exclude start a filtered daemon. The page does not choose the id.
 2. The page edits `.lumpcode/local.json` only, validates the edit before writing, and offers to restart running daemons after a save.
 3. While any daemon is running, the editor warns that a saved change only applies after a restart. Daemons whose `localConfigStale` is true keep that note.
 4. Every control runs the same command handler as the CLI command, in-process, so results and failure messages match the terminal.
@@ -27,7 +27,8 @@
 
 ## Non-goals
 
-- Starting a new daemon with `--include`, `--exclude`, `--daemonId`, `--cronSetup`, or `--maxParallelRun`. The only start control is `start --superviseOnly`.
+- A graceful stop of a daemon launched from a committed `.lumpcode/daemons/` file, including from Stop all when force is unchecked. `daemon-status` already reports `daemonConfigFile` for that daemon. The supervisor starts a missing enabled file again, so a stop without `--force` would not stick. Force stop is allowed when that daemon is stuck.
+- Choosing `--daemonId`, `--cronSetup`, or `--maxParallelRun` from the page. An unfiltered start is the global daemon. A filtered start uses the CLI's automatic id (one exact include name, otherwise `d-` plus 6 hex).
 - Editing `project.json`, `.lumpcode/daemons/*`, lump configs, `desired.json`, meta, or any other file.
 - Log tailing, transcripts, or git campaign status.
 - Authentication, user accounts, TLS, or controls on a non-loopback bind.
@@ -37,13 +38,14 @@
 
 ## User stories / use cases
 
-1. As an operator with the dashboard tunneled over SSH — a daemon is stuck mid-run, so I click Force stop on its row, confirm, and see the stop message plus the row going to not running.
+1. As an operator with the dashboard tunneled over SSH — a daemon is stuck mid-run, so I check force on its row, click Stop, confirm, and see the stop message plus the row going to not running. On a daemon launched from a file, Stop stays disabled until force is checked.
 2. As an operator — I raise `maxParallelRun` in the editor, save, and click "Restart running daemons" to apply it everywhere.
 3. As an operator — I save `local.json` with a typo, and the page shows the same validation message `lumpcode start` would print. Nothing is written.
 4. As an operator — someone edited `local.json` over SSH after I opened the editor. My save is refused so I do not overwrite their change.
 5. As an operator — the supervisor is down, so I click Start supervisor and see the `start --superviseOnly` message.
-6. As an operator binding `0.0.0.0` — the page still shows the snapshot, has no controls, and the CLI says controls are off.
-7. As an operator — I run `lumpcode dashboard --readOnly` on the default bind and get the snapshot with no stop, restart, or editor controls.
+6. As an operator with no daemon file — I leave include and exclude blank and start the global daemon, or I fill include and/or exclude and start a filtered daemon. The page shows the same start message the CLI would print, including when that id is already running.
+7. As an operator binding `0.0.0.0` — the page still shows the snapshot, has no controls, and the CLI says controls are off.
+8. As an operator — I run `lumpcode dashboard --readOnly` on the default bind and get the snapshot with no stop, restart, start, or editor controls.
 
 ## Proposed behavior and UX
 
@@ -63,20 +65,24 @@ When the bind is not loopback, print that warning and that line only, even if `-
 
 | Page control | Where | Handler call (in-process, same injections as the dashboard command) | Confirm dialog |
 | --- | --- | --- | --- |
-| Stop | daemon row, running only | `stop` `{ daemonId }` | no |
-| Force stop | daemon row, running only | `stop` `{ daemonId, force: true }` | yes |
+| Stop | each running daemon row. One button, plus a force checkbox. When `daemonConfigFile` is set, the button stays disabled until force is checked | without `daemonConfigFile`: `stop` `{ daemonId, force: true }` when the checkbox is checked, otherwise `stop` `{ daemonId }`. With `daemonConfigFile`: only `stop` `{ daemonId, force: true }` | only when force is checked |
 | Restart | daemon row, running only | `restart` `{ daemonId }` | no |
-| Stop all | project header | `stop` `{ all: true }` | yes |
-| Force stop all | project header | `stop` `{ all: true, force: true }` | yes |
+| Stop all | top of the page. One button, plus a force checkbox | one `stop` per running daemon, one at a time. Without force, skip any daemon whose status has `daemonConfigFile`. With force, include those daemons and pass `force: true` on every targeted stop. Does not call `stop { all: true }`, and does not stop the supervisor | yes |
 | Start supervisor | supervisor line, only when not running | `start` `{ superviseOnly: true }` | no |
+| Start daemon | project header. Two text fields, include and exclude, comma-separated names or `*` globs, same as `lumpcode start`. Blank after trim is omitted | `start` with `include` and/or `exclude` only when that field is non-empty. No `daemonId`, `cronSetup`, `maxParallelRun`, or `superviseOnly` | no |
 | Restart running daemons | after a successful save, and next to any `localConfigStale` note | `restart` `{ daemonId }` per daemon with `running: true` in a fresh list-all `daemon-status` read, one at a time | no |
 
 Restart running daemons keeps going after a failure (for example `daemonBusy`). Its outcome is `ok` only when every restart succeeded. Its messages are each daemon's messages, prefixed with the daemon id.
 
+Stop all uses the same outcome shape. It keeps going after one daemon fails. `ok` is true only when every targeted stop succeeded. With force unchecked, file daemons are not targeted. With force checked, they are targeted and stopped with `--force`.
+
 ```ts
 type DashboardActionRequest =
-  | { kind: 'stop' | 'forceStop' | 'restart'; daemonId: string }
-  | { kind: 'stopAll' | 'forceStopAll' | 'startSupervisor' | 'restartRunning' };
+  | { kind: 'stop'; daemonId: string; force?: boolean }
+  | { kind: 'restart'; daemonId: string }
+  | { kind: 'stopAll'; force?: boolean }
+  | { kind: 'startSupervisor' | 'restartRunning' }
+  | { kind: 'startDaemon'; include?: string; exclude?: string };
 
 type DashboardActionOutcome = { ok: boolean; messages: string[]; code?: string };
 ```
@@ -181,9 +187,9 @@ When `controls` is absent, the server behaves exactly as today. The dashboard pa
 | Unit | `isTrustedDashboardRequest`: the three loopback hosts with the right port pass; wrong port, `evil.example:<port>`, and a missing Host fail; the token is required only when `needsToken`; a wrong token fails | `packages/apps/dashboard/src/isTrustedDashboardRequest.unit.test.ts` |
 | Unit | Server without `controls`: `/actions` and `/local-config` are 404, and no token meta tag appears in `/`. Existing tests unchanged. | `server.unit.test.ts` |
 | Unit | Server with stub `controls`: 403 on a bad Host for `/`; 403 without the token on `/actions`; 202 then 409 while a slow stub action runs; `view.action` gets `startedAt`, then `finishedAt` and `outcome`; a read runs right after the action finishes; 413 over 256 KiB; 400 on bad JSON | same |
-| Unit | Page: controls and token only when enabled; Start supervisor only when the supervisor is not running; editor outside `#view`; read-only lede only when disabled | `page.unit.test.ts` |
+| Unit | Page: controls and token only when enabled; Start supervisor only when the supervisor is not running; Start daemon fields are include and exclude only; one Stop all button at the top with a force checkbox; one Stop button with a force checkbox on each running daemon; when `daemonConfigFile` is set, that Stop stays disabled until force is checked; editor outside `#view`; read-only lede only when disabled | `page.unit.test.ts` |
 | CLI unit | `writeLocalConfigText`: hash mismatch gives `localConfigChanged` and leaves the file unchanged; bad JSON, a schema failure, a `mode: shared` change, and a merged failure (no primary branch on either layer) give `invalidLocalConfig` with the messages in the table and leave the file unchanged; success writes pretty JSON and returns the new hash | `utils/writeLocalConfigText/unit.test.ts` with a temp `.lumpcode` under `os.tmpdir()` |
-| CLI unit | `createDashboardControls`: each kind calls the matching handler options (stop with and without force, `all`, `superviseOnly`, restart); `restartRunning` restarts only running ids, keeps going after one failure, and returns `ok: false` with prefixed messages | `commands/dashboard/unit.test.ts`, using the existing daemon fixtures and the `spawnFn` / `skipEnsureSupervisor` seams |
+| CLI unit | `createDashboardControls`: `stop` calls the handler with that `daemonId` and with `force: true` only when set. A `stop` of a daemon that has `daemonConfigFile` without `force: true` is rejected and does not call the handler. `stopAll` without force skips those daemons. `stopAll` with force includes them and passes `force: true` on every targeted stop. It does not call `stop` with `all: true`. Also `superviseOnly`, restart, and `startDaemon` with no filters, with include only, with exclude only, and with both. A blank include or exclude is omitted. `restartRunning` restarts only running ids, keeps going after one failure, and returns `ok: false` with prefixed messages | `commands/dashboard/unit.test.ts`, using the existing daemon fixtures and the `spawnFn` / `skipEnsureSupervisor` seams |
 | CLI unit | Loopback bind without `--readOnly` passes controls (`controls: true` in JSON startup). Loopback with `--readOnly` prints `Controls are off (--readOnly).`, has `controls: false`, and 404s on `/actions`. `0.0.0.0`, with or without `--readOnly`, prints the non-loopback controls-off line, has `controls: false`, and 404s on `/actions`. | same |
 
 ## Docs updates
@@ -191,13 +197,13 @@ When `controls` is absent, the server behaves exactly as today. The dashboard pa
 | Document | Change |
 | --- | --- |
 | `packages/apps/cli/DOCS/reference/commands.md` (`lumpcode dashboard`) | Replace "Nothing on the page stops, starts, or restarts a daemon" with the action list, the `local.json` editor and its validation, loopback-only controls, `--readOnly`, and `controls` in `--json` startup. |
-| `packages/apps/cli/DOCS/start/observe.md` (Dashboard) | Replace "A read-only page… Nothing on the page can start or stop anything" with a short paragraph on stop, restart, supervisor start, and `local.json` editing. Keep the SSH tunnel advice. Say `--bind 0.0.0.0` turns controls off, and `--readOnly` turns them off on the default bind. |
+| `packages/apps/cli/DOCS/start/observe.md` (Dashboard) | Replace "A read-only page… Nothing on the page can start or stop anything" with a short paragraph on stop, restart, supervisor start, starting the global daemon or a filtered one, and `local.json` editing. Keep the SSH tunnel advice. Say `--bind 0.0.0.0` turns controls off, and `--readOnly` turns them off on the default bind. |
 | `packages/apps/cli/DOCS/start/worker.md` | No change unless it calls the dashboard read-only. |
 
 ## Acceptance criteria
 
-1. On a loopback bind, the page can stop, force-stop, and restart a daemon, stop or force-stop all, start the supervisor, and restart running daemons. Each outcome shows the same messages the matching CLI command prints.
-2. Force stop, Stop all, and Force stop all ask for confirmation first.
+1. On a loopback bind, the page can stop one running daemon that is not from a file, with or without force, force-stop a daemon whose status has `daemonConfigFile`, restart a daemon, stop all non-file daemons without force, stop all running daemons with force, start the supervisor, start a daemon, and restart running daemons. Each outcome shows the same messages the matching CLI command prints. A file daemon's Stop does nothing until force is checked, and Stop all without force leaves that daemon running.
+2. Stop all always asks for confirmation. A single daemon's Stop asks only when its force checkbox is checked.
 3. A second action while one is running gets `409 actionInProgress`. The page shows the running action and then its outcome.
 4. Saving `local.json` with a hash mismatch, bad JSON, a schema failure, a mode change, or a merged-config failure writes nothing and shows the message in the table. A valid save writes pretty JSON and offers Restart running daemons when any daemon is running.
 5. Unsaved editor text survives the 5-second refresh.

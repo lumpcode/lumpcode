@@ -9,7 +9,7 @@
 
 ## Problem statement and motivation
 
-`createDaemonLiveMetaWriter` already exposes the live-meta events as methods (`beginLumpLine`, `setContextName`, `endLumpLine`, `setTickPhase`, `setNextTickAt`, `writeFingerprintAtStart`). The only consumer of those calls is the JSON persist inside the writer. `runForeground` still logs on a parallel channel. A future unified log (one line per reported event, nothing else) needs a way to subscribe to those handlers without a second telemetry path.
+`createDaemonLiveMetaWriter` already exposes the live-meta events as methods (`beginLumpLine`, `setContextName`, `endLumpLine`, `setTickPhase`, `setNextTickAt`, `writeFingerprintAtStart`). The only consumer of those calls is the JSON persist inside the writer. `runForeground` still logs on a parallel channel. A later logger, for example on the worker dashboard, needs one subscriber for those events instead of a second telemetry path. This ticket is that hook. The logger itself is later.
 
 1. There is no listener API; adding logging or other observers means wrapping every call site.
 2. Emitting before disk would let listeners claim a state that `daemon-status` cannot read.

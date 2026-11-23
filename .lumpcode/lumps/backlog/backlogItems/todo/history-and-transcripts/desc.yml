@@ -1,15 +1,16 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: history-and-transcripts
-workflow: [manualReq, testImpl, impl]
-manualReq: true
+workflow: [req, impl]
 task: >-
-  Two artifacts from the same step walk. keepHistory: replace the gitignored
-  YAML rewrite with append-only JSONL on projectRoot (truncate + shared
-  ANSI/C0 sanitize; skip corrupt lines so a bad file cannot block later
-  appends). keepTranscripts: opt-in light markdown (prompt + stdout only)
-  under workspacePath so git add . commits it with the LUMP marker. Overlay
-  like keepHistory (lump > local > project). Do not gitignore transcripts/.
-  No thinking capture, no stream-json parse, no engine auto-inject. Merges
-  former IDEAS rethink-lump-history-storage and option-for-light-history;
-  supersedes keep-transcripts and history-yaml-string-escaping.
+  Keep keepHistory. Fix append so a bad file cannot drop the next entry.
+  Today append reads the whole YAML file and writes it back, so one parse
+  failure skips the new entry (the step walk only warns). Replace that with
+  append-only JSONL: one JSON object per line, the same fields as HistoryEntry
+  (prompt, commandResult, commandSucceeded, context, stepIndex,
+  contextRunState, lumpVariables, stepVariables, projectRoot). Sanitize
+  ANSI/C0 in prompt and commandResult as today. A line that does not parse is
+  skipped on read. Append does not read the file first. A stringify failure
+  warns and skips that entry. The step walk still continues. New files are
+  .jsonl under the same gitignored history directory. Existing .yaml files
+  stay on disk and are not converted. writeTranscripts stays as it is.
 priority: 4

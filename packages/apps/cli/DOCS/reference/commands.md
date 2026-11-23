@@ -17,6 +17,7 @@ One tick for one lump: load, discover todos, run the agent. On a laptop (`mode: 
 | Option | Role |
 | --- | --- |
 | `--discoveryBranch` | Concrete discovery branch. Required when the lump’s rules are pattern-only. Ignored by `run` in shared mode (warned). |
+| `--contextName` | Run this context. It still has to be `toDo`, and its `dependsOnContexts` still have to be `finished`. Priority and `numberOfContextsPerBranch` do not pick a different context. |
 
 Success includes a skipped run (`disabled`, or too many open `lump/<name>/*` branches on a dedicated worker). Busy workspace: fails with `workspacePathBusy`. After a dedicated manual run, the checkout is switched back to the branch you were on. Shared `run` stays on this checkout and does not auto-push `lump/…`.
 

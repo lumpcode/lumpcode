@@ -1,5 +1,5 @@
 import { getCodeBasePaths } from "../getCodeBasePaths";
-import { ContextStatus, GetContextListFn, Logger, LumpVariables } from "../../types";
+import { Context, ContextStatus, type Failure, GetContextListFn, Logger, LumpVariables, type Success } from "../../types";
 import { getContextStatus } from "../getContextStatus";
 import { validateContextListNames } from "../validateContextListNames";
 import { GitCommitMessageFn } from "../../types/GitCommitMessageFn";
@@ -8,6 +8,12 @@ import {
     refreshRemoteTrackingRefs,
     type RefreshRemoteTrackingRefsFn,
 } from "../refreshRemoteTrackingRefs";
+
+export type GetToDoContextListFailure = {
+    message: string;
+    /** Set when a requested context name cannot be run. */
+    code?: 'contextName';
+};
 
 export async function getToDoContextList<V extends LumpVariables = LumpVariables>(params: {
     getContextListFn: GetContextListFn<V>;
@@ -21,7 +27,12 @@ export async function getToDoContextList<V extends LumpVariables = LumpVariables
      * CLI injects a git-common-dir-locked wrapper.
      */
     refreshRemoteTrackingRefsFn?: RefreshRemoteTrackingRefsFn;
-}) {
+    /**
+     * When set, the result is that one context if it is `toDo` and its
+     * `dependsOnContexts` are `finished`. Priority does not apply.
+     */
+    contextName?: string;
+}): Promise<Success<Context[]> | Failure<GetToDoContextListFailure>> {
     const {
         getContextListFn,
         lumpVariables,
@@ -30,6 +41,7 @@ export async function getToDoContextList<V extends LumpVariables = LumpVariables
         baseBranch,
         logger,
         refreshRemoteTrackingRefsFn = refreshRemoteTrackingRefs,
+        contextName,
     } = params;
 
     const codeBasePathsResult = await getCodeBasePaths({ cwd: projectRoot, logger });
@@ -83,24 +95,71 @@ export async function getToDoContextList<V extends LumpVariables = LumpVariables
         );
     }
 
+    if (contextName !== undefined) {
+        const selected = selectNamedContext({ contextName, contextList, contextStatusMap });
+        if (!selected.success) return selected;
+        logger?.verbose(`contextListToDo ${JSON.stringify(selected.data)}`);
+        return selected;
+    }
+
     const contextListToDo = contextList
-    .filter((context) => {
-        const contextStatus = contextStatusMap.get(context.name);
-        if (contextStatus && contextStatus !== 'toDo') return false;
-
-        const deps = context.options?.dependsOnContexts;
-
-        if (deps && deps.length > 0) {
-            return deps.every(dep => contextStatusMap.get(dep) === 'finished');
-        }
-
-        return true;
-    })
-    .sort((a, b) => {
-        return (a.options?.priority || 0) - (b.options?.priority || 0);
-    });
+        .filter((context) => contextIsRunnable(context, contextStatusMap))
+        .sort((a, b) => (a.options?.priority || 0) - (b.options?.priority || 0));
 
     logger?.verbose(`contextListToDo ${JSON.stringify(contextListToDo)}`);
 
     return success(contextListToDo);
+}
+
+function contextIsRunnable(
+    context: Context,
+    contextStatusMap: Map<string, ContextStatus>,
+): boolean {
+    const contextStatus = contextStatusMap.get(context.name);
+    if (contextStatus && contextStatus !== 'toDo') return false;
+
+    const deps = context.options?.dependsOnContexts;
+    if (deps && deps.length > 0) {
+        return deps.every((dep) => contextStatusMap.get(dep) === 'finished');
+    }
+
+    return true;
+}
+
+function selectNamedContext(input: {
+    contextName: string;
+    contextList: Context[];
+    contextStatusMap: Map<string, ContextStatus>;
+}): Success<Context[]> | Failure<GetToDoContextListFailure> {
+    const { contextName, contextList, contextStatusMap } = input;
+    const named = contextList.find((context) => context.name === contextName);
+    if (!named) {
+        const missing: GetToDoContextListFailure = {
+            message: `Context "${contextName}" is not in the context list.`,
+            code: 'contextName',
+        };
+        return failure(missing);
+    }
+
+    const status = contextStatusMap.get(contextName);
+    if (status && status !== 'toDo') {
+        const notToDo: GetToDoContextListFailure = {
+            message: `Context "${contextName}" is not toDo (it is ${status}).`,
+            code: 'contextName',
+        };
+        return failure(notToDo);
+    }
+
+    const unmet = (named.options?.dependsOnContexts ?? []).filter(
+        (dep) => contextStatusMap.get(dep) !== 'finished',
+    );
+    if (unmet.length > 0) {
+        const waiting: GetToDoContextListFailure = {
+            message: `Context "${contextName}" is waiting on dependsOnContexts: ${unmet.join(', ')}.`,
+            code: 'contextName',
+        };
+        return failure(waiting);
+    }
+
+    return success([named]);
 }

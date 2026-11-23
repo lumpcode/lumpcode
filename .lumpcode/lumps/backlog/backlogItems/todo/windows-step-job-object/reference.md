@@ -1,6 +1,6 @@
 # Reference: Windows step isolation
 
-Background for `windows-step-job-object`. This is context, not requirements. The `manualReq` stage decides the approach.
+Background for `windows-step-job-object`. This is context, not requirements. The `req` stage decides the approach.
 
 ## Where this plugs in
 

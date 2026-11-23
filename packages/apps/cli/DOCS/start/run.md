@@ -8,7 +8,7 @@ What happens when you type `lumpcode run`, how a worker differs, and how Lumpcod
 
 1. **Prepare** (worker only). Fetch, switch, and hard-reset the clone to the remote branch.
 2. **Load** the lump config. A `disabled` lump stops here with exit code 0.
-3. **Pick work.** Build the context list, ask git which contexts are still `toDo`, skip those waiting on a dependency, sort by `priority`, take the next batch (one context unless `numberOfContextsPerBranch` says more).
+3. **Pick work.** Build the context list, ask git which contexts are still `toDo`, skip those waiting on a dependency, sort by `priority`, take the next batch (one context unless `numberOfContextsPerBranch` says more). `lumpcode run myLump --contextName <name>` runs that context instead: it still has to be `toDo` with its dependencies `finished`, and priority does not move it behind another context.
 4. **Branch** (worker only). Cut `lump/myLump/<context>` from the base branch, in place or in a worktree.
 5. **Run the steps** for each context: your prompt or steps, your agent, your validation commands.
 6. **Commit** (worker only) with `LUMP: myLump - <context>`, then **push** the branch.

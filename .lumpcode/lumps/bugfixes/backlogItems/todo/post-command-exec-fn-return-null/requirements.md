@@ -39,7 +39,7 @@ Expected: both compile.
 ## Non-goals
 
 - Any runtime change in `executeStepsForContextList`, `collectStepsForContext`, or `jsConfigToRunLumpInput`.
-- New return shapes (a single `Step` in core, results, or commands). Distinct from qol `command-fn-result-return` and IDEAS `commandFn-return-step-or-result`.
+- New return shapes (a single `Step` in core, an in-process result, or a shell string). Those step returns are qol `command-fn-result-return`.
 - JSON lump configs (their `postCommandExecFn` is a module path; the module's default export follows the CLI type).
 
 ## User stories / use cases

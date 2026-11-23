@@ -2,9 +2,15 @@
 name: worker-dashboard-controls
 workflow: [manualReq, testImpl, impl]
 task: >-
-  Operator controls on the worker dashboard: stop a daemon, force-stop, stop
-  all, start supervisor only (`lumpcode start --superviseOnly` — no
-  `--daemonId`/`--include` start form), edit only `.lumpcode/local.json`, and
+  Operator controls on the worker dashboard: one Stop button per running daemon,
+  with a force checkbox, and one Stop all button at the top with a force
+  checkbox. A daemon launched from a file can be stopped only with force,
+  including from Stop all, for when that daemon is stuck. A graceful stop of a
+  file daemon is not offered, because the supervisor would start it again.
+  Start the supervisor (`lumpcode start --superviseOnly`), and start a daemon. Blank include and exclude starts the unfiltered global daemon.
+  Filled include and/or exclude are the same comma-separated names or globs
+  as `lumpcode start`, and the CLI assigns the id. No daemonId, cronSetup, or
+  maxParallelRun field on the page. Edit only `.lumpcode/local.json`, and
   offer restart after save. Warn when `local.json` changes while daemons are
   running. No other gitignored or committed files. Same snapshot JSON as the
   read-only dashboard. `--readOnly` serves that page with controls off even on
