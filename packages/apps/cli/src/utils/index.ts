@@ -15,6 +15,7 @@ export * from './coerceResolvedProjectLocalConfig';
 export * from './createCliLogger';
 export * from './commandFailure';
 export * from './commitSharedRunReview';
+export * from './completeLogTail';
 export * from './composeLumpWorkspaceFns';
 export * from './contextNamesAfterLumpPrefix';
 export * from './contextStatusRecordPath';
