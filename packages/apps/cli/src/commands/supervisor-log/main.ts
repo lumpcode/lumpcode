@@ -1,24 +1,15 @@
-import { access } from 'node:fs/promises';
 import { spawn as nodeSpawn } from 'node:child_process';
 import * as z from 'zod';
 
-import { failure, success } from '@lumpcode/core';
-
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { DEFAULT_TAIL_LINES, getProjectName, supervisorLogPath, tailFile } from '../../utils';
+import { completeLogTail, followableTailOptionFields, getProjectName, supervisorLogPath } from '../../utils';
 import { commandFailure } from '../../utils/commandFailure';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
-        lines: z
-            .number()
-            .int()
-            .min(0)
-            .optional()
-            .describe('Number of initial lines to show (omitted = 10; 0 = whole file)'),
-        noFollow: z.boolean().optional().describe('Print lines and exit instead of following live'),
+        ...followableTailOptionFields,
     }),
     arguments: z.object({}),
 });
@@ -45,8 +36,6 @@ export interface Injections {
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath, spawnFn } = injections;
-    const lines = input.options.lines ?? DEFAULT_TAIL_LINES;
-    const noFollow = input.options.noFollow === true;
 
     const validationResult = await validateCurrentLumpProjectRoot({ cwd: projectRoot });
     if (!validationResult.success) return commandFailure(validationResult.data);
@@ -55,38 +44,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const projectName = nameResult.data;
     const logFilePath = supervisorLogPath({ globalConfigFolderPath, projectName });
 
-    try {
-        await access(logFilePath);
-    } catch {
-        return failure({
-            messages: [
-                `No supervisor log file for "${projectName}" at ${logFilePath}. The supervisor has not run for this project; start it with \`lumpcode start\` or \`lumpcode start --superviseOnly\`.`,
-            ],
-        });
-    }
-
-    const tailResult = await tailFile({
+    return completeLogTail({
         filePath: logFilePath,
-        lines,
-        follow: !noFollow,
+        lines: input.options.lines,
+        noFollow: input.options.noFollow === true,
         spawnFn,
-    });
-    if (!tailResult.success) {
-        return failure({ messages: [tailResult.data] });
-    }
-    if (!noFollow) {
-        return success({
-            messages: ['Stopped following supervisor log.'],
-        });
-    }
-    const outputLines = 'lines' in tailResult.data ? tailResult.data.lines : [];
-    return success({
-        messages: outputLines,
-        data: {
+        missingMessage: `No supervisor log file for "${projectName}" at ${logFilePath}. The supervisor has not run for this project; start it with \`lumpcode start\` or \`lumpcode start --superviseOnly\`.`,
+        followedMessage: 'Stopped following supervisor log.',
+        data: (outputLines) => ({
             logFilePath,
             lines: outputLines,
             projectName,
-        },
+        }),
     });
 };
 

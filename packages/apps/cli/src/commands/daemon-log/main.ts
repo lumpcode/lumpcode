@@ -1,12 +1,9 @@
-import { access } from 'node:fs/promises';
 import { spawn as nodeSpawn } from 'node:child_process';
 import * as z from 'zod';
 
-import { failure, success } from '@lumpcode/core';
-
 import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
-import { createCliLogger, DEFAULT_TAIL_LINES, resolveDaemonCommandScope, tailFile } from '../../utils';
+import { completeLogTail, createCliLogger, followableTailOptionFields, resolveDaemonCommandScope } from '../../utils';
 
 const inputSchema = z.object({
     options: baseCommandOptionsSchema.extend({
@@ -15,13 +12,7 @@ const inputSchema = z.object({
             .string()
             .optional()
             .describe('Deprecated: treated as --daemonId'),
-        lines: z
-            .number()
-            .int()
-            .min(0)
-            .optional()
-            .describe('Number of initial lines to show (omitted = 10; 0 = whole file)'),
-        noFollow: z.boolean().optional().describe('Print lines and exit instead of following live'),
+        ...followableTailOptionFields,
     }),
     arguments: z.object({}),
 });
@@ -48,8 +39,6 @@ export interface Injections {
 
 const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections) => async (input) => {
     const { projectRoot, localConfigFolderPath, globalConfigFolderPath, spawnFn } = injections;
-    const lines = input.options.lines ?? DEFAULT_TAIL_LINES;
-    const noFollow = input.options.noFollow === true;
     const logger = createCliLogger({
         verbose: !!input.options.verbose,
         json: !!input.options.json,
@@ -68,38 +57,18 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     const { daemonId, scopeLabel, paths } = scopeResult.data;
     const { logFilePath, projectName } = paths;
 
-    try {
-        await access(logFilePath);
-    } catch {
-        return failure({
-            messages: [
-                `No daemon log file for "${projectName}"${scopeLabel} at ${logFilePath}. Start the daemon first or check --daemonId.`,
-            ],
-        });
-    }
-
-    const tailResult = await tailFile({
+    return completeLogTail({
         filePath: logFilePath,
-        lines,
-        follow: !noFollow,
+        lines: input.options.lines,
+        noFollow: input.options.noFollow === true,
         spawnFn,
-    });
-    if (!tailResult.success) {
-        return failure({ messages: [tailResult.data] });
-    }
-    if (!noFollow) {
-        return success({
-            messages: ['Stopped following daemon log.'],
-        });
-    }
-    const outputLines = 'lines' in tailResult.data ? tailResult.data.lines : [];
-    return success({
-        messages: outputLines,
-        data: {
+        missingMessage: `No daemon log file for "${projectName}"${scopeLabel} at ${logFilePath}. Start the daemon first or check --daemonId.`,
+        followedMessage: 'Stopped following daemon log.',
+        data: (outputLines) => ({
             logFilePath,
             lines: outputLines,
             daemonId,
-        },
+        }),
     });
 };
 

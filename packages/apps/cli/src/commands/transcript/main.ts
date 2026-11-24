@@ -7,10 +7,10 @@ import { Command, CommandHandlerMaker } from '../../types';
 import { baseCommandOptionsSchema } from '../../schemas/baseCommandOptions';
 import { commandFailure } from '../../utils/commandFailure';
 import {
-    DEFAULT_TAIL_LINES,
+    completeLogTail,
+    followableTailOptionFields,
     listLumpTranscriptFiles,
     resolveLumpTranscriptFile,
-    tailFile,
 } from '../../utils';
 import { validateCurrentLumpProjectRoot } from '../../utils/validateCurrentLumpProjectRoot';
 
@@ -25,13 +25,7 @@ const inputSchema = z.object({
             .string()
             .optional()
             .describe('Transcript filename token without .log'),
-        lines: z
-            .number()
-            .int()
-            .min(0)
-            .optional()
-            .describe('Number of initial lines to show (omitted = 10; 0 = whole file)'),
-        noFollow: z.boolean().optional().describe('Print lines and exit instead of following live'),
+        ...followableTailOptionFields,
         list: z.boolean().optional().describe('Catalog transcript files instead of printing one'),
     }),
     arguments: z.object({}),
@@ -123,30 +117,19 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
     });
     if (!resolved.success) return commandFailure(resolved.data);
 
-    const tailResult = await tailFile({
+    return completeLogTail({
         filePath: resolved.data.filePath,
-        lines: linesOpt ?? DEFAULT_TAIL_LINES,
-        follow: !noFollow,
+        lines: linesOpt,
+        noFollow,
         spawnFn,
-    });
-    if (!tailResult.success) return commandFailure(tailResult.data);
-
-    if (!noFollow) {
-        return success({
-            messages: ['Stopped following transcript.'],
-        });
-    }
-
-    const outputLines = 'lines' in tailResult.data ? tailResult.data.lines : [];
-    return success({
-        messages: outputLines,
-        data: {
+        followedMessage: 'Stopped following transcript.',
+        data: (outputLines) => ({
             lumpName: resolved.data.lumpName,
             discoveryBranch: resolved.data.discoveryBranch,
             stamp: resolved.data.stamp,
             filePath: resolved.data.filePath,
             lines: outputLines,
-        },
+        }),
     });
 };
 
