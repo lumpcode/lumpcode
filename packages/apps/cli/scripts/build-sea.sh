@@ -35,16 +35,19 @@ node --experimental-sea-config sea-config.json
 # Create bin directory
 mkdir -p "$BIN_DIR"
 
-# Copy and prepare node binary
-echo "📋 Copying Node.js binary..."
+# Copy and prepare node binary. Use process.execPath, not `command -v node`:
+# version managers (asdf, mise, volta, ~/bin wrappers) put a shell shim on PATH,
+# and postject rejects anything that is not an ELF / PE / Mach-O executable.
+NODE_BIN="$(node -p 'process.execPath')"
+echo "📋 Copying Node.js binary ($NODE_BIN)..."
 if [[ "$PLATFORM" = "windows" ]]; then
-    cp "$(command -v node)" "$BIN_DIR/$OUTPUT_NAME.exe"
+    cp "$NODE_BIN" "$BIN_DIR/$OUTPUT_NAME.exe"
     
     echo "💉 Injecting SEA blob..."
     npx postject "$BIN_DIR/$OUTPUT_NAME.exe" NODE_SEA_BLOB dist/sea-prep.blob \
         --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 else
-    cp "$(command -v node)" "$BIN_DIR/$OUTPUT_NAME"
+    cp "$NODE_BIN" "$BIN_DIR/$OUTPUT_NAME"
     
     # Remove signature on macOS (required before modifying binary)
     if [[ "$PLATFORM" = "darwin" ]]; then
