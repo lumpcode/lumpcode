@@ -21,9 +21,9 @@ export type FeatureBacklogWorkflow = readonly FeatureBacklogWorkflowStage[];
 export type FeatureBacklogTerminalStage = 'impl' | 'directImpl';
 
 export const DEFAULT_FEATURE_BACKLOG_WORKFLOW = [
-    'req',
-    'testPlan',
+    'manualReq',
     'testImpl',
+    'impl',
 ] as const satisfies FeatureBacklogWorkflow;
 
 export const DEFAULT_PRIMARY_DISCOVERY_BRANCH = 'dev';

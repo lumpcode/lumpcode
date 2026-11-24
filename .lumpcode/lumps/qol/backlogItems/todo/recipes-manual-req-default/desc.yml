@@ -1,7 +1,0 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
-name: recipes-manual-req-default
-workflow: [directImpl]
-task: >-
-  If a featureBacklog item omits workflow, the default is
-  [manualReq, testImpl, impl].
-priority: 4

@@ -37,9 +37,9 @@
         "type": "string",
         "enum": ["req", "manualReq", "testPlan", "testImpl", "impl", "directImpl"]
       },
-      "description": "Stages for this item. Omit ≡ [req, testPlan, testImpl] then impl. req: lump writes requirements.md. manualReq: wait for a human requirements.md (no agent context). If both are listed, manualReq wins. testPlan / testImpl run on feature/<name>. impl is the default terminal if neither impl nor directImpl is listed. directImpl may implement without requirements.md.",
+      "description": "Stages for this item. Omit ≡ [manualReq, testImpl, impl]. req: lump writes requirements.md. manualReq: wait for a human requirements.md (no agent context). If both are listed, manualReq wins. testPlan / testImpl run on feature/<name>. impl is the default terminal if neither impl nor directImpl is listed. directImpl may implement without requirements.md.",
       "examples": [
-        ["manualReq", "testImpl"],
+        ["manualReq", "testImpl", "impl"],
         ["req", "testPlan", "testImpl"],
         ["directImpl"]
       ]
