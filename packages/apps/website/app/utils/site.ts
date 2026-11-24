@@ -258,5 +258,9 @@ export const agents = [
 
 export const themeStorageKey = 'lumpcode-theme'
 
-/** Runs in <head> before paint so the stored or system theme never flashes. */
-export const themeBootScript = `(function(){var d=document.documentElement;d.classList.add('js');var t=null;try{t=localStorage.getItem('${'lumpcode-theme'}')}catch(e){}var m=window.matchMedia('(prefers-color-scheme: light)');function set(v){d.dataset.theme=v}set(t==='light'||t==='dark'?t:(m.matches?'light':'dark'));if(m.addEventListener){m.addEventListener('change',function(e){var s=null;try{s=localStorage.getItem('${'lumpcode-theme'}')}catch(x){}if(!s){set(e.matches?'light':'dark')}})}})();`
+/** Address-bar color. Light is the first-visit paint; dark matches the no-JS tokens. */
+export const themeColorLight = '#f3f8f8'
+export const themeColorDark = '#000514'
+
+/** Runs in <head> before paint. A stored lumpcode-theme value wins; otherwise light. Syncs theme-color. */
+export const themeBootScript = `(function(){var d=document.documentElement;d.classList.add('js');var t=null;try{t=localStorage.getItem('${themeStorageKey}')}catch(e){}var v=t==='light'||t==='dark'?t:'light';d.dataset.theme=v;var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',v==='light'?'${themeColorLight}':'${themeColorDark}')})();`
