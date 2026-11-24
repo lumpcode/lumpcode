@@ -188,3 +188,82 @@ describe('runLump failure reason preservation (R1/R2)', () => {
         expect(ran).toEqual([]);
     });
 });
+
+describe('runLump contextRunStateList', () => {
+    let projectRoot: string;
+
+    beforeEach(async () => {
+        projectRoot = await mkdtemp(join(tmpdir(), 'run-lump-state-list-'));
+        initTestGitRepo(projectRoot);
+    });
+
+    afterEach(async () => {
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    it('forwards one contextRunState per context from executeStepsForContextList', async () => {
+        const result = await runLump({
+            projectRoot,
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            numberOfContextsPerBranch: 2,
+            getContextListFn: async () => [
+                { name: 'ctx-a', variables: {} },
+                { name: 'ctx-b', variables: {} },
+            ],
+            steps: [{
+                commandFn: () => ({ executable: 'true', args: [] }),
+                postCommandExecFn: ({ context, contextRunState }) => {
+                    contextRunState.touchedBy = context.name;
+                },
+            }],
+            setupFn: async () => ({ contextRunState: { seeded: true } }),
+            teardownFn: async () => undefined,
+            gitAddCommitFn: () => success('echo git-add-commit'),
+            gitPushFn: () => success('echo git-push'),
+            gitCommitMessageFn: () => 'LUMP:ctx',
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(result.data.result.contextNames).toEqual(['ctx-a', 'ctx-b']);
+        expect(result.data.result.contextRunStateList).toEqual([
+            { seeded: true, touchedBy: 'ctx-a' },
+            { seeded: true, touchedBy: 'ctx-b' },
+        ]);
+    });
+
+    it('returns an empty contextRunStateList when there are no todo contexts', async () => {
+        const result = await runLump({
+            projectRoot,
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            getContextListFn: async () => [],
+            steps: [{
+                commandFn: () => ({ executable: 'true', args: [] }),
+            }],
+            setupFn: async () => ({ contextRunState: { seeded: true } }),
+            teardownFn: async () => undefined,
+            gitAddCommitFn: () => success('echo git-add-commit'),
+            gitPushFn: () => success('echo git-push'),
+            gitCommitMessageFn: () => 'LUMP:ctx',
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(result.data.result).toEqual({
+            updatedGroupStatusRecord: {
+                data: {},
+            },
+            branchName: '',
+            contextNames: [],
+            contextRunStateList: [],
+        });
+    });
+});

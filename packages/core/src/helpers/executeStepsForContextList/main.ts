@@ -251,6 +251,7 @@ export async function executeStepsForContextList<
             });
 
             const contextRunState = setupResult?.contextRunState || {};
+            contextRunStateList[i] = contextRunState;
 
             let stepWalkFailure: Failure<ExecuteStepsFailureData> | undefined;
 
