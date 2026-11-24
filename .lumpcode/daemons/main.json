@@ -1,4 +1,12 @@
 {
   "discoveryBranch": "dev",
-  "exclude": ["presetSmoke", "ideasToBacklog"]
+  "include": [
+    "qol", 
+    "backlog", 
+    "trimmer", 
+    "bugHunter", 
+    "bugfixes", 
+    "abstractionFinder", 
+    "abstractionImplementer"
+  ]
 }
