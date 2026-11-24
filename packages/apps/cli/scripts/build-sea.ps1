@@ -24,7 +24,7 @@ New-Item -ItemType Directory -Force -Path $BinDir | Out-Null
 
 # Copy node binary
 Write-Host "📋 Copying Node.js binary..." -ForegroundColor Yellow
-$NodePath = (Get-Command node).Source
+$NodePath = (node -p "process.execPath")
 Copy-Item $NodePath -Destination "$BinDir/$OutputName.exe"
 
 # Inject SEA blob
