@@ -1,6 +1,7 @@
 /* ------------------------------------------------------------------
-   Tokens. Dark is the default (and the no-JS fallback);
-   the head boot script sets data-theme from storage or the system.
+   Tokens. A first visit paints light. This :root block stays dark:
+   it is the no-JS fallback. The head boot script sets data-theme
+   from a stored lumpcode-theme value, or light when nothing is stored.
    ------------------------------------------------------------------ */
 :root {
   --bg: #000514;
