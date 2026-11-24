@@ -9,7 +9,8 @@ import { cliInstall, githubRepoUrl, npmCliUrl, siteUrl } from '../app/utils/site
 
 // Build-time files for search engines and AI agents, all written to gitignored paths in `public/`:
 // sitemap.xml (with lastmod from git), llms.txt, llms-full.txt, a raw markdown copy of every
-// docs page at `/docs/<section>/<page>.md`, and `_headers` pointing each copy at its HTML page.
+// docs page at `/docs/<section>/<page>.md`, `_headers` pointing each copy at its HTML page,
+// and install-prompt.md (the landing copy source, served as markdown with no HTML canonical).
 
 type AgentDoc = {
   section: string
@@ -120,6 +121,7 @@ function llmsTxt(docs: AgentDoc[]): string {
     `- [Source on GitHub](${githubRepoUrl}): code, README, and this repo's own lumps in \`.lumpcode/lumps/\``,
     `- [@lumpcode/cli on npm](${npmCliUrl}): the \`lumpcode\` command`,
     `- [Lump config JSON schema](${siteUrl}/schemas/lumpConfig.schema.json): every field of \`config.json\``,
+    `- [Setup prompt](${siteUrl}/install-prompt.md): paste into a coding agent to install the CLI and skill, set up the repo and a dedicated worker, and run a first lump`,
   ]
   return `${llmsHeader()}\n${sections.join('\n\n')}\n\n## Optional\n\n${optional.join('\n')}\n`
 }
@@ -137,7 +139,13 @@ function headersFile(docs: AgentDoc[]): string {
       `${doc.path}.md\n  Content-Type: text/markdown; charset=utf-8\n  Link: <${siteUrl}${doc.path}>; rel="canonical"`,
   )
   const textRules = ['/llms.txt', '/llms-full.txt'].map((path) => `${path}\n  Content-Type: text/plain; charset=utf-8`)
-  return `${[...textRules, ...markdownRules].join('\n')}\n`
+  const installPromptRule = '/install-prompt.md\n  Content-Type: text/markdown; charset=utf-8'
+  return `${[...textRules, installPromptRule, ...markdownRules].join('\n')}\n`
+}
+
+function installPromptMarkdown(websiteRoot: string): string {
+  const raw = readFileSync(join(websiteRoot, 'app/assets/install-prompt.md'), 'utf8').replace(/\r\n/g, '\n')
+  return raw.endsWith('\n') ? raw : `${raw}\n`
 }
 
 function writeFile(path: string, content: string): void {
@@ -158,4 +166,5 @@ export function generateSeoFiles({ websiteRoot }: { websiteRoot: string }): void
   writeFile(join(publicDir, 'llms.txt'), llmsTxt(docs))
   writeFile(join(publicDir, 'llms-full.txt'), llmsFullTxt(docs))
   writeFile(join(publicDir, '_headers'), headersFile(docs))
+  writeFile(join(publicDir, 'install-prompt.md'), installPromptMarkdown(websiteRoot))
 }

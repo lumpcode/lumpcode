@@ -38,16 +38,19 @@ export const codebaseTree = `src/components/
 └── DataTable/   index.tsx  index.test.tsx
 `
 
-export const exampleConfig = `{
-  "contextListJson": {
-    "COMPONENT": "src/components/{NAME}/index.tsx",
-    "TEST": "src/components/{NAME}/index.test.tsx"
+export const exampleConfig = `export default defineConfig({
+  command: 'claude-code',
+  contextListJson: {
+    COMPONENT: 'src/components/{NAME}/index.tsx',
+    TEST: 'src/components/{NAME}/index.test.tsx',
   },
-  "prompt": {
-    "promptTemplate": "Port @{COMPONENT} to Vue 3 and update @{TEST}.",
-    "command": "cursor"
-  }
-}
+  steps: retryUntilGreen({
+    steps: [{
+      promptTemplate: 'Port @{COMPONENT} to Vue 3 and update @{TEST}.',
+    }],
+    validationCommandFn: () => shellCommand('npm run test'),
+  }),
+})
 `
 
 export const exampleBranches = [
@@ -167,7 +170,7 @@ export const steps = [
 export const stepConfigFile = 'lumps/addTests/config.ts'
 
 export const stepConfig = `export default defineConfig({
-  command: 'claude',
+  command: 'claude-code',
   contextListJson: {
     FILE: 'src/utils/{NAME}.ts',
   },

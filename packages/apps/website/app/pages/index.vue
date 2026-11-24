@@ -44,13 +44,19 @@ const positioningPunch = positioningLine.slice(positioningSplit)
             No account, no database, no backend: git is the only state.
           </p>
           <div class="hero-actions enter" style="--i: 6">
-            <NuxtLink class="btn btn-primary" :to="docs.firstPr">
+            <NuxtLink class="btn btn-ghost" :to="docs.firstPr">
               Get started
               <span class="btn-arrow" aria-hidden="true">→</span>
             </NuxtLink>
             <a class="btn btn-ghost" :href="githubRepoUrl">View on GitHub</a>
           </div>
-          <p class="hero-install enter" style="--i: 7">
+          <div class="hero-prompt enter" style="--i: 7">
+            <CopySetupPrompt />
+            <p class="hero-prompt-caption">
+              Paste it into your coding agent. It installs Lumpcode, sets up a dedicated worker, and runs a first lump.
+            </p>
+          </div>
+          <p class="hero-install enter" style="--i: 8">
             <code><span class="prompt" aria-hidden="true">$</span> {{ cliInstall }}</code>
             <span>Apache 2.0. No account needed.</span>
           </p>
@@ -64,7 +70,7 @@ const positioningPunch = positioningLine.slice(positioningSplit)
             </li>
             <li class="flow-step enter" style="--i: 4">
               <p class="flow-label"><span class="flow-node" aria-hidden="true" />The lump</p>
-              <CodeWindow filename=".lumpcode/lumps/portToVue/config.json" :code="exampleConfig" lines />
+              <CodeWindow filename=".lumpcode/lumps/portToVue/config.ts" :code="exampleConfig" lines />
               <p class="code-caption">
                 <code>{NAME}</code> is the component name, so each component becomes one <strong>context</strong> holding both files.
               </p>
@@ -247,6 +253,13 @@ const positioningPunch = positioningLine.slice(positioningSplit)
           </p>
         </div>
         <div class="install-commands">
+          <div class="install-copy">
+            <CopySetupPrompt />
+            <p class="install-copy-caption">
+              Paste it into your coding agent. It installs the skill, sets up this repo and a dedicated worker clone, then proposes and runs a first lump.
+            </p>
+          </div>
+          <p class="install-divider">Or do it yourself</p>
           <p class="install-label">{{ installCliLabel }}</p>
           <CodeWindow filename="terminal" :code="cliInstall" />
           <p class="install-label">{{ installSkillLabel }}</p>

@@ -203,6 +203,107 @@ Before running it, sanity-check the config yourself:
 
 Stop here: the config is ready for the user to run whenever they choose.
 
+## A shared defineLump for your repo
+
+When the user wants every lump to share a command, a model, worktree preparation, and optional PR opening, put the factory at `.lumpcode/templates/main.ts` (or `.js`).
+
+```ts config.ts
+import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+
+import {
+  defineConfig,
+  type LumpJsConfig,
+  type LumpVariables,
+  type PostSetupWorkspaceFn,
+  type StepVariables,
+} from '@lumpcode/cli-utils'
+import { openPrPostTeardown } from '@lumpcode/recipes'
+
+const COMMAND = 'cursor'
+const MODEL = 'auto'
+const INSTALL_COMMAND = 'npm ci'
+const OPEN_PR = true
+
+function copyEnvFiles(projectRoot: string, workspacePath: string): void {
+  const skip = new Set(['node_modules', '.git', '.worktrees', '.lumpcode'])
+  const walk = (relative: string): void => {
+    for (const entry of readdirSync(join(projectRoot, relative), { withFileTypes: true })) {
+      if (skip.has(entry.name)) continue
+      const child = relative === '' ? entry.name : `${relative}/${entry.name}`
+      if (entry.isDirectory()) {
+        walk(child)
+        continue
+      }
+      if (entry.name !== '.env' && !entry.name.startsWith('.env.')) continue
+      const destination = join(workspacePath, child)
+      if (existsSync(destination)) continue
+      mkdirSync(dirname(destination), { recursive: true })
+      copyFileSync(join(projectRoot, child), destination)
+    }
+  }
+  walk('')
+}
+
+const prepareWorktree: PostSetupWorkspaceFn = (input) => {
+  if (input.workspaceStrategy !== 'worktree') return
+  copyEnvFiles(input.projectRoot, input.workspacePath)
+  return INSTALL_COMMAND === '' ? undefined : { command: INSTALL_COMMAND }
+}
+
+export function defineLump<
+  V extends LumpVariables = LumpVariables,
+  SV extends StepVariables = StepVariables,
+>(config: LumpJsConfig<V, SV>): LumpJsConfig<V, SV> {
+  const setup =
+    config.postSetupWorkspaceCommand !== undefined
+      ? {}
+      : { postSetupWorkspaceFn: config.postSetupWorkspaceFn ?? prepareWorktree }
+  const teardown =
+    config.postTeardownWorkspaceCommand !== undefined
+      ? {}
+      : {
+          postTeardownWorkspaceFn:
+            config.postTeardownWorkspaceFn ??
+            (OPEN_PR ? openPrPostTeardown({ provider: 'github' }) : undefined),
+        }
+  return defineConfig<V, SV>({
+    command: COMMAND,
+    ...config,
+    lumpVariables: { model: MODEL, ...config.lumpVariables } as V,
+    ...setup,
+    ...teardown,
+  })
+}
+```
+
+A lump imports the factory, passes one context source, and wraps its prompt in `retryUntilGreen`:
+
+```ts config.ts
+import { defineLump } from '../../templates/main'
+import { retryUntilGreen, shellCommand } from '@lumpcode/recipes'
+
+export default defineLump({
+  contextListJson: { FILE: 'src/{NAME}.ts' },
+  steps: retryUntilGreen({
+    steps: [{ promptTemplate: 'Improve @{FILE}.' }],
+    validationCommandFn: () => shellCommand('npm test'),
+  }),
+})
+```
+
+Worktree selection is `.lumpcode/local.json`. The hook only prepares a worktree the CLI has already created, and it does not run git. Opening the pull request needs `gh`. A lump can still use plain `defineConfig`. The factory does not add a validation loop.
+
+### Propose validation
+
+Propose validation to the user. Do not add it silently.
+
+- `retryUntilGreen` when the agent edits code and a command can prove the result (`npm test`, `npm run lint`, `npm run build`).
+- `requireArtifactStep` when the context must produce a file (requirements, a report, a generated doc).
+- `getValidationLoopSteps` only when the default loop shape does not fit.
+
+Say what the command costs. On failure, `pushOnValidationFailure` defaults to pushing, and a failed check is reported in `lumpVariables.__VALIDATION_FAILED__`.
+
 ## Config essentials
 
 Keep the context-source and prompt/steps rules above. Full optional field list: [lump-config.md](https://github.com/lumpcode/lumpcode/blob/main/packages/apps/cli/DOCS/config/lump.md).

@@ -218,6 +218,9 @@ function snippetLang(filename: string): SnippetLang {
   if (filename.endsWith('.json')) {
     return 'json'
   }
+  if (/\.(ts|js|mjs|cjs)$/.test(filename)) {
+    return 'code'
+  }
   if (filename === 'terminal') {
     return 'shell'
   }
