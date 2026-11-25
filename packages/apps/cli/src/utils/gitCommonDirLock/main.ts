@@ -3,7 +3,8 @@ import { type Failure, type Logger, success, type Success } from '@lumpcode/core
 import {
     acquireWorkspaceFileLock,
     isWorkspaceFileBusyError,
-    workspaceLockFilePath,
+    removeWorkspaceFileLocksHeldByDeadPid,
+    workspaceLegacyLockFilePath,
     workspaceLocksDirPath,
     type WorkspaceFileBusyError,
     type WorkspaceLockMode,
@@ -49,15 +50,23 @@ export function gitCommonDirLocksDirPath(input: { globalConfigFolderPath: string
     });
 }
 
-export function gitCommonDirLockFilePath(input: {
+export function gitCommonDirLegacyLockFilePath(input: {
     globalConfigFolderPath: string;
     gitCommonDir: string;
 }): string {
-    return workspaceLockFilePath({
+    return workspaceLegacyLockFilePath({
         globalConfigFolderPath: input.globalConfigFolderPath,
         workspacePath: input.gitCommonDir,
         spec: GIT_COMMON_DIR_LOCK_SPEC,
     });
+}
+
+export async function removeGitCommonDirLocksHeldByDeadPid(input: {
+    globalConfigFolderPath: string;
+    pid: number;
+    logger?: Logger;
+}): Promise<void> {
+    await removeWorkspaceFileLocksHeldByDeadPid({ ...input, spec: GIT_COMMON_DIR_LOCK_SPEC });
 }
 
 export function isGitCommonDirBusyError(data: unknown): data is GitCommonDirBusyError {

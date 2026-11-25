@@ -31,6 +31,7 @@ export type RunSuperviseLocalPassInput = {
     projectName: string;
     projectRoot: string;
     daemonsDir: string;
+    globalConfigFolderPath: string;
     logger: Logger;
     spawnFn?: typeof nodeSpawn;
 };
@@ -66,9 +67,10 @@ async function orphanKillDaemon(input: {
     projectName: string;
     daemonId: string;
     pid: number;
+    globalConfigFolderPath: string;
     logger: Logger;
 }): Promise<void> {
-    const { daemonsDir, projectName, daemonId, pid, logger } = input;
+    const { daemonsDir, projectName, daemonId, pid, globalConfigFolderPath, logger } = input;
     logger.info(`orphan-killing daemon "${daemonId}" (pid ${pid})`);
     const killResult = await killProcessTree({ pid, graceMs: 0 });
     if (!killResult.success) {
@@ -76,7 +78,13 @@ async function orphanKillDaemon(input: {
         return;
     }
     const { pidFilePath, metaFilePath } = daemonSchedulerFiles({ daemonsDir, projectName, daemonId });
-    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
+    await killDaemonLeftovers({
+        daemonPid: pid,
+        metaFilePath,
+        globalConfigFolderPath,
+        label: `daemon "${daemonId}"`,
+        logger,
+    });
     await unlinkSchedulerFiles({ pidFilePath, metaFilePath });
 }
 
@@ -85,10 +93,10 @@ async function killDeadDaemonProcessGroup(input: {
     pidFilePath: string;
     metaFilePath: string;
     daemonId: string;
+    globalConfigFolderPath: string;
     logger: Logger;
 }): Promise<void> {
-    if (process.platform === 'win32') return;
-    const { pidFilePath, metaFilePath, daemonId, logger } = input;
+    const { pidFilePath, metaFilePath, daemonId, globalConfigFolderPath, logger } = input;
     let raw: string;
     try {
         raw = await fs.readFile(pidFilePath, 'utf8');
@@ -98,8 +106,14 @@ async function killDeadDaemonProcessGroup(input: {
     const pid = Number.parseInt(raw.trim(), 10);
     if (!Number.isInteger(pid) || pid <= 1) return;
     if (isProcessAlive(pid, { onProbeError: 'alive' })) return;
-    logger.info(`killing orphaned process group for daemon "${daemonId}" (pid ${pid})`);
-    await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon "${daemonId}"`, logger });
+    logger.info(`cleaning up after dead daemon "${daemonId}" (pid ${pid})`);
+    await killDaemonLeftovers({
+        daemonPid: pid,
+        metaFilePath,
+        globalConfigFolderPath,
+        label: `daemon "${daemonId}"`,
+        logger,
+    });
 }
 
 async function spawnDesiredDaemon(input: {
@@ -159,7 +173,7 @@ async function spawnDesiredDaemon(input: {
 export async function runSuperviseLocalPass(
     input: RunSuperviseLocalPassInput,
 ): Promise<Success<void> | Failure<string>> {
-    const { projectName, projectRoot, daemonsDir, logger, spawnFn } = input;
+    const { projectName, projectRoot, daemonsDir, globalConfigFolderPath, logger, spawnFn } = input;
 
     const desiredIdsResult = await listDaemonIds({
         dir: daemonsDir,
@@ -195,6 +209,7 @@ export async function runSuperviseLocalPass(
             projectName,
             daemonId,
             pid: info.pid,
+            globalConfigFolderPath,
             logger,
         });
     }
@@ -217,7 +232,7 @@ export async function runSuperviseLocalPass(
         const live = running[daemonId] !== undefined;
         if (desired.stopping === true) {
             if (!live) {
-                await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
+                await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, globalConfigFolderPath, logger });
                 await unlinkSchedulerFiles({ pidFilePath, metaFilePath, desiredFilePath });
             }
             continue;
@@ -225,7 +240,7 @@ export async function runSuperviseLocalPass(
         if (live) {
             continue;
         }
-        await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, logger });
+        await killDeadDaemonProcessGroup({ pidFilePath, metaFilePath, daemonId, globalConfigFolderPath, logger });
         await spawnDesiredDaemon({
             projectName,
             daemonsDir,

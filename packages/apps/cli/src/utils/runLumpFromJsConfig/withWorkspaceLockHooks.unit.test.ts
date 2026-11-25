@@ -98,10 +98,10 @@ describe('withWorkspaceLockHooks', () => {
 
         const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
         const lockFiles = await fs.readdir(locksDir);
-        expect(lockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(1);
+        expect(lockFiles.filter((f) => f.endsWith('.lock'))).toHaveLength(1);
 
         await releaseWorkspaceLockSession(session);
-        expect((await fs.readdir(locksDir)).filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
+        expect((await fs.readdir(locksDir)).filter((f) => f.endsWith('.lock'))).toHaveLength(0);
     });
 
     it('does not call preflight in shared mode (in-place-workspace)', async () => {
@@ -206,7 +206,7 @@ describe('withWorkspaceLockHooks', () => {
 
         async function countLockFiles(): Promise<number> {
             const files = await fs.readdir(locksDir).catch(() => []);
-            return files.filter((f) => f.endsWith('.lock.json')).length;
+            return files.filter((f) => f.endsWith('.lock')).length;
         }
 
         const session = createWorkspaceLockSession();

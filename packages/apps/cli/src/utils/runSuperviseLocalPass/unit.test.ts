@@ -79,6 +79,7 @@ describe('runSuperviseLocalPass', () => {
             projectName,
             projectRoot,
             daemonsDir,
+            globalConfigFolderPath: tmp,
             logger: noopLogger,
             spawnFn,
         });
@@ -105,6 +106,7 @@ describe('runSuperviseLocalPass', () => {
             projectName,
             projectRoot,
             daemonsDir,
+            globalConfigFolderPath: tmp,
             logger: noopLogger,
             spawnFn,
         });
@@ -131,6 +133,7 @@ describe('runSuperviseLocalPass', () => {
             projectName,
             projectRoot,
             daemonsDir,
+            globalConfigFolderPath: tmp,
             logger: { ...noopLogger, warn },
             spawnFn,
         });
@@ -162,6 +165,7 @@ describe('runSuperviseLocalPass', () => {
             projectName,
             projectRoot,
             daemonsDir,
+            globalConfigFolderPath: tmp,
             logger: { ...noopLogger, warn },
             spawnFn,
         });
@@ -185,6 +189,7 @@ describe('runSuperviseLocalPass', () => {
             projectName,
             projectRoot,
             daemonsDir,
+            globalConfigFolderPath: tmp,
             logger: noopLogger,
         });
         expect(result.success).toBe(true);
@@ -209,6 +214,7 @@ describe('runSuperviseLocalPass', () => {
             projectName,
             projectRoot,
             daemonsDir,
+            globalConfigFolderPath: tmp,
             logger: noopLogger,
             spawnFn,
         });
@@ -288,6 +294,7 @@ describe('runSuperviseLocalPass', () => {
                     projectName,
                     projectRoot,
                     daemonsDir,
+                    globalConfigFolderPath: tmp,
                     logger: noopLogger,
                     spawnFn,
                 });
@@ -331,6 +338,7 @@ describe('runSuperviseLocalPass', () => {
                     projectName,
                     projectRoot,
                     daemonsDir,
+                    globalConfigFolderPath: tmp,
                     logger: noopLogger,
                     spawnFn,
                 });
@@ -375,6 +383,7 @@ describe('runSuperviseLocalPass', () => {
                     projectName,
                     projectRoot,
                     daemonsDir,
+                    globalConfigFolderPath: tmp,
                     logger: noopLogger,
                     spawnFn,
                 });

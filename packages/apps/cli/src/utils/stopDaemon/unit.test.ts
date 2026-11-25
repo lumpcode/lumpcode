@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { killBestEffort, startGroupWithOrphan, waitUntilPidGone } from '../../testing/groupWithOrphan';
 import { pollUntil } from '../pollUntil';
+import { workspacePathLocksDirPath } from '../workspacePathLock';
 import { writeJsonFile } from '../writeJsonFile';
 import { drainOrStopOneDaemon, stopOneDaemon, stopSupervisor } from './main';
 
@@ -45,6 +46,7 @@ describe('stopOneDaemon', () => {
             pidFilePath,
             metaFilePath,
             desiredFilePath,
+            globalConfigFolderPath: dir,
             force: false,
             waitMs: 200,
         });
@@ -58,6 +60,7 @@ describe('stopOneDaemon', () => {
             pidFilePath,
             metaFilePath,
             desiredFilePath,
+            globalConfigFolderPath: dir,
             force: false,
             waitMs: 200,
         });
@@ -102,6 +105,7 @@ describe('drainOrStopOneDaemon', () => {
             pidFilePath,
             metaFilePath,
             desiredFilePath,
+            globalConfigFolderPath: dir,
             force: false,
             waitMs: 200,
         });
@@ -162,6 +166,7 @@ setInterval(() => {}, 60000);`,
                 pidFilePath,
                 metaFilePath,
                 desiredFilePath,
+                globalConfigFolderPath: dir,
                 force: false,
                 waitMs: 400,
             });
@@ -203,7 +208,7 @@ describe.skipIf(process.platform === 'win32')('stop --force leftovers', () => {
     it.each([
         { name: 'stopOneDaemon', stop: stopOneDaemon },
         { name: 'drainOrStopOneDaemon', stop: drainOrStopOneDaemon },
-    ])('$name kills orphans in the daemon group and in published step groups', async ({ stop }) => {
+    ])('$name kills orphans in the daemon group and in published step groups, and frees its locks', async ({ stop }) => {
         const daemon = await startGroupWithOrphan({ dir, mode: 'leader-stay' });
         const step = await startGroupWithOrphan({ dir, mode: 'leader-exit' });
         pids.push(daemon.leader, daemon.orphan, step.orphan);
@@ -211,6 +216,10 @@ describe.skipIf(process.platform === 'win32')('stop --force leftovers', () => {
         const metaFilePath = path.join(dir, 'demo.global.daemon.meta.json');
         const desiredFilePath = path.join(dir, 'demo.global.daemon.desired.json');
         await fs.writeFile(pidFilePath, String(daemon.leader), 'utf8');
+        const locksDir = workspacePathLocksDirPath({ globalConfigFolderPath: dir });
+        const daemonLock = path.join(locksDir, `${'a'.repeat(64)}.${daemon.leader}.x.daemon-line.lock`);
+        await fs.mkdir(locksDir, { recursive: true });
+        await writeJsonFile({ filePath: daemonLock, data: { pid: daemon.leader, lumpName: 'backlog' } });
         await writeJsonFile({
             filePath: metaFilePath,
             data: {
@@ -226,12 +235,20 @@ describe.skipIf(process.platform === 'win32')('stop --force leftovers', () => {
             data: { projectRoot: dir, daemonId: 'global', cronSetup: '*/5 * * * *' },
         });
 
-        const result = await stop({ pidFilePath, metaFilePath, desiredFilePath, force: true, waitMs: 2000 });
+        const result = await stop({
+            pidFilePath,
+            metaFilePath,
+            desiredFilePath,
+            globalConfigFolderPath: dir,
+            force: true,
+            waitMs: 2000,
+        });
 
         expect(result.status).toBe('stopped');
         await waitUntilPidGone(daemon.orphan);
         await waitUntilPidGone(step.orphan);
         await expect(fs.access(metaFilePath)).rejects.toMatchObject({ code: 'ENOENT' });
+        await expect(fs.access(daemonLock)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 });
 

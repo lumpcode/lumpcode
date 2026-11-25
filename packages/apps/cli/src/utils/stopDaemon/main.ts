@@ -25,21 +25,23 @@ async function waitForPidExit(input: { pid: number; waitMs: number }): Promise<b
     return dead === true;
 }
 
+type DaemonLeftoverFiles = { metaFilePath: string; globalConfigFolderPath: string };
+
 async function signalDaemonProcess(input: {
     pid: number;
     force: boolean;
-    /** Daemon meta; `--force` kills the leftovers it lists. Absent for the supervisor. */
-    metaFilePath?: string;
+    /** Daemon files; `--force` kills the leftovers they list. Absent for the supervisor. */
+    leftovers?: DaemonLeftoverFiles;
     logger?: Logger;
 }): Promise<Success<void> | Failure<string>> {
-    const { pid, force, metaFilePath, logger } = input;
+    const { pid, force, leftovers, logger } = input;
     if (force) {
         const killResult = await killProcessTree({ pid, graceMs: 0 });
         if (!killResult.success) {
             return killResult;
         }
-        if (metaFilePath !== undefined) {
-            await killDaemonLeftovers({ daemonPid: pid, metaFilePath, label: `daemon pid ${pid}`, logger });
+        if (leftovers !== undefined) {
+            await killDaemonLeftovers({ daemonPid: pid, ...leftovers, label: `daemon pid ${pid}`, logger });
         }
         return success(undefined);
     }
@@ -63,11 +65,11 @@ async function stopPid(input: {
     pid: number;
     force: boolean;
     waitMs: number;
-    metaFilePath?: string;
+    leftovers?: DaemonLeftoverFiles;
     logger?: Logger;
 }): Promise<Success<void> | Failure<StopPidCallFailure>> {
-    const { pid, force, waitMs, metaFilePath, logger } = input;
-    const signaled = await signalDaemonProcess({ pid, force, metaFilePath, logger });
+    const { pid, force, waitMs, leftovers, logger } = input;
+    const signaled = await signalDaemonProcess({ pid, force, leftovers, logger });
     if (!signaled.success) {
         const error: StopPidCallFailure = { cause: 'signal', message: signaled.data };
         return failure(error);
@@ -130,14 +132,14 @@ async function signalWaitUnlink(input: {
     unlinkPaths: Array<string | undefined>;
     force: boolean;
     waitMs: number;
-    metaFilePath?: string;
+    leftovers?: DaemonLeftoverFiles;
     logger?: Logger;
 }): Promise<StopPidResult> {
     const stopped = await stopPid({
         pid: input.pid,
         force: input.force,
         waitMs: input.waitMs,
-        metaFilePath: input.metaFilePath,
+        leftovers: input.leftovers,
         logger: input.logger,
     });
     if (!stopped.success) {
@@ -168,6 +170,7 @@ type StopDaemonFilesInput = {
     pidFilePath: string;
     metaFilePath: string;
     desiredFilePath: string;
+    globalConfigFolderPath: string;
     force: boolean;
     waitMs: number;
     logger?: Logger;
@@ -177,7 +180,7 @@ type StopDaemonFilesInput = {
  * Operator stop: refuse when mid-run or meta is corrupt. `--force` skips both checks.
  */
 export async function stopOneDaemon(input: StopDaemonFilesInput): Promise<StopOneDaemonResult> {
-    const { pidFilePath, metaFilePath, desiredFilePath, force, waitMs, logger } = input;
+    const { pidFilePath, metaFilePath, desiredFilePath, globalConfigFolderPath, force, waitMs, logger } = input;
     const unlinkPaths = [pidFilePath, metaFilePath, desiredFilePath];
     const pidState = await pidForStopOrCleanup({ pidFilePath, unlinkPaths });
     if (pidState.status !== 'alive') {
@@ -196,7 +199,14 @@ export async function stopOneDaemon(input: StopDaemonFilesInput): Promise<StopOn
     }
 
     await markDesiredStopping({ desiredFilePath, logger });
-    return signalWaitUnlink({ pid, unlinkPaths, force, waitMs, metaFilePath, logger });
+    return signalWaitUnlink({
+        pid,
+        unlinkPaths,
+        force,
+        waitMs,
+        leftovers: { metaFilePath, globalConfigFolderPath },
+        logger,
+    });
 }
 
 /**
@@ -204,7 +214,7 @@ export async function stopOneDaemon(input: StopDaemonFilesInput): Promise<StopOn
  * Corrupt meta proceeds to signal. `--force` skips the mid-run check.
  */
 export async function drainOrStopOneDaemon(input: StopDaemonFilesInput): Promise<DrainOrStopOneDaemonResult> {
-    const { pidFilePath, metaFilePath, desiredFilePath, force, waitMs, logger } = input;
+    const { pidFilePath, metaFilePath, desiredFilePath, globalConfigFolderPath, force, waitMs, logger } = input;
     const unlinkPaths = [pidFilePath, metaFilePath, desiredFilePath];
     const pidState = await pidForStopOrCleanup({ pidFilePath, unlinkPaths });
     if (pidState.status !== 'alive') {
@@ -221,7 +231,14 @@ export async function drainOrStopOneDaemon(input: StopDaemonFilesInput): Promise
     }
 
     await markDesiredStopping({ desiredFilePath, logger });
-    return signalWaitUnlink({ pid, unlinkPaths, force, waitMs, metaFilePath, logger });
+    return signalWaitUnlink({
+        pid,
+        unlinkPaths,
+        force,
+        waitMs,
+        leftovers: { metaFilePath, globalConfigFolderPath },
+        logger,
+    });
 }
 
 /** Pid + supervisor meta only. Never reads daemon meta or desired.json. */

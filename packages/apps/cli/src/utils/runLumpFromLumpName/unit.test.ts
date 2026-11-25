@@ -54,7 +54,7 @@ describe('runLumpFromLumpName', () => {
     async function countLockFiles(): Promise<number> {
         const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
         const files = await fs.readdir(locksDir).catch(() => []);
-        return files.filter((f) => f.endsWith('.lock.json')).length;
+        return files.filter((f) => f.endsWith('.lock')).length;
     }
 
     it('releases the execution path lock when a dedicated lump is disabled', async () => {
