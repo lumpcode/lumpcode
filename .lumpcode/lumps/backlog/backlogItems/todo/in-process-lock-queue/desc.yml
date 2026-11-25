@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: in-process-lock-queue
+workflow: [req, testPlan, testImpl, impl]
+task: >-
+  Put an in-process FIFO queue in front of the workspace file lock
+  (packages/apps/cli/src/utils/workspaceFileLock/main.ts), keyed by lock kind
+  and path hash. Today lines of one daemon contend for the same path through
+  the filesystem like separate processes: each waiting line polls every
+  500–750 ms, lists the lock folder, and on macOS may spawn `ps`, and two
+  lines can collide and both back off. The git common dir lock is taken for
+  every fetch, commit and push, so each handoff between lines costs about half
+  a second. With a queue, a line first waits its turn in memory, then takes
+  the file lock as today; release hands over to the next queued line at once.
+  The file protocol stays the only cross-process mechanism and keeps its
+  guarantees; the queue only orders and speeds up same-process contenders, and
+  gives them fairness. Keep fail mode semantics (a manual run never queues
+  behind itself) and the wait timeout and wait-log behaviour. Test with the
+  existing multi-process stress test plus a same-process handoff latency test.
+priority: 50
