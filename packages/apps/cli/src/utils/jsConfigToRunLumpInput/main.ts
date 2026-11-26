@@ -65,6 +65,7 @@ import { lumpHistoryFilePath } from '../lumpHistoryFilePath';
 import { createLiveStepOutput } from '../lumpTranscriptFilePath';
 import type { LumpLine } from '../lumpLine';
 import { normalizeSteps } from './normalizeSteps';
+import { createCliAgent } from '../createCliAgent';
 
 /** CLI-only reporter: set / clear `contextName` on the active daemon lump line. */
 export type DaemonRunTelemetry = {
@@ -137,6 +138,8 @@ export async function jsConfigToRunLumpInput({
         skipCommitAndPush,
         ...rest
     } = config;
+
+    const hasWorkflow = typeof (config as { workflow?: unknown }).workflow === 'function';
 
     if (postSetupWorkspaceFnField !== undefined && postSetupWorkspaceCommand !== undefined) {
         return failure('postSetupWorkspaceFn and postSetupWorkspaceCommand are mutually exclusive');
@@ -308,16 +311,20 @@ export async function jsConfigToRunLumpInput({
         resolvedUserTeardownFn = teardownResult.data;
     }
 
-    const stepsResult = await resolveSteps({
-        prompt,
-        jsSteps,
-        defaultCommand,
-        configTimeoutMillis,
-        commandModules,
-        configPaths,
-        fnImportOptions,
-    });
-    if (!stepsResult.success) return stepsResult;
+    let steps: Steps | undefined;
+    if (!hasWorkflow) {
+        const stepsResult = await resolveSteps({
+            prompt,
+            jsSteps,
+            defaultCommand,
+            configTimeoutMillis,
+            commandModules,
+            configPaths,
+            fnImportOptions,
+        });
+        if (!stepsResult.success) return stepsResult;
+        steps = stepsResult.data;
+    }
 
     const branchFnResult = await makeBranchFn({
         lumpName,
@@ -333,7 +340,11 @@ export async function jsConfigToRunLumpInput({
     });
 
     const { setupFn, teardownFn } = withDaemonContextTelemetry({
-        setupFn: composeSetupFn({ userSetupFn: resolvedUserSetupFn, commandModules }),
+        setupFn: composeSetupFn({
+            userSetupFn: resolvedUserSetupFn,
+            commandModules,
+            runCommandSetups: !hasWorkflow,
+        }),
         teardownFn: composeTeardownFn({ userTeardownFn: resolvedUserTeardownFn, commandModules }),
         daemonRunTelemetry,
         lumpName,
@@ -354,7 +365,19 @@ export async function jsConfigToRunLumpInput({
         gitCommitMessageFn,
         ...(gatedGitFns ?? {}),
         ...(refreshRemoteTrackingRefsFn ? { refreshRemoteTrackingRefsFn } : {}),
-        steps: stepsResult.data,
+        ...(steps !== undefined ? { steps } : {}),
+        ...(hasWorkflow ? {
+            createAgent: createCliAgent({
+                commandModules,
+                defaultCommand,
+                loadCommandModule: (commandName) => loadWorkflowCommandModule({
+                    commandName,
+                    commandModules,
+                    configPaths,
+                    importBasePath: fnImportOptions.importBasePath,
+                }),
+            }),
+        } : {}),
         setupFn,
         teardownFn,
         setupWorkspaceFn,
@@ -462,18 +485,23 @@ function resolveGetKeepHistoryFilePathFn({
 function composeSetupFn({
     userSetupFn,
     commandModules,
+    runCommandSetups = true,
 }: {
     userSetupFn: SetupFn | undefined;
     commandModules: Map<string, CommandModule>;
+    /** Workflow sessions run command setup on first use, where `sessionId` is kept. */
+    runCommandSetups?: boolean;
 }): SetupFn {
     return async (params) => {
         const userResult = await userSetupFn?.(params);
         const contextRunState = { ...userResult?.contextRunState };
 
-        for (const [cmdName, mod] of commandModules) {
-            if (mod.setup) {
-                const cmdResult = await mod.setup(params);
-                contextRunState[`${cmdName}Setup`] = cmdResult?.contextRunState ?? {};
+        if (runCommandSetups) {
+            for (const [cmdName, mod] of commandModules) {
+                if (mod.setup) {
+                    const cmdResult = await mod.setup(params);
+                    contextRunState[`${cmdName}Setup`] = cmdResult?.contextRunState ?? {};
+                }
             }
         }
 
@@ -955,8 +983,37 @@ async function loadCommandModule({
         setup: modData.setup,
         teardown: modData.teardown,
         ...(modData.presentOutput ? { presentOutput: modData.presentOutput } : {}),
+        ...(modData.createSession ? { createSession: modData.createSession } : {}),
     });
     return success(undefined);
+}
+
+async function loadWorkflowCommandModule({
+    commandName,
+    commandModules,
+    configPaths,
+    importBasePath,
+}: {
+    commandName: string;
+    commandModules: Map<string, CommandModule>;
+    configPaths: CommandConfigPaths;
+    importBasePath: string;
+}): Promise<CommandModule> {
+    const cached = commandModules.get(commandName);
+    if (cached !== undefined) return cached;
+
+    const fileRef = isCommandFileRef(commandName);
+    const loaded = await loadCommandModule({
+        cacheKey: commandName,
+        commandModules,
+        importPath: fileRef ? commandName : await getCommandPath(commandName, configPaths),
+        ...(fileRef ? { importBasePath } : {}),
+    });
+    if (!loaded.success) throw new Error(loaded.data);
+
+    const mod = commandModules.get(commandName);
+    if (mod === undefined) throw new Error(`Command module not found: ${commandName}`);
+    return mod;
 }
 
 async function resolvePostWorkspaceHook<T extends Function>({

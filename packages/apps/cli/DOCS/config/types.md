@@ -78,6 +78,7 @@ type CommandFn<V = LumpVariables, SV = StepVariables> = (params: {
   stepVariables?: SV
   projectRoot: string
   workspacePath: string
+  sessionId?: string // workflow prompt; absent for steps
 }) => MaybePromise<{ executable: string; args: string[]; env?: Record<string, string> } | null | undefined | void>
 
 type PostCommandExecFn<V = LumpVariables, SV = StepVariables> = (input: {
@@ -112,7 +113,10 @@ type SetupFn<V = LumpVariables> = (params: {
   contextList: Context[]
   lumpVariables: V
   currentContextIndex: number
-}) => MaybePromise<Maybe<Partial<{ contextRunState: ContextRunState }>>>
+}) => MaybePromise<Maybe<Partial<{
+  contextRunState: ContextRunState
+  sessionId: string
+}>>>
 
 type TeardownFn<V = LumpVariables> = (params: {
   lumpVariables: V
@@ -141,6 +145,13 @@ type PostSetupWorkspaceFn<V = LumpVariables> = (input: {
 export const command: CommandFn
 export const setup?: SetupFn
 export const teardown?: TeardownFn
+export const createSession?: (input: {
+  lumpVariables: LumpVariables
+  model?: string
+  workspacePath: string
+}) => Promise<string>
 ```
+
+`command` receives `sessionId` when a workflow sends the prompt. Use that id as the chat. When `sessionId` is absent, keep the steps behavior (`newChat`, `chatIdIndex`, the setup chat). `setup` may return `sessionId`: the chat it created, and the default session for `agent.prompt()`. `createSession` opens a further chat. A module without `createSession` still runs; Lumpcode supplies a UUID.
 
 `defineCommand` / `defineCommandSetup` / `defineCommandTeardown` / `defineCommandModule` from `@lumpcode/cli-utils`. When hooks run: [advanced](advanced.md). Preset option bags: [agents](../author/agents.md).

@@ -97,7 +97,7 @@ export const command = defineCommand(({ prompt }) => ({
 }))
 ```
 
-Optional `setup` and `teardown` compose with the lump’s `setupFn` / `teardownFn` (lump setup first; teardown reversed). Command setup state lives at `contextRunState["<commandName>Setup"]`.
+Optional `setup` and `teardown` compose with the lump’s `setupFn` / `teardownFn` (lump setup first; teardown reversed). Command setup state lives at `contextRunState["<commandName>Setup"]`. A workflow passes `sessionId` into `command`. `setup` may return that id, and `createSession` may open another chat. See [Command module](../config/types.md#command-module).
 
 Same skip contract as inline `command`: return nothing and no process runs.
 
