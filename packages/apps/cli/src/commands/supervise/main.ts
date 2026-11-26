@@ -167,6 +167,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
                 projectName,
                 projectRoot,
                 daemonsDir,
+                globalConfigFolderPath,
                 logger,
                 spawnFn,
             });

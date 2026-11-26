@@ -1,9 +1,10 @@
-import { type Failure, type Success } from '@lumpcode/core';
+import { type Failure, type Logger, type Success } from '@lumpcode/core';
 
 import {
     acquireWorkspaceFileLock,
     isWorkspaceFileBusyError,
-    workspaceLockFilePath,
+    removeWorkspaceFileLocksHeldByDeadPid,
+    workspaceLegacyLockFilePath,
     workspaceLocksDirPath,
     type ReleaseWorkspaceFileLockFn,
     type WorkspaceFileBusyError,
@@ -33,15 +34,23 @@ export function workspacePathLocksDirPath(input: { globalConfigFolderPath: strin
     });
 }
 
-export function workspacePathLockFilePath(input: {
+export function workspacePathLegacyLockFilePath(input: {
     globalConfigFolderPath: string;
     workspacePath: string;
 }): string {
-    return workspaceLockFilePath({
+    return workspaceLegacyLockFilePath({
         globalConfigFolderPath: input.globalConfigFolderPath,
         workspacePath: input.workspacePath,
         spec: WORKSPACE_PATH_LOCK_SPEC,
     });
+}
+
+export async function removeWorkspacePathLocksHeldByDeadPid(input: {
+    globalConfigFolderPath: string;
+    pid: number;
+    logger?: Logger;
+}): Promise<void> {
+    await removeWorkspaceFileLocksHeldByDeadPid({ ...input, spec: WORKSPACE_PATH_LOCK_SPEC });
 }
 
 export function isWorkspacePathBusyError(data: unknown): data is WorkspacePathBusyError {

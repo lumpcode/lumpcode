@@ -187,9 +187,10 @@ async function tryLaunchFileDaemon(input: {
 async function applyStopsForFileLaunched(input: {
     consideredById: Map<string, ConsideredDaemonConfig>;
     running: RunningProjectDaemons;
+    globalConfigFolderPath: string;
     logger: Logger;
 }): Promise<{ stayDue: boolean }> {
-    const { consideredById, running, logger } = input;
+    const { consideredById, running, globalConfigFolderPath, logger } = input;
     let stayDue = false;
 
     for (const [daemonId, live] of Object.entries(running)) {
@@ -208,6 +209,7 @@ async function applyStopsForFileLaunched(input: {
             pidFilePath: live.pidFilePath,
             metaFilePath: live.metaFilePath,
             desiredFilePath: live.desiredFilePath,
+            globalConfigFolderPath,
             force: false,
             waitMs: DAEMON_IDLE_STOP_WAIT_MS,
             logger,
@@ -418,6 +420,7 @@ export async function reconcileDaemonConfigFiles(
     const { stayDue } = await applyStopsForFileLaunched({
         consideredById,
         running,
+        globalConfigFolderPath,
         logger,
     });
 

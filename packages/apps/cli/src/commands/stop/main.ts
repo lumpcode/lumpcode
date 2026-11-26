@@ -108,6 +108,7 @@ const handlerMaker: CommandHandlerMaker<Injections, Input, Output> = (injections
         pidFilePath,
         metaFilePath,
         desiredFilePath,
+        globalConfigFolderPath,
         force,
         waitMs,
         logger,
