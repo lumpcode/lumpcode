@@ -11,8 +11,11 @@ import { resolveOpenCodeArgs } from './utils/resolveOpenCodeArgs.js';
 import { createNdjsonPresenter } from './utils/presentNdjson.js';
 import { presentOpenCodeEvent } from './utils/presentOpenCodeLine.js';
 
+export const createSession = async ({ model } = {}) => createOpenCodeSession({ model });
+
 export const command = (async ({
     prompt,
+    sessionId,
     stepVariables = {},
     contextRunState,
     stepIndex,
@@ -21,7 +24,7 @@ export const command = (async ({
     const model = stepVariables.model ?? lumpVariables.model;
 
     const trimmedPrompt = (prompt ?? '').trim();
-    const chatId = await resolvePresetChatSession({
+    const chatId = sessionId ?? await resolvePresetChatSession({
         prompt: trimmedPrompt,
         contextRunState,
         setupStateKey: 'opencodeSetup',
@@ -55,7 +58,10 @@ export const setup = (async ({ lumpVariables = {} }) => {
         model: lumpVariables.model,
     });
 
-    return initialPresetChatRunState(setupChatIdStr);
+    return {
+        ...initialPresetChatRunState(setupChatIdStr),
+        sessionId: setupChatIdStr,
+    };
 });
 
 export const teardown = ((() => {

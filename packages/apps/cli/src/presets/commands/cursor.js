@@ -28,8 +28,11 @@ async function createChatId() {
     }
 }
 
+export const createSession = async () => createChatId();
+
 export const command = (async ({
     prompt,
+    sessionId,
     stepVariables = {},
     contextRunState,
     stepIndex,
@@ -40,7 +43,7 @@ export const command = (async ({
     const model = stepVariables.model ?? lumpVariables.model ?? 'auto';
 
     const trimmedPrompt = (prompt ?? '').trim();
-    const chatId = await resolvePresetChatSession({
+    const chatId = sessionId ?? await resolvePresetChatSession({
         prompt: trimmedPrompt,
         contextRunState,
         setupStateKey: 'cursorSetup',
@@ -80,7 +83,10 @@ export const command = (async ({
 export const setup = (async ({}) => {
     const setupChatIdStr = await createChatId();
 
-    return initialPresetChatRunState(setupChatIdStr);
+    return {
+        ...initialPresetChatRunState(setupChatIdStr),
+        sessionId: setupChatIdStr,
+    };
 });
 
 export const teardown = ((() => {

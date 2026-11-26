@@ -19,8 +19,7 @@ type ArgvRecord = {
 
 type TeardownParams = Parameters<NonNullable<CommandModule['teardown']>>[0];
 
-// Skipped until the agent-sessions implementation. Unskip this block; do not rewrite it.
-describe.skip('createCliAgent', () => {
+describe('createCliAgent', () => {
     let dir: string;
 
     beforeEach(async () => {
@@ -249,7 +248,12 @@ describe.skip('createCliAgent', () => {
 
         const argv = await readArgv();
         expect(argv).toEqual([
-            { command: 'alpha', prompt: 'hi', sessionId: session.sessionId },
+            {
+                command: 'alpha',
+                prompt: 'hi',
+                sessionId: session.sessionId,
+                stepVariables: { model: 'lump-model' },
+            },
         ]);
     });
 
@@ -292,7 +296,12 @@ describe.skip('createCliAgent', () => {
 
         expect(created).toBe(0);
         expect(await readArgv()).toEqual([
-            { command: 'alpha', prompt: 'resume', sessionId: 'from-earlier-run' },
+            {
+                command: 'alpha',
+                prompt: 'resume',
+                sessionId: 'from-earlier-run',
+                stepVariables: { model: 'lump-model' },
+            },
         ]);
     });
 
@@ -310,8 +319,18 @@ describe.skip('createCliAgent', () => {
 
         expect(again.sessionId).toBe('chat-1');
         expect(await readArgv()).toEqual([
-            { command: 'alpha', prompt: 'first', sessionId: 'chat-1' },
-            { command: 'alpha', prompt: 'second', sessionId: 'chat-1' },
+            {
+                command: 'alpha',
+                prompt: 'first',
+                sessionId: 'chat-1',
+                stepVariables: { model: 'lump-model' },
+            },
+            {
+                command: 'alpha',
+                prompt: 'second',
+                sessionId: 'chat-1',
+                stepVariables: { model: 'lump-model' },
+            },
         ]);
         expect(calls.map((call) => call.commandName)).toEqual(['alpha', 'alpha']);
     });

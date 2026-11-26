@@ -11,8 +11,11 @@ import { resolveCodexArgs } from './utils/resolveCodexArgs.js';
 import { createNdjsonPresenter } from './utils/presentNdjson.js';
 import { presentCodexEvent } from './utils/presentCodexLine.js';
 
+export const createSession = async ({ model } = {}) => createCodexSession({ model });
+
 export const command = (async ({
     prompt,
+    sessionId,
     stepVariables = {},
     contextRunState,
     stepIndex,
@@ -21,7 +24,7 @@ export const command = (async ({
     const model = stepVariables.model ?? lumpVariables.model;
 
     const trimmedPrompt = (prompt ?? '').trim();
-    const chatId = await resolvePresetChatSession({
+    const chatId = sessionId ?? await resolvePresetChatSession({
         prompt: trimmedPrompt,
         contextRunState,
         setupStateKey: 'codexSetup',
@@ -53,7 +56,10 @@ export const setup = (async ({ lumpVariables = {} }) => {
         model: lumpVariables.model,
     });
 
-    return initialPresetChatRunState(setupChatIdStr);
+    return {
+        ...initialPresetChatRunState(setupChatIdStr),
+        sessionId: setupChatIdStr,
+    };
 });
 
 export const teardown = ((() => {
