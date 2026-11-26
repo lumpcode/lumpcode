@@ -41,6 +41,7 @@
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
     "build": "rollup -c --forceExit",
+    "check-types": "tsc --noEmit && tsc --noEmit -p tsconfig.typecheck.json",
     "test": "vitest run"
   },
   "dependencies": {

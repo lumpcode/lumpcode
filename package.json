@@ -11,6 +11,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "node scripts/turbo-build.mjs",
+    "check-types": "npm run check-types -w=@lumpcode/core -w=@lumpcode/cli-types -w=@lumpcode/cli-utils -w=@lumpcode/recipes -w=@lumpcode/dashboard -w=@lumpcode/cli && tsc --noEmit -p .lumpcode/tsconfig.json",
     "build:all": "npm run build -w=@lumpcode/core && npm run build -w=@lumpcode/cli && npm run build -w=@lumpcode/cli-types && npm run build -w=@lumpcode/cli-utils && npm run build -w=@lumpcode/recipes",
     "azure-daemon-vm": "node scripts/azure-daemon-vm/deploy.mjs",
     "hetzner-daemon-vm": "node scripts/hetzner-daemon-vm/deploy.mjs",
