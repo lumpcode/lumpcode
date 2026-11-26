@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: base-branch-fn-caches-empty-contexts
+workflow:
+  - impl
+task: >-
+  A function baseBranch is resolved by calling getContextListFn with
+  codeBasePaths [] and caching that empty list, so the function sees no
+  contexts and the run stays empty even when the project has matches.
+priority: 20
