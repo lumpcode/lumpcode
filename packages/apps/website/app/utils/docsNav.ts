@@ -19,6 +19,7 @@ export const docsNav: DocsNavSection[] = [
       { title: 'Watch it work', path: '/docs/start/observe' },
       { title: 'Core terms', path: '/docs/start/terms' },
       { title: 'How a run works', path: '/docs/start/run' },
+      { title: 'What is a software factory', path: '/docs/start/software-factory' },
     ],
   },
   {
@@ -111,11 +112,6 @@ export function withoutTrailingSlash(path: string): string {
 export function docsRedirectTarget(path: string): string | undefined {
   const from = withoutTrailingSlash(path)
   return docsRedirectSources.find((redirect) => redirect.from === from)?.to
-}
-
-export function docsItemByPath(path: string): DocsNavItem | undefined {
-  const normalized = withoutTrailingSlash(path)
-  return docsPages.find((item) => item.path === normalized)
 }
 
 export function docsSectionTitle(path: string): string | undefined {

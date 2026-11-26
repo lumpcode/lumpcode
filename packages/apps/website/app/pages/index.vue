@@ -2,9 +2,16 @@
 useHead({
   title: siteTitle,
   titleTemplate: '%s',
+  script: [homeStructuredData()],
 })
 
 useReveal()
+
+// Decided once per page view so both hero layers agree; server markup assumes it plays.
+const schoolPlays = import.meta.client ? claimSchoolPass() : true
+
+const ocean = ref<HTMLElement | null>(null)
+useOceanStir(ocean)
 
 const positioningSplit = positioningLine.indexOf('A software factory')
 const positioningLead = positioningLine.slice(0, positioningSplit).trim()
@@ -14,8 +21,8 @@ const positioningPunch = positioningLine.slice(positioningSplit)
 <template>
   <div class="landing">
     <section class="hero-stage">
-      <Aquarium />
-      <Aquarium layer="school" />
+      <Aquarium :school-plays="schoolPlays" />
+      <Aquarium layer="school" :school-plays="schoolPlays" />
       <div class="wrap hero">
         <div class="hero-copy">
           <p class="hero-kicker enter" style="--i: 0">
@@ -34,16 +41,22 @@ const positioningPunch = positioningLine.slice(positioningSplit)
             Lumpcode runs your coding agent through it, inside your repo with your skills and docs already there, and pushes a branch for each piece of work. You review each branch as a pull request, or let your CI merge it.
           </p>
           <p class="lede-lump enter" style="--i: 5">
-            No account, no database, nothing to deploy: git is the only state.
+            No account, no database, no backend: git is the only state.
           </p>
           <div class="hero-actions enter" style="--i: 6">
-            <NuxtLink class="btn btn-primary" :to="docs.firstPr">
+            <NuxtLink class="btn btn-ghost" :to="docs.firstPr">
               Get started
               <span class="btn-arrow" aria-hidden="true">→</span>
             </NuxtLink>
             <a class="btn btn-ghost" :href="githubRepoUrl">View on GitHub</a>
           </div>
-          <p class="hero-install enter" style="--i: 7">
+          <div class="hero-prompt enter" style="--i: 7">
+            <CopySetupPrompt />
+            <p class="hero-prompt-caption">
+              Paste it into your coding agent. It installs Lumpcode, sets up a dedicated worker, and runs a first lump.
+            </p>
+          </div>
+          <p class="hero-install enter" style="--i: 8">
             <code><span class="prompt" aria-hidden="true">$</span> {{ cliInstall }}</code>
             <span>Apache 2.0. No account needed.</span>
           </p>
@@ -57,7 +70,7 @@ const positioningPunch = positioningLine.slice(positioningSplit)
             </li>
             <li class="flow-step enter" style="--i: 4">
               <p class="flow-label"><span class="flow-node" aria-hidden="true" />The lump</p>
-              <CodeWindow filename=".lumpcode/lumps/portToVue/config.json" :code="exampleConfig" lines />
+              <CodeWindow filename=".lumpcode/lumps/portToVue/config.ts" :code="exampleConfig" lines />
               <p class="code-caption">
                 <code>{NAME}</code> is the component name, so each component becomes one <strong>context</strong> holding both files.
               </p>
@@ -192,8 +205,9 @@ const positioningPunch = positioningLine.slice(positioningSplit)
     </section>
 
     <section class="section wrap" id="worker">
-      <div class="ocean" data-reveal>
-        <Aquarium />
+      <div ref="ocean" class="ocean" data-reveal>
+        <div class="ocean-light" aria-hidden="true" />
+        <Aquarium :school-plays="schoolPlays" />
         <div class="ocean-inner">
           <div class="ocean-copy">
             <h2 class="worker-title">{{ workerTitle }}</h2>
@@ -239,6 +253,13 @@ const positioningPunch = positioningLine.slice(positioningSplit)
           </p>
         </div>
         <div class="install-commands">
+          <div class="install-copy">
+            <CopySetupPrompt />
+            <p class="install-copy-caption">
+              Paste it into your coding agent. It installs the skill, sets up this repo and a dedicated worker clone, then proposes and runs a first lump.
+            </p>
+          </div>
+          <p class="install-divider">Or do it yourself</p>
           <p class="install-label">{{ installCliLabel }}</p>
           <CodeWindow filename="terminal" :code="cliInstall" />
           <p class="install-label">{{ installSkillLabel }}</p>

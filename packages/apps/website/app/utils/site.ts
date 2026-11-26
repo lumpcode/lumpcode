@@ -38,16 +38,19 @@ export const codebaseTree = `src/components/
 └── DataTable/   index.tsx  index.test.tsx
 `
 
-export const exampleConfig = `{
-  "contextListJson": {
-    "COMPONENT": "src/components/{NAME}/index.tsx",
-    "TEST": "src/components/{NAME}/index.test.tsx"
+export const exampleConfig = `export default defineConfig({
+  command: 'claude-code',
+  contextListJson: {
+    COMPONENT: 'src/components/{NAME}/index.tsx',
+    TEST: 'src/components/{NAME}/index.test.tsx',
   },
-  "prompt": {
-    "promptTemplate": "Port @{COMPONENT} to Vue 3 and update @{TEST}.",
-    "command": "cursor"
-  }
-}
+  steps: retryUntilGreen({
+    steps: [{
+      promptTemplate: 'Port @{COMPONENT} to Vue 3 and update @{TEST}.',
+    }],
+    validationCommandFn: () => shellCommand('npm run test'),
+  }),
+})
 `
 
 export const exampleBranches = [
@@ -95,7 +98,7 @@ export const factoryKinds = [
 
 export const factoryKindsOwn = {
   title: 'Your own flow',
-  body: 'Anything a command can list becomes the work. Configs can be TypeScript, so the factory is whatever you write.',
+  body: 'Anything your code can list becomes the work. Configs can be TypeScript, so the factory is whatever you write.',
 } as const
 
 export const fleetTitle = 'Lumpcode is built by its own fleet.'
@@ -167,7 +170,7 @@ export const steps = [
 export const stepConfigFile = 'lumps/addTests/config.ts'
 
 export const stepConfig = `export default defineConfig({
-  command: 'claude',
+  command: 'claude-code',
   contextListJson: {
     FILE: 'src/utils/{NAME}.ts',
   },
@@ -258,5 +261,9 @@ export const agents = [
 
 export const themeStorageKey = 'lumpcode-theme'
 
-/** Runs in <head> before paint so the stored or system theme never flashes. */
-export const themeBootScript = `(function(){var d=document.documentElement;d.classList.add('js');var t=null;try{t=localStorage.getItem('${'lumpcode-theme'}')}catch(e){}var m=window.matchMedia('(prefers-color-scheme: light)');function set(v){d.dataset.theme=v}set(t==='light'||t==='dark'?t:(m.matches?'light':'dark'));if(m.addEventListener){m.addEventListener('change',function(e){var s=null;try{s=localStorage.getItem('${'lumpcode-theme'}')}catch(x){}if(!s){set(e.matches?'light':'dark')}})}})();`
+/** Address-bar color. Light is the first-visit paint; dark matches the no-JS tokens. */
+export const themeColorLight = '#f3f8f8'
+export const themeColorDark = '#000514'
+
+/** Runs in <head> before paint. A stored lumpcode-theme value wins; otherwise light. Syncs theme-color. */
+export const themeBootScript = `(function(){var d=document.documentElement;d.classList.add('js');var t=null;try{t=localStorage.getItem('${themeStorageKey}')}catch(e){}var v=t==='light'||t==='dark'?t:'light';d.dataset.theme=v;var m=document.querySelector('meta[name="theme-color"]');if(m)m.setAttribute('content',v==='light'?'${themeColorLight}':'${themeColorDark}')})();`

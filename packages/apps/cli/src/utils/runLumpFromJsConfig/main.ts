@@ -72,6 +72,8 @@ export async function runLumpFromJsConfig(input: {
     daemonRunTelemetry?: DaemonRunTelemetry;
     /** When set, step output is written here as it arrives. */
     liveStepWrite?: (text: string) => void;
+    /** Run this context. Depends-on still applies. Priority does not. */
+    contextName?: string;
 }): Promise<Success<RunLumpFromJsConfigSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         jsConfig,
@@ -88,6 +90,7 @@ export async function runLumpFromJsConfig(input: {
         effectiveDiscoveryBranch,
         daemonRunTelemetry,
         liveStepWrite,
+        contextName,
     } = input;
 
     const session = createWorkspaceLockSession();
@@ -184,6 +187,7 @@ export async function runLumpFromJsConfig(input: {
 
         const runLumpInput = {
             ...runLumpInputResult.data,
+            ...(contextName !== undefined ? { contextName } : {}),
             signal,
             setupWorkspaceFn: withWorkspaceLockHooks({
                 setupWorkspaceFn: runLumpInputResult.data.setupWorkspaceFn!,

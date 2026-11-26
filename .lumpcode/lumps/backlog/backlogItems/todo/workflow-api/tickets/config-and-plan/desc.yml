@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: config-and-plan
+workflow: [manualReq, testImpl, impl]
+task: >-
+  `workflow` in LumpJsConfig (TypeScript and JavaScript only), its checks in the
+  schema, config loading and lump-plan (`run: workflow`), the 2 hour default
+  timeoutMillis for workflows, labeled transcript headers for inner calls, and
+  contextResults in the teardown hook input. See requirements.md.
+priority: 13
+dependsOn:
+  - agent-sessions

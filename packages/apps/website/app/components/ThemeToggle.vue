@@ -1,11 +1,11 @@
 <script setup lang="ts">
-const theme = ref<'light' | 'dark'>('dark')
+const theme = ref<'light' | 'dark'>('light')
 
 function apply(next: 'light' | 'dark') {
   theme.value = next
   document.documentElement.dataset.theme = next
   const meta = document.querySelector('meta[name="theme-color"]')
-  meta?.setAttribute('content', next === 'light' ? '#f3f8f8' : '#000514')
+  meta?.setAttribute('content', next === 'light' ? themeColorLight : themeColorDark)
 }
 
 function toggle() {

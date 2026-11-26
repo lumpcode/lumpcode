@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { load as loadYaml } from 'js-yaml';
 
-import type { Context, Logger, SetupFn, Steps } from '../../../types';
+import type { BranchFn, Context, ContextRunState, Logger, SetupFn, Steps, TeardownFn } from '../../../types';
 import { failure, success } from '../../../utils';
 import { executeStepsForContextList } from '../main';
 import {
@@ -1186,5 +1186,134 @@ describe('executeStepsForContextList command output events', () => {
         ]);
         expect((await result).success).toBe(true);
         expect(events[0]?.stepIndex).toEqual([0, 0]);
+    });
+});
+
+describe('executeStepsForContextList contextRunStateList', () => {
+    let projectRoot: string;
+
+    beforeEach(async () => {
+        projectRoot = await mkdtemp(join(tmpdir(), 'context-run-state-list-'));
+        initTestGitRepo(projectRoot);
+    });
+
+    afterEach(async () => {
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    async function runContexts(input: {
+        contextList: Context[];
+        steps: Steps;
+        setupFn: SetupFn;
+        teardownFn?: TeardownFn;
+        branchFn?: BranchFn;
+    }) {
+        return executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: input.branchFn ?? stubBranchFn,
+            lumpVariables: {},
+            contextList: input.contextList,
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: input.steps,
+            setupFn: input.setupFn,
+            teardownFn: input.teardownFn ?? (async () => undefined),
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+    }
+
+    it('returns one live contextRunState per context, in contextNames order, including step mutations', async () => {
+        const states: ContextRunState[] = [
+            { seeded: true },
+            { seeded: true },
+        ];
+        let branchFnListLength = -1;
+
+        const result = await runContexts({
+            contextList: [
+                { name: 'ctx-a', variables: {} },
+                { name: 'ctx-b', variables: {} },
+            ],
+            branchFn: async ({ contextRunStateList }) => {
+                branchFnListLength = contextRunStateList.length;
+                return 'lump/demo/ctx-a';
+            },
+            setupFn: async ({ currentContextIndex }) => ({
+                contextRunState: states[currentContextIndex]!,
+            }),
+            teardownFn: ({ contextRunState, currentContextIndex }) => {
+                contextRunState.tornDown = currentContextIndex;
+            },
+            steps: [
+                async ({ context, contextRunState }) => {
+                    contextRunState.fromStepFn = context.name;
+                    return [{
+                        promptFn: ({ context, contextRunState }) => {
+                            contextRunState.fromPromptFn = context.name;
+                            return 'prompt';
+                        },
+                        commandFn: ({ context, contextRunState }) => {
+                            contextRunState.fromCommandFn = context.name;
+                            return { executable: 'true', args: [] };
+                        },
+                        postCommandExecFn: ({ context, contextRunState }) => {
+                            contextRunState.touchedBy = context.name;
+                        },
+                    }];
+                },
+            ],
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(branchFnListLength).toBe(0);
+        expect(result.data.contextNames).toEqual(['ctx-a', 'ctx-b']);
+        expect(result.data.contextRunStateList).toEqual([
+            {
+                seeded: true,
+                fromStepFn: 'ctx-a',
+                fromPromptFn: 'ctx-a',
+                fromCommandFn: 'ctx-a',
+                touchedBy: 'ctx-a',
+                tornDown: 0,
+            },
+            {
+                seeded: true,
+                fromStepFn: 'ctx-b',
+                fromPromptFn: 'ctx-b',
+                fromCommandFn: 'ctx-b',
+                touchedBy: 'ctx-b',
+                tornDown: 1,
+            },
+        ]);
+        expect(result.data.contextRunStateList[0]).toBe(states[0]);
+        expect(result.data.contextRunStateList[1]).toBe(states[1]);
+    });
+
+    it('yields {} for a context whose setupFn returns nothing', async () => {
+        const result = await runContexts({
+            contextList: [
+                { name: 'ctx-a', variables: {} },
+                { name: 'ctx-b', variables: {} },
+            ],
+            setupFn: async ({ currentContextIndex }) => (
+                currentContextIndex === 0 ? { contextRunState: { seeded: true } } : undefined
+            ),
+            steps: [{
+                commandFn: () => ({ executable: 'true', args: [] }),
+            }],
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(result.data.contextNames).toEqual(['ctx-a', 'ctx-b']);
+        expect(result.data.contextRunStateList).toEqual([
+            { seeded: true },
+            {},
+        ]);
     });
 });

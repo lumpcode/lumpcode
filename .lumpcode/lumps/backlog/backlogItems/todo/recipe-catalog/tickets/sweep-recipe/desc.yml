@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: sweep-recipe
+workflow: [manualReq, testImpl, impl]
+task: >-
+  `sweep({…})`: files matched by globs or a match function become contexts, one
+  prompt runs on each, an optional check command loops with retryUntilGreen,
+  and several files can share a branch. An optional done test drops finished
+  files from discovery so the list shrinks as it goes. Covers migrations and
+  codemods (DOCS/examples/sweeps.md).
+priority: 25

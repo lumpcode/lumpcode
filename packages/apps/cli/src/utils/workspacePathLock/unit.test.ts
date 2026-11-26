@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
     acquireWorkspacePathLock,
     isWorkspacePathBusyError,
-    workspacePathLockFilePath,
+    workspacePathLegacyLockFilePath,
     workspacePathLocksDirPath,
 } from './main';
 
@@ -36,14 +36,14 @@ describe('workspacePathLock', () => {
         expect(acquired.success).toBe(true);
         if (!acquired.success) throw new Error('unreachable');
 
-        const lockFilePath = workspacePathLockFilePath({
+        const lockFilePath = workspacePathLegacyLockFilePath({
             globalConfigFolderPath,
             workspacePath,
         });
         expect(lockFilePath).toContain('workspace-path-locks');
         expect(lockFilePath.endsWith('.lock.json')).toBe(true);
         expect(lockFilePath).toBe(
-            workspacePathLockFilePath({
+            workspacePathLegacyLockFilePath({
                 globalConfigFolderPath,
                 workspacePath: path.resolve(workspacePath),
             }),

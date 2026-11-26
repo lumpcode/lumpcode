@@ -53,6 +53,8 @@ export async function runLumpFromLumpName(input: {
     daemonRunTelemetry?: DaemonRunTelemetry;
     /** When set, step output is written here as it arrives. */
     liveStepWrite?: (text: string) => void;
+    /** Run this context. Depends-on still applies. Priority does not. */
+    contextName?: string;
 }): Promise<Success<RunLumpFromLumpNameSuccess> | Failure<RunLumpFromJsConfigFailure>> {
     const {
         lumpName,
@@ -68,6 +70,7 @@ export async function runLumpFromLumpName(input: {
         signal: providedSignal,
         daemonRunTelemetry,
         liveStepWrite,
+        contextName,
     } = input;
     const signal = providedSignal ?? new AbortController().signal;
 
@@ -126,6 +129,7 @@ export async function runLumpFromLumpName(input: {
             signal,
             daemonRunTelemetry,
             liveStepWrite,
+            contextName,
         });
     }
 
@@ -222,5 +226,6 @@ export async function runLumpFromLumpName(input: {
         effectiveDiscoveryBranch,
         daemonRunTelemetry,
         liveStepWrite,
+        contextName,
     });
 }

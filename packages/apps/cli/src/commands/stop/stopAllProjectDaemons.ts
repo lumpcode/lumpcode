@@ -80,6 +80,7 @@ export async function stopAllProjectDaemons(
             pidFilePath: files.pidFilePath,
             metaFilePath: files.metaFilePath,
             desiredFilePath: files.desiredFilePath,
+            globalConfigFolderPath,
             force,
             waitMs,
             logger,

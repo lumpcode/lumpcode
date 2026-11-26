@@ -3,6 +3,8 @@ import path from 'node:path';
 
 import { readYamlList } from '@lumpcode/cli-utils';
 
+import { itemNeedsAutoTriageRequirements } from './manualReqTodo.mjs';
+
 export const BACKLOG_LANES = ['backlog', 'docs', 'qol', 'bugfixes'] as const;
 export type BacklogLane = (typeof BACKLOG_LANES)[number];
 
@@ -83,7 +85,7 @@ async function hasTodoMissingRequirements(input: {
     const absTodoDir = path.join(input.projectRoot, laneTodoDir(input.lane));
     const dirs = await todoItemDirs(absTodoDir);
     for (const itemDir of dirs) {
-        if (!(await fileExists(path.join(itemDir, 'requirements.md')))) {
+        if (await itemNeedsAutoTriageRequirements(itemDir)) {
             return true;
         }
     }

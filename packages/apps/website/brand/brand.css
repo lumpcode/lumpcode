@@ -1,0 +1,132 @@
+/* Shared by the brand renders (og.html, banner.html): tokens, water, fish, cargo, bubbles.
+   Colours and cargo mirror app/assets/css/main.css; the fish mirrors app/components/Lumpfish.vue. */
+:root {
+  --bg: #000514;
+  --teal: #38b0ab;
+  --teal-bright: #4ec9c3;
+  --teal-glow: rgb(56 176 171 / 18%);
+  --teal-wash: rgb(56 176 171 / 9%);
+  --text: #eef4f6;
+  --text-soft: #c5d4dc;
+  --text-muted: #8fa3b0;
+  --border-strong: rgb(56 176 171 / 34%);
+  --surface: rgb(10 20 34 / 62%);
+  --fish-body: #3cb4ad;
+  --fish-shade: #2fa19b;
+  --fish-dark: #238982;
+  --fish-deep: #1a6e69;
+  --fish-eye: #000514;
+}
+* { box-sizing: border-box; }
+body {
+  position: relative;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 80% 48% at 50% -12%, var(--teal-glow), transparent 58%),
+    radial-gradient(ellipse 60% 40% at 100% 100%, var(--teal-wash), transparent 70%);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.rays {
+  position: absolute;
+  inset: -20% -10% 0;
+  background:
+    linear-gradient(105deg, transparent 30%, var(--teal-wash) 38%, transparent 46%),
+    linear-gradient(100deg, transparent 52%, var(--teal-wash) 57%, transparent 63%),
+    linear-gradient(110deg, transparent 70%, var(--teal-wash) 74%, transparent 80%);
+}
+
+/* Fish */
+.lumpfish { display: block; overflow: visible; }
+.lf-body, .lf-bumps { fill: var(--fish-body); }
+.lf-belly, .lf-fin { fill: var(--fish-shade); }
+.lf-cheek { fill: var(--fish-shade); opacity: 0.55; }
+.lf-fin-dark { fill: var(--fish-dark); }
+.lf-spots { fill: var(--fish-dark); opacity: 0.75; }
+.lf-line { fill: none; stroke: var(--fish-dark); stroke-width: 7; stroke-linecap: round; }
+.lf-pectoral .lf-line { stroke: var(--fish-deep); }
+.lf-eye { fill: var(--fish-eye); }
+.lf-glint { fill: var(--fish-body); }
+.fish-aqua { --fish-body: #6fd3d0; --fish-shade: #55bfbc; --fish-dark: #3aa29f; --fish-deep: #22807d; }
+.fish-ocean { --fish-body: #4ea6cf; --fish-shade: #3e92bb; --fish-dark: #2d779e; --fish-deep: #1e5a7b; }
+.fish-deep { --fish-body: #2d969a; --fish-shade: #258387; --fish-dark: #1b6a6e; --fish-deep: #134f52; }
+
+.school { position: absolute; inset: 0; }
+.school .lumpfish {
+  position: absolute;
+  height: auto;
+  filter: drop-shadow(0 6px 14px rgb(0 0 0 / 30%));
+}
+/* A fish with cargo: the wrapper is positioned, the fish fills it. */
+.school .carrier {
+  position: absolute;
+  filter: drop-shadow(0 6px 14px rgb(0 0 0 / 30%));
+}
+.school .carrier .lumpfish { position: static; width: 100%; filter: none; }
+/* Cargo mirrors .cargo, .cargo-file and .cargo-patch in app/assets/css/main.css. */
+.cargo {
+  position: absolute;
+  left: 58%;
+  top: 74%;
+  margin-left: -1.1em;
+  font-size: var(--cargo);
+  line-height: 1;
+  transform: rotate(-6deg);
+  transform-origin: 50% 0;
+}
+.cargo-file {
+  position: relative;
+  display: grid;
+  align-content: end;
+  width: 2.1em;
+  height: 2.6em;
+  padding: 0 0 0.3em;
+  border-radius: 0.22em;
+  background: #f4f8f9;
+  clip-path: polygon(0 0, 68% 0, 100% 26%, 100% 100%, 0 100%);
+  box-shadow: inset 0 0.25em 0 var(--ext);
+}
+.cargo-file::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 32%;
+  height: 26%;
+  background: #c9d6dc;
+  border-bottom-left-radius: 0.15em;
+}
+.cargo-file-lines {
+  position: absolute;
+  left: 0.3em;
+  right: 0.45em;
+  top: 0.75em;
+  height: 0.7em;
+  background: repeating-linear-gradient(to bottom, #b8c7ce 0 0.1em, transparent 0.1em 0.24em);
+}
+.cargo-file-ext {
+  position: relative;
+  color: var(--ext);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62em;
+  font-weight: 600;
+  text-align: center;
+}
+.cargo-patch {
+  display: flex;
+  flex-direction: column;
+  gap: 0.16em;
+  padding: 0.62em 0.28em 0;
+  box-shadow: inset 0 0.25em 0 #8fa3b0;
+}
+.patch-line { display: block; height: 0.16em; border-radius: 0.1em; background: #b8c7ce; }
+.patch-line.is-add { background: #3fb871; }
+.patch-line.is-del { background: #e25d5d; }
+.patch-line.is-short { width: 62%; }
+.school .far { opacity: 0.5; filter: blur(0.8px); }
+.bubble {
+  position: absolute;
+  border: 2px solid rgb(127 224 219 / 35%);
+  border-radius: 50%;
+}

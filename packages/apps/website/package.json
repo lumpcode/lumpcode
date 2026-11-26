@@ -10,7 +10,9 @@
     "deploy": "nuxt generate && npx wrangler pages deploy .output/public --project-name lumpcode --branch main --commit-dirty=true",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "test": "vitest run --config vitest.config.ts",
+    "brand": "node brand/render.mjs"
   },
   "dependencies": {
     "marked": "^18.0.11",

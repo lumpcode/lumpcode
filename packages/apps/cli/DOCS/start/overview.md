@@ -24,6 +24,8 @@ lump/portToVue/UserCard  →  PR  →  merge  →  next pass picks DataTable
 
 On your laptop, `lumpcode run` rehearses the same loop in place on your current branch, so you can check the prompt before a worker takes over.
 
+New to the idea? Read [What is a software factory?](software-factory.md) for how Lumpcode compares with prompting an agent by hand or wrapping it in a shell loop.
+
 ## Where to start
 
 <div class="docs-cards">

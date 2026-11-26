@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: agent-sessions
+workflow: [manualReq, testImpl, impl]
+task: >-
+  The CLI implements the core Agent on top of command modules: agent.session()
+  with its two call signatures, agent.prompt(), presets loaded on first use,
+  sessionId passed to CommandFn, an optional createSession export and a
+  sessionId in the setup output, moved into the five built-in presets, and the
+  command ownership check. Steps lumps and custom presets behave as today. See
+  requirements.md.
+priority: 12
+dependsOn:
+  - core

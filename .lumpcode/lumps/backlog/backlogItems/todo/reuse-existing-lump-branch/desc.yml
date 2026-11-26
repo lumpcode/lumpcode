@@ -2,15 +2,15 @@
 name: reuse-existing-lump-branch
 workflow: [manualReq, testImpl, impl]
 task: >-
-  Opt a lump out of creating a new lump/… branch, and instead check out and
-  push on an existing branch (typically another lump’s already-open PR).
-  Motivating use case: a follow-up lump that fetches review comments on that
-  PR, applies fixes, and pushes to the same head — not a second lump/… branch.
-  Still fuzzy: how the target branch is chosen (branchFn? explicit existing
-  branch? other-lump/context ref?), how context status and LUMP markers work
-  when this lump does not own the branch, how workspace setup / locks /
-  open-branch caps treat a reused head, and how this differs from
-  shared-in-place-run (laptop, no lump branch at all). Design the product
-  contract before implementing. Distinct from IDEAS add-git-client-abstraction
-  (host API / comment-driven relaunch).
-priority: 5
+  A dedicated run may check out an existing branch and commit on it, instead
+  of creating lump/<lumpName>/…. The branch is chosen from the context. It is
+  the branch the run modifies, not the base branch a pull request would target.
+  baseBranch stays where the lump forks and where finished is read. JS/TS can
+  already set baseBranch from the context list. Setup today fetches that base,
+  hard-resets to it, deletes the work-branch name, and runs git switch -c.
+  branchFn only picks the new name. This ticket is the path that checks out
+  the existing branch and pushes onto it. Wait for a human requirements.md
+  before testImpl and impl.
+priority: 60
+dependsOn:
+  - release-0-11-0

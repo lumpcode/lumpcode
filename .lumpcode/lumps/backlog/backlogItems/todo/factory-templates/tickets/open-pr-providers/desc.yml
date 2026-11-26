@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: open-pr-providers
+workflow: [manualReq, testImpl, impl]
+task: >-
+  openPrPostTeardown supports GitLab (glab), Azure DevOps (az repos pr create)
+  and Bitbucket besides GitHub, with the same skip rules (lump branches only,
+  no duplicate PR). Today OPEN_PR_PROVIDERS is ['github'] only, while the docs
+  examples and the worker plan promise the other hosts.
+priority: 24

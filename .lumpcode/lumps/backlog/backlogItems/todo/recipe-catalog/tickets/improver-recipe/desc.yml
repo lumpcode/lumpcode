@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: improver-recipe
+workflow: [manualReq, testImpl, impl]
+task: >-
+  `improver({…})`: ephemeral contexts where each run lands one small change
+  guided by a prompt or a repo skill, writes an explanation used as the PR
+  body, and runs an optional check. This repo's polisher, writer and trimmer
+  lumps move onto it with the same behavior.
+priority: 26

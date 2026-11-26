@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: ts-default-scaffolding
+workflow: [manualReq, testImpl, impl]
+task: >-
+  setup and lump-create propose the lump format from the repo (TypeScript,
+  JavaScript, or JSON as experimental) and let the user change it. setup asks
+  for the template's command, model, workspace setup command and gh pull
+  requests, and writes .lumpcode/templates/main.ts exactly like the install
+  prompt. lump-create wraps new lumps in a template (--template, --noTemplate).
+  The first lump and lump-create stubs are a workflow
+  (`async workflow({ agent }) { await agent.prompt(...) }`), never steps.
+  Nothing is npm installed. See requirements.md.
+priority: 22
+dependsOn:
+  - cli-bundled-authoring-packages

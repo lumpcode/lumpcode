@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: drop-legacy-lock-json
+workflow: [directImpl]
+manual: true
+task: >-
+  Parked until the release after the one that ships per-acquisition lock files.
+  Not for autoTriage. Remove the v0.10.x compatibility block in
+  packages/apps/cli/src/utils/workspaceFileLock/main.ts (between the "Legacy
+  single-file lock" and "End legacy" markers): claimLegacyLock,
+  readLegacyLockState, releaseLegacyLock and releaseLegacyLockSync,
+  LEGACY_UNREADABLE_GRACE_MS, the legacy branch of
+  removeWorkspaceFileLocksHeldByDeadPid, and the call sites in
+  tryAcquireWorkspaceFileLockOnce and the release functions. Remove
+  workspaceLegacyLockFilePath and its wrappers workspacePathLegacyLockFilePath
+  and gitCommonDirLegacyLockFilePath. Delete the "v0.10.x legacy lock file" tests in
+  workspaceFileLock/unit.test.ts and the legacy-file part of the
+  killDaemonLeftovers lock cleanup test, and rewrite the workspacePathLock unit
+  test that checks the legacy path. Also remove createLegacyLockFile and
+  LINK_UNSUPPORTED; `<hash>.lock.json.<uuid>.tmp` files a SIGKILL left behind can
+  be deleted by that change. Drop the compatibility-window line in
+  .agents/memory/domain/locks.md. Release notes: v0.10.x and the release that
+  ships this removal must never run at the same time on one machine (daemons,
+  supervisor, or a manual run); restart every daemon on upgrade. Known and
+  accepted until then: when a v0.10.x holder died, an old and a new process
+  cleaning up its legacy file at the same moment can each delete what the other
+  just created, because legacy cleanup is read-then-delete by path.
+priority: 40
+dependsOn:
+  - release-0-11-0

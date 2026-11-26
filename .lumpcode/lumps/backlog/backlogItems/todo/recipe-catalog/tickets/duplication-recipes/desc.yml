@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: duplication-recipes
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Rename `abstractionFinder` to `duplicationFinder` and `abstractionBacklog`
+  to `duplicationRemover` (and their `…Steps` versions to
+  `duplicationFinderSteps` / `duplicationRemoverSteps`), keeping the old
+  exports as deprecated aliases. The
+  finder's scope (paths, where the new code goes, check command) becomes
+  options instead of being CLI-specific. This repo's abstraction lumps and the
+  docs move to the new names.
+priority: 27

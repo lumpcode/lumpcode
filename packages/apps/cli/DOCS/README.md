@@ -10,6 +10,7 @@ These pages are the same as [lumpcode.com/docs](https://www.lumpcode.com/docs/st
 - [Watch it work](start/observe.md): dashboard, transcripts, logs, status
 - [Core terms](start/terms.md): lump, context, marker commit, worker
 - [How a run works](start/run.md): the run step by step, branches, worktrees, locks
+- [What is a software factory?](start/software-factory.md): the idea, how Lumpcode compares, common questions
 
 **Examples**
 

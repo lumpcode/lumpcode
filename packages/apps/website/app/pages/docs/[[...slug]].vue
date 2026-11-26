@@ -31,9 +31,15 @@ useHead(() =>
         title: page.value.title,
         meta: [
           { name: 'description', content: page.value.description },
+          { property: 'og:type', content: 'article' },
           { property: 'og:title', content: `${page.value.title} · Lumpcode` },
           { property: 'og:description', content: page.value.description },
+          { name: 'twitter:title', content: `${page.value.title} · Lumpcode` },
+          { name: 'twitter:description', content: page.value.description },
         ],
+        // Raw markdown copy for agents, written at build time by seo/generateSeoFiles.ts.
+        link: [{ rel: 'alternate', type: 'text/markdown', href: `${page.value.path}.md` }],
+        script: [docsStructuredData(page.value)],
       },
 )
 </script>

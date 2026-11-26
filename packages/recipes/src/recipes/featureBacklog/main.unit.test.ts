@@ -159,7 +159,7 @@ describe('resolveFeatureBacklogItem', () => {
     const tddBranch = 'feature/my-feature';
     const reqPath = '.lumpcode/lumps/backlog/backlogItems/todo/my-feature/requirements.md';
     const testPlanPath = '.lumpcode/lumps/backlog/backlogItems/todo/my-feature/testPlan.md';
-    const defaultWorkflow = 'req,testPlan,testImpl';
+    const defaultWorkflow = 'manualReq,testImpl,impl';
 
     function resolve(extra: {
         item?: FeatureBacklogItem;
@@ -186,17 +186,10 @@ describe('resolveFeatureBacklogItem', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
-    it('routes to req when no requirements document exists', async () => {
+    it('waits when workflow is omitted and requirements are missing', async () => {
         const resolution = await resolve();
 
-        expect(resolution).toEqual({
-            stage: 'req',
-            contextName: 'my-feature_req',
-            variables: {
-                WORKFLOW: defaultWorkflow,
-                REQ_FILE: reqPath,
-            },
-        });
+        expect(resolution).toEqual({ ignored: true });
     });
 
     it('waits when later stages need requirements and req is not in the workflow', async () => {
@@ -286,24 +279,8 @@ describe('resolveFeatureBacklogItem', () => {
         expect(resolution).toEqual({ ignored: true });
     });
 
-    it('routes to testPlan when requirements exist but test plan does not', async () => {
+    it('routes to testImpl when workflow is omitted and requirements exist', async () => {
         await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
-
-        const resolution = await resolve();
-
-        expect(resolution).toEqual({
-            stage: 'testPlan',
-            contextName: 'my-feature_testPlan',
-            variables: {
-                WORKFLOW: defaultWorkflow,
-                REQ_FILE: reqPath,
-                TEST_PLAN_FILE: testPlanPath,
-            },
-        });
-    });
-
-    it('routes to testImpl when test plan exists and tests are toDo', async () => {
-        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true, testPlan: true });
         mockedGetContextStatus.mockResolvedValue('toDo');
 
         const resolution = await resolve();
@@ -314,7 +291,6 @@ describe('resolveFeatureBacklogItem', () => {
             variables: {
                 WORKFLOW: defaultWorkflow,
                 REQ_FILE: reqPath,
-                TEST_PLAN_FILE: testPlanPath,
             },
         });
         expect(mockedGetContextStatus).toHaveBeenCalledWith(
@@ -326,8 +302,45 @@ describe('resolveFeatureBacklogItem', () => {
         );
     });
 
-    it('ignores the item while test implementation is branchPushed', async () => {
+    it('routes to testPlan when an explicit workflow includes it and the plan is missing', async () => {
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
+
+        const resolution = await resolve({
+            item: { ...item, workflow: ['req', 'testPlan', 'testImpl'] },
+        });
+
+        expect(resolution).toEqual({
+            stage: 'testPlan',
+            contextName: 'my-feature_testPlan',
+            variables: {
+                WORKFLOW: 'req,testPlan,testImpl',
+                REQ_FILE: reqPath,
+                TEST_PLAN_FILE: testPlanPath,
+            },
+        });
+    });
+
+    it('routes to testImpl when an explicit test plan exists and tests are toDo', async () => {
         await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true, testPlan: true });
+        mockedGetContextStatus.mockResolvedValue('toDo');
+
+        const resolution = await resolve({
+            item: { ...item, workflow: ['req', 'testPlan', 'testImpl'] },
+        });
+
+        expect(resolution).toEqual({
+            stage: 'testImpl',
+            contextName: 'my-feature_testImpl',
+            variables: {
+                WORKFLOW: 'req,testPlan,testImpl',
+                REQ_FILE: reqPath,
+                TEST_PLAN_FILE: testPlanPath,
+            },
+        });
+    });
+
+    it('ignores the item while test implementation is branchPushed', async () => {
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
         mockedGetContextStatus.mockResolvedValue('branchPushed');
 
         const resolution = await resolve();
@@ -336,7 +349,7 @@ describe('resolveFeatureBacklogItem', () => {
     });
 
     it('routes to impl when test implementation is finished', async () => {
-        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true, testPlan: true });
+        await writeFeatureArtifact(lumpPath, 'my-feature', { requirements: true });
         mockedGetContextStatus.mockResolvedValue('finished');
 
         const resolution = await resolve();
@@ -347,7 +360,6 @@ describe('resolveFeatureBacklogItem', () => {
             variables: {
                 WORKFLOW: defaultWorkflow,
                 REQ_FILE: reqPath,
-                TEST_PLAN_FILE: testPlanPath,
             },
         });
     });
@@ -430,7 +442,7 @@ describe('resolveFeatureBacklogItem', () => {
         });
     });
 
-    it('routes tickets on feature/<parent> with nested artifact paths', async () => {
+    it('uses the default workflow for a ticket when the parent desc is missing', async () => {
         const ticket: FeatureBacklogItem = {
             name: 't1',
             task: 'Ticket one',
@@ -439,6 +451,7 @@ describe('resolveFeatureBacklogItem', () => {
             parentName: 'umbrella',
         };
         await writeFeatureArtifact(lumpPath, 'umbrella/tickets/t1', { requirements: true });
+        mockedGetContextStatus.mockResolvedValue('toDo');
 
         const resolution = await resolve({
             item: ticket,
@@ -446,14 +459,40 @@ describe('resolveFeatureBacklogItem', () => {
         });
 
         expect(resolution).toEqual({
-            stage: 'testPlan',
-            contextName: 'umbrella-t1_testPlan',
+            stage: 'testImpl',
+            contextName: 'umbrella-t1_testImpl',
             variables: {
                 WORKFLOW: defaultWorkflow,
                 REQ_FILE:
                     '.lumpcode/lumps/backlog/backlogItems/todo/umbrella/tickets/t1/requirements.md',
-                TEST_PLAN_FILE:
-                    '.lumpcode/lumps/backlog/backlogItems/todo/umbrella/tickets/t1/testPlan.md',
+            },
+        });
+    });
+
+    it('uses the default workflow when a ticket and its parent both omit workflow', async () => {
+        const ticket: FeatureBacklogItem = {
+            name: 't1',
+            task: 'Ticket one',
+            priority: 1,
+            todoRelativeDir: 'umbrella/tickets/t1',
+            parentName: 'umbrella',
+        };
+        await writeTodoDesc(lumpPath, 'umbrella', 'name: umbrella\ntask: Parent\npriority: 1\n');
+        await writeFeatureArtifact(lumpPath, 'umbrella/tickets/t1', { requirements: true });
+        mockedGetContextStatus.mockResolvedValue('toDo');
+
+        const resolution = await resolve({
+            item: ticket,
+            discoveryBranch: 'feature/umbrella',
+        });
+
+        expect(resolution).toEqual({
+            stage: 'testImpl',
+            contextName: 'umbrella-t1_testImpl',
+            variables: {
+                WORKFLOW: defaultWorkflow,
+                REQ_FILE:
+                    '.lumpcode/lumps/backlog/backlogItems/todo/umbrella/tickets/t1/requirements.md',
             },
         });
     });
@@ -638,6 +677,8 @@ describe('featureBacklog parseItem', () => {
             path.join(ticketDir, 'desc.yml'),
             'name: t1\ntask: Ticket one\npriority: 1\ndependsOn:\n  - other\n',
         );
+        await writeFeatureArtifact(lumpPath, 'umbrella/tickets/t1', { requirements: true });
+        mockedGetContextStatus.mockResolvedValue('toDo');
 
         const config = featureBacklog({
             configUrl: pathToFileURL(configPath),
@@ -651,12 +692,13 @@ describe('featureBacklog parseItem', () => {
         });
 
         expect(contexts).toHaveLength(2);
-        expect(contexts.find((ctx) => ctx.name === 'umbrella-t1_req')).toMatchObject({
+        expect(contexts.find((ctx) => ctx.name === 'umbrella-t1_testImpl')).toMatchObject({
             variables: {
                 TASK_NAME: 't1',
                 BACKLOG_ITEM_DIR:
                     '.lumpcode/lumps/backlog/backlogItems/todo/umbrella/tickets/t1',
-                BACKLOG_STAGE: 'req',
+                BACKLOG_STAGE: 'testImpl',
+                WORKFLOW: 'manualReq,testImpl,impl',
                 REQ_FILE:
                     '.lumpcode/lumps/backlog/backlogItems/todo/umbrella/tickets/t1/requirements.md',
             },

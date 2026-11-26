@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/cli",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "The simplest software factory lives in your repo: lumps you commit as code, run by your CLI coding agent, one git branch per piece of work. Open source, git only.",
   "homepage": "https://www.lumpcode.com",
   "keywords": [
@@ -19,7 +19,15 @@
     "daemon",
     "devtools",
     "software-factory",
-    "software-factories"
+    "software-factories",
+    "claude-code",
+    "codex",
+    "cursor",
+    "copilot",
+    "opencode",
+    "ai-coding-agent",
+    "autonomous-agent",
+    "migration"
   ],
   "license": "Apache-2.0",
   "author": "",
@@ -73,7 +81,7 @@
     "install-bin:local:beta": "sh scripts/install-local.sh"
   },
   "dependencies": {
-    "@lumpcode/core": "^0.10.1",
+    "@lumpcode/core": "^0.10.2",
     "ajv": "^8.20.0",
     "commander": "^9.5.0",
     "croner": "^9.1.0",

@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: dashboard-transcripts
+workflow: [manualReq, testImpl, impl]
+task: >-
+  A transcripts page on the worker dashboard: transcripts per lump, newest
+  first (the same files as `lumpcode transcript --list`), open one, and follow
+  the in-flight one live. Read-only.
+priority: 32

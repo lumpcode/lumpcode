@@ -2,10 +2,10 @@ import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { docsPrerenderRoutes, docsRedirects } from './app/utils/docsNav'
-import { siteDescription, siteTitle, themeBootScript } from './app/utils/site'
+import { siteDescription, siteTitle, siteUrl, themeBootScript, themeColorLight } from './app/utils/site'
+import { generateSeoFiles } from './seo/generateSeoFiles'
 
 const websiteRoot = dirname(fileURLToPath(import.meta.url))
-const siteUrl = 'https://www.lumpcode.com'
 const publicSchemaDir = join(websiteRoot, 'public/schemas')
 mkdirSync(publicSchemaDir, { recursive: true })
 const schemaCopies: Array<{ fromDir: string; name: string }> = [
@@ -20,15 +20,8 @@ for (const { fromDir, name } of schemaCopies) {
   copyFileSync(join(fromDir, name), join(publicSchemaDir, name))
 }
 
-const sitemapPaths = ['/', ...docsPrerenderRoutes]
-writeFileSync(
-  join(websiteRoot, 'public/sitemap.xml'),
-  `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${sitemapPaths.map((path) => `  <url><loc>${siteUrl}${path === '/' ? '' : path}</loc></url>`).join('\n')}
-</urlset>
-`,
-)
+generateSeoFiles({ websiteRoot })
+
 // Cloudflare Pages/Workers parse status as a number. Netlify's `301!` is ignored and /docs 404s.
 writeFileSync(
   join(websiteRoot, 'public/_redirects'),
@@ -48,7 +41,10 @@ export default defineNuxtConfig({
       titleTemplate: '%s · Lumpcode',
       meta: [
         { name: 'description', content: description },
-        { name: 'theme-color', content: '#000514' },
+        // Unhead places an inline head script at weight 50 and a plain meta at 100,
+        // so the boot script would run before this tag exists. 40 keeps the light
+        // color ahead of the script, which then rewrites it when a stored theme is dark.
+        { name: 'theme-color', content: themeColorLight, tagPriority: 40 },
         { property: 'og:type', content: 'website' },
         { property: 'og:site_name', content: 'Lumpcode' },
         { property: 'og:title', content: title },
@@ -63,8 +59,9 @@ export default defineNuxtConfig({
         { name: 'twitter:image', content: `${siteUrl}/og.png` },
       ],
       link: [
-        { rel: 'icon', type: 'image/png', href: '/logo-mark.png' },
-        { rel: 'apple-touch-icon', href: '/logo-mark.png' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' },
+        { rel: 'icon', type: 'image/png', sizes: '512x512', href: '/logo-mark.png' },
+        { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
         {

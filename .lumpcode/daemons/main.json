@@ -1,4 +1,8 @@
 {
   "discoveryBranch": "dev",
-  "exclude": ["presetSmoke", "ideasToBacklog"]
+  "include": [
+    "qol",
+    "backlog",
+    "bugfixes"
+  ]
 }

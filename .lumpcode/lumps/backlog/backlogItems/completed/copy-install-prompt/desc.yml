@@ -1,0 +1,18 @@
+name: copy-install-prompt
+workflow:
+  - manualReq
+  - impl
+task: >-
+  The landing install section gets a primary "Copy setup prompt" CTA that copies
+  a self-contained runbook for the user's coding agent. The runbook installs the
+  Lumpcode CLI and skill, asks the blocking questions (agent tag, model,
+  worktree vs checkout, GitHub PRs, worker path, first lump, validation
+  command), writes .lumpcode/templates/main.ts exporting defineLump with the
+  command, model, worktree prep hook, and optional openPrPostTeardown, proves
+  the path with a temporary smoke lump, then writes a real first lump wrapped in
+  retryUntilGreen, validates with lump-plan, clones a sibling dedicated worker,
+  runs the real lump once, removes the smoke, and starts the worker; the same
+  markdown is served at /install-prompt.md and the lumpcode skill gets the
+  defineLump and retryUntilGreen examples.
+priority: 2
+completedAt: '2026-11-24T08:19:10.969Z'

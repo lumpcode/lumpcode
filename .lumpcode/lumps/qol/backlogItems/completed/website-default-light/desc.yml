@@ -1,0 +1,14 @@
+name: website-default-light
+workflow:
+  - directImpl
+task: >-
+  A first visit with no stored choice renders the website in light mode, not
+  dark and not the OS preference; the toggle and a stored lumpcode-theme value
+  still win. Update the head boot script in
+  packages/apps/website/app/utils/site.ts so first paint resolves to light and
+  syncs the theme-color meta, set the initial theme-color in nuxt.config.ts to
+  light, and drop the system-preference listener and the now-stale "dark is the
+  default" comments in main.css. Keep the dark token block and the dashboard's
+  verbatim ROOT_CSS copy untouched; the no-JS fallback stays dark.
+priority: 1
+completedAt: '2026-11-24T08:16:25.066Z'

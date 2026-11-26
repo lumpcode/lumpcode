@@ -332,7 +332,7 @@ describe('runLumpFromJsConfig', () => {
 
         const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
         const lockFiles = await fs.readdir(locksDir).catch(() => []);
-        expect(lockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
+        expect(lockFiles.filter((f) => f.endsWith('.lock'))).toHaveLength(0);
     });
 
     it('checkout dedicated uses path lock for full run', async () => {
@@ -344,7 +344,7 @@ describe('runLumpFromJsConfig', () => {
 
         const locksDir = path.join(globalConfigFolderPath, 'workspace-path-locks');
         const lockFiles = await fs.readdir(locksDir).catch(() => []);
-        expect(lockFiles.filter((f) => f.endsWith('.lock.json'))).toHaveLength(0);
+        expect(lockFiles.filter((f) => f.endsWith('.lock'))).toHaveLength(0);
     });
 
     it('preflights to resolvedBaseBranch when setup is invoked', async () => {
@@ -554,7 +554,7 @@ describe('runLumpFromJsConfig', () => {
 
         async function countLockFiles(): Promise<number> {
             const files = await fs.readdir(locksDir).catch(() => []);
-            return files.filter((f) => f.endsWith('.lock.json')).length;
+            return files.filter((f) => f.endsWith('.lock')).length;
         }
 
         vi.mocked(core.runLump).mockImplementation(async (runInput) => {

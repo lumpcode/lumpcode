@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
+name: intro-video-v2
+task: >-
+  Rewrite the scenes and narration in videos/intro for the current product: a
+  factory from a recipe in one command, the worker deployed from the website,
+  branches arriving with the dashboard and a transcript, then one custom lump
+  to show anything you can code with your agent can become a factory. Keep the
+  existing render pipeline; a human renders and publishes the video.
+priority: 51
+dependsOn:
+  - backlog/release-0-11-0
+  - backlog/recipe-catalog
+  - backlog/dashboard-v2
+  - deploy-worker-page

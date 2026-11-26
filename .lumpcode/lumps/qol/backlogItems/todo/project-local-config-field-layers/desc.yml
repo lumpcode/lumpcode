@@ -2,10 +2,15 @@
 name: project-local-config-field-layers
 workflow: [manualReq, testImpl, impl]
 task: >-
-  Single source of truth for .lumpcode/project.json vs local.json field
-  membership (project-only, local-only, shared with local wins). Derive Zod
-  allowlists, SHARED_KEYS merge, and ProjectJsonConfig / LocalJsonConfig Picks
-  from that table so they cannot drift. Parameterize merge tests from the table
-  instead of adding per-key cases (e.g. refreshCommand M13–M16). Does not change
-  merge semantics.
-priority: 6
+  Single source of truth for where a config field may live: project.json,
+  local.json, both with local winning, and whether the lump config may set it
+  too. Lump wins over local over project when the lump value is not undefined.
+  Today those marks are duplicated: Zod allowlists, SHARED_KEYS, the
+  ProjectJsonConfig / LocalJsonConfig picks, and LUMP_DEFAULT_KEYS in
+  applyLumpConfigDefaults. Derive them from one table so they cannot drift.
+  Parameterize merge tests from the table. Does not change which file accepts
+  a field, or the merge order. Lump-only fields such as steps stay out of the
+  table.
+priority: 60
+dependsOn:
+  - backlog/release-0-11-0

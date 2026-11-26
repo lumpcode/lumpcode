@@ -4,168 +4,165 @@
 #   daemon | git | status | hooks | history | config | engine | cli | recipes |
 #   workspace | presets | hygiene | skills | cloud | auth | agents | sandbox | meta
 # Ephemeral names (1, A) are OK.
-- name: first-class-open-pr
+- name: external-agent-harness-library-presets
   task: >-
-    Open the pull request from the CLI itself, not only via the `@lumpcode/recipes`
-    `openPrPostTeardown` kit helper. Today `packages/apps/cli` stops at pushing the branch, so plain
-    `config.json` users (the documented starting point) get no PR, and the dedicated-daemon story is
-    "branches arrive" rather than "PRs arrive" — the website copy had to retreat because of this.
-    Proposed: optional lump-config `openPr` (e.g. `{ provider: 'github' }`, plus optional title/body
-    overrides) wired into the generated teardown, so JSON configs get it with no recipes dependency.
-    Decide auth on a worker (`gh` on PATH vs a token + API call) and make the CLI the canonical owner,
-    with the recipes helper delegating to it instead of carrying a second implementation.
-  priority: 12
-  tags: [cli, git, recipes, daemon]
-- name: see-lump-context-run-time
-  task: See the lump context run time (in seconds)
-  priority: 18
-  tags: [status]
-- name: git-access-heartbeat
-  task: Lumpcode heartbeat validation that git access (remote) is ok.
-  priority: 19
-  tags: [git, daemon]
-- name: verification-commands
+    Where a vendor SDK can run that agent's local preset, use the SDK instead
+    of the hand-written argv in presets/commands, never a third-party CLI
+    unifier (@pivanov/agents-wire, coding-agent-runner) and not ACP. A preset
+    moves only if its SDK runs the same local job (headless, workspacePath,
+    the stored session id, the model rule, agentPermissions, output the
+    preset's presentOutput parses) and passes the extraArgs string list
+    through as raw argv tokens, including flags added later (Codex: before
+    `resume`). Checked 2026-11-24 (closed PR #430), none pass: @cursor/sdk
+    local mode is an in-process loop with typed options only (its only
+    string list is McpServerConfig.args); @github/copilot-sdk cliArgs are
+    server-startup argv and its session stream is another protocol;
+    @anthropic-ai/claude-agent-sdk extraArgs is a flag-name record, not a
+    token list; @opencode/sdk has no string-list field; the Codex SDK
+    configOverrides are --config key=value only. After 0.11.0 a move builds
+    on the command module createSession export and the sessionId CommandFn
+    input (backlog workflow-api-agent-sessions).
+  priority: 93
+  tags: [cli, presets]
+  blocked: >-
+    No vendor SDK passes extraArgs through as raw argv today. Revisit when one
+    does, on top of the 0.11.0 session API.
+- name: steps-on-workflow-adapter
   task: >-
-    Add verification commands to the config (A final to check a file has been created per example, restart
-    optionally the context or step if not)
-  priority: 21
-  tags: [config, engine]
-- name: add-after-push-commit-hook
+    One execution path in @lumpcode/core: rebuild the step walk on top of the
+    workflow runtime (stepsToWorkflow), so steps become an adapter over
+    workflow instead of workflow being converted into one internal step
+    (workflowToSteps, backlog workflow-api-core).
+  priority: 92
+  tags: [core, meta]
+  blocked: >-
+    Not worth the risk to the step walk now. Revisit once workflow is the main
+    API and the steps code is the main maintenance cost.
+- name: stable-native-binaries
   task: >-
-    Add an after-push-commit hook to the config. This hook will be called after the commit is pushed to
-    the remote branch. It will be called with the commit message and the branch name.
-  priority: 24
-  tags: [hooks, git, config]
+    Ship Lumpcode as stable native binaries for users without Node: notarized
+    macOS and signed Windows builds, a Homebrew tap, a curl installer, and E2E
+    on each binary. The previous SEA build was removed (backlog
+    factory-templates drop-sea-binaries) because no user path used it and it
+    doubled every loader change.
+  priority: 91
+  tags: [cli, meta]
+  blocked: >-
+    npm only for now. Revisit only if users without Node ask for it.
+- name: hosted-workers
+  task: >-
+    A paid option where Lumpcode runs the operator's worker on Lumpcode's own AWS
+    or Azure account, so they bring a repo, an agent credential and a git host
+    instead of a cloud account. Needs a backend, accounts and billing (see the
+    auth-api ideas). Today's path is the static "Deploy a worker" page and the
+    backlog worker-deploy umbrella, which provision on the operator's own cloud.
+  priority: 90
+  tags: [cloud, auth]
+  blocked: >-
+    After the static deploy page (backlog worker-deploy, docs deploy-worker-page)
+    ships. No Lumpcode backend for now.
 - name: cli-command-names-by-group
   task: >-
     Clean CLI command names by group. Canonical name is `<group>-<verb>` (e.g. `daemon-start`,
     `daemon-stop`, `daemon-restart`); today's short names stay as shorthands (`start` → `daemon-start`).
     Apply the same pattern across groups (`lump-plan` / `lump-status` / `lump-create`, `project-setup`)
     so mixed prefixes like `start` vs `daemon-status` go away. Document only the current spelling.
-    Complements parked backlog `cli-status-dashboard` (unified git+daemon view, later) — this idea is naming, not merging commands.
+    This idea is naming, not merging commands.
   priority: 25
+  blocked: Breaking rename. Decide the alias map before any command moves. Not for autoTriage.
   tags: [cli]
-- name: lump-create-from-recipe
-  task: >-
-    `lumpcode lump-create --from-recipe <name>` scaffolds a working lump from a published recipe (config.ts,
-    starter files such as BACKLOG.yml, and optional hook stubs). Recipes become CLI generators, not only
-    npm imports in docs — lowers blank-page friction for new users. Pairs with `@lumpcode/recipes` package;
-    defer until a few dogfooded recipes stabilize.
-  priority: 30
-  tags: [cli, recipes]
 - name: run-start-lump-variable-overrides
-  task: Allow run/start of a lump with other lumpVariables or small config tweaks.
+  task: >-
+    lumpcode run and lumpcode start accept lumpVariables overrides for that
+    invocation. The lump file stays unchanged. --contextName stays a separate
+    flag that only picks a context.
   priority: 31
   tags: [cli, config]
-- name: option-full-local
-  task: >-
-    Add an option to the config to run the lump code locally, without any pull, commit or push.
-  priority: 32
-  tags: [config, git]
-- name: disabled-global-vs-single
-  task: >-
-    Allow lump `disabled` to be an object `{ global, single }` (each MaybePromiseFn<boolean>); global
-    for filtered/global daemon, single for manual run / single-lump daemon.
-  priority: 33
-  tags: [daemon, config]
 - name: project-local-tick-hooks
   task: >-
-    Add hooks in local.json/project.json: onBeforeDiscovery, onTickBegin, onTickEnd, etc. (e.g. onBeforeDiscovery/onTickBegin
-    to run npm i for the whole tick).
+    project.json and local.json may set onBeforeDiscovery, onTickBegin, and
+    onTickEnd. Each value is a command string, not a function. When both files
+    set the same hook, local.json wins. A daemon tick runs them. A foreground
+    lumpcode run does not. Example: npm i once per tick.
   priority: 34
   tags: [daemon, hooks]
-- name: json-yaml-lump-configs
-  task: >-
-    Support recipes in JSON configs, make JSON configs more powerful, and allow YAML lump configs.
-  priority: 35
-  tags: [config, recipes]
-- name: commandFn-return-step-or-result
-  task: >-
-    commandFn can return another step, or Success|Failure directly, instead of always a command to execute.
-  priority: 40
-  tags: [engine]
+- name: yaml-lump-configs
+  task: A lump config may be YAML as well as JSON or TypeScript.
+  priority: 36
+  tags: [config]
+  blocked: TypeScript first; JSON is experimental. Revisit only if JSON leaves experimental.
 - name: per-lump-git-remote
-  task: Per-lump/project.json/local.json git remote override (default remains origin).
+  task: >-
+    Optional git remote name. Default remains origin. May be set on the lump,
+    on project.json, or on local.json. The lump value wins, then local.json,
+    then project.json. One name, not a list of remotes.
   priority: 42
   tags: [git, config]
-- name: multi-remote-setup
+- name: lump-marker-prefix-override
   task: >-
-    Multi-remote git setup support beyond a single origin (complementary to per-lump remote override).
-  priority: 43
-  tags: [git, config]
-- name: dynamic-base-branch-from-context-list
-  task: Dynamic baseBranch based on context names (function of contextList).
+    project.json only. Override the lump/ branch prefix and the LUMP marker
+    prefix. Each value is a list. The first entry is the prefix in use. Later
+    entries are previous prefixes still recognized on branches and marker lines.
+    Dropping an old prefix means those older branches and markers stop counting.
   priority: 44
   tags: [git, config]
+- name: dynamic-base-branch-from-context-list
+  task: >-
+    baseBranch may be a function of the context list for that run. Discovery
+    still chooses where the lump is found. This is not a second git remote.
+  priority: 20
+  tags: [git, config]
 - name: read-json-file-failure-codes
-  task: readJsonFile should answer failure codes too (structured Failure), not only opaque errors.
+  task: >-
+    readJsonFile failures include a code, not-found or invalid-json, and the
+    message stays human-readable.
   priority: 45
   tags: [engine, hygiene]
 - name: unify-monorepo-tsconfig
   task: >-
-    Unify duplicated `tsconfig.json` files across npm workspaces (`packages/core`, `packages/recipes`,
-    `packages/apps/cli/cli-types`, `packages/apps/cli/cli-utils`, etc.). Introduce a shared root or `packages/tsconfig.base.json`
-    with `extends`, and per-package overrides only for `rootDir`, `include`, and declaration/sourceMap
-    settings (rollup-built libs vs self-contained `src/` packages). New packages such as `@lumpcode/recipes`
-    currently copy the same compilerOptions block verbatim.
+    Code hygiene only. No product behavior change. One shared tsconfig that
+    packages extend. Each package overrides only rootDir, include, and emit
+    settings (rollup-built libs versus self-contained src/). Packages such as
+    @lumpcode/recipes currently copy the same compilerOptions block.
   priority: 50
   tags: [hygiene]
 - name: internal-test-utils-package
   task: >-
-    Add a private workspace-only package (e.g. `@lumpcode/test-utils`, not published to npm) for shared
-    Vitest/e2e fixtures, platform shims, and other test helpers currently duplicated or living next to
-    production code / exported from publishable packages. Motivating case: `windowsNpmCmdShimBody` under
-    `@lumpcode/core` is exported so CLI e2e can reuse it — odd on the core public surface. Target consumers:
-    core unit tests, CLI e2e/harness, and recipes as needed, so production barrels stay clean. Leave current
-    placements as-is until this lands.
+    Internal code hygiene only. No product behavior change. Add a private
+    workspace package `@lumpcode/test-utils`, not published to npm, for shared
+    test helpers. First move: `windowsNpmCmdShimBody` leaves the `@lumpcode/core`
+    public barrel; CLI end-to-end imports it from the test package. Other
+    duplicated test helpers can follow.
   priority: 51
   tags: [hygiene]
 - name: presets-typescript-package
   task: >-
-    Dedicated package for presets that builds to plain independent JS, so presets can be authored in clean
-    TypeScript.
+    Internal code hygiene only. No preset behavior change. Add a private
+    workspace package that authors the shipped presets in TypeScript and
+    builds them to plain independent JavaScript. The CLI still copies those
+    files into ~/.lumpcode/commands/presets/. Relative imports stay, so each
+    file can load on its own. @lumpcode/cli-utils keeps the preset variable
+    types.
   priority: 52
   tags: [presets, hygiene]
-- name: problem-solver-skill
-  task: Add a problem-solver skill to the repo for debugging/fixing issues in a structured way.
-  priority: 53
-  tags: [skills]
-- name: lumps-generator
-  task: >-
-    Prompt-driven lump generator — outputs JSON array of lump configs; reruns when enabled lumps are finished.
-  priority: 70
-  tags: [recipes, meta]
 - name: refine-lump-automatically-example
   task: >-
     A lump that goes and check the lump branches that were merged. sees what are the non lump commits
     (added by the user) before merge, and adapt the main lump with the knowing of these user changes.
   priority: 71
+  blocked: >-
+    Parked as a reminder only. Too fuzzy and not a priority. The human commits
+    are a real signal; what the lump writes back is not decided. Not for autoTriage.
   tags: [meta, git]
 - name: sharedicated-mode
   task: >-
-    'Sharedicated' mode: preflight discovery on the project copy (hybrid shared/dedicated discovery).
+    'Sharedicated' mode: we create a dedicated clone copy somewhere, but we run the commands on this dedicated copy from the main clone with sharedicated mode. (Find another name).
   priority: 72
+  blocked: >-
+    Parked as a reminder only. The missing convenience is starting a worker
+    without a hand-made second clone. The mode itself is not decided. Not for
+    autoTriage.
   tags: [workspace, daemon]
-- name: webhooks-imperative-started-lumps
-  task: Webhooks to imperatively start a lump (trigger or drive lump runs from external events).
-  priority: 74
-  tags: [daemon]
-- name: add-git-client-abstraction
-  task: >-
-    Add a git client abstraction to the core package. E.g, github, gitlab... The goal is to auto open
-    PR, auto relaunch the lump loop if a comment arrives etc.
-  priority: 75
-  tags: [git]
-- name: external-agent-harness-library-presets
-  task: >-
-    Replace or thin further hand-rolled per-agent preset argv wiring (`presets/commands/cursor.js`, `copilot.js`,
-    etc.) by adopting an external OSS TypeScript library that unifies spawning/calling local agent harnesses
-    (Copilot CLI, Cursor CLI, Claude Code, OpenCode, Codex, …). Candidates: `@pivanov/agents-wire`, `coding-agent-runner`,
-    or vendor SDKs (e.g. `@cursor/sdk` for Cursor-only). Goal: reliable invoke surface (prompt, resume/session,
-    model, permissions) without maintaining per-CLI flag maps — still fits Lumpcode's thin `CommandDescriptor`
-    model; not full ACP streaming. Deferred; DIY presets remain default for now.
-  priority: 80
-  tags: [presets, agents]
 - name: acp-streaming-agent-sessions
   task: >-
     Optionally integrate Agent Client Protocol (ACP) streaming into Lumpcode command modules and/or the
@@ -175,115 +172,18 @@
     Architectural (richer progress than stdout/stderr); distinct from merely using a library to build
     argv. Deferred; keep thin presets for now.
   priority: 81
+  blocked: >-
+    Parked as a reminder only. Live output already comes from presentOutput on
+    the CLI spawn. A persistent ACP session is not decided. Not for autoTriage.
   tags: [agents, engine]
 - name: deterministic-ast-git-lib
   task: >-
     Easy library for deterministic AST, git changes, and other complicated but deterministic analysis.
   priority: 82
+  blocked: >-
+    Parked as a reminder only. This is a different project than Lumpcode.
+    Not for autoTriage.
   tags: [git]
-- name: sandbox-utils-examples
-  task: Easy possibility for sandboxes for security of agents execution (with docker), or example/utils for sandboxes.
-  priority: 83
-  tags: [sandbox, agents]
-- name: auth-api
-  task: Backend auth API for premium CLI (login token issuance, validation).
-  priority: 100
-  tags: [auth, cloud]
-- name: daemon-cli-auth
-  task: Wire CLI and daemon to auth API; gate premium features on valid token.
-  priority: 100
-  tags: [auth, cloud, daemon]
-- name: cli-binary-sha-validation
-  task: Send CLI binary SHA with API requests; server validates allowed builds.
-  priority: 100
-  tags: [auth, cloud]
-- name: cloud-analytics-zero-shot-rate
-  task: >-
-    Add cloud analytics for zero-shot rate, i.e if a lump PR waas accepted direclty, mark it as zero-shot,
-    you can filter by lump name / context name. One use case is : If a step is always zero-shot as review,
-    I just can remove the review and incorporate the step as prompt in the lump.
-  priority: 100
-  tags: [cloud]
-- name: article-git-first-marker-commits
-  task: >-
-    X article (content only — not engine/docs work) explaining how git-first loop management
-    actually works: marker commits, rebase hygiene, and when markers can be dropped. Follow-up
-    to `articles/04-why-lumpcode/article.md` (already names Lumpcode a git-first loop manager and
-    says progress comes from commit messages on remote branches). Ship as `articles/05-*/article.md`
-    plus sibling `article.html` for paste and a 5:2 cover. Positioning piece: keep it quick;
-    plain/sharp body; prefer campaign in prose; define lump once; use context only for isolation;
-    skip “loop engineering”; git is gate (reviewable PRs) and source of truth (done/left from
-    remote history, not a dashboard); anonymize client/mission material. Mechanism: context
-    status is derived from marker commits on remote refs. CLI default subject
-    `LUMP: <lumpName> - <contextName>` via `getGitCommitMessage({ contextName, lumpName })`;
-    core default `LUMP:${context.name}` via `gitCommitMessageFn`. Lifecycle: toDo (no marker
-    on any remote ref) → branchPushed (marker on the work-branch remote) → finished (marker
-    reaches `origin/<baseBranch>`). Remote git history is the source of truth, which is why
-    rebase/squash policy matters. Default advice: keep the marker commits when rebasing a
-    lump branch or rebasing/merging toward the integration/`baseBranch`, so status stays
-    correct and the campaign stays resumable. Decided exceptions only (do not invent more):
-    (1) ephemeral contexts — squash anywhere; one-shot contexts (e.g. abstraction finder /
-    `ephemeralContextListFn`) have no later run that needs the marker to skip them;
-    (2) file-state discovery — squash only at merge to the lump `baseBranch`; when discovery
-    filters on a file that keeps state (e.g. `featureBacklog` / `backlogItems/todo|completed/`
-    + `folderSetTaskDoneStep`), the marker must stay while the lump branch is under review
-    (`branchPushed`, campaign must not re-pick the context) and may be squashed when that
-    branch merges toward the lump `baseBranch` (discovery no longer lists the item, so the
-    marker is no longer the finished signal).
-  priority: 60
-  blocked: >-
-    parked: draft when ready (05 follow-up to 04-why-lumpcode)
-  tags: [meta, git, status]
-- name: memory-pressure-run-gate
-  task: >-
-    Machine-level soft skip (same operator story as `tooManyOpenBranches`) that refuses to
-    start a lump/agent when host available memory is already near the edge. Goal: reduce
-    OOM / SIGKILL of dedicated-worker daemons on small VMs (motivating case: Azure
-    Standard_B2s 4 GB, several `--include` daemons plus Cursor agents). Soft skip only —
-    not a supervisor/respawn and not a wait (waiting for RAM would recreate the lock
-    convoy: cron `{ protect: true }` + a wait that never returns). Skip this attempt;
-    next cron tick retries. Same skip family as `tooManyOpenBranches` (`skipped: true` +
-    reason such as `memoryPressure`); tick continues so other lumps can still run if
-    memory recovers. Check immediately before a lump actually runs — same layer as
-    `evaluateTooManyOpenBranchesSkip` in `runLumpFromJsConfig`, or one step later right
-    before `execBinary` starts the agent. A check only at the start of `runTick` is
-    wrong (discovery/lock-wait are cheap; three daemons can all see enough RAM then each
-    start Cursor). Metric: available memory (`MemAvailable` on Linux; cgroup
-    `memory.current` vs `memory.max` if the daemon is in a unit), not `MemFree`
-    (cache-heavy git boxes look full on MemFree). Config in `.lumpcode/local.json` next
-    to `maxParallelRun` (machine limit, not lump config); threshold as a percent or a
-    floor (“leave N GB”). Does not cap a child already running — an agent can pass the
-    gate at 1.2 GB free and then grow to 3 GB; gate only refuses to start another heavy
-    process. A single `os.freemem()` read does not reserve RAM; cross-daemon reservation
-    (shared claim under `~/.lumpcode/`, or skip if another project daemon’s
-    `inFlightLumpCount` > 0 and available < threshold) is optional later design, not
-    required for a first gate. On `checkout`, multiple daemons on one clone already
-    serialize on the workspace path lock (usually one agent at a time); the gate still
-    matters for `worktree` + `maxParallelRun` and for something else on the box already
-    eating RAM. Leak-free daemon RSS is not enough: OOM is peak working set (agent child
-    + git + OS) vs 4 GB. This is a launch gate, not a leak hunt and not “make 4 GB safe
-    for one large agent.” After daemon-run hardening (lock wait 15 min, discovery git
-    5 min, SIGHUP ignore, fatal JS log+exit), remaining silent deaths are
-    SIGKILL/OOM/host. Non-goals: no systemd supervisor; no new start/stop CLI flags
-    unless `local.json` needs a field; no default change of checkout→worktree; no
-    waiting-for-RAM; no attempt to kill/limit an in-flight agent. Touch: primarily
-    `packages/apps/cli` (`local.json`, `runLumpFromJsConfig` /
-    `evaluateTooManyOpenBranchesSkip` layer).
-  blocked: >-
-    parked: later product work (not current daemon-harden PR)
-  tags: [daemon, workspace, config]
-- name: supervise-systemd-install
-  task: >-
-    Optional later CLI (e.g. `lumpcode supervise-install`) that writes a systemd unit for the
-    per-project Lumpcode supervise process only (`Restart=always`,
-    `ExecStart=lumpcode supervise --projectRoot <abs> --foreground`). Machine/distro-specific
-    (user vs system unit, `User=`, paths). Not PM2 and not lump daemons under systemd — only
-    the small supervise reconciler. After start-daemon supervisor v1 (docs-only example unit;
-    operators or cloud-init copy it; `lumpcode start` still starts supervise if it is down,
-    including macOS/Windows with no unit). Ship this CLI only if docs-only is painful.
-  blocked: >-
-    parked: after start-daemon supervisor v1 (docs-only systemd first)
-  tags: [daemon, cli]
 - name: daemon-meta-desired-dedup
   task: >-
     Shrink `.daemon.meta.json` so it no longer duplicates recipe/identity fields already on
@@ -301,54 +201,20 @@
     recipe from meta) go away or become a one-time migration — pre-desired pid+meta would have
     no recipe once identity is stripped from meta; restart is desired-only (already fail-closed
     when both missing); `createInFlightMetaUpdater` in `launchStartDaemon/runForeground.ts`
-    writes only the live overlay instead of rewriting `baseMeta + inFlightLumpCount`. Types:
+    writes only the live overlay instead of rewriting `baseMeta + inFlightLumpCount`.     Types:
     `readDaemonMeta/main.ts`, `startDaemonDesired/main.ts`. Docs: `packages/apps/cli/DOCS/commands.md`
-    and `concepts.md` daemon files table. Out of scope for the current daemon-lifecycle PR
-    (`feat/better-concurrency-error-logs`).
-  blocked: >-
-    parked: after the current daemon-lifecycle PR (feat/better-concurrency-error-logs)
+    and `concepts.md` daemon files table.
   tags: [daemon, cli, hygiene]
 - name: lock-holder-daemon-id
   task: >-
-    Put optional `daemonId` on the workspace/git-common-dir lock payload and print it in
-    `formatHolderClause` (busy / wait / timeout copy). Locks remain per lump run (`lumpName` +
-    pid); `daemonId` is extra operator context when the holder is a daemon tick or dedicated
-    discovery (`lumpName: '__discovery__'` / `DISCOVERY_SCAN_LOCK_HOLDER`). Thread optional
-    `daemonId` from `acquireWorkspaceFileLock` through `workspacePathLock` / `gitCommonDirLock`
-    and the daemon/discovery acquire sites (`withWorkspaceLockHooks`,
-    `preflightDiscoveryBranchWithLock` / `discoverDedicatedLumpsForScanBranch`, daemon tick
-    `runLumpFromLumpName`). Manual `lumpcode run` omits it (no daemon id). Also surface
-    `holderDaemonId` on the busy error type (`WorkspaceFileBusyError` already has `holderPid` /
-    `holderLumpName`). Today `formatHolderClause` in
-    `packages/apps/cli/src/utils/workspaceFileLock/main.ts` can only print pid + lumpName because
-    those are the only identity fields written into the lock JSON.
-  blocked: >-
-    parked: after the current daemon-lifecycle PR (feat/better-concurrency-error-logs)
+    Operator-facing diagnostics only. No change to who acquires a lock, how long
+    it waits, or which file is locked. When a daemon tick or dedicated discovery
+    holds the workspace or git-common-dir lock, write optional daemonId on the
+    lock JSON and print it in the fail message, the wait log, and the timeout
+    (formatHolderClause). The busy error gains holderDaemonId beside holderPid
+    and holderLumpName. A manual lumpcode run omits daemonId. The fake lump name
+    "__discovery__" stays; replacing it is generic-lock-holder-label.
   tags: [daemon, cli, hygiene]
-- name: worker-orchestration
-  task: >-
-    Give operators a clean way to say how a dedicated worker should spend concurrency —
-    across lumps versus remaining contexts inside one lump — rather than a narrow engine
-    patch. Today `maxParallelRun` (local.json or `start --maxParallelRun`, worktree only)
-    is in-tick lump-line concurrency via `runLumpLinesWithConcurrency`; Croner `{ protect:
-    true }` plus `await runTick()` forbids overlapping ticks; `runLump` slices todos to
-    `numberOfContextsPerBranch` (default 1) and `executeStepsForContextList` walks that
-    batch sequentially on one branch. So one daemon, one lump, one discoveryBranch, one
-    context per branch stays sequential even at `maxParallelRun: 3` — unused slots do
-    nothing because collect produces a single LumpLine, and an operator who wants three
-    agents on one campaign cannot get that from `maxParallelRun: 3` alone. This is a
-    product-level orchestration surface (operator mental model + knobs), not a one-line
-    Croner or cap-number change. Do not prescribe overlapping ticks, intra-lump context
-    pools, fake multi-lines, or multiple `--include` daemons. Distinct from
-    `memory-pressure-run-gate` (RAM refuse-to-start), backlog `daemon-status-snapshot` /
-    parked `cli-status-dashboard` (observability), and `webhooks-imperative-started-lumps`
-    (external triggers). Complementary to backlog `git-driven-daemon-configs` (git-declared
-    fleet membership); those files may later express orchestration, but that item is
-    lifecycle-from-repo, not this gap.
-  blocked: >-
-    parked: finish git-driven-daemon-configs first, then polish while thinking about
-    orchestration — do not start now
-  tags: [daemon, config, workspace]
 - name: generic-lock-holder-label
   task: >-
     Stop requiring a fake `lumpName` on CLI lock APIs when the holder is not a lump run.
@@ -366,73 +232,10 @@
     lumpName. CLI lock types and those two fake-name call sites only — not a product
     feature.
   blocked: >-
-    parked: lock-API hygiene; complements lock-holder-daemon-id, not blocked on
-    current daemon-config reconcile
+    Parked until lock-holder-daemon-id has landed. Both edit the lock payload
+    and formatHolderClause. This one only replaces the fake lump name. Not for
+    autoTriage.
   tags: [cli, hygiene, daemon]
-- name: tick-line-slot-count
-  task: >-
-    Make dedicated-tick slot count a first-class parameter (lump-config and/or
-    daemon/`local.json`) so an operator can give a lump more or fewer tick
-    invokes than the number of matching discovery lines. A slot is an index in
-    the dedicated tick line list — one invoke opportunity after
-    `reorderDedicatedLumpLines`. Not `numberOfContextsPerBranch` (that only
-    chunks remaining eligible todos into batch scores). Not
-    `maximumNumberOfConcurrentBranches` (open-branch cap). Not `maxParallelRun`
-    (pool concurrency). Today collect emits one row per matching
-    `(lumpName, scanBranch)` (lump `discoveryBranch`/`discoveryBranches` ∩
-    expanded `primaryBranch`/`primaryBranches`, minus include/exclude), and
-    reorder is slot-stable: it only permutes that lump's existing indices, so
-    output length equals collect length. The in-progress batch-list score keeps
-    that contract (line score `values: number[]` chunks remaining
-    `getToDoContextList` todos by `numberOfContextsPerBranch`; reorder fills
-    that lump's existing collect slots from the merged batch stream, lower
-    sooner — e.g. B `[1, 3]`, A `[10, 12]`, two collect rows → this tick
-    `[B, B]`; expanding to `[B, B, A, A]` was rejected). Current work stays
-    "slots = collect rows." Later, slot count should not stay implicit in
-    discovery-line cardinality. Exploratory only — not a decided API. Distinct
-    from `worker-orchestration` (how a worker spends concurrency); this is the
-    knob that would decouple invoke count from how many discovery lines
-    matched. Touch: primarily `packages/apps/cli` (dedicated collect,
-    `scoreDedicatedLumpLine`, `reorderDedicatedLumpLines`, schema, DOCS).
-  blocked: >-
-    parked: land batch-list score + same-length slot fill first
-    (`scoreDedicatedLumpLine` + `reorderDedicatedLumpLines` only); this is a
-    later decoupling of slot count from discovery-line cardinality
-  tags: [daemon, config, cli]
-- name: daemon-file-lump-priority
-  task: >-
-    Add an optional per-lump priority on committed file-daemon recipes
-    (`.lumpcode/daemons/<daemonId>.{json,yml,yaml}`) so a file-launched
-    daemon can orchestrate which included lumps it prefers when a tick
-    scores, reorders, and spends `maxParallelRun` slots. Today those
-    files only declare membership and cadence (`discoveryBranch`,
-    `cronSetup`, `include` / `exclude` string globs, `disabled`,
-    `maxParallelRun` — `daemonConfig.schema.json` /
-    `daemonConfigFileSchema`). `include` is a flat string list;
-    `normalizeDaemonConfigFile` sorts include/exclude for hashing, so
-    list order is not a priority signal. Context `priority` (lower =
-    sooner) already ranks work *inside* one `runLump`, and dedicated
-    `scoreDedicatedLumpLine` / `reorderDedicatedLumpLines` fill collect
-    slots from remaining-todo context priorities — that is not an
-    operator-declared lump-vs-lump rank on the recipe. Operators need
-    a git-reviewed way to say e.g. run `ideasToBacklog` ahead of `qol`
-    on a given daemon / discovery line. YAML/JSON shape is exploratory:
-    sibling map (`priority: { lumpName: n }`), include entries as
-    objects (`{ name, priority }`), or a richer lumps table; lower
-    number = sooner, matching context / backlog `priority`. Unspecified
-    lumps stay unordered / after explicit ranks (suggestion, not
-    decided). Shared-mode collect has no score/reorder today — dedicated
-    tick is the first consumer. Not daemon-vs-daemon priority across
-    multiple file daemons. Not a replacement for context `priority`.
-    Not `tick-line-slot-count` (invoke count vs discovery-line
-    cardinality). Not overlapping ticks and not
-    `memory-pressure-run-gate`. Complementary to parked
-    `worker-orchestration` (this is one concrete file-config knob that
-    orchestration would use; git-driven daemon files have already
-    shipped). Touch: schema + `daemonConfigFile` normalize/hash,
-    dedicated collect/score/reorder, `/docs/config/daemons` and CLI
-    DOCS concepts.
-  tags: [daemon, config, cli]
 - name: pr-comment-helper
   task: >-
     Recipes kit helper (same layer as `openPrPostTeardown`, not a first-class CLI
@@ -442,8 +245,8 @@
     `<commandName>Setup`), rather than starting cold. Provider GitHub only for
     now, matching today's `openPrPostTeardown({ provider: 'github' })`. Same
     opt-in framing as opening PRs: commenting is a recipes helper, not a built-in.
-    Complementary to parked `first-class-open-pr` (that idea is opening, this is
-    commenting). Not keepHistory / transcripts.
+    Complementary to `openPrPostTeardown`, which opens the pull request. Not
+    keepHistory / transcripts.
   blocked: >-
     parked: needs recipe helper design (when it runs vs openPr, session resume
     contract, GitHub-only)

@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
+name: worker-connections-docs
+task: >-
+  One docs page on what a worker needs to connect: the credential for each
+  agent (Claude Code, Codex, Cursor, opencode, Copilot) and for each git host
+  (GitHub, GitLab, Bitbucket, Azure DevOps: fetch and push, plus the token the
+  open-PR recipe uses), and where each goes on the worker image. Linked from
+  the Worker page.
+priority: 44
+dependsOn:
+  - backlog/release-0-11-0
+  - backlog/worker-deploy-worker-docker-image

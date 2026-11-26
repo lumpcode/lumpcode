@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
+name: deploy-worker-page
+task: >-
+  A "Deploy a worker" call to action on the landing and the Worker page leads
+  to a static page: pick a cloud (AWS, Azure, Hetzner, DigitalOcean), an agent,
+  a git host and a machine size, enter the repo URL, and get the cloud-init to
+  paste or the one-click link (Azure, AWS) from the repo's cloud templates.
+  Everything is generated in the browser; nothing is sent to a Lumpcode
+  server, and there is none.
+priority: 45
+dependsOn:
+  - backlog/release-0-11-0
+  - backlog/worker-deploy-worker-cloud-templates
+  - worker-connections-docs

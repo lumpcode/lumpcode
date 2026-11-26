@@ -1,0 +1,46 @@
+<!doctype html>
+<!--
+  Logo renders: the mark alone or the lockup (mark + wordmark), as in the site header.
+  Query: layout=mark|lockup, bg=dark|none, fish=<px width of the fish>, w and h=<px image size>.
+  The fish is public/favicon.svg and the wordmark public/wordmark.svg, sized like .brand-word in the site header.
+  Rendered by brand/render.mjs.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@800&display=block">
+<style>
+  html, body { margin: 0; overflow: hidden; }
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  body.dark { background: #000514; }
+  .mark { display: inline-flex; align-items: center; }
+  /* favicon.svg is square; the fish itself spans 650 x 540 of it, centred. */
+  .mark img { display: block; margin: calc(var(--fish) * -0.0846) 0; width: var(--fish); }
+  /* Header proportions: fish 2.35rem, gap 0.5rem, wordmark 0.98 x 1.42rem tall. */
+  .mark img.word {
+    margin: 0 0 0 calc(var(--fish) * 0.2128);
+    width: auto;
+    height: calc(var(--fish) * 0.5922);
+  }
+</style>
+</head>
+<body>
+<span class="mark"><img src="../public/favicon.svg" alt=""><img class="word" src="../public/wordmark.svg" alt="lumpcode"></span>
+<script>
+  const params = new URLSearchParams(location.search)
+  document.documentElement.style.setProperty('--fish', `${params.get('fish') ?? 300}px`)
+  // Explicit size: headless Chrome keeps a minimum window width, so 100vw can exceed the capture.
+  document.body.style.width = `${params.get('w')}px`
+  document.body.style.height = `${params.get('h')}px`
+  if (params.get('bg') === 'dark') document.body.classList.add('dark')
+  if (params.get('layout') !== 'lockup') document.querySelector('.word').remove()
+</script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: lump-create-from-recipe
+workflow: [manualReq, testImpl, impl]
+task: >-
+  `lumpcode lump-create <lumpName> --recipe <recipe>` writes a config that
+  calls the recipe inside the template's defineLump (same --template and
+  --noTemplate rules as a plain lump-create) plus the recipe's starter files,
+  and the result passes lump-plan. Recipes declare this in a small registry in
+  @lumpcode/recipes (name, one-line description, starter files); backlog,
+  featureBacklog, abstractionFinder and abstractionBacklog register first. An
+  unknown recipe name lists the available ones.
+priority: 23
+dependsOn:
+  - ts-default-scaffolding

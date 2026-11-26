@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: recipe-catalog
+workflow: [manualReq, testImpl, impl]
+manual: true
+task: >-
+  Ready-made factories, written as workflow recipes on the workflow kit, for the jobs the docs examples describe, each one
+  `lump-create --recipe` away: sweep, improver, the duplication pair, missing
+  tests, and an issue queue. Every ticket ships the recipe, its registry entry,
+  a docs example, and an E2E smoke on a fixture repo. Tickets under tickets/.
+  See requirements.md.
+priority: 25
+dependsOn:
+  - release-0-11-0
+  - factory-templates-lump-create-from-recipe
+  - workflow-api-kit

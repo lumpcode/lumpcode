@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
+name: trust-page
+task: >-
+  A docs page on what a lump can and cannot do: the agent works in a
+  workspace, Lumpcode pushes only lump branches and never merges, review is
+  the operator's (PR or their CI), `lump-plan` previews a lump before it runs,
+  and nothing leaves the machine except git pushes and the agent's own calls.
+  Plus a changelog page built from releases. Linked from the landing safety
+  strip.
+priority: 50
+dependsOn:
+  - backlog/release-0-11-0
+  - backlog/factory-templates

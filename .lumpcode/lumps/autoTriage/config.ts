@@ -3,7 +3,12 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { openPrPostTeardown, projectRootFromConfigUrl } from '@lumpcode/recipes';
+import {
+    openPrPostTeardown,
+    projectRootFromConfigUrl,
+    retryUntilGreen,
+    shellCommand,
+} from '@lumpcode/recipes';
 
 import { shouldRunAutoTriage, utcDateContextName } from '../../helpers/workerQueue';
 
@@ -34,19 +39,25 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
             },
         ];
     },
-    steps: [
-        {
-            promptFn({ context }) {
-                const date = String(context.variables.CONTEXT_DATE);
-                const ideasFile = String(context.variables.IDEAS_FILE);
-                return `
+    steps: retryUntilGreen({
+        maxIterations: 2,
+        pushOnValidationFailure: false,
+        steps: [
+            {
+                promptFn({ context }) {
+                    const date = String(context.variables.CONTEXT_DATE);
+                    const ideasFile = String(context.variables.IDEAS_FILE);
+                    return `
 Follow @.agents/skills/auto-triage/SKILL.md
 Context date: ${date}
 Ideas file: @${ideasFile}
 
 Decide on your own. Do not ask the operator. File the items, then stop.
-                `.trim();
+Leave every todo whose workflow contains manualReq untouched.
+                    `.trim();
+                },
             },
-        },
-    ],
+        ],
+        validationCommandFn: () => shellCommand('node .lumpcode/helpers/manualReqTodo.mjs'),
+    }),
 });

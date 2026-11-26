@@ -166,5 +166,111 @@ describe('getToDoContextList', () => {
         expect(result.data.map((c) => c.name)).toEqual(['other-todo']);
         expect(refreshRemoteTrackingRefsFn).toHaveBeenCalledTimes(1);
     });
+
+    it('returns only the named context, ignoring a better priority', async () => {
+        const result = await getToDoContextList({
+            getContextListFn: async () => [
+                { name: 'first', variables: {}, options: { priority: 1 } },
+                { name: 'named', variables: { FILE: 'named.ts' }, options: { priority: 9 } },
+            ],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot,
+            baseBranch,
+            contextName: 'named',
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(result.data).toEqual([
+            { name: 'named', variables: { FILE: 'named.ts' }, options: { priority: 9 } },
+        ]);
+    });
+
+    it('returns the named context when its dependency is finished', async () => {
+        await git(projectRoot, 'commit --allow-empty -m "LUMP:dep"');
+        await git(projectRoot, 'push origin main');
+
+        const result = await getToDoContextList({
+            getContextListFn: async () => [
+                { name: 'sooner', variables: {}, options: { priority: 0 } },
+                {
+                    name: 'named',
+                    variables: {},
+                    options: { priority: 5, dependsOnContexts: ['dep'] },
+                },
+            ],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot,
+            baseBranch,
+            contextName: 'named',
+        });
+
+        expect(result.success).toBe(true);
+        if (!result.success) return;
+        expect(result.data.map((c) => c.name)).toEqual(['named']);
+    });
+
+    it('fails when the named context is waiting on dependsOnContexts', async () => {
+        const result = await getToDoContextList({
+            getContextListFn: async () => [
+                { name: 'sooner', variables: {}, options: { priority: 0 } },
+                {
+                    name: 'named',
+                    variables: {},
+                    options: { dependsOnContexts: ['dep', 'other'] },
+                },
+            ],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot,
+            baseBranch,
+            contextName: 'named',
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) return;
+        expect(result.data.code).toBe('contextName');
+        expect(result.data.message).toBe(
+            'Context "named" is waiting on dependsOnContexts: dep, other.',
+        );
+    });
+
+    it('fails when the named context is already finished', async () => {
+        await git(projectRoot, 'commit --allow-empty -m "LUMP:named"');
+        await git(projectRoot, 'push origin main');
+
+        const result = await getToDoContextList({
+            getContextListFn: async () => [
+                { name: 'named', variables: {} },
+                { name: 'other', variables: {} },
+            ],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot,
+            baseBranch,
+            contextName: 'named',
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) return;
+        expect(result.data.message).toBe('Context "named" is not toDo (it is finished).');
+    });
+
+    it('fails when the named context is not in the context list', async () => {
+        const result = await getToDoContextList({
+            getContextListFn: async () => [{ name: 'other', variables: {} }],
+            lumpVariables: {},
+            gitCommitMessageFn,
+            projectRoot,
+            baseBranch,
+            contextName: 'missing',
+        });
+
+        expect(result.success).toBe(false);
+        if (result.success) return;
+        expect(result.data.message).toBe('Context "missing" is not in the context list.');
+    });
 });
 

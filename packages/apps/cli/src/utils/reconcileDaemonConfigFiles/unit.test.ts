@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -21,12 +21,11 @@ import { daemonSchedulerFiles } from '../daemonSchedulerFiles';
 import { daemonsDirPath } from '../daemonsDirPath';
 import { DEFAULT_DAEMON_CRON_SETUP } from '../../consts';
 import { execGit } from '../execGit';
-import { acquireGitCommonDirLock, gitCommonDirLockFilePath } from '../gitCommonDirLock';
+import { acquireGitCommonDirLock, gitCommonDirLocksDirPath } from '../gitCommonDirLock';
 import { gitCommitAllAndPush } from '../gitCommitAllAndPush';
 import { hashDaemonConfigFile, type DaemonConfigFile } from '../daemonConfigFile';
 import { readDaemonMeta } from '../readDaemonMeta';
 import { readJsonFile } from '../readJsonFile';
-import { resolveGitCommonDir } from '../resolveGitCommonDir';
 import type { ResolvedProjectLocalConfig } from '../../types/ResolvedProjectLocalConfig';
 import { reconcileDaemonConfigFiles } from './main';
 
@@ -222,15 +221,10 @@ describe('reconcileDaemonConfigFiles', () => {
     it('starts an enabled considered file with daemonConfigFile meta', async () => {
         await pushRecipe({ include: ['alpha'] });
 
-        const gitCommonDir = await resolveGitCommonDir({ cwd: projectRoot });
-        expect(gitCommonDir.success).toBe(true);
-        if (!gitCommonDir.success) throw new Error('unreachable');
-        const lockPath = gitCommonDirLockFilePath({
-            globalConfigFolderPath,
-            gitCommonDir: gitCommonDir.data,
-        });
+        const locksDir = gitCommonDirLocksDirPath({ globalConfigFolderPath });
         const spawnFn = vi.fn(() => {
-            expect(existsSync(lockPath)).toBe(false);
+            const held = existsSync(locksDir) ? readdirSync(locksDir).filter((f) => f.endsWith('.lock')) : [];
+            expect(held).toEqual([]);
             return { pid: 42_424, unref: vi.fn() };
         }) as unknown as typeof nodeSpawn;
 

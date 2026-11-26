@@ -1,0 +1,102 @@
+<!doctype html>
+<!--
+  Source for public/og.png (1200x630 social share image).
+  Regenerate with `npm run brand -w=@lumpcode/website` (brand/render.mjs) after changing the hero copy or brand.
+  Shared styles and the fish come from brand.css and fish.js.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="brand.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Plus+Jakarta+Sans:wght@500;650;800&display=block">
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+
+  /* Copy */
+  .copy {
+    position: absolute;
+    left: 76px;
+    top: 64px;
+    width: 760px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 52px; }
+  .brand .lumpfish { width: 64px; height: auto; }
+  .brand .word { height: 39px; width: auto; }
+  .kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 26px;
+    padding: 8px 20px 8px 16px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--teal-bright);
+    font-size: 22px;
+    font-weight: 650;
+    letter-spacing: -0.01em;
+  }
+  .kicker i { width: 10px; height: 10px; border-radius: 50%; background: var(--teal); }
+  h1 {
+    margin: 0 0 30px;
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -0.045em;
+    line-height: 1.06;
+  }
+  h1 span { display: block; white-space: nowrap; }
+  h1 .accent { color: var(--teal-bright); }
+  .lump {
+    margin: 0;
+    padding-left: 18px;
+    border-left: 3px solid var(--teal);
+    color: var(--text-soft);
+    font-size: 26px;
+    font-weight: 500;
+    line-height: 1.35;
+  }
+  .install {
+    position: absolute;
+    right: 76px;
+    bottom: 56px;
+    color: var(--text-muted);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px;
+    font-weight: 500;
+  }
+  .install b { color: var(--teal); font-weight: 500; }
+</style>
+</head>
+<body>
+<script src="fish.js"></script>
+
+<div class="rays"></div>
+
+<div class="school">
+  <svg class="lumpfish far fish-ocean" style="left:1075px; top:70px; width:66px" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg>
+  <svg class="lumpfish far" style="left:1120px; top:200px; width:42px" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg>
+  <div class="carrier fish-aqua" style="left:960px; top:110px; width:100px; --cargo:19px"><svg class="lumpfish" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg><span class="cargo"><span class="cargo-file" style="--ext: #3178c6"><span class="cargo-file-lines"></span><span class="cargo-file-ext">.ts</span></span></span></div>
+  <div class="carrier" style="left:930px; top:235px; width:230px; --cargo:30px"><svg class="lumpfish" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg><span class="cargo"><span class="cargo-file cargo-patch"><span class="patch-line"></span><span class="patch-line is-del"></span><span class="patch-line is-add"></span><span class="patch-line is-add is-short"></span><span class="patch-line is-short"></span></span></span></div>
+  <div class="carrier fish-deep" style="left:830px; top:410px; width:90px; --cargo:17px"><svg class="lumpfish" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg><span class="cargo"><span class="cargo-file cargo-patch"><span class="patch-line"></span><span class="patch-line is-del"></span><span class="patch-line is-add"></span><span class="patch-line is-add is-short"></span><span class="patch-line is-short"></span></span></span></div>
+  <svg class="lumpfish far fish-ocean" style="left:1105px; top:455px; width:50px" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg>
+  <span class="bubble" style="left:1150px; top:250px; width:14px; height:14px"></span>
+  <span class="bubble" style="left:1162px; top:215px; width:9px; height:9px"></span>
+  <span class="bubble" style="left:1050px; top:100px; width:10px; height:10px"></span>
+</div>
+
+<div class="copy">
+  <div class="brand">
+    <svg class="lumpfish" viewBox="0 0 650 540"><use href="#fish" width="650" height="540"/></svg>
+    <img class="word" src="../public/wordmark.svg" alt="lumpcode">
+  </div>
+  <p class="kicker"><i></i>Open source. You just need git and a CLI agent.</p>
+  <h1>
+    <span>The simplest software factory</span>
+    <span class="accent">lives in your repo.</span>
+  </h1>
+  <p class="lump">No account, no database, no backend:<br>git is the only state.</p>
+</div>
+
+<p class="install"><b>$</b> npm install -g @lumpcode/cli</p>
+</body>
+</html>

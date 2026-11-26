@@ -2,11 +2,13 @@
 name: command-fn-result-return
 workflow: [manualReq, testImpl, impl]
 task: >-
-  Make commandFn more approachable for JS/TS steps: besides a CommandDescriptor
-  (or nullish skip), allow returning { commandResult, commandSucceeded } so the
-  step can finish in-process without spawning. The engine should treat that
-  shape as the step outcome (history, postCommandExecFn) and still honor
-  continueOnError when commandSucceeded is false. Same union for inline
-  command on JS/TS steps. Distinct from command-as-shell-string (a string to
-  execute, not an already-computed result).
-priority: 2
+  A step command may return a shell string or an in-process result, besides
+  today's CommandDescriptor and the nullish skip. A shell string is spawned:
+  command: () => 'npm run test'. An in-process result is not spawned:
+  command: () => ({ commandResult: 'missing src/x.ts', commandSucceeded: false }).
+  History, postCommandExecFn, and continueOnError see that result the way
+  they see a command that ran. A string command field with no whitespace
+  stays a tag or a module path. A string command field that contains
+  whitespace is a shell line. Git and workspace hooks are
+  command-descriptor-or-string-returns, not this ticket.
+priority: 3

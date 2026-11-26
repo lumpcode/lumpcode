@@ -1,5 +1,5 @@
 import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData, CommandOutputEvent } from "../../types";
-import { createConsoleLogger, set, success } from "../../utils";
+import { createConsoleLogger, failure, set, success } from "../../utils";
 import { 
     getToDoContextList,
     executeStepsForContextList,
@@ -36,6 +36,7 @@ Failure<ExecuteStepsFailureData>
         refreshRemoteTrackingRefsFn,
         onCommandOutput,
         lumpName,
+        contextName,
     } = input;
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -49,9 +50,13 @@ Failure<ExecuteStepsFailureData>
         gitCommitMessageFn,
         logger,
         refreshRemoteTrackingRefsFn,
+        contextName,
     });
 
     if (!contextListToDoResult.success) {
+        if (contextListToDoResult.data.code === 'contextName') {
+            return failure({ message: contextListToDoResult.data.message });
+        }
         return set(
             contextListToDoResult,
             ['data', 'message'],
@@ -61,10 +66,9 @@ Failure<ExecuteStepsFailureData>
 
     const contextListToDo = contextListToDoResult.data;
 
-    const nextContextsForBranchList = contextListToDo.slice(
-        0,
-        numberOfContextsPerBranch
-    );
+    const nextContextsForBranchList = contextName === undefined
+        ? contextListToDo.slice(0, numberOfContextsPerBranch)
+        : contextListToDo;
 
     if (nextContextsForBranchList.length === 0) {
         logger.verbose('no next contexts for branch');
@@ -145,6 +149,11 @@ export interface RunLumpInput<
     onCommandOutput?: (event: CommandOutputEvent) => void;
     /** Names the per-step systemd scope unit (`lump-<lumpName>-<context>-<step>-…`). */
     lumpName?: string;
+    /**
+     * Run this context when it is `toDo` and its `dependsOnContexts` are `finished`.
+     * Priority and `numberOfContextsPerBranch` do not choose a different context.
+     */
+    contextName?: string;
 }
 
 export interface RunLumpOutput {

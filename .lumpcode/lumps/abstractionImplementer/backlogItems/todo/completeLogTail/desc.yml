@@ -1,9 +1,0 @@
-name: completeLogTail
-task: >-
-  Extract the repeated followable-log tail (shared --lines / --noFollow zod
-  fields, optional missing-file message, tailFile, then either the
-  "stopped following" success or the noFollow lines-as-messages result) into
-  completeLogTail plus followableTailOptionFields. Util under src/utils.
-  Affected: commands/daemon-log, commands/supervisor-log, and
-  commands/transcript.
-priority: 5

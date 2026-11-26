@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: locks-command
+workflow: [req, testPlan, testImpl, impl]
+task: >-
+  New `lumpcode locks` command to see and safely prune workspace path and git
+  common dir locks. Today an operator only learns who holds a lock from a busy
+  error at the moment a run fails, and dead holders' lock files stay until
+  someone next contends for that path. Without flags, list every lock in
+  workspace-path-locks/ and git-common-dir-locks/ under the global config
+  folder: kind, locked path, lump name, project, pid, held since, and live or
+  stale. Use the same liveness rule as acquire in
+  packages/apps/cli/src/utils/workspaceFileLock/main.ts (pid running and same
+  process start id; same pid only while its token is held; Windows pid only),
+  exported as a shared util, not re-implemented. `--prune` deletes only stale
+  lock files, by exact file name, which is as safe as what acquire already does.
+  Never delete a live lock: deleting a hung but alive holder's file lets a
+  second run into the same checkout. For a live holder, print its pid and point
+  to `lumpcode stop --force` or killing the process instead; no `--force` flag.
+  `--json` output like the other inspection commands. Covers the Windows case
+  where a dead holder's pid is reused and its lock looks live until that process
+  exits: the listing shows the pid so the operator can tell. Docs: a command
+  reference entry, and replace the lock paragraph in DOCS/reference/
+  troubleshooting.md and DOCS/start/run.md with a pointer to `lumpcode locks`
+  (still "never delete lock files by hand"). While the v0.10.x legacy
+  `<hash>.lock.json` files exist (ticket drop-legacy-lock-json), list and prune
+  them too.
+priority: 45
+dependsOn:
+  - release-0-11-0

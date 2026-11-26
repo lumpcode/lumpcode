@@ -1,6 +1,7 @@
 /* ------------------------------------------------------------------
-   Tokens. Dark is the default (and the no-JS fallback);
-   the head boot script sets data-theme from storage or the system.
+   Tokens. A first visit paints light. This :root block stays dark:
+   it is the no-JS fallback. The head boot script sets data-theme
+   from a stored lumpcode-theme value, or light when nothing is stored.
    ------------------------------------------------------------------ */
 :root {
   --bg: #000514;
@@ -353,11 +354,21 @@ section[id] {
   animation: fish-tail 0.32s ease-in-out 3;
 }
 
+/* The wordmark SVG spans ascender to descender; sized in em so the mobile font-size still scales it. */
 .brand-word {
+  display: block;
   font-size: 1.42rem;
-  font-weight: 800;
-  letter-spacing: -0.045em;
-  line-height: 1;
+  line-height: 0;
+}
+
+.brand-word svg {
+  display: block;
+  width: auto;
+  height: 0.98em;
+}
+
+.brand-word g {
+  fill: currentColor;
 }
 
 .nav {
@@ -629,6 +640,7 @@ section[id] {
 
 .aq-fish {
   position: absolute;
+  top: var(--top);
   left: 0;
   width: var(--size);
   opacity: 0;
@@ -661,7 +673,7 @@ section[id] {
 
 .aq-drifter {
   opacity: 0.16;
-  transform: translateX(-12vw);
+  transform: translateX(calc(-14vw - var(--size)));
 }
 
 :root[data-theme='light'] .aq-drifter {
@@ -698,9 +710,10 @@ section[id] {
   }
 }
 
+/* Start a full fish width past 14vw: on narrow screens 14vw is less than a big fish. */
 @keyframes drift-right {
   from {
-    transform: translateX(-14vw);
+    transform: translateX(calc(-14vw - var(--size)));
   }
 
   to {
@@ -714,7 +727,7 @@ section[id] {
   }
 
   to {
-    transform: translateX(-14vw) scaleX(-1);
+    transform: translateX(calc(-14vw - var(--size))) scaleX(-1);
   }
 }
 
@@ -988,6 +1001,24 @@ section[id] {
   flex-wrap: wrap;
   gap: 0.7rem;
 }
+
+.hero-prompt {
+  display: flex;
+  margin-top: 0.9rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1rem;
+}
+
+.hero-prompt-caption {
+  flex: 1 1 16rem;
+  max-width: 24rem;
+  margin: 0;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
 
 .hero-install {
   display: flex;
@@ -1898,6 +1929,49 @@ section[id] {
   opacity: 0.55;
 }
 
+/* Hover with a mouse stirs the water (useOceanStir): a light follows the pointer,
+   fish brighten and swim faster, and the call to action glows. The card itself is not a link. */
+.ocean-light {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: radial-gradient(circle 24rem at var(--mx, 50%) var(--my, 50%), rgb(78 201 195 / 16%), transparent 70%);
+  transition: opacity 500ms ease;
+}
+
+.ocean .aq-drifter {
+  transition: opacity 600ms ease;
+}
+
+.ocean .btn-primary {
+  transition:
+    background var(--ease),
+    border-color var(--ease),
+    color var(--ease),
+    box-shadow 500ms ease,
+    transform var(--ease);
+}
+
+@media (hover: hover) {
+  .ocean:hover .ocean-light {
+    opacity: 1;
+  }
+
+  .ocean:hover .aq-drifter {
+    opacity: 0.34;
+  }
+
+  .ocean:hover .aq-drifter:has(.cargo) {
+    opacity: 0.8;
+  }
+
+  .ocean:hover .btn-primary {
+    box-shadow: 0 0 0 4px rgb(78 201 195 / 18%), 0 10px 30px rgb(56 176 171 / 35%);
+  }
+}
+
 .ocean-inner {
   position: relative;
   z-index: 1;
@@ -1981,6 +2055,71 @@ section[id] {
 .install-commands {
   display: grid;
   gap: 0.55rem;
+}
+
+.install-copy {
+  display: grid;
+  gap: 0.55rem;
+  justify-items: start;
+  position: relative;
+}
+
+.install-copy-btn {
+  display: inline-grid;
+  place-items: center;
+  justify-self: start;
+  appearance: none;
+  white-space: nowrap;
+}
+
+.install-copy-btn > span {
+  grid-area: 1 / 1;
+}
+
+.install-copy-sizer {
+  visibility: hidden;
+}
+
+.install-copy-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.install-copy-caption {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--text-soft);
+  font-size: 0.88rem;
+}
+
+.install-divider {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0.85rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.install-divider::before,
+.install-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.install-divider + .install-label {
+  margin-top: 0.35rem;
 }
 
 .install-label {
@@ -2332,6 +2471,10 @@ section[id] {
 @media (max-width: 900px) {
   :root {
     --space-section: 4rem;
+  }
+
+  .hero-stage .aq-drifter {
+    top: var(--top-narrow, var(--top));
   }
 
   .hero,

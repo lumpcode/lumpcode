@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: dashboard-lump-board
+workflow: [manualReq, testImpl, impl]
+task: >-
+  A board page on the worker dashboard: for each lump, its contexts as toDo,
+  branchPushed or finished with counts, the same data as `lump-status` read
+  from the git remote, and the branch name of each pushed context. Refreshed
+  on its own slower interval than the daemon snapshot so it does not fetch
+  every 5 seconds. Read-only. Formerly the parked local-status-dashboard-mvp.
+priority: 33

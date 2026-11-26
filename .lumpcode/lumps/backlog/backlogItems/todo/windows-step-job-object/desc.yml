@@ -1,10 +1,14 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: windows-step-job-object
-workflow: [manualReq, testImpl, impl]
+workflow: [req, impl]
 task: >-
   On Windows, run each step command in its own Job Object and kill everything
   left in it when the step ends, fails, times out, or is aborted, and when the
-  daemon is force-stopped or dies. That way a Windows worker stops leaking
-  processes the way Linux and macOS workers no longer do. Background and
+  daemon is force-stopped or dies. This is the Windows box for the same
+  moments as the Linux systemd scope and the macOS process group. A process
+  group alone is the fallback, and it misses processes that leave the group. That way a Windows
+  worker stops leaking processes the way those workers no longer do. Background and
   constraints: reference.md.
-priority: 32
+priority: 62
+dependsOn:
+  - release-0-11-0

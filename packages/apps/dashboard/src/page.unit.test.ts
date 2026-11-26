@@ -56,11 +56,58 @@ describe('dashboard page', () => {
         const html = renderDashboardDocument(view(), 0);
         expect(html).toContain(root);
         expect(html).toContain('Lumpcode Worker Dashboard');
-        expect(html).toContain('data:image/png;base64,');
+        expect(html).not.toContain('data:image/png');
+        expect(html).not.toContain('3rem 3rem');
         expect(html).toContain(`const pollMs = ${STATUS_POLL_INTERVAL_MS}`);
         expect(html).toContain("fetch('/view'");
         expect(html).not.toMatch(/<button/i);
         expect(html).not.toMatch(/<form/i);
+    });
+
+    it('uses the website lumpfish and the glow background', () => {
+        const cssPath = fileURLToPath(new URL('../../website/app/assets/css/main.css', import.meta.url));
+        const css = readFileSync(cssPath, 'utf8');
+        const background = css.match(
+            /background-image:\s*radial-gradient\(ellipse 80% 48% at 50% -12%, var\(--teal-glow\), transparent 58%\),\s*radial-gradient\(ellipse 60% 40% at 100% 100%, var\(--teal-wash\), transparent 70%\);/,
+        )?.[0];
+        expect(background).toBeTruthy();
+        const vuePath = fileURLToPath(new URL('../../website/app/components/Lumpfish.vue', import.meta.url));
+        const vue = readFileSync(vuePath, 'utf8');
+        const paths = [...vue.matchAll(/\sd="([^"]+)"/g)].map((match) => match[1] ?? '');
+        expect(paths.length).toBeGreaterThan(0);
+
+        const html = renderDashboardDocument(view(), 0);
+        expect(html.replace(/\s+/g, ' ')).toContain(background?.replace(/\s+/g, ' '));
+        expect(html).toContain('background-attachment: fixed');
+        expect(html).not.toContain('linear-gradient(rgb(56 176 171 / 4%) 1px');
+        expect(html).not.toContain('is-animated');
+        expect(html).not.toContain('@keyframes');
+        expect(html).not.toMatch(/<img\b/i);
+
+        const header = html.slice(html.indexOf('<header'), html.indexOf('</header>'));
+        expect(header).toContain('<svg class="lumpfish"');
+        expect(header).toContain('aria-hidden="true"');
+        expect(header).not.toContain('<style');
+        expect(header).not.toContain('#3cb4ad');
+        for (const path of paths) {
+            expect(header).toContain(`d="${path}"`);
+        }
+
+        const icon = html.match(/<link rel="icon" type="image\/svg\+xml" href="([^"]+)">/)?.[1];
+        expect(icon?.startsWith('data:image/svg+xml,')).toBe(true);
+        const favicon = decodeURIComponent((icon ?? '').slice('data:image/svg+xml,'.length));
+        expect(favicon).toContain('<svg class="lumpfish"');
+        expect(favicon).toContain('<style>');
+        expect(favicon).not.toContain('is-animated');
+        const root = css.match(/:root \{[^}]*\}/)?.[0] ?? '';
+        for (const name of ['--fish-body', '--fish-shade', '--fish-dark', '--fish-deep', '--fish-eye']) {
+            const declaration = root.match(new RegExp(`${name}: [^;]+;`))?.[0];
+            expect(declaration).toBeTruthy();
+            expect(favicon).toContain(declaration);
+        }
+        for (const path of paths) {
+            expect(favicon).toContain(`d="${path}"`);
+        }
     });
 
     it('shows an idle project with no daemon rows', () => {
