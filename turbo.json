@@ -6,7 +6,7 @@
       "outputs": ["dist/**"]
     },
     "@lumpcode/cli#build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "@lumpcode/cli-utils#build"],
       "outputs": [
         "dist/**",
         "bin/lumpcode-*",

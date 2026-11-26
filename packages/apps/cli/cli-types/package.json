@@ -35,7 +35,7 @@
   "scripts": {
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
-    "build": "rollup -c"
+    "build": "rollup -c --forceExit"
   },
   "dependencies": {
     "@lumpcode/core": "^0.10.2"

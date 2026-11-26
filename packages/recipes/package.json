@@ -44,7 +44,7 @@
   "scripts": {
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
-    "build": "rollup -c",
+    "build": "rollup -c --forceExit",
     "test": "vitest run",
     "test:watch": "vitest watch"
   },
