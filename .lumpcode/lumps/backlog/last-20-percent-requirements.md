@@ -51,7 +51,7 @@ Lower priority runs sooner. The push has two phases: everything up to the **0.11
 
 | Wave | Priority | Work |
 | --- | --- | --- |
-| 0 | 0–9 | bugfixes (all three), qol command returns and `recipes-manual-req-default`, `history-and-transcripts`, `desc-name-folder-mismatch-warn` |
+| 0 | 0–9 | bugfixes (all three), qol command returns and `recipes-manual-req-default`, `desc-name-folder-mismatch-warn` |
 | 1 | 10 | `repo-templates`: this repo's lumps use `.lumpcode/templates/main.ts` |
 | 2 | 11–15 | `workflow-api` (core, agent sessions, config and plan, kit, recipes) |
 | 3 | 16–17 | `repo-lumps-workflow` (every repo lump as a workflow); `workflow-first-docs-and-website` (backlog lump) |
@@ -62,7 +62,7 @@ Lower priority runs sooner. The push has two phases: everything up to the **0.11
 | after 0.11.0 | 40–45 | `worker-deploy` (non-interactive setup, image, cloud templates), `git-access-heartbeat`; docs `worker-connections-docs`, `deploy-worker-page` |
 | after 0.11.0 | 50–51 | docs `trust-page`, `intro-video-v2` |
 | after 0.11.0 | 40–50 | lock follow-ups from PR #431: `drop-legacy-lock-json` (manual; allowed from 0.11.0 since 0.10.2 ships the fix, kept after it to keep 0.11.0 safe next to v0.10.x processes), `locks-command`, `in-process-lock-queue` |
-| after 0.11.0, later | 60+ | `reuse-existing-lump-branch`, `project-local-config-field-layers`, `daemon-live-meta-subscribe`, `windows-step-job-object`, `daemon-orchestration`, `config-fn-as-script` (`external-agent-harness-library-presets` is a blocked idea since PR #430) |
+| after 0.11.0, later | 60+ | `reuse-existing-lump-branch`, `project-local-config-field-layers`, `daemon-live-meta-subscribe`, `windows-step-job-object`, `daemon-orchestration`, `config-fn-as-script`, `history-and-transcripts` (JSONL history; not needed by `workflow-api`, which appends through `appendHistoryEntry` either way) (`external-agent-harness-library-presets` is a blocked idea since PR #430) |
 
 ## Acceptance criteria for the whole push
 
