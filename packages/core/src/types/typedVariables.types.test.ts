@@ -4,8 +4,14 @@
  */
 import { describe, it, expectTypeOf } from 'vitest';
 import type {
+  Agent,
+  AgentResult,
+  AgentSession,
   BranchFn,
   CommandFn,
+  CommandOutputEvent,
+  ContextResult,
+  ExecuteStepsFailureData,
   GetContextListFn,
   GetContextListFnInput,
   GitAddCommitFn,
@@ -15,12 +21,20 @@ import type {
   HistoryEntry,
   PostCommandExecFn,
   PromptFn,
+  PromptOptions,
   SetupFn,
+  Shell,
+  ShellOptions,
+  ShellResult,
   Step,
   Steps,
   TeardownFn,
+  TeardownWorkspaceFn,
+  WorkflowFn,
+  WorkflowResult,
 } from './index';
 import type { RunLumpInput, runLump } from '../usages/runLump/main';
+import type * as coreTypes from './index';
 
 /** Refined lump bag */
 type V = { model?: string; myHookFlag: boolean };
@@ -90,7 +104,7 @@ describe('core dual-bag <V, SV> (C1–C8)', () => {
       ],
     };
     expectTypeOf(input.lumpVariables).toEqualTypeOf<V | undefined>();
-    expectTypeOf(input.steps).toEqualTypeOf<Steps<V, SV>>();
+    expectTypeOf(input.steps).toEqualTypeOf<Steps<V, SV> | undefined>();
     expectTypeOf<typeof runLump<V, SV>>().toBeFunction();
   });
 
@@ -190,5 +204,79 @@ describe('dynamic-discovery-branch core type guards (G3t/G4t)', () => {
 
   it('G4t: core RunLumpInput.baseBranch remains string (dynamic-discovery-branch)', () => {
     expectTypeOf<RunLumpInput['baseBranch']>().toEqualTypeOf<string>();
+  });
+});
+
+describe.skip('workflow API types', () => {
+  it('WorkflowFn infers lumpVariables and variables', () => {
+    const workflowOnly: RunLumpInput<V, SV> = {
+      projectRoot: '/tmp',
+      baseBranch: 'main',
+      branchFn: () => 'b',
+      getContextListFn: () => [],
+      workflow: async (input) => {
+        expectTypeOf(input.lumpVariables).toEqualTypeOf<V>();
+        expectTypeOf(input.signal).toEqualTypeOf<AbortSignal>();
+        expectTypeOf(input.agent).toEqualTypeOf<Agent>();
+        expectTypeOf(input.shell).toEqualTypeOf<Shell>();
+        return { variables: { stepOnly: 1, newChat: true }, message: 'done' };
+      },
+    };
+    expectTypeOf(workflowOnly.workflow).toEqualTypeOf<WorkflowFn<V, SV> | undefined>();
+    expectTypeOf<NonNullable<RunLumpInput<V, SV>['createAgent']>>().toBeFunction();
+    expectTypeOf<RunLumpInput<V, SV>['timeoutMillis']>().toEqualTypeOf<number | undefined>();
+  });
+
+  it('keeps the public Step keys and hides WorkflowStep', () => {
+    expectTypeOf<keyof Step>().toEqualTypeOf<
+      'promptFn' | 'commandFn' | 'stepVariables' | 'postCommandExecFn' | 'continueOnError' | 'timeoutMillis'
+    >();
+    // @ts-expect-error WorkflowStep stays internal to workflowToSteps
+    type _WorkflowStep = coreTypes.WorkflowStep;
+  });
+
+  it('CommandFn and SetupFn gain optional sessionId', () => {
+    const command: CommandFn<V, SV> = (params) => {
+      expectTypeOf(params.sessionId).toEqualTypeOf<string | undefined>();
+      return null;
+    };
+    const setup: SetupFn<V> = () => ({ sessionId: 'from-setup', contextRunState: {} });
+    void command;
+    void setup;
+  });
+
+  it('history, events, shell, and context results match the contract', () => {
+    expectTypeOf<HistoryEntry<V, SV>['kind']>().toEqualTypeOf<
+      'prompt' | 'command' | 'shell' | 'workflow' | undefined
+    >();
+    expectTypeOf<HistoryEntry<V, SV>['workflowResult']>().toEqualTypeOf<WorkflowResult<SV> | undefined>();
+    expectTypeOf<CommandOutputEvent['kind']>().toEqualTypeOf<'start' | 'chunk' | 'end' | 'log' | 'workflowEnd'>();
+    expectTypeOf<Extract<CommandOutputEvent, { kind: 'start' }>['callKind']>().toEqualTypeOf<
+      'prompt' | 'shell' | undefined
+    >();
+    expectTypeOf<Extract<CommandOutputEvent, { kind: 'end' }>['exitCode']>().toEqualTypeOf<
+      number | null | undefined
+    >();
+    expectTypeOf<ContextResult<SV>['outcome']>().toEqualTypeOf<'pushed' | 'notPushed' | 'failed' | 'aborted'>();
+    expectTypeOf<ContextResult<SV>['result']['succeeded']>().toEqualTypeOf<boolean>();
+    expectTypeOf<ContextResult<SV>['result']['variables']>().toEqualTypeOf<SV | undefined>();
+    expectTypeOf<ExecuteStepsFailureData['contextResults']>().toEqualTypeOf<ContextResult[] | undefined>();
+    type WorkspaceHookInput = Parameters<TeardownWorkspaceFn>[0];
+    expectTypeOf<WorkspaceHookInput['contextResults']>().toEqualTypeOf<ContextResult[]>();
+
+    const shell = null as unknown as Shell;
+    const agent = null as unknown as Agent;
+    const command = null as unknown as CommandFn;
+    expectTypeOf(shell('echo ok')).toEqualTypeOf<Promise<ShellResult>>();
+    expectTypeOf(shell({ executable: 'echo', args: ['ok'] })).toEqualTypeOf<Promise<ShellResult>>();
+    expectTypeOf(agent.session()).toEqualTypeOf<Promise<AgentSession>>();
+    expectTypeOf(agent.session(command, { model: 'auto' })).toEqualTypeOf<Promise<AgentSession>>();
+    expectTypeOf(agent.session({ command, sessionId: 's' })).toEqualTypeOf<Promise<AgentSession>>();
+    expectTypeOf(agent.prompt('hi')).toEqualTypeOf<Promise<AgentResult>>();
+
+    // @ts-expect-error authors never pass a signal to shell
+    type _ShellSignal = ShellOptions['signal'];
+    // @ts-expect-error authors never pass a signal to a prompt
+    type _PromptSignal = PromptOptions['signal'];
   });
 });

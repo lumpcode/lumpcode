@@ -22,6 +22,8 @@ export type CommandFn<
     stepVariables?: SV;
     projectRoot: string;
     workspacePath: string;
+    /** Set by a workflow prompt. Absent for steps. */
+    sessionId?: string;
 }) => MaybePromise<CommandDescriptor | null | undefined | void>) & {
     commandName?: string;
 };

@@ -84,6 +84,10 @@ export function createLiveStepOutput({
             return;
         }
 
+        if (event.kind !== 'chunk') {
+            return;
+        }
+
         if (!presenter) {
             safeWrite(event.chunk);
             return;

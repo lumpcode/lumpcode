@@ -32,3 +32,7 @@ export * from './ExecFailureData';
 export * from './ExecuteStepsFailureData';
 export * from './ExecuteStepsFailureReason';
 export * from './AsyncFnSuccess';
+export * from './Agent';
+export * from './ContextResult';
+export * from './Shell';
+export * from './Workflow';
