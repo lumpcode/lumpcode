@@ -1,6 +1,9 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import * as path from 'node:path';
+import { describe, it, expect, vi, beforeEach, onTestFinished } from 'vitest';
 
-import type { Context, GetContextListFn } from '@lumpcode/core';
+import { getCodeBasePaths, type Context, type GetContextListFn } from '@lumpcode/core';
 
 import type { ContextMatchFn, LumpJsConfig } from '../../../types';
 import {
@@ -17,6 +20,24 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
     });
 
     const DISCOVERY = 'feature/a';
+
+    async function makeProjectRoot(files: Record<string, string> = {}): Promise<string> {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'lump-base-branch-'));
+        onTestFinished(() => rm(projectRoot, { recursive: true, force: true }));
+        for (const [rel, contents] of Object.entries(files)) {
+            const abs = path.join(projectRoot, rel);
+            await mkdir(path.dirname(abs), { recursive: true });
+            await writeFile(abs, contents);
+        }
+        return projectRoot;
+    }
+
+    function projectResolveOpts(projectRoot: string) {
+        return {
+            effectiveDiscoveryBranch: DISCOVERY,
+            localConfigFolderPath: path.join(projectRoot, '.lumpcode'),
+        };
+    }
 
     type BaseBranchFnInput = {
         effectiveDiscoveryBranch: string;
@@ -56,6 +77,7 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
     });
 
     it('B3b: BaseBranchFn returning a pattern fails at resolve and names the value', async () => {
+        const projectRoot = await makeProjectRoot();
         const baseBranchFn: BaseBranchFn = () => 'exec/*';
         assertFailure(
             await resolveJsConf(
@@ -63,13 +85,14 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
                     baseBranch: baseBranchFn as LumpJsConfig['baseBranch'],
                     getContextListFn: stubGetContextListFn,
                 },
-                { effectiveDiscoveryBranch: DISCOVERY },
+                projectResolveOpts(projectRoot),
             ),
             'baseBranch function must return a non-empty concrete branch name, not a pattern (got "exec/*")',
         );
     });
 
     it('B4: BaseBranchFn sees pre-status raw contexts and returned string becomes baseBranch', async () => {
+        const projectRoot = await makeProjectRoot();
         const recordedArgs: BaseBranchFnInput[] = [];
         const rawContexts: Context[] = [{ name: 'ctx-a', variables: { FILE: 'a.ts' } }];
         const authorGetContextListFn = vi.fn(() => rawContexts);
@@ -84,7 +107,7 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
                     getContextListFn: authorGetContextListFn,
                     baseBranch: baseBranchFn as LumpJsConfig['baseBranch'],
                 },
-                { effectiveDiscoveryBranch: DISCOVERY },
+                projectResolveOpts(projectRoot),
             ),
         );
 
@@ -97,6 +120,7 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
     });
 
     it('B5: BaseBranchFn still called when author returns empty contexts', async () => {
+        const projectRoot = await makeProjectRoot();
         const recordedArgs: BaseBranchFnInput[] = [];
         const authorGetContextListFn = vi.fn(() => [] as Context[]);
         const baseBranchFn: BaseBranchFn = (input) => {
@@ -110,7 +134,7 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
                     getContextListFn: authorGetContextListFn,
                     baseBranch: baseBranchFn as LumpJsConfig['baseBranch'],
                 },
-                { effectiveDiscoveryBranch: DISCOVERY },
+                projectResolveOpts(projectRoot),
             ),
         );
 
@@ -198,5 +222,82 @@ describe('jsConfigToRunLumpInput dynamic-discovery-branch author bind + baseBran
         });
         // One match invocation per codeBasePath entry (fixture has a single path).
         expect(receivedDiscoveryBranches).toEqual([DISCOVERY]);
+    });
+
+    it('B9: function baseBranch sees path-template contexts from the project scan', async () => {
+        const projectRoot = await makeProjectRoot({ 'src/index.ts': 'export {}\n' });
+        const seen: Context[][] = [];
+        const indexContext: Context = { name: 'index', variables: { FILE: 'src/index.ts' } };
+        const baseBranchFn: BaseBranchFn = ({ contexts }) => {
+            seen.push(contexts);
+            return contexts.some((ctx) => ctx.name === 'index') ? 'dev' : 'main';
+        };
+
+        const data = assertSuccess(
+            await resolveJsConf(
+                {
+                    getContextListFn: undefined,
+                    contextMatchFn: undefined,
+                    contextListJson: { FILE: 'src/{NAME}.ts' },
+                    baseBranch: baseBranchFn as LumpJsConfig['baseBranch'],
+                },
+                projectResolveOpts(projectRoot),
+            ),
+        );
+
+        expect(data.baseBranch).toBe('dev');
+        expect(seen).toEqual([[indexContext]]);
+        await expect(data.getContextListFn({
+            codeBasePaths: [{ isDir: false, path: 'src/index.ts' }],
+            lumpVariables: {},
+        })).resolves.toEqual([indexContext]);
+    });
+
+    it('B10: string baseBranch does not scan and does not pin an empty context list', async () => {
+        const missingRoot = path.join(tmpdir(), `lump-no-scan-${process.pid}-${Date.now()}`);
+        const data = assertSuccess(
+            await resolveJsConf(
+                {
+                    baseBranch: 'release',
+                    getContextListFn: undefined,
+                    contextMatchFn: undefined,
+                    contextListJson: { FILE: 'src/{NAME}.ts' },
+                },
+                {
+                    effectiveDiscoveryBranch: DISCOVERY,
+                    localConfigFolderPath: path.join(missingRoot, '.lumpcode'),
+                },
+            ),
+        );
+
+        expect(data.baseBranch).toBe('release');
+        await expect(data.getContextListFn({
+            codeBasePaths: [{ isDir: false, path: 'src/index.ts' }],
+            lumpVariables: {},
+        })).resolves.toEqual([
+            { name: 'index', variables: { FILE: 'src/index.ts' } },
+        ]);
+    });
+
+    it('B11: function baseBranch fails resolve when the project scan fails', async () => {
+        const missingRoot = path.join(tmpdir(), `lump-missing-scan-${process.pid}-${Date.now()}`);
+        const scan = await getCodeBasePaths({ cwd: missingRoot });
+        expect(scan.success).toBe(false);
+        if (scan.success) throw new Error('unreachable');
+
+        const baseBranchFn: BaseBranchFn = () => 'dev';
+        assertFailure(
+            await resolveJsConf(
+                {
+                    baseBranch: baseBranchFn as LumpJsConfig['baseBranch'],
+                    getContextListFn: stubGetContextListFn,
+                },
+                {
+                    effectiveDiscoveryBranch: DISCOVERY,
+                    localConfigFolderPath: path.join(missingRoot, '.lumpcode'),
+                },
+            ),
+            scan.data.message,
+        );
     });
 });
