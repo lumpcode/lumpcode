@@ -40,8 +40,8 @@
   },
   "scripts": {
     "prepublishOnly": "npm run build",
-    "build": "rollup -c",
-    "build:dev": "rollup -c --environment BUILD_DEV:true",
+    "build": "rollup -c --forceExit",
+    "build:dev": "rollup -c --environment BUILD_DEV:true --forceExit",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:watch": "vitest watch",
