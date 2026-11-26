@@ -9,11 +9,11 @@ import {
     defaultImplPrompt,
     defaultTestImplPrompt,
     featureBacklog,
-    openPrPostTeardown,
     projectRootFromConfigUrl,
 } from '@lumpcode/recipes';
 
 import { learningsPromptFns } from '../../helpers/learningsPromptFns';
+import { defineLump } from '../../templates/main';
 
 const projectRoot = projectRootFromConfigUrl(import.meta.url);
 
@@ -46,25 +46,22 @@ async function withExpectMatch(
 Read @${expectPath} and try to match that expectation if possible: prefer the listed files and stay close to the line estimates.`;
 }
 
-export default featureBacklog<
+export default defineLump(featureBacklog<
     CursorPresetLumpVariables,
     CursorPresetStepVariables
 >({
     configUrl: import.meta.url,
-    command: 'cursor',
     registerCommands: ['cursor'],
     maximumNumberOfConcurrentBranches: 3,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'grok-4.7-high' },
     implValidateCommand: [
         'npm run build -w=@lumpcode/cli',
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
-    postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     promptFns: learningsPromptFns({
         testImpl: (input) => withExpectMatch(defaultTestImplPrompt, input),
         impl: (input) => withExpectMatch(defaultImplPrompt, input),
     }),
     timeoutMillis: 1000 * 60 * 60 * 4, // 4 hours
-});
+}));

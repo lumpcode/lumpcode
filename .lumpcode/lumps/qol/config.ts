@@ -2,28 +2,23 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import {
-    featureBacklog,
-    openPrPostTeardown,
-} from '@lumpcode/recipes';
+import { featureBacklog } from '@lumpcode/recipes';
 
 import { learningsPromptFns } from '../../helpers/learningsPromptFns';
+import { defineLump } from '../../templates/main';
 
-export default featureBacklog<
+export default defineLump(featureBacklog<
     CursorPresetLumpVariables,
     CursorPresetStepVariables
 >({
     configUrl: import.meta.url,
-    command: 'cursor',
     registerCommands: ['cursor'],
     maximumNumberOfConcurrentBranches: 2,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'grok-4.7-high' },
     implValidateCommand: [
         'npm run build -w=@lumpcode/cli',
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
-    postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     promptFns: learningsPromptFns(),
-});
+}));

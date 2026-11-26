@@ -4,9 +4,10 @@ import {
 } from '@lumpcode/cli-utils';
 import {
     backlog,
-    openPrPostTeardown,
     type BaseBacklogItem,
 } from '@lumpcode/recipes';
+
+import { defineLump } from '../../templates/main';
 
 type DocsContextVariables = {
     TASK_NAME: string;
@@ -16,17 +17,14 @@ type DocsContextVariables = {
     BACKLOG_STAGE: 'implementation';
 };
 
-export default backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetStepVariables>({
+export default defineLump(backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetStepVariables>({
     configUrl: import.meta.url,
     baseBranch: 'dev',
     discoveryBranch: 'dev',
-    command: 'cursor',
     registerCommands: ['cursor'],
     maximumNumberOfConcurrentBranches: 2,
     verbose: true,
     keepHistory: true,
-    lumpVariables: { model: 'grok-4.7-high' },
-    postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     async resolveItem() {
         return { stage: 'implementation' };
     },
@@ -60,4 +58,4 @@ Do not edit @${BACKLOG_ITEM_DIR}/desc.yml.
             ],
         },
     },
-});
+}));

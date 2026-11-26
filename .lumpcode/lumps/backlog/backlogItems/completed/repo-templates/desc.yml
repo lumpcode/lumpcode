@@ -1,6 +1,7 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: repo-templates
-workflow: [req, impl]
+workflow:
+  - req
+  - impl
 task: >-
   This repo follows its own best practice before anything else: add
   .lumpcode/templates/main.ts by hand from the install prompt's Step 5 snippet
@@ -11,3 +12,4 @@ task: >-
   lanes. lump-plan output for each lump is the same before and after. Needs no
   CLI change.
 priority: 10
+completedAt: '2026-11-26T12:34:21.449Z'
