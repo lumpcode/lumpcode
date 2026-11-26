@@ -285,6 +285,42 @@ describe('backlog recipe', () => {
         });
     });
 
+    it('keeps the folder as BACKLOG_ITEM_DIR when desc name differs', async () => {
+        await writeTodoItem(projectRoot, lumpRelativePath, 'disk-name', {
+            name: 'context-name',
+            task: 'Renamed task',
+            priority: 1,
+        });
+
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const config = backlog({
+            configUrl: pathToFileURL(configPath),
+            stages: {
+                ship: { completion: 'keepPending', steps: [] },
+            },
+            resolveItem() {
+                return { stage: 'ship' };
+            },
+        });
+
+        const contexts = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts).toHaveLength(1);
+        expect(contexts[0]).toMatchObject({
+            name: 'context-name',
+            variables: {
+                TASK_NAME: 'context-name',
+                BACKLOG_ITEM_DIR: '.lumpcode/lumps/sample/backlogItems/todo/disk-name',
+            },
+        });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
     it('rejects absolute backlogItemsDir overrides', () => {
         expect(() =>
             backlog({
@@ -354,6 +390,96 @@ describe('abstractionBacklog compatibility', () => {
                 BACKLOG_STAGE: 'implementation',
             },
         });
+    });
+
+    it('reads requirements.md from the folder when desc name differs', async () => {
+        await writeTodoItem(projectRoot, lumpRelativePath, 'disk-name', {
+            name: 'context-name',
+            task: 'Ready task',
+            priority: 1,
+        });
+        await writeFile(
+            path.join(
+                projectRoot,
+                lumpRelativePath,
+                'backlogItems',
+                'todo',
+                'disk-name',
+                'requirements.md',
+            ),
+            '# Requirements',
+        );
+
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const { abstractionBacklog } = await import('../abstractionBacklog/main');
+        const config = abstractionBacklog({
+            configUrl: pathToFileURL(configPath),
+            command: 'cursor',
+        });
+
+        const contexts = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts).toHaveLength(1);
+        expect(contexts[0]).toMatchObject({
+            name: 'context-name',
+            variables: {
+                TASK_NAME: 'context-name',
+                BACKLOG_ITEM_DIR:
+                    '.lumpcode/lumps/abstractionImplementer/backlogItems/todo/disk-name',
+                REQ_FILE:
+                    '.lumpcode/lumps/abstractionImplementer/backlogItems/todo/disk-name/requirements.md',
+            },
+        });
+        expect(warnSpy).toHaveBeenCalledTimes(1);
+        warnSpy.mockRestore();
+    });
+
+    it('ignores a mismatched item when requirements.md exists only under the desc name', async () => {
+        await writeTodoItem(projectRoot, lumpRelativePath, 'disk-name', {
+            name: 'context-name',
+            task: 'Waiting task',
+            priority: 1,
+        });
+        await writeTodoItem(projectRoot, lumpRelativePath, 'context-name', {
+            name: 'other-item',
+            task: 'Other task',
+            priority: 2,
+        });
+        await writeFile(
+            path.join(
+                projectRoot,
+                lumpRelativePath,
+                'backlogItems',
+                'todo',
+                'context-name',
+                'requirements.md',
+            ),
+            '# Requirements',
+        );
+
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const { abstractionBacklog } = await import('../abstractionBacklog/main');
+        const config = abstractionBacklog({
+            configUrl: pathToFileURL(configPath),
+            command: 'cursor',
+        });
+
+        const contexts = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts.map((ctx) => ctx.name)).toEqual(['other-item']);
+        expect(contexts[0]?.variables.REQ_FILE).toBe(
+            '.lumpcode/lumps/abstractionImplementer/backlogItems/todo/context-name/requirements.md',
+        );
+        expect(warnSpy).toHaveBeenCalledTimes(2);
+        warnSpy.mockRestore();
     });
 });
 

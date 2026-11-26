@@ -1,12 +1,13 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: desc-name-folder-mismatch-warn
-workflow: [directImpl]
+workflow:
+  - directImpl
 task: >-
   folderBacklogContexts warns when desc.yml name differs from the folder
   basename, and still loads the item. It does not throw. The folder stays the
   path (todoRelativeDir, BACKLOG_ITEM_DIR). The desc name stays the context
   name. Duplicate desc names still throw. abstractionBacklog looks up
   requirements.md from the folder, not from the desc name. The schema
-  description stops saying the name must match the folder. A mismatch log is
-  one warning.
+  description stops saying the name must match the folder. A mismatch log is one
+  warning.
 priority: 7
+completedAt: '2026-11-26T08:22:46.936Z'

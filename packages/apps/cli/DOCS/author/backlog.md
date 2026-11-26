@@ -61,13 +61,13 @@ The recipe fills these context variables (usable in `{VAR}` / `@{VAR}`):
 | --- | --- |
 | `TASK_NAME` | `desc.yml` `name` |
 | `TASK` | `desc.yml` `task` |
-| `BACKLOG_ITEM_DIR` | `backlogItems/todo/<name>` |
+| `BACKLOG_ITEM_DIR` | `backlogItems/todo/<folder>` |
 | `BACKLOG_ITEMS_DIR` | the `backlogItems/` folder |
 | `BACKLOG_STAGE` | the stage `resolveItem` returned |
 
 ## 4. Add one item
 
-Folder name and `name:` must match. Letters, digits, `_`, `-` only.
+`name:` is the context name. Letters, digits, `_`, `-` only. The folder is the path. A name that differs from the folder still loads, with one warning.
 
 ```yaml .lumpcode/lumps/ticketBacklog/backlogItems/todo/add-health-route/desc.yml
 # yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json

@@ -589,6 +589,32 @@ describe('resolveFeatureBacklogItem', () => {
         });
     });
 
+    it('finds umbrella tickets from the folder when the desc name differs', async () => {
+        const parent: FeatureBacklogItem = {
+            name: 'umbrella-label',
+            task: 'Parent feature',
+            priority: 1,
+            todoRelativeDir: 'umbrella',
+        };
+        await writeTodoDesc(
+            lumpPath,
+            'umbrella',
+            'name: umbrella-label\ntask: Parent feature\npriority: 1\n',
+        );
+        await writeTodoDesc(lumpPath, 'umbrella/tickets/t1', 'name: t1\ntask: Ticket\npriority: 1\n');
+
+        const resolution = await resolve({
+            item: parent,
+            discoveryBranch: 'feature/umbrella',
+        });
+
+        expect(resolution).toEqual({
+            stage: 'completion',
+            contextName: 'umbrella-label',
+            additionalDependsOnContexts: ['umbrella-t1'],
+        });
+    });
+
     it('ignores umbrella parent completion on the primary branch', async () => {
         const parent: FeatureBacklogItem = {
             name: 'umbrella',
@@ -662,6 +688,79 @@ describe('featureBacklog parseItem', () => {
             }),
         ).rejects.toThrow(/workflow" must be an array of stages/);
 
+        await rm(projectRoot, { recursive: true, force: true });
+    });
+
+    it('loads a mismatched desc name with the folder path and one warning', async () => {
+        const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-mismatch-'));
+        const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
+        const configPath = path.join(lumpPath, 'config.ts');
+        await mkdir(lumpPath, { recursive: true });
+        await writeFile(configPath, 'export default {};\n');
+        await writeTodoDesc(
+            lumpPath,
+            'disk-name',
+            'name: context-name\ntask: Rename\npriority: 1\nworkflow:\n  - directImpl\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'umbrella',
+            'name: umbrella-label\ntask: Parent\npriority: 2\ndependsOn:\n  - persistence\n',
+        );
+        await writeTodoDesc(
+            lumpPath,
+            'umbrella/tickets/t1',
+            'name: t1\ntask: Ticket one\npriority: 1\n',
+        );
+        await writeFeatureArtifact(lumpPath, 'umbrella/tickets/t1', { requirements: true });
+        mockedGetContextStatus.mockResolvedValue('toDo');
+
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const config = featureBacklog({
+            configUrl: pathToFileURL(configPath),
+            implValidateCommand: 'npm test',
+        });
+
+        const directImpl = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/context-name',
+        });
+        expect(directImpl).toHaveLength(1);
+        expect(directImpl[0]).toMatchObject({
+            name: 'context-name',
+            variables: {
+                TASK_NAME: 'context-name',
+                BACKLOG_ITEM_DIR: '.lumpcode/lumps/backlog/backlogItems/todo/disk-name',
+                BACKLOG_STAGE: 'directImpl',
+            },
+        });
+        expect(warnSpy).toHaveBeenCalledTimes(2);
+        warnSpy.mockClear();
+
+        const tickets = await asGetContextListFn(config.getContextListFn)({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'feature/umbrella',
+        });
+        expect(tickets.find((ctx) => ctx.name === 'umbrella-t1_testImpl')).toMatchObject({
+            variables: {
+                TASK_NAME: 't1',
+                BACKLOG_ITEM_DIR:
+                    '.lumpcode/lumps/backlog/backlogItems/todo/umbrella/tickets/t1',
+            },
+            options: { dependsOnContexts: ['persistence'] },
+        });
+        expect(tickets.find((ctx) => ctx.name === 'umbrella-label')).toMatchObject({
+            variables: {
+                BACKLOG_STAGE: 'completion',
+                BACKLOG_ITEM_DIR: '.lumpcode/lumps/backlog/backlogItems/todo/umbrella',
+            },
+            options: { dependsOnContexts: ['persistence', 'umbrella-t1'] },
+        });
+        expect(warnSpy).toHaveBeenCalledTimes(2);
+        warnSpy.mockRestore();
+        mockedGetContextStatus.mockReset();
         await rm(projectRoot, { recursive: true, force: true });
     });
 

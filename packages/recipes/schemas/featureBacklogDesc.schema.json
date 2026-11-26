@@ -10,7 +10,7 @@
     "name": {
       "type": "string",
       "pattern": "^(?!.*(_req|_testPlan|_testImpl)$)[a-zA-Z0-9_-]+$",
-      "description": "Item id. Must match the folder name. Must not end in _req, _testPlan, or _testImpl (those suffixes are reserved for context names).",
+      "description": "Item id and context name. The folder is the path. A name that differs from the folder still loads. Must not end in _req, _testPlan, or _testImpl (those suffixes are reserved for context names).",
       "examples": ["lumpcode-setup", "cli-status-dashboard"]
     },
     "task": {

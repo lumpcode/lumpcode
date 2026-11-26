@@ -117,9 +117,10 @@ export async function resolveFeatureBacklogItem(input: {
 
     if (item.parentName === undefined) {
         const todoDir = path.join(projectRoot, paths.backlogItemsDir, 'todo');
+        const parentFolder = item.todoRelativeDir;
         const ticketNames = await listUmbrellaTicketNames({
             todoDir,
-            parentName: item.name,
+            parentName: parentFolder,
         });
         if (ticketNames.length > 0) {
             if (item.completedAt) {
@@ -131,7 +132,8 @@ export async function resolveFeatureBacklogItem(input: {
                     primaryDiscoveryBranch,
                     itemDiscoveryBranchPrefix,
                 ) !== 'itemCampaign' ||
-                itemNameFromCampaignBranch(discoveryBranch, itemDiscoveryBranchPrefix) !== item.name
+                itemNameFromCampaignBranch(discoveryBranch, itemDiscoveryBranchPrefix) !==
+                    parentFolder
             ) {
                 return { ignored: true };
             }
@@ -139,7 +141,7 @@ export async function resolveFeatureBacklogItem(input: {
                 stage: 'completion',
                 contextName: item.name,
                 additionalDependsOnContexts: ticketNames.map(
-                    (ticketName) => `${item.name}-${ticketName}`,
+                    (ticketName) => `${parentFolder}-${ticketName}`,
                 ),
             };
         }

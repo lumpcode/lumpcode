@@ -37,6 +37,11 @@ type AbstractionBacklogContextVariables = {
     REQ_FILE?: string;
 };
 
+type AbstractionBacklogItem = BaseBacklogItem & {
+    /** Path relative to `backlogItems/todo/`. Requirements live in this folder. */
+    todoRelativeDir: string;
+};
+
 export const abstractionBacklog = defineRecipe(function abstractionBacklog<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
@@ -54,10 +59,18 @@ export const abstractionBacklog = defineRecipe(function abstractionBacklog<
             'echo "No implementation validation command provided. I say, trust but verify, but well..."',
     );
 
-    return backlog<BaseBacklogItem, V, SV>({
+    return backlog<AbstractionBacklogItem, V, SV>({
         configUrl,
+        parseItem(baseItem, folderName) {
+            return { ...baseItem, todoRelativeDir: folderName };
+        },
         async resolveItem({ item, paths }) {
-            const itemReqPath = path.join(paths.backlogItemsDir, 'todo', item.name, 'requirements.md');
+            const itemReqPath = path.join(
+                paths.backlogItemsDir,
+                'todo',
+                item.todoRelativeDir,
+                'requirements.md',
+            );
             const hasReq = await pathExists(path.join(projectRoot, itemReqPath));
             if (!hasReq) {
                 return { ignored: true };

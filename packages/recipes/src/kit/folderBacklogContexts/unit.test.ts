@@ -1,7 +1,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { folderBacklogContexts } from './main';
 
@@ -57,13 +57,47 @@ describe('folderBacklogContexts', () => {
         });
     });
 
-    it('throws when desc.yml name does not match folder name', async () => {
-        await writeTodoItem(backlogItemsDir, 'alpha', { task: 'Alpha', priority: 1, name: 'beta' });
+    it('warns once per mismatch and still loads the item under the desc name', async () => {
+        await writeTodoItem(backlogItemsDir, 'alpha', { task: 'Alpha', priority: 2, name: 'renamed' });
+        await writeTodoItem(backlogItemsDir, 'gamma', { task: 'Gamma', priority: 2, name: 'other' });
+        await writeTodoItem(backlogItemsDir, 'beta', { task: 'Beta', priority: 1 });
+        await writeTodoItem(backlogItemsDir, 'umbrella/tickets/t1', {
+            task: 'Ticket',
+            priority: 3,
+            name: 'ticket-name',
+        });
 
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const getContextListFn = folderBacklogContexts({ backlogItemsDir });
-        await expect(
-            getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
-        ).rejects.toThrow(/must match folder name/);
+        const contexts = await getContextListFn({
+            codeBasePaths: [],
+            lumpVariables: {},
+            discoveryBranch: 'main',
+        });
+
+        expect(contexts.map((ctx) => ctx.name)).toEqual([
+            'beta',
+            'other',
+            'renamed',
+            'ticket-name',
+        ]);
+        expect(warnSpy).toHaveBeenCalledTimes(3);
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'folder "alpha" desc.yml name "renamed" differs from folder name "alpha"',
+            ),
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'folder "gamma" desc.yml name "other" differs from folder name "gamma"',
+            ),
+        );
+        expect(warnSpy).toHaveBeenCalledWith(
+            expect.stringContaining(
+                'folder "umbrella/tickets/t1" desc.yml name "ticket-name" differs from folder name "t1"',
+            ),
+        );
+        warnSpy.mockRestore();
     });
 
     it('throws when desc.yml is missing', async () => {
@@ -344,5 +378,17 @@ describe('folderBacklogContexts', () => {
         await expect(
             getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
         ).rejects.toThrow(/Duplicate backlog item name "t1"/);
+    });
+
+    it('throws when two folders share a desc name', async () => {
+        await writeTodoItem(backlogItemsDir, 'alpha', { task: 'Top', priority: 1, name: 'shared' });
+        await writeTodoItem(backlogItemsDir, 'beta', { task: 'Other', priority: 2, name: 'shared' });
+
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const getContextListFn = folderBacklogContexts({ backlogItemsDir });
+        await expect(
+            getContextListFn({ codeBasePaths: [], lumpVariables: {}, discoveryBranch: 'main' }),
+        ).rejects.toThrow(/Duplicate backlog item name "shared"/);
+        warnSpy.mockRestore();
     });
 });

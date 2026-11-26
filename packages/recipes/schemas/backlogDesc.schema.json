@@ -10,7 +10,7 @@
     "name": {
       "type": "string",
       "pattern": "^[a-zA-Z0-9_-]+$",
-      "description": "Item id. Must match the folder name. Letters, digits, underscore, hyphen only.",
+      "description": "Item id and context name. Letters, digits, underscore, hyphen only. The folder is the path. A name that differs from the folder still loads.",
       "examples": ["port-to-vue", "open-pr"]
     },
     "task": {

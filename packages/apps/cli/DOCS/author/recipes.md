@@ -34,7 +34,7 @@ Per item, in `desc.yml`:
 
 | Field | Meaning |
 | --- | --- |
-| `name`, `task` | Required. `name` matches the folder. |
+| `name`, `task` | Required. `name` is the context name. The folder is the path. A mismatch logs one warning and still loads. |
 | `priority` | Lower runs sooner. |
 | `dependsOn` | Other item names that must be finished first. |
 | `workflow` | Stages, any of `req` or `manualReq`, `testPlan`, `testImpl`, `impl` or `directImpl`. Omitted: `[manualReq, testImpl, impl]`. `manualReq` waits for a `requirements.md` you write. `req` has the agent write that file. `directImpl` implements from `desc.yml` alone. |

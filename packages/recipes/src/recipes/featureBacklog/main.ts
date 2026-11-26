@@ -94,11 +94,6 @@ function parentDependsOnFromDesc(input: {
     }
     const raw = loadYaml(rawText);
     const baseItem = validateBaseBacklogItem(raw, `in folder "${input.parentName}"`);
-    if (baseItem.name !== input.parentName) {
-        throw new Error(
-            `Backlog item folder "${input.parentName}" desc.yml name "${baseItem.name}" must match folder name`,
-        );
-    }
     return baseItem.dependsOn ?? [];
 }
 

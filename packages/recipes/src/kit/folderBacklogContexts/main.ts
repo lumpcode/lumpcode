@@ -62,6 +62,18 @@ export async function listUmbrellaTicketNames(input: {
     return [...new Set([...liveTicketNames, ...completedTicketNames])].sort();
 }
 
+function warnDescNameFolderMismatch(input: {
+    folderName: string;
+    descName: string;
+    folderBasename: string;
+}): void {
+    const { folderName, descName, folderBasename } = input;
+    console.warn(
+        `[lumpcode/recipes] folderBacklogContexts: backlog item folder "${folderName}" ` +
+            `desc.yml name "${descName}" differs from folder name "${folderBasename}"`,
+    );
+}
+
 /**
  * Path relative to `todo/`, using `/` so it is stable in context variables.
  * A top-level folder is an umbrella (never itself an item) when it has live
@@ -140,9 +152,11 @@ export function folderBacklogContexts<
                 const itemFolderName = path.basename(folderName);
                 const baseItem = validateBaseBacklogItem(raw, `in folder "${folderName}"`);
                 if (baseItem.name !== itemFolderName) {
-                    throw new Error(
-                        `Backlog item folder "${folderName}" desc.yml name "${baseItem.name}" must match folder name`,
-                    );
+                    warnDescNameFolderMismatch({
+                        folderName,
+                        descName: baseItem.name,
+                        folderBasename: itemFolderName,
+                    });
                 }
 
                 const item = parseItem ? parseItem(baseItem, folderName, raw) : (baseItem as Item);
