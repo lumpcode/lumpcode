@@ -114,11 +114,6 @@ export function docsRedirectTarget(path: string): string | undefined {
   return docsRedirectSources.find((redirect) => redirect.from === from)?.to
 }
 
-export function docsItemByPath(path: string): DocsNavItem | undefined {
-  const normalized = withoutTrailingSlash(path)
-  return docsPages.find((item) => item.path === normalized)
-}
-
 export function docsSectionTitle(path: string): string | undefined {
   const normalized = withoutTrailingSlash(path)
   return docsNav.find((section) => section.items.some((item) => item.path === normalized))?.title
