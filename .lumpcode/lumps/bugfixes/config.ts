@@ -17,7 +17,8 @@ export default defineLump(featureBacklog<
     verbose: true,
     keepHistory: true,
     implValidateCommand: [
-        'npm run build -w=@lumpcode/cli',
+        'npm run build',
+        'npm run check-types',
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
     promptFns: learningsPromptFns(),

@@ -42,6 +42,7 @@
     "prepublishOnly": "npm run build",
     "build": "rollup -c --forceExit",
     "build:dev": "rollup -c --environment BUILD_DEV:true --forceExit",
+    "check-types": "tsc --noEmit",
     "test": "vitest run",
     "test:ui": "vitest --ui",
     "test:watch": "vitest watch",

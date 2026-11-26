@@ -202,7 +202,8 @@ describe('lane configs', () => {
         const backlog = readFileSync(join(repoRoot, '.lumpcode/lumps/backlog/config.ts'), 'utf8');
         expect(backlog).toContain('withExpectMatch(defaultTestImplPrompt, input)');
         expect(backlog).toContain('withExpectMatch(defaultImplPrompt, input)');
-        expect(backlog).toContain("'npm run build -w=@lumpcode/cli'");
+        expect(backlog).toContain("'npm run build'");
+        expect(backlog).toContain("'npm run check-types'");
         expect(backlog).toContain("'npm run test -w=@lumpcode/cli'");
 
         const docs = readFileSync(join(repoRoot, '.lumpcode/lumps/docs/config.ts'), 'utf8');

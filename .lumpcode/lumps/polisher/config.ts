@@ -59,6 +59,6 @@ ${input.prevValidateCommandResult ?? '(no output)'}
                 },
             ];
         },
-        validationCommandFn: () => shellCommand(`test -f ${EXPLANATION} && npm run build`),
+        validationCommandFn: () => shellCommand(`test -f ${EXPLANATION} && npm run build && npm run check-types`),
     }),
 });

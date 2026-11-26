@@ -56,6 +56,9 @@ jobs:
       - name: Build @lumpcode/cli bundle
         run: npm run build:bundle -w=@lumpcode/cli
 
+      - name: Typecheck packages and .lumpcode
+        run: npm run check-types
+
       - name: Unit tests (@lumpcode/cli)
         run: npm run test -w=@lumpcode/cli
 
