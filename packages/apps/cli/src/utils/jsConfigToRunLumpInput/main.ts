@@ -20,7 +20,7 @@ import type {
     Context,
     ContextList,
 } from "@lumpcode/core";
-import { execAsync, success, failure, pathExists } from "@lumpcode/core";
+import { execAsync, success, failure, pathExists, getCodeBasePaths } from "@lumpcode/core";
 import { noopLogger } from '../noopLogger';
 import { readJsonFile } from '../readJsonFile';
 import { ensurePresetCommandsInstalled } from "../ensurePresetCommandsInstalled";
@@ -199,8 +199,14 @@ export async function jsConfigToRunLumpInput({
 
     let rawContextsForBaseBranch: Context[] = [];
     if (needsRawContextsEarly) {
+        // Same scan getToDoContextList uses. Caching a list built from
+        // codeBasePaths: [] pins the run to an empty context list.
+        const codeBasePathsResult = await getCodeBasePaths({ cwd: projectRoot, logger });
+        if (!codeBasePathsResult.success) {
+            return failure(codeBasePathsResult.data.message);
+        }
         rawContextsForBaseBranch = await coreGetContextListFn({
-            codeBasePaths: [],
+            codeBasePaths: codeBasePathsResult.data,
             lumpVariables: config.lumpVariables ?? {},
         });
     }
