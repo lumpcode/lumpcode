@@ -11,4 +11,10 @@ export interface CommandModule<
     teardown?: TeardownFn<V>;
     /** Factory so parallel lump lines do not share a parse buffer. */
     presentOutput?: PresentOutputFnFactory<V, SV>;
+    /** Creates a new agent session and returns its id. Absent: the runtime uses a UUID. */
+    createSession?: (input: {
+        lumpVariables: V;
+        model?: string;
+        workspacePath: string;
+    }) => Promise<string>;
 }

@@ -13,6 +13,7 @@ export * from './claimPidAndWriteMeta';
 export * from './cliLog';
 export * from './coerceResolvedProjectLocalConfig';
 export * from './createCliLogger';
+export * from './createCliAgent';
 export * from './commandFailure';
 export * from './commitSharedRunReview';
 export * from './completeLogTail';
