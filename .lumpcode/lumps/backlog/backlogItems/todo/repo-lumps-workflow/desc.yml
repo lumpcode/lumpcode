@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: repo-lumps-workflow
+workflow: [req, impl]
+task: >-
+  This repo's own lumps are clean examples of the workflow API. Rewrite every
+  hand-written lump in .lumpcode/lumps (autoTriage, polisher, writer, trimmer,
+  bugHunter, abstractionFinder, abstractionImplementer, ideasToBacklog,
+  presetSmoke) as an `async workflow({ agent, shell })` wrapped in the
+  template's defineLump, using the workflow kit (retryUntilGreen,
+  requireArtifact, mustSucceed) instead of steps. After this no repo lump
+  uses `steps`, `prompt` or a `…Steps` export, and shared lump code lives in
+  .lumpcode/templates/ or .lumpcode/helpers/. Each lump lists the same
+  contexts in lump-plan before and after. Update
+  .agents/memory/domain/repo-lumps.md.
+priority: 16
+dependsOn:
+  - workflow-api-recipes
+  - repo-templates

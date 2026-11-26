@@ -11,4 +11,6 @@ task: >-
   branchFn only picks the new name. This ticket is the path that checks out
   the existing branch and pushes onto it. Wait for a human requirements.md
   before testImpl and impl.
-priority: 5
+priority: 60
+dependsOn:
+  - release-0-11-0

@@ -17,3 +17,5 @@ task: >-
   behind itself) and the wait timeout and wait-log behaviour. Test with the
   existing multi-process stress test plus a same-process handoff latency test.
 priority: 50
+dependsOn:
+  - release-0-11-0

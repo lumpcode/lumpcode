@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: dashboard-password-login
+workflow: [manualReq, testImpl, impl]
+task: >-
+  One shared password for the worker dashboard, from an environment variable
+  or `.lumpcode/local.json`, with a login page in the site look, a session
+  cookie, logout, and rate-limited attempts. A non-loopback bind without a
+  password refuses to start (today it only warns). With a password set, the
+  controls also work on a non-loopback bind after login, amending
+  worker-dashboard-controls. Loopback without a password is unchanged. Docs
+  recommend HTTPS through a reverse proxy or a tunnel.
+priority: 31
+dependsOn:
+  - worker-dashboard-controls

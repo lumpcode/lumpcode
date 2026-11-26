@@ -11,4 +11,4 @@ task: >-
   What null means stays for the human plan. This does not change a step
   command. That is command-fn-result-return: a step may return a shell string
   to spawn, or { commandResult, commandSucceeded } and spawn nothing.
-priority: 1
+priority: 2

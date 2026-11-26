@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: cli-bundled-authoring-packages
+workflow: [manualReq, testImpl, impl]
+task: >-
+  A lump that imports @lumpcode/recipes, cli-utils, cli-types or core runs and
+  type-checks with only the global CLI installed, in any repo: the CLI depends
+  on those packages and points the lump's imports at its own copy when the
+  project has none, and the editor gets types from .lumpcode/tsconfig.json and
+  a generated .lumpcode/.types/. A project install wins, and lump-plan shows
+  which copy each import uses. See requirements.md.
+priority: 21
+dependsOn:
+  - drop-sea-binaries

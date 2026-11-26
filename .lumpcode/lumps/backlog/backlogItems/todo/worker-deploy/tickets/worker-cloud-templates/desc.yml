@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: worker-cloud-templates
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Templates in the repo that boot the worker image on a fresh VM: cloud-init
+  for Hetzner and DigitalOcean, an ARM template behind a Deploy to Azure link,
+  and a CloudFormation template behind an AWS quick-create link. Inputs: repo
+  URL, git host credential, agent credential, dashboard password, machine
+  size. CI validates every template; no Lumpcode backend.
+priority: 43
+dependsOn:
+  - worker-docker-image

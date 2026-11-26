@@ -9,4 +9,6 @@ task: >-
   group alone is the fallback, and it misses processes that leave the group. That way a Windows
   worker stops leaking processes the way those workers no longer do. Background and
   constraints: reference.md.
-priority: 32
+priority: 62
+dependsOn:
+  - release-0-11-0

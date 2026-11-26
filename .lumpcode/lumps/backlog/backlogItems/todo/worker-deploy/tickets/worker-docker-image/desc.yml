@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: worker-docker-image
+workflow: [manualReq, testImpl, impl]
+task: >-
+  An official worker image published from CI on release: Node 22, git, the
+  CLI, and the agent CLI the operator picks (Claude Code, Codex, Cursor,
+  opencode, Copilot). On start it clones the repo with a git host token or
+  deploy key, sets the git identity, runs non-interactive setup in dedicated
+  mode, and starts the worker and the dashboard (password required on a
+  public bind). The clone lives on a volume so a restart resumes.
+priority: 41
+dependsOn:
+  - setup-non-interactive

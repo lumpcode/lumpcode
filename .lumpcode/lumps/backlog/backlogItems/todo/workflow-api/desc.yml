@@ -1,0 +1,12 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: workflow-api
+workflow: [manualReq, testImpl, impl]
+manual: true
+task: >-
+  Lumpcode becomes a library first: a lump can declare `workflow`, one async
+  function that is the context's single step and composes agent sessions,
+  shell calls and plain JavaScript (loops, conditions, Promise.all). Steps stay
+  as the second, declarative API. The recipes and kit move to workflow and
+  keep the plain names; the steps versions get a Steps suffix. Tickets under
+  tickets/. See requirements.md.
+priority: 11

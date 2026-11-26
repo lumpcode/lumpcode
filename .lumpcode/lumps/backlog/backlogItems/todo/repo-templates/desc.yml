@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: repo-templates
+workflow: [req, impl]
+task: >-
+  This repo follows its own best practice before anything else: add
+  .lumpcode/templates/main.ts by hand from the install prompt's Step 5 snippet
+  (packages/apps/website/app/assets/install-prompt.md: cursor command, the
+  lanes' model, copyEnvFiles plus npm ci in prepareWorktree, openPrPostTeardown
+  on GitHub) and move the backlog, qol, bugfixes and docs lumps onto its
+  defineLump. Their behavior is unchanged; learningsPromptFns stays in the
+  lanes. lump-plan output for each lump is the same before and after. Needs no
+  CLI change.
+priority: 10

@@ -55,6 +55,15 @@ Build order: core → cli-types → cli-utils → recipes → cli (`npm run buil
 
 Continual learning appends new preferences here. `update-memory` moves durable ones into `.agents/memory/` and removes them from this list.
 
+- TypeScript first (decided 2026-11-23): public docs, website and examples show TypeScript lumps only; JSON keeps working but is labeled experimental, in one "Experimental: JSON configs" section. Do not add JSON or YAML config features (`config-fn-as-script`, `yaml-lump-configs` are parked).
+- The way to use Lumpcode is templates: `.lumpcode/templates/<name>.ts` exporting a plain `defineLump(config)` with the team's needs (agent, model, workspace setup, open a PR after push), then lumps that wrap a recipe or their own config in it. Templates are a convention, not a library feature: plain JavaScript decides merging, a repo may have several, and some command options rely on the convention (`lump-create --template`). Say "everything you can code with your agent can become a factory".
+- npm is the only distribution (decided 2026-11-24): no SEA or native binaries. The global CLI alone must run and type a TypeScript lump that imports `@lumpcode/*`; never require a project `npm install` for Lumpcode's own packages.
+- Opening a PR stays a recipe kit helper (`openPrPostTeardown`), wired in the template, never a CLI feature. The CLI is not linked to GitHub, GitLab, Bitbucket or Azure DevOps.
+- Worker deployment is static for now: templates in the repo plus a website page that builds cloud-init or one-click links in the browser. No Lumpcode backend; a paid hosted worker is a later, blocked idea (`hosted-workers`).
+- Dashboard auth is one shared password with a login page, not accounts. A non-loopback bind without a password refuses to start.
+- Lumpcode is a library first, a CLI second (decided 2026-11-26): `workflow` (one async function with `agent`, `shell`, a returned `succeeded` / `push` / `message` / `variables`) is the main API and steps the second, declarative one. Workflow recipes and kit helpers take the plain names (`featureBacklog`, `retryUntilGreen`); steps versions take a `Steps` / `Step` suffix. Backlog `desc.yml` uses `stages` (`workflow` is its deprecated name). Contract: `workflow-api/requirements.md` in the backlog lump.
+- Roadmap and order for this push: `.lumpcode/lumps/backlog/last-20-percent-requirements.md`.
+
 ## Learned Workspace Facts
 
 Continual learning appends new facts here. `update-memory` moves durable ones into `.agents/memory/` and removes them from this list.

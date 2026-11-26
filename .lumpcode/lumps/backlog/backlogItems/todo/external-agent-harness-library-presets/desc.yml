@@ -27,3 +27,5 @@ task: >-
   Codex still needs its list before resume. Do not drop extraArgs or fold
   unknown flags into a typed map that rejects a new flag.
 priority: 80
+dependsOn:
+  - release-0-11-0

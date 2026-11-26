@@ -1,0 +1,19 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
+name: ts-first-docs-and-landing
+task: >-
+  Lumps are written in TypeScript in every public example. The landing hero,
+  First PR, Worker and Write a lump show `.lumpcode/templates/main.ts`
+  exporting defineLump and a lump that wraps a recipe through it, as
+  `lumpcode setup` and `lump-create --recipe` now write them. Templates are
+  described once, as a convention that some command options rely on
+  (`lump-create --template`) and a good practice, not a framework feature.
+  Nothing tells the reader to npm install Lumpcode packages; only the CLI is
+  installed. JSON configs move to one "Experimental: JSON configs" section in
+  the config docs and are not shown anywhere else. The hero snippet still fits
+  with no horizontal scrollbar. Update .agents/memory/writing/website.md and
+  docs.md, which still require a JSON hero.
+priority: 30
+dependsOn:
+  - backlog/release-0-11-0
+  - backlog/factory-templates-lump-create-from-recipe
+  - backlog/workflow-first-docs-and-website

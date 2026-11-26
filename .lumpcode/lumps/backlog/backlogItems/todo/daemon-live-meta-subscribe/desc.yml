@@ -9,6 +9,7 @@ task: >-
   source of truth; no persist means no event. Useful later for a logger, for
   example on the worker dashboard, so one subscriber can show those events
   without a second telemetry path. This ticket is the hook, not the logger.
-priority: 4
+priority: 61
 dependsOn:
+  - release-0-11-0
   - daemon-status-snapshot

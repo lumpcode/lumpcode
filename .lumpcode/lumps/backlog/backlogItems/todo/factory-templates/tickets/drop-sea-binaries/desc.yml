@@ -1,0 +1,10 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: drop-sea-binaries
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Lumpcode ships through npm only. Remove the SEA binaries: the CI build and
+  release assets, the postinstall download (postinstall keeps reinstalling
+  presets), the launcher's native branch, every isSea() code path, and the
+  install.sh scripts. CLI E2E runs on the Node runner on every platform.
+  Unblocks one Node code path for cli-bundled-authoring-packages.
+priority: 20

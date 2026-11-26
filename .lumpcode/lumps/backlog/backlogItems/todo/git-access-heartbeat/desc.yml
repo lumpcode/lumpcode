@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: git-access-heartbeat
+workflow: [req, testImpl, impl]
+task: >-
+  On each daemon tick, before any lump runs, check read/write access to the git
+  remote without updating a ref. Run
+  `git push --dry-run origin :refs/heads/__lumpcode_access_probe__`.
+  Access is ok when the remote answers that __lumpcode_access_probe__ does not
+  exist. Access is not ok when the command fails earlier (host unreachable,
+  authentication failed, or a read-only key or token). Do not use git ls-remote
+  for this check; that only opens the fetch endpoint. When access is not ok,
+  skip the tick and show the failure on lumpcode daemon-status and the worker
+  dashboard. A foreground lumpcode run still fails on its own git call, with no
+  extra heartbeat. Promoted from IDEAS.
+priority: 42
+dependsOn:
+  - release-0-11-0

@@ -4,39 +4,40 @@
 #   daemon | git | status | hooks | history | config | engine | cli | recipes |
 #   workspace | presets | hygiene | skills | cloud | auth | agents | sandbox | meta
 # Ephemeral names (1, A) are OK.
-- name: install-worker-on-your-cloud-cta
+- name: steps-on-workflow-adapter
   task: >-
-    New package under packages/apps/ in this monorepo. One action installs a worker
-    on a cloud the operator already has (AWS, Azure, Hetzner, DigitalOcean, Cloudflare
-    when it fits). They give cloud credentials, a git host (GitHub, GitLab, Bitbucket,
-    or Azure DevOps), a machine size, and a repo. The package provisions that machine
-    and leaves the worker running. The website gets a call to action that starts
-    this install. Split into child tickets when promoted.
-  priority: 22
-  tags: [cloud]
-- name: see-lump-context-run-time
+    One execution path in @lumpcode/core: rebuild the step walk on top of the
+    workflow runtime (stepsToWorkflow), so steps become an adapter over
+    workflow instead of workflow being converted into one internal step
+    (workflowToSteps, backlog workflow-api-core).
+  priority: 92
+  tags: [core, meta]
+  blocked: >-
+    Not worth the risk to the step walk now. Revisit once workflow is the main
+    API and the steps code is the main maintenance cost.
+- name: stable-native-binaries
   task: >-
-    Show how long the context that is running right now has been running. On the
-    worker dashboard, and on lumpcode daemon-status: human lines read
-    "backlog / ctx-a for 12m", and --json adds runningForSeconds on each
-    inFlightRuns row. Count from when that context started walking. A foreground
-    lumpcode run does not print a second timer. No history of past durations for now.
-  priority: 18
-  tags: [status]
-- name: git-access-heartbeat
+    Ship Lumpcode as stable native binaries for users without Node: notarized
+    macOS and signed Windows builds, a Homebrew tap, a curl installer, and E2E
+    on each binary. The previous SEA build was removed (backlog
+    factory-templates drop-sea-binaries) because no user path used it and it
+    doubled every loader change.
+  priority: 91
+  tags: [cli, meta]
+  blocked: >-
+    npm only for now. Revisit only if users without Node ask for it.
+- name: hosted-workers
   task: >-
-    On each daemon tick, before any lump runs, check read/write access to the git
-    remote without updating a ref. Run
-    `git push --dry-run origin :refs/heads/__lumpcode_access_probe__`.
-    Access is ok when the remote answers that __lumpcode_access_probe__ does not
-    exist. Access is not ok when the command fails earlier (host unreachable,
-    authentication failed, or a read-only key or token). Do not use git ls-remote
-    for this check; that only opens the fetch endpoint. When access is not ok,
-    skip the tick and show the failure on lumpcode daemon-status and the worker
-    dashboard. A foreground lumpcode run still fails on its own git call, with no
-    extra heartbeat.
-  priority: 19
-  tags: [git, daemon]
+    A paid option where Lumpcode runs the operator's worker on Lumpcode's own AWS
+    or Azure account, so they bring a repo, an agent credential and a git host
+    instead of a cloud account. Needs a backend, accounts and billing (see the
+    auth-api ideas). Today's path is the static "Deploy a worker" page and the
+    backlog worker-deploy umbrella, which provision on the operator's own cloud.
+  priority: 90
+  tags: [cloud, auth]
+  blocked: >-
+    After the static deploy page (backlog worker-deploy, docs deploy-worker-page)
+    ships. No Lumpcode backend for now.
 - name: cli-command-names-by-group
   task: >-
     Clean CLI command names by group. Canonical name is `<group>-<verb>` (e.g. `daemon-start`,
@@ -66,6 +67,7 @@
   task: A lump config may be YAML as well as JSON or TypeScript.
   priority: 36
   tags: [config]
+  blocked: TypeScript first; JSON is experimental. Revisit only if JSON leaves experimental.
 - name: per-lump-git-remote
   task: >-
     Optional git remote name. Default remains origin. May be set on the lump,

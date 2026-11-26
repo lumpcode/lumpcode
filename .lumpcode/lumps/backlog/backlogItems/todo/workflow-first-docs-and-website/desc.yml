@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: workflow-first-docs-and-website
+workflow: [req, impl]
+task: >-
+  Lumpcode reads as a library first: every public example writes a lump as
+  `async workflow({ agent, shell })`. Add one canonical "Write a workflow" page
+  under DOCS/author/ (sessions and switching command with agent.session,
+  shell, the returned succeeded/push/message/variables, timeoutMillis and
+  per-call limits, parallel calls, the kit: retryUntilGreen, requireArtifact,
+  mustSucceed) and link to it instead of re-explaining. Rewrite Write a lump,
+  recipes.md, First PR, the README and the landing examples workflow first;
+  steps move to one "Advanced: steps" section that names the Steps recipes and
+  kit (featureBacklogSteps, retryUntilGreenSteps). Backlog item examples use
+  `stages`. Say "everything you can code with your agent can become a
+  factory". Update llms.txt and .agents/memory/writing/website.md and docs.md.
+  The landing snippet still fits with no horizontal scrollbar. Follow
+  .agents/memory/writing/ and the writer skill (this item moved from the docs
+  lump, which is not on the daemon for now).
+priority: 17
+dependsOn:
+  - workflow-api-recipes

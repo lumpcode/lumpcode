@@ -1,0 +1,9 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: setup-non-interactive
+workflow: [manualReq, testImpl, impl]
+task: >-
+  `lumpcode setup` runs with no prompt from flags and environment variables
+  (mode, workspace strategy, primary branch, maxParallelRun, start the worker),
+  so a script or container can set up a worker clone. A required answer that
+  is missing fails with the flag to pass instead of waiting on a prompt.
+priority: 40

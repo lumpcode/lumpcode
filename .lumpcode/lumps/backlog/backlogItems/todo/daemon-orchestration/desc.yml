@@ -34,4 +34,6 @@ task: >-
   or stays a membership list. Touch: daemon config schema and normalize/hash,
   dedicated collect/score/reorder, /docs/config/daemons, and the CLI daemon
   concepts.
-priority: 33
+priority: 63
+dependsOn:
+  - release-0-11-0
