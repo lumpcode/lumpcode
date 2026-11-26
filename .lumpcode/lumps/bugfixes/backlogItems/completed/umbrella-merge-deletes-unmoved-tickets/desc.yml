@@ -1,0 +1,9 @@
+name: umbrella-merge-deletes-unmoved-tickets
+workflow:
+  - impl
+task: >-
+  folderSetTaskDoneStep's umbrella merge skips a destination directory that
+  already exists (completed/<parent>/tickets) and then deletes the todo tree, so
+  tickets and files that were never moved are removed.
+priority: 20
+completedAt: '2026-11-26T12:16:45.661Z'

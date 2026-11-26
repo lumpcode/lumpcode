@@ -22,6 +22,45 @@ async function listSubdirNames(dir: string): Promise<string[]> {
     }
 }
 
+function warnDestinationAlreadyExists(src: string, dest: string): void {
+    console.warn(
+        `[lumpcode/recipes] Cannot move "${src}": destination already exists at ${dest}`,
+    );
+}
+
+/**
+ * Merges entries of `fromDir` into `toDir`.
+ * Returns true when a source file was kept because that destination path already existed.
+ */
+async function mergeDirectoryContents(fromDir: string, toDir: string): Promise<boolean> {
+    const entries = await fs.readdir(fromDir, { withFileTypes: true });
+    let keptConflict = false;
+
+    for (const entry of entries) {
+        const src = path.join(fromDir, entry.name);
+        const dest = path.join(toDir, entry.name);
+        if (!(await pathExists(dest))) {
+            await fs.rename(src, dest);
+            continue;
+        }
+
+        if (entry.isDirectory() && (await fs.stat(dest)).isDirectory()) {
+            const childKeptConflict = await mergeDirectoryContents(src, dest);
+            if (childKeptConflict) {
+                keptConflict = true;
+            } else {
+                await fs.rmdir(src);
+            }
+            continue;
+        }
+
+        warnDestinationAlreadyExists(src, dest);
+        keptConflict = true;
+    }
+
+    return keptConflict;
+}
+
 async function mergeTodoUmbrellaParentIntoCompleted(input: {
     fromDir: string;
     toDir: string;
@@ -31,21 +70,12 @@ async function mergeTodoUmbrellaParentIntoCompleted(input: {
     const { fromDir, toDir, completedDescPath, updatedDesc } = input;
     await fs.mkdir(toDir, { recursive: true });
     await fs.writeFile(completedDescPath, dumpYaml(updatedDesc));
+    await fs.rm(path.join(fromDir, 'desc.yml'), { force: true });
 
-    const entries = await fs.readdir(fromDir, { withFileTypes: true });
-    for (const entry of entries) {
-        if (entry.name === 'desc.yml') {
-            continue;
-        }
-        const src = path.join(fromDir, entry.name);
-        const dest = path.join(toDir, entry.name);
-        if (await pathExists(dest)) {
-            continue;
-        }
-        await fs.rename(src, dest);
+    const keptConflict = await mergeDirectoryContents(fromDir, toDir);
+    if (!keptConflict) {
+        await fs.rmdir(fromDir);
     }
-
-    await fs.rm(fromDir, { recursive: true, force: true });
 }
 
 /** Moves a finished backlog item folder from todo/ to the same relative path under completed/. */
