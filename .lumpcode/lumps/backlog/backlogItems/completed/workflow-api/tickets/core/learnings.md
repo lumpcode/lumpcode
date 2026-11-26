@@ -20,3 +20,20 @@ The new event kinds need three CLI edits or that package no longer typechecks ag
 
 ## Gap
 The requirements name `@lumpcode/core` only and ask for skipped tests. The types, throwing helpers, `runLump` guard, and the three CLI edits are here so the skipped suites import and the repo still typechecks. A workflow-only run does not execute yet.
+
+## impl Expected
+`desc.yml` (`workflow: [manualReq, testImpl, impl]`, no `dependsOn`) and `requirements.md`: `@lumpcode/core` runs `RunLumpInput.workflow` as one internal step through `workflowToSteps`, with shell and agent calls on the step executor, the outcome table, a `ContextResult` for every context, and the new history entries and events. Steps lumps stay as they are. A workflow with no `timeoutMillis` aborts after 2 hours; steps keep 30 minutes. `workflowFn` / `WorkflowStep` stay unexported. No `testPlan.md` or `expect.yml` on this item. The parent `requirements.md` is the type contract. This stage unskips the tests and makes them pass. Docs: a short ontology note that a workflow is one step and outcomes come from `WorkflowResult`.
+
+## impl Landed
+Working tree only. The marker commit for this stage does not exist yet.
+
+- `packages/core/src/helpers/workflowToSteps/main.ts`
+- `packages/core/src/helpers/createWorkflowRuntime/main.ts`
+- `packages/core/src/helpers/executeStepsForContextList/main.ts`
+- `packages/core/src/usages/runLump/main.ts`
+- `packages/core/src/helpers/workflowToSteps/unit.test.ts` (unskipped)
+- `packages/core/src/helpers/createWorkflowRuntime/unit.test.ts` (unskipped)
+- `packages/core/src/usages/runLump/workflow.unit.test.ts` (unskipped)
+- `packages/core/src/types/typedVariables.types.test.ts` (unskipped). The shell and agent `expectTypeOf` calls are wrapped in a function that is not invoked, because `expectTypeOf` evaluates its argument and those values are null.
+- `.agents/memory/ontology/steps.md`
+- `.agents/memory/ontology/context-status.md`

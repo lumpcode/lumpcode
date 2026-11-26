@@ -1,11 +1,11 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData, CommandOutputEvent, WorkflowFn, CreateAgentInput, Agent } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, Context, ContextResult, ContextRunState, Logger, ExecuteStepsFailureData, CommandOutputEvent, WorkflowFn, CreateAgentInput, Agent } from "../../types";
 import { createConsoleLogger, failure, set, success } from "../../utils";
 import { 
     getToDoContextList,
     executeStepsForContextList,
-    ExecuteStepsForContextListResult,
     type RefreshRemoteTrackingRefsFn,
 } from "../../helpers";
+import { workflowToSteps } from "../../helpers/workflowToSteps/main";
 import { defaultGitAddCommitFn, defaultGitCommitMessageFn, defaultGitPushFn, defaultSetupWorkspaceFn, defaultTeardownWorkspaceFn } from "./defaultInjectedFns";
 
 export async function runLump<
@@ -38,17 +38,20 @@ Failure<ExecuteStepsFailureData>
         onCommandOutput,
         lumpName,
         contextName,
+        timeoutMillis,
+        createAgent,
     } = input;
 
     if (workflow !== undefined && steps !== undefined) {
         return failure({ message: 'Use workflow or steps, not both.' });
     }
-    if (steps === undefined) {
-        return failure({
-            message: workflow === undefined
-                ? 'RunLumpInput needs steps or workflow.'
-                : 'RunLumpInput.workflow is not implemented.',
-        });
+
+    const stepsToRun = workflow !== undefined
+        ? workflowToSteps(workflow, timeoutMillis)
+        : steps;
+
+    if (stepsToRun === undefined) {
+        return failure({ message: 'RunLumpInput needs steps or workflow.' });
     }
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
@@ -105,8 +108,9 @@ Failure<ExecuteStepsFailureData>
         gitCommitMessageFn,
         gitPushFn,
         projectRoot,
-        steps,
+        steps: stepsToRun,
         setupFn,
+        createAgent,
         setupWorkspaceFn,
         teardownFn,
         teardownWorkspaceFn,
@@ -178,5 +182,11 @@ export interface RunLumpInput<
 }
 
 export interface RunLumpOutput {
-    result: ExtractSuccess<ExecuteStepsForContextListResult>;
+    /** `contextResults` is absent when the run had no to-do contexts. */
+    result: {
+        branchName: string;
+        contextNames: string[];
+        contextRunStateList: ContextRunState[];
+        contextResults?: ContextResult[];
+    };
 }

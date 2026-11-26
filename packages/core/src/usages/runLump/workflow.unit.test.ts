@@ -36,7 +36,7 @@ function hangCommand(ready: string): CommandDescriptor {
     return { executable: process.execPath, args: ['-e', script] };
 }
 
-describe.skip('runLump workflow', () => {
+describe('runLump workflow', () => {
     let projectRoot: string;
     let remoteDir: string | undefined;
     const activePids = new Set<number>();

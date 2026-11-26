@@ -1,0 +1,13 @@
+name: core
+workflow:
+  - manualReq
+  - testImpl
+  - impl
+task: >-
+  @lumpcode/core runs a `workflow` (RunLumpInput.workflow) as one internal step
+  through workflowToSteps: WorkflowFn, WorkflowInput, WorkflowResult, the Agent
+  and Shell interfaces, a Shell on the step executor, the abort and timeout
+  binding, parallel calls, ContextResult for every context, and the new history
+  entries and output events. Steps lumps behave as today. See requirements.md.
+priority: 11
+completedAt: '2026-11-26T12:39:25.546Z'
