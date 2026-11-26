@@ -42,6 +42,8 @@ export type LumpJsConfig<
     | 'getContextListFn'
     | 'refreshRemoteTrackingRefsFn'
     | 'onCommandOutput'
+    | 'workflow'
+    | 'createAgent'
 >, {
     /**
      * Execution integration branch. Exact string, `BaseBranchFn`, or FilePath to a module.

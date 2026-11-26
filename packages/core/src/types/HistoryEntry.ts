@@ -2,6 +2,7 @@ import { Context } from './Context';
 import { ContextRunState } from './ContextRunState';
 import { LumpVariables } from './LumpVariables';
 import { StepVariables } from './StepVariables';
+import { WorkflowResult } from './Workflow';
 
 export type HistoryEntry<
     V extends LumpVariables = LumpVariables,
@@ -16,4 +17,10 @@ export type HistoryEntry<
     lumpVariables: V;
     stepVariables?: SV;
     projectRoot: string;
+    /** Absent on a classic step. */
+    kind?: 'prompt' | 'command' | 'shell' | 'workflow';
+    label?: string;
+    command?: string;
+    sessionId?: string;
+    workflowResult?: WorkflowResult<SV>;
 };
