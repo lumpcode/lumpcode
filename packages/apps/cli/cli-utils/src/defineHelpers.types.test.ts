@@ -94,6 +94,15 @@ describe('define* helpers @lumpcode/cli-utils (D1–D10)', () => {
     expectTypeOf(fn).toEqualTypeOf<LumpJsConfigPostCommandExecFn<V, SV>>();
   });
 
+  it('definePostCommandExecFn accepts null or follow-on steps', () => {
+    const fn = definePostCommandExecFn<V, SV>(async ({ commandSucceeded }) => (
+      commandSucceeded
+        ? null
+        : [{ commandFn: () => ({ executable: 'echo', args: ['retry'] }) }]
+    ));
+    expectTypeOf(fn).toEqualTypeOf<LumpJsConfigPostCommandExecFn<V, SV>>();
+  });
+
   it('D6: defineCommandModule<V, SV> does not erase to bare CommandModule', () => {
     const mod = defineCommandModule<V, SV>({
       command: (params) => {

@@ -106,7 +106,7 @@ An array of `Step` objects that are executed sequentially for each context. Each
 | `promptFn`          | `PromptFn | undefined`          | Optional. Generates the prompt string from the current context, run state, and variables. When omitted, `commandFn` receives an empty prompt string.                                                                                    |
 | `commandFn`         | `CommandFn`                     | Required. Returns `{ executable, args, env? }` to run a subprocess, or `null` / `undefined` to skip execution while still running `postCommandExecFn`. Optional `env` merges over the parent process environment for that command only. |
 | `stepVariables`     | `StepVariables | undefined`     | Optional extra variables passed into `promptFn`, `commandFn`, and `postCommandExecFn`.                                                                                                                                                  |
-| `postCommandExecFn` | `PostCommandExecFn | undefined` | Optional hook called after the command finishes, receiving the command output. May return `void` / `undefined` / `[]` (no-op) or a `Steps` array to run nested follow-on steps under this leaf. |
+| `postCommandExecFn` | `PostCommandExecFn | undefined` | Optional hook called after the command finishes, receiving the command output. May return `void` / `undefined` / `null` / `[]` (no-op) or a `Steps` array to run nested follow-on steps under this leaf. |
 | `timeoutMillis`     | `number | undefined`            | Maximum time in milliseconds allowed for the command execution. On expiry the process tree is terminated and the step fails with a timeout. Defaults to `1800000` (30 minutes).                                                         |
 
 

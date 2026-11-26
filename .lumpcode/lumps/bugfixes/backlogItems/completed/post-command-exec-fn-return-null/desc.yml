@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: post-command-exec-fn-return-null
 workflow:
   - impl
@@ -9,3 +8,4 @@ task: >-
   follow-on steps"; widen both return types to accept null and undefined, like
   CommandFn.
 priority: 1
+completedAt: '2026-11-26T08:19:51.937Z'

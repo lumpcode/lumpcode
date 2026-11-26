@@ -11,4 +11,4 @@ export type LumpJsConfigPostCommandExecFn<
     SV extends StepVariables = StepVariables,
 > = (
     input: Parameters<PostCommandExecFn<V, SV>>[0],
-) => MaybePromise<void | LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>>;
+) => MaybePromise<LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV> | null | undefined | void>;
