@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: worker-deploy
+workflow: [manualReq, testImpl, impl]
+manual: true
+task: >-
+  Deploy a worker in minutes on a cloud the operator already has, with no
+  Lumpcode backend: a non-interactive setup, an official worker image, and
+  cloud templates the website's "Deploy a worker" page builds on. Tickets
+  under tickets/. See requirements.md.
+priority: 40
+dependsOn:
+  - release-0-11-0
+  - factory-templates-ts-default-scaffolding
+  - dashboard-v2-dashboard-password-login

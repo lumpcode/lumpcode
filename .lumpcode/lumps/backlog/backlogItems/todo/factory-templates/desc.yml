@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: factory-templates
+workflow: [manualReq, testImpl, impl]
+manual: true
+task: >-
+  TypeScript becomes the documented way to write a lump and templates the way
+  to use Lumpcode: `.lumpcode/templates/<name>.ts` files export a plain
+  defineLump(config) holding the team's needs (agent, model, workspace setup,
+  open a PR after push). npm only, and the global CLI alone runs and types any
+  TypeScript lump. JSON keeps working as experimental. Tickets under tickets/.
+  See requirements.md.
+priority: 20
+dependsOn:
+  - release-0-11-0
+  - workflow-api-config-and-plan

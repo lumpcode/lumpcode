@@ -25,3 +25,5 @@ task: >-
   cleaning up its legacy file at the same moment can each delete what the other
   just created, because legacy cleanup is read-then-delete by path.
 priority: 40
+dependsOn:
+  - release-0-11-0

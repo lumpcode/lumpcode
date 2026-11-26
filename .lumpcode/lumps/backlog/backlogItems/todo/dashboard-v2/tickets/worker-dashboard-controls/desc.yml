@@ -15,6 +15,4 @@ task: >-
   running. No other gitignored or committed files. Same snapshot JSON as the
   read-only dashboard. `--readOnly` serves that page with controls off even on
   loopback. A non-loopback bind stays read-only either way.
-priority: 4
-dependsOn:
-  - worker-dashboard-readonly
+priority: 30

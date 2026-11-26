@@ -25,3 +25,5 @@ task: >-
   `<hash>.lock.json` files exist (ticket drop-legacy-lock-json), list and prune
   them too.
 priority: 45
+dependsOn:
+  - release-0-11-0

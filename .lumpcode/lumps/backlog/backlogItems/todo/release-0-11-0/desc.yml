@@ -1,0 +1,26 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: release-0-11-0
+workflow: [req, impl]
+task: >-
+  Prepare the 0.11.0 release (breaking). Set every published package to
+  0.11.0 with scripts/set-npm-versions.mjs (minor bump, all packages, internal
+  @lumpcode/* dependencies rewritten). Add one migration page under
+  packages/apps/cli/DOCS/reference/ ("Migrate to 0.11"): each breaking change
+  with a before/after snippet (recipes and kit take the plain names for
+  workflow, steps versions get Steps: featureBacklogSteps, backlogSteps,
+  abstractionFinderSteps, abstractionBacklogSteps, retryUntilGreenSteps;
+  retryUntilGreen's new signature; featureBacklog promptFns → prompts and
+  backlog stages.<name>.steps → workflow; desc.yml workflow → stages with the
+  deprecated alias; the new workflow config field and timeoutMillis default)
+  and one upgrade note for the workspace lock files: per-acquisition locks
+  shipped in 0.10.2 (PR #431); restart every daemon on upgrade; say whether
+  0.11.0 still writes the legacy `<hash>.lock.json` (it does unless
+  drop-legacy-lock-json landed first),
+  linked from the README and the docs index. npm run build and every package's
+  tests pass, and npm run test:e2e:ci passes. Merging dev into main and the
+  v0.11.0 tag stay human steps (GIT-FLOW.md). Every post-release item depends
+  on this one.
+priority: 18
+dependsOn:
+  - repo-lumps-workflow
+  - workflow-first-docs-and-website

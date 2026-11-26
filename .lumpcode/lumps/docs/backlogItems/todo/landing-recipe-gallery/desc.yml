@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/backlogDesc.schema.json
+name: landing-recipe-gallery
+task: >-
+  The landing says "Everything you can code with your agent can become a
+  factory." and shows a gallery of recipes (sweep, missing tests, improver,
+  duplication finder and remover, feature backlog, issue queue), each tile
+  with a small diagram and its `lumpcode lump-create <lumpName> --recipe
+  <recipe>` command, plus the dashed "Your own flow" tile so recipes read as
+  starting points, not modes. Docs examples link each pattern to its recipe.
+  Record the line and the gallery in .agents/memory/writing/website.md.
+priority: 31
+dependsOn:
+  - backlog/release-0-11-0
+  - backlog/recipe-catalog
+  - ts-first-docs-and-landing

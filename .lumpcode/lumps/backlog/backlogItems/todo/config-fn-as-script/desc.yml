@@ -3,7 +3,7 @@ name: config-fn-as-script
 workflow: [manualReq, testImpl, impl]
 manual: true
 task: >-
-  Parked. Not for autoTriage. A human will grill this before requirements.md
+  Parked: TypeScript first; JSON is experimental. Not for autoTriage. A human will grill this before requirements.md
   exists. A JSON or YAML lump config may set a function field to a command
   string instead of inline TypeScript. getContextListFn, prompt functions,
   steps, and the other function fields work this way. Lumpcode runs the
@@ -12,4 +12,6 @@ task: >-
   The script destructures that object. AbortSignal is not passed; the process
   is killed on abort. A script can print JSON steps only, not a new function.
   Separate from yaml-lump-configs, which is only the file format.
-priority: 35
+priority: 64
+dependsOn:
+  - release-0-11-0

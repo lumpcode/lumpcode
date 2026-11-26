@@ -11,4 +11,6 @@ task: >-
   Parameterize merge tests from the table. Does not change which file accepts
   a field, or the merge order. Lump-only fields such as steps stay out of the
   table.
-priority: 6
+priority: 60
+dependsOn:
+  - backlog/release-0-11-0

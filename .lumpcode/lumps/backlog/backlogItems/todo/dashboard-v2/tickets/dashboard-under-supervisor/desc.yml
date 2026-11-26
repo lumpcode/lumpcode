@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: dashboard-under-supervisor
+workflow: [manualReq, testImpl, impl]
+task: >-
+  `lumpcode start --dashboard` (with the dashboard's port and bind options)
+  has the supervisor keep the dashboard running like a daemon, `stop` stops
+  it, and `daemon-status` shows its URL. The same password rule applies: a
+  non-loopback bind without a password refuses to start.
+priority: 36
+dependsOn:
+  - dashboard-password-login

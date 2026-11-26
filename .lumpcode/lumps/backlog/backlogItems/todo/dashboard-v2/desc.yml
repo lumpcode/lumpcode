@@ -1,0 +1,13 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: dashboard-v2
+workflow: [manualReq, testImpl, impl]
+manual: true
+task: >-
+  The worker dashboard becomes the place to watch and steer a worker: controls,
+  a shared-password login so it can be exposed beyond loopback, transcripts,
+  a per-lump board read from git, the current run time, and a dashboard the
+  supervisor keeps alive. Tickets under tickets/. See requirements.md.
+priority: 30
+dependsOn:
+  - release-0-11-0
+  - worker-dashboard-readonly

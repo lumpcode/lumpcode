@@ -1,0 +1,11 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: core
+workflow: [manualReq, testImpl, impl]
+task: >-
+  @lumpcode/core runs a `workflow` (RunLumpInput.workflow) as one internal
+  step through workflowToSteps: WorkflowFn, WorkflowInput, WorkflowResult,
+  the Agent and Shell interfaces, a Shell on the step executor, the abort
+  and timeout binding, parallel calls, ContextResult for every context, and the
+  new history entries and output events. Steps lumps behave as today. See
+  requirements.md.
+priority: 11
