@@ -2,9 +2,11 @@ import { execBinary } from '../execBinary';
 import { execAsync } from '../execAsync';
 import { 
     ContextList,  
+    ContextResult,
     ContextRunState,
     ExecuteStepsFailureData,
     Failure,
+    HistoryEntry,
     Logger,
     LumpVariables,
     Maybe,
@@ -14,6 +16,7 @@ import {
     Steps,
     StepVariables,
     Success,
+    WorkflowResult,
 } from "../../types";
 import {
     appendHistoryEntry,
@@ -26,6 +29,25 @@ import {
 } from '../../utils';
 import { GitAndWorkspaceFnsInput } from '../../types/GitAndWorkspaceFnsInput';
 import type { RunLumpInput } from '../../usages';
+import { createWorkflowRuntime } from '../createWorkflowRuntime/main';
+import { isWorkflowStep, type WorkflowStep } from '../workflowToSteps/main';
+
+type WalkStep<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = Steps<V, SV>[number] | WorkflowStep<V, SV>;
+
+function normalizeWorkflowResult<SV extends StepVariables>(
+    value: WorkflowResult<SV> | void,
+): ContextResult<SV>['result'] {
+    const result = value ?? {};
+    return {
+        succeeded: result.succeeded ?? true,
+        push: result.push ?? true,
+        ...(result.message !== undefined ? { message: result.message } : {}),
+        ...(result.variables !== undefined ? { variables: result.variables } : {}),
+    };
+}
 
 const ABORT_STEP_WALK_MESSAGE = 'Process aborted';
 
@@ -131,7 +153,7 @@ async function runGitResultHook(input: {
 export type ExecuteStepsForContextListParams<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
-> = Required<Pick<
+> = Omit<Required<Pick<
     RunLumpInput<V, SV>,
     | 'baseBranch' 
     | 'branchFn'
@@ -146,13 +168,15 @@ export type ExecuteStepsForContextListParams<
     | 'setupWorkspaceFn'
     | 'teardownWorkspaceFn'
     | 'getKeepHistoryFilePathFn'
->> & {
+>>, 'steps'> & {
+    steps: WalkStep<V, SV>[];
     contextList: ContextList;
     logger?: Logger;
     /** When aborted, in-flight commands are killed and the step walk stops (ignores continueOnError). */
     signal?: AbortSignal;
     onCommandOutput?: RunLumpInput<V, SV>['onCommandOutput'];
     lumpName?: string;
+    createAgent?: RunLumpInput<V, SV>['createAgent'];
 }
 
 export async function executeStepsForContextList<
@@ -177,6 +201,7 @@ export async function executeStepsForContextList<
     signal,
     onCommandOutput,
     lumpName,
+    createAgent,
 }: ExecuteStepsForContextListParams<V, SV>) {
     const logger = loggerInput ?? createConsoleLogger({});
     const contextNames = contextList.map(context => context.name);
@@ -255,9 +280,153 @@ export async function executeStepsForContextList<
             contextRunStateList[i] = contextRunState;
 
             let stepWalkFailure: Failure<ExecuteStepsFailureData> | undefined;
+            let contextRecord: Pick<ContextResult<SV>, 'outcome' | 'result'> | undefined;
+
+            async function writeHistory(entry: HistoryEntry<V, SV>): Promise<void> {
+                const keepHistoryFilePath = getKeepHistoryFilePathFn(context) || '';
+                if (keepHistoryFilePath.length === 0) return;
+                const appendResult = await appendHistoryEntry({
+                    filePath: keepHistoryFilePath,
+                    entry,
+                });
+                if (!appendResult.success) {
+                    logger.warn(
+                        `Failed to append history entry to ${keepHistoryFilePath}: ${appendResult.data}`,
+                    );
+                }
+            }
+
+            async function settleWorkflow(
+                normalized: ContextResult<SV>['result'],
+                stepIndex: number | number[],
+            ): Promise<void> {
+                onCommandOutput?.({
+                    kind: 'workflowEnd',
+                    contextName: context.name,
+                    result: normalized,
+                });
+                await writeHistory({
+                    commandResult: normalized.message ?? '',
+                    commandSucceeded: normalized.succeeded,
+                    context,
+                    prompt: '',
+                    stepIndex,
+                    contextRunState,
+                    lumpVariables,
+                    projectRoot,
+                    kind: 'workflow',
+                    workflowResult: normalized,
+                    ...(normalized.variables !== undefined ? { stepVariables: normalized.variables } : {}),
+                });
+            }
+
+            async function executeWorkflowStep(
+                step: WorkflowStep<V, SV>,
+                compositeStepIndex: number | number[],
+            ): Promise<void> {
+                const workflowStepIndex = typeof compositeStepIndex === 'number'
+                    ? compositeStepIndex
+                    : compositeStepIndex[0] ?? 0;
+                const runtime = createWorkflowRuntime({
+                    context,
+                    lumpVariables,
+                    contextRunState,
+                    projectRoot,
+                    workspacePath,
+                    ...(step.timeoutMillis !== undefined ? { timeoutMillis: step.timeoutMillis } : {}),
+                    signal,
+                    onCommandOutput,
+                    logger,
+                    createAgent,
+                    lumpName,
+                    workflowStepIndex,
+                    onHistoryEntry: writeHistory,
+                });
+
+                try {
+                    const returned = await step.workflowFn({
+                        context,
+                        lumpVariables,
+                        contextRunState,
+                        projectRoot,
+                        workspacePath,
+                        signal: runtime.signal,
+                        agent: runtime.agent,
+                        shell: runtime.shell,
+                        log: runtime.log,
+                    });
+                    const normalized = normalizeWorkflowResult(returned);
+                    contextRecord = {
+                        outcome: normalized.push ? 'pushed' : 'notPushed',
+                        result: normalized,
+                    };
+                    await settleWorkflow(normalized, compositeStepIndex);
+                    if (!normalized.push) {
+                        stepWalkFailure = {
+                            success: false,
+                            data: {
+                                message: normalized.message ?? 'Workflow did not push.',
+                                reason: 'workflowNotPushed',
+                            },
+                        };
+                    }
+                } catch (error) {
+                    if (isStepWalkAbortError(error)) {
+                        const result = {
+                            succeeded: false,
+                            push: false,
+                            message: ABORT_STEP_WALK_MESSAGE,
+                        };
+                        contextRecord = { outcome: 'aborted', result };
+                        await settleWorkflow(result, compositeStepIndex);
+                        stepWalkFailure = stepWalkAbortedFailure();
+                        return;
+                    }
+                    const message = error instanceof Error ? error.message : String(error);
+                    const result = { succeeded: false, push: false, message };
+                    contextRecord = { outcome: 'failed', result };
+                    await settleWorkflow(result, compositeStepIndex);
+                    stepWalkFailure = {
+                        success: false,
+                        data: {
+                            message,
+                            reason: 'workflowThrew',
+                        },
+                    };
+                }
+            }
+
+            function recordContext(): void {
+                if (contextRecord) {
+                    injectedGitAndWorkspaceFnsInput.contextResults.push({
+                        context,
+                        outcome: contextRecord.outcome,
+                        result: contextRecord.result,
+                    });
+                    return;
+                }
+                if (stepWalkFailure) {
+                    const aborted = stepWalkFailure.data.message === ABORT_STEP_WALK_MESSAGE;
+                    injectedGitAndWorkspaceFnsInput.contextResults.push({
+                        context,
+                        outcome: aborted ? 'aborted' : 'failed',
+                        result: {
+                            succeeded: false,
+                            push: false,
+                            message: stepWalkFailure.data.message,
+                        },
+                    });
+                    return;
+                }
+                injectedGitAndWorkspaceFnsInput.contextResults.push({
+                    context,
+                    outcome: 'pushed',
+                    result: { succeeded: true, push: true },
+                });
+            }
 
             async function walkAndExecuteSteps(
-                stepsToExec: Steps<V, SV>,
+                stepsToExec: WalkStep<V, SV>[],
                 currStepIndex: number[],
             ): Promise<void> {
                 try {
@@ -285,6 +454,12 @@ export async function executeStepsForContextList<
                                 )
                                 : step;
                             await walkAndExecuteSteps(subSteps, nextCallHeadIndex);
+                            continue;
+                        }
+
+                        if (isWorkflowStep<V, SV>(step)) {
+                            await executeWorkflowStep(step, compositeStepIndex);
+                            if (stepWalkFailure) return;
                             continue;
                         }
 
@@ -496,6 +671,8 @@ export async function executeStepsForContextList<
                 }
             }
 
+            recordContext();
+
             if (stepWalkFailure) {
                 runFailure = stepWalkFailure;
                 break;
@@ -569,13 +746,17 @@ export async function executeStepsForContextList<
     }
 
     if (runFailure) {
-        return runFailure;
+        return failure({
+            ...runFailure.data,
+            contextResults: injectedGitAndWorkspaceFnsInput.contextResults,
+        });
     }
 
     return success({
         branchName,
         contextNames,
         contextRunStateList,
+        contextResults: injectedGitAndWorkspaceFnsInput.contextResults,
     });
 }
 

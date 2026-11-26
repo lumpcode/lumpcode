@@ -214,7 +214,7 @@ describe('dynamic-discovery-branch core type guards (G3t/G4t)', () => {
   });
 });
 
-describe.skip('workflow API types', () => {
+describe('workflow API types', () => {
   it('WorkflowFn infers lumpVariables and variables', () => {
     const workflowOnly: RunLumpInput<V, SV> = {
       projectRoot: '/tmp',
@@ -274,12 +274,16 @@ describe.skip('workflow API types', () => {
     const shell = null as unknown as Shell;
     const agent = null as unknown as Agent;
     const command = null as unknown as CommandFn;
-    expectTypeOf(shell('echo ok')).toEqualTypeOf<Promise<ShellResult>>();
-    expectTypeOf(shell({ executable: 'echo', args: ['ok'] })).toEqualTypeOf<Promise<ShellResult>>();
-    expectTypeOf(agent.session()).toEqualTypeOf<Promise<AgentSession>>();
-    expectTypeOf(agent.session(command, { model: 'auto' })).toEqualTypeOf<Promise<AgentSession>>();
-    expectTypeOf(agent.session({ command, sessionId: 's' })).toEqualTypeOf<Promise<AgentSession>>();
-    expectTypeOf(agent.prompt('hi')).toEqualTypeOf<Promise<AgentResult>>();
+    // Not called: these values are null, and expectTypeOf evaluates its argument.
+    const checkCalls = () => {
+      expectTypeOf(shell('echo ok')).toEqualTypeOf<Promise<ShellResult>>();
+      expectTypeOf(shell({ executable: 'echo', args: ['ok'] })).toEqualTypeOf<Promise<ShellResult>>();
+      expectTypeOf(agent.session()).toEqualTypeOf<Promise<AgentSession>>();
+      expectTypeOf(agent.session(command, { model: 'auto' })).toEqualTypeOf<Promise<AgentSession>>();
+      expectTypeOf(agent.session({ command, sessionId: 's' })).toEqualTypeOf<Promise<AgentSession>>();
+      expectTypeOf(agent.prompt('hi')).toEqualTypeOf<Promise<AgentResult>>();
+    };
+    void checkCalls;
 
     // @ts-expect-error authors never pass a signal to shell
     type _ShellSignal = ShellOptions['signal'];
