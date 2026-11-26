@@ -1,6 +1,6 @@
 {
   "name": "@lumpcode/recipes",
-  "version": "0.10.1",
+  "version": "0.10.2",
   "description": "Plug-and-run software factories for Lumpcode (featureBacklog, backlog, …) plus a kit: retry until green, folder backlogs, open a PR after push",
   "homepage": "https://www.lumpcode.com/docs/author/recipes",
   "keywords": [
@@ -49,8 +49,8 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "@lumpcode/cli-utils": "^0.10.1",
-    "@lumpcode/core": "^0.10.1",
+    "@lumpcode/cli-utils": "^0.10.2",
+    "@lumpcode/core": "^0.10.2",
     "js-yaml": "^5.0.0"
   },
   "devDependencies": {
