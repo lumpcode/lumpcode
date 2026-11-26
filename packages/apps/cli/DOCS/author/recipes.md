@@ -37,7 +37,7 @@ Per item, in `desc.yml`:
 | `name`, `task` | Required. `name` matches the folder. |
 | `priority` | Lower runs sooner. |
 | `dependsOn` | Other item names that must be finished first. |
-| `workflow` | Stages, any of `req` or `manualReq`, `testPlan`, `testImpl`, `impl` or `directImpl`. Omitted: `[req, testPlan, testImpl]` then `impl`. `manualReq` waits for a `requirements.md` you write. `directImpl` implements from `desc.yml` alone. |
+| `workflow` | Stages, any of `req` or `manualReq`, `testPlan`, `testImpl`, `impl` or `directImpl`. Omitted: `[manualReq, testImpl, impl]`. `manualReq` waits for a `requirements.md` you write. `req` has the agent write that file. `directImpl` implements from `desc.yml` alone. |
 | `manual` | `true` keeps the agent away from this item. |
 
 Big features: put tickets in `todo/<parent>/tickets/<ticket>/desc.yml`. The parent never runs a stage itself; when every ticket is done, it moves to `completed/`. A ticket waits for its parent's `dependsOn` as well as its own. Its own `dependsOn` names sibling tickets.

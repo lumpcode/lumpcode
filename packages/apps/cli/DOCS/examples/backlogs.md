@@ -61,7 +61,7 @@ Then, one PR at a time, each targeting `feature/export-csv`:
 
 Each stage waits until the previous one is **merged**, so you can fix the requirements in their PR and the implementation follows your version. After `impl`, the folder moves to `backlogItems/completed/export-csv/` and you merge `feature/export-csv` into `main`.
 
-`workflow` picks the stages. Omitted, it is `[req, testPlan, testImpl]` then `impl`. Items without a test stage, like `[req, impl]` or a small `[directImpl]` fix, skip the feature branch and run straight from `main`. Write `requirements.md` yourself and use `manualReq` instead of `req`. Big features get tickets under the parent (`todo/export-csv/tickets/<ticket>/desc.yml`); the parent closes when every ticket is done. Every option: [Recipes](../author/recipes.md#recipe-factories).
+`workflow` picks the stages. Omitted, it is `[manualReq, testImpl, impl]`: you write `requirements.md`, then the agent adds skipped tests and implements them. Use `req` when the agent should write the requirements. Items without a test stage, like `[req, impl]` or a small `[directImpl]` fix, skip the feature branch and run straight from `main`. Big features get tickets under the parent (`todo/export-csv/tickets/<ticket>/desc.yml`); the parent closes when every ticket is done. Every option: [Recipes](../author/recipes.md#recipe-factories).
 
 ## Lanes that share one factory
 

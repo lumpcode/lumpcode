@@ -1,0 +1,8 @@
+name: recipes-manual-req-default
+workflow:
+  - directImpl
+task: >-
+  If a featureBacklog item omits workflow, the default is [manualReq, testImpl,
+  impl].
+priority: 4
+completedAt: '2026-11-24T08:34:57.294Z'

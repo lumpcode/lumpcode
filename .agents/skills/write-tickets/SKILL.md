@@ -162,7 +162,7 @@ Field guidance:
 | `name` | yes | Same as the directory name. |
 | `task` | yes | End-to-end outcome, not a layer-by-layer implementation list. |
 | `priority` | yes | Lower number = sooner. Start the first ticket at `0`, then `1`, `2`, … |
-| `workflow` | no | Array of stages. Defaults to `[req, testPlan, testImpl, impl]` for `featureBacklog`. Use `manualReq` for a human-gated requirements step, `directImpl` to skip requirements, `impl` only for pure implementation. Omit if the lump uses the generic `backlog` recipe (it ignores `workflow`). |
+| `workflow` | no | Array of stages. Defaults to `[manualReq, testImpl, impl]` for `featureBacklog`. Use `req` when the agent should write requirements, `manualReq` for a human-gated requirements step, `directImpl` to skip requirements, `impl` only for pure implementation. Omit if the lump uses the generic `backlog` recipe (it ignores `workflow`). |
 | `dependsOn` | no | Array of item names this ticket is blocked by. Same-lump items use bare names. Cross-lump dependencies use `<otherLumpName>/<contextName>`. |
 | `manual` | no | Set `true` if this ticket should not spawn implementation sub-contexts after its umbrella `completion` stage (umbrella parents only). |
 
