@@ -65,7 +65,7 @@ function makeCommand(
     return commandFn;
 }
 
-describe.skip('createWorkflowRuntime', () => {
+describe('createWorkflowRuntime', () => {
     let projectRoot: string;
     let events: CommandOutputEvent[];
     let info: string[];

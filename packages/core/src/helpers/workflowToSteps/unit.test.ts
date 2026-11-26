@@ -4,7 +4,7 @@ import type { WorkflowFn } from '../../types';
 import * as core from '../../index';
 import { workflowToSteps } from './main';
 
-describe.skip('workflowToSteps', () => {
+describe('workflowToSteps', () => {
     it('returns one internal workflow step and does not run the function', () => {
         let ran = false;
         const workflow: WorkflowFn = async () => {
