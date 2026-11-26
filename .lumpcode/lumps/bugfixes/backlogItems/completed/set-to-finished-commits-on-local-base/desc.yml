@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: set-to-finished-commits-on-local-base
 workflow:
   - impl
@@ -11,3 +10,4 @@ task: >-
   marker commit; build the marker on the refreshed origin/<baseBranch> tip
   without touching HEAD, the index, or the working tree.
 priority: 20
+completedAt: '2026-11-24T08:37:57.364Z'
