@@ -109,7 +109,7 @@ export async function runLumpFromLumpName(input: {
             return failure(toRunLumpMessageFailure(disabledResult.data));
         }
         if (disabledResult.data.disabled) {
-            return success({
+            return success<RunLumpFromLumpNameSuccess>({
                 skipped: true,
                 reason: 'disabled',
                 reasonDetail: `Lump "${lumpName}" is disabled; skipping run.`,
@@ -204,7 +204,7 @@ export async function runLumpFromLumpName(input: {
         if (releaseLock) {
             await releaseLock();
         }
-        return success({
+        return success<RunLumpFromLumpNameSuccess>({
             skipped: true,
             reason: 'disabled',
             reasonDetail: `Lump "${lumpName}" is disabled; skipping run.`,
