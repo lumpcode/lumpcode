@@ -312,6 +312,29 @@ describe('jsConfigToRunLumpInput prompt, command, and steps', () => {
             });
             expect(command).toEqual({ executable: 'echo', args: ['done'] });
         });
+
+        it('resolves an inline postCommandExecFn returning null to a core hook with no steps', async () => {
+            const data = assertSuccess(await resolveJsConf({
+                command: stubCommandFn,
+                prompt: undefined,
+                steps: [{
+                    commandFn: stubCommandFn,
+                    postCommandExecFn: () => null,
+                }],
+            }));
+            const item = data.steps[0] as Step;
+            const returned = await item.postCommandExecFn!({
+                commandResult: '',
+                commandSucceeded: true,
+                context: { name: 'ctx', variables: {} },
+                prompt: '',
+                stepIndex: 0,
+                contextRunState: {},
+                lumpVariables: {},
+                projectRoot: '/tmp',
+            });
+            expect(returned).toBeUndefined();
+        });
     });
 
     describe('timeoutMillis inheritance', () => {

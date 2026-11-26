@@ -56,6 +56,13 @@ describe('core dual-bag <V, SV> (C1–C8)', () => {
     void fn;
   });
 
+  it('PostCommandExecFn accepts null sync and async', () => {
+    const syncNull: PostCommandExecFn<V, SV> = () => null;
+    const asyncNull: PostCommandExecFn<V, SV> = async () => null;
+    expectTypeOf(syncNull).toEqualTypeOf<PostCommandExecFn<V, SV>>();
+    expectTypeOf(asyncNull).toEqualTypeOf<PostCommandExecFn<V, SV>>();
+  });
+
   it('C4: Step / Steps carry SV and dual-bag hooks', () => {
     const step: Step<V, SV> = {
       stepVariables: { stepOnly: 1, newChat: true, model: 'auto' },

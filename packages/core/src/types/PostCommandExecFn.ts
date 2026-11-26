@@ -20,4 +20,4 @@ export type PostCommandExecFn<
     projectRoot: string;
     /** When aborted, hooks should return promptly so the step walk can unwind and release locks. */
     signal?: AbortSignal;
-}) => MaybePromise<void | Steps<V, SV>>
+}) => MaybePromise<Steps<V, SV> | null | undefined | void>

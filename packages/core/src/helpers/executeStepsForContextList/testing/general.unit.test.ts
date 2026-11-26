@@ -521,6 +521,44 @@ describe('executeStepsForContextList dynamic steps', () => {
         ]);
     });
 
+    it('continues to the next step when postCommandExecFn returns null', async () => {
+        const seen: string[] = [];
+
+        const result = await executeStepsForContextList({
+            baseBranch: 'main',
+            branchFn: stubBranchFn,
+            lumpVariables: {},
+            contextList: [{ name: 'ctx', variables: {} }],
+            gitAddCommitFn: stubGitAddCommit,
+            gitPushFn: stubGitPush,
+            gitCommitMessageFn: stubGitCommitMessage,
+            projectRoot,
+            steps: [{
+                commandFn: () => {
+                    seen.push('first');
+                    return { executable: 'echo', args: ['first'] };
+                },
+                postCommandExecFn: () => {
+                    seen.push('post');
+                    return null;
+                },
+            }, {
+                commandFn: () => {
+                    seen.push('second');
+                    return { executable: 'echo', args: ['second'] };
+                },
+            }],
+            setupFn: async () => ({ contextRunState: {} }),
+            teardownFn: async () => undefined,
+            setupWorkspaceFn: async () => ({ command: '', workspacePath: projectRoot }),
+            teardownWorkspaceFn: async () => '',
+            getKeepHistoryFilePathFn: () => undefined,
+        });
+
+        expect(result.success).toBe(true);
+        expect(seen).toEqual(['first', 'post', 'second']);
+    });
+
     it('continues the step walk when continueOnError is true and the command fails', async () => {
         const executionOrder: string[] = [];
 

@@ -90,10 +90,10 @@ type PostCommandExecFn<V = LumpVariables, SV = StepVariables> = (input: {
   lumpVariables: V
   stepVariables?: SV
   projectRoot: string
-}) => MaybePromise<void | Steps<V, SV>>
+}) => MaybePromise<Steps<V, SV> | null | undefined | void>
 ```
 
-`command` on a step or lump may be a tag, a lump-relative `.ts`/`.js` path, or this `CommandFn` inline (JS/TS). Return `{ executable, args }` to run; `null` / `undefined` / nothing to **skip** (no process). `postCommandExecFn` still runs with an empty `commandResult` and `commandSucceeded: true`. `keepHistory` is not written for a skip.
+`command` on a step or lump may be a tag, a lump-relative `.ts`/`.js` path, or this `CommandFn` inline (JS/TS). Return `{ executable, args }` to run; `null` / `undefined` / nothing to **skip** (no process). `postCommandExecFn` still runs with an empty `commandResult` and `commandSucceeded: true`. `keepHistory` is not written for a skip. `postCommandExecFn` returns steps to run next, or `null` / `undefined` / nothing / `[]` to continue.
 
 `promptFn` is not scanned for `{VAR}`. Nested dynamic steps get `stepIndex` as an array (`[1, 0]`). Steps returned from `postCommandExecFn` are runtime-only (`lump-plan` does not expand them).
 
