@@ -10,4 +10,6 @@ export type SetupFn<V extends LumpVariables = LumpVariables> = (params: {
     currentContextIndex: number;
 }) => MaybePromise<Maybe<Partial<{
     contextRunState: ContextRunState;
+    /** Session created by setup. The default session for `agent.prompt()`. */
+    sessionId: string;
 }>>>;

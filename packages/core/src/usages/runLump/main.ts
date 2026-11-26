@@ -1,4 +1,4 @@
-import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData, CommandOutputEvent } from "../../types";
+import { Success, Failure, BranchFn, GetContextListFn, SetupFn, LumpVariables, StepVariables, TeardownFn, Steps, GitAddCommitFn, GitCommitMessageFn, GitPushFn, SetupWorkspaceFn, TeardownWorkspaceFn, ExtractSuccess, Context, Logger, ExecuteStepsFailureData, CommandOutputEvent, WorkflowFn, CreateAgentInput, Agent } from "../../types";
 import { createConsoleLogger, failure, set, success } from "../../utils";
 import { 
     getToDoContextList,
@@ -26,6 +26,7 @@ Failure<ExecuteStepsFailureData>
         numberOfContextsPerBranch = 1,
         projectRoot,
         steps,
+        workflow,
         setupFn = () => ({ contextRunState: {} }),
         setupWorkspaceFn = defaultSetupWorkspaceFn,
         teardownFn = () => undefined,
@@ -38,6 +39,17 @@ Failure<ExecuteStepsFailureData>
         lumpName,
         contextName,
     } = input;
+
+    if (workflow !== undefined && steps !== undefined) {
+        return failure({ message: 'Use workflow or steps, not both.' });
+    }
+    if (steps === undefined) {
+        return failure({
+            message: workflow === undefined
+                ? 'RunLumpInput needs steps or workflow.'
+                : 'RunLumpInput.workflow is not implemented.',
+        });
+    }
 
     const lumpVariables = (lumpVariablesInput ?? {}) as V;
     const logger = loggerInput ?? createConsoleLogger({});
@@ -126,7 +138,16 @@ export interface RunLumpInput<
     baseBranch: string;
     branchFn: BranchFn<V>;
     getContextListFn: GetContextListFn<V>;
-    steps: Steps<V, SV>;
+    steps?: Steps<V, SV>;
+    /** One function for the context. Not together with `steps`. */
+    workflow?: WorkflowFn<V, SV>;
+    /** Host-supplied agent. Omitted: core's default agent. */
+    createAgent?: (input: CreateAgentInput<V>) => Agent;
+    /**
+     * Workflow deadline when the workflow step omits `timeoutMillis`.
+     * Omitted: 2 hours. Steps keep their own 30 minute default.
+     */
+    timeoutMillis?: number;
     numberOfContextsPerBranch?: number;
     lumpVariables?: V;
     setupFn?: SetupFn<V>;

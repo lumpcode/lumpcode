@@ -221,7 +221,7 @@ export async function planLumpFromJsConfig(input: {
             contextList: contexts,
             currentContextIndex: i,
             lumpVariables,
-            steps: runLumpInput.steps,
+            steps: runLumpInput.steps ?? [],
             setupFn: runLumpInput.setupFn!,
             projectRoot: runLumpInput.projectRoot,
             workspacePath: workspacePathForPreview,
@@ -282,6 +282,7 @@ export async function planLumpFromJsConfig(input: {
         baseBranch,
         branchName,
         contextList: batchContexts,
+        contextResults: [],
     });
 
     const teardownWorkspaceCommand = await runLumpInput.teardownWorkspaceFn!({
@@ -289,6 +290,7 @@ export async function planLumpFromJsConfig(input: {
         branchName,
         contextList: batchContexts,
         workspacePath: workspaceSetup.workspacePath,
+        contextResults: [],
     });
 
     baseOutput.plan = {

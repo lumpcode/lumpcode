@@ -198,6 +198,7 @@ export async function executeStepsForContextList<
         branchName,
         contextList,
         workspacePath: '.',
+        contextResults: [],
     };
 
     const { command: setupWorkspaceCommand, workspacePath, afterExec } =
