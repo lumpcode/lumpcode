@@ -6,4 +6,4 @@ task: >-
   completeLogTail plus followableTailOptionFields. Util under src/utils.
   Affected: commands/daemon-log, commands/supervisor-log, and
   commands/transcript.
-priority: 60
+priority: 5

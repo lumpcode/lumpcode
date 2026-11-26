@@ -10,4 +10,4 @@ task: >-
   anything already staged is pushed to origin/<baseBranch> inside the "empty"
   marker commit; build the marker on the refreshed origin/<baseBranch> tip
   without touching HEAD, the index, or the working tree.
-priority: 0
+priority: 20
