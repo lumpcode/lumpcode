@@ -13,4 +13,6 @@ task: >-
   warns and skips that entry. The step walk still continues. New files are
   .jsonl under the same gitignored history directory. Existing .yaml files
   stay on disk and are not converted. writeTranscripts stays as it is.
-priority: 5
+priority: 65
+dependsOn:
+  - release-0-11-0
