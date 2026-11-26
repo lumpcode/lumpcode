@@ -7,4 +7,4 @@ task: >-
   executeStepsForContextList never adds each context's contextRunState to the
   list it returns, so the per-context state the core README documents in the
   return value (and lumpcode run --json echoes) is lost.
-priority: 0
+priority: 20

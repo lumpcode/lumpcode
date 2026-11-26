@@ -4,6 +4,29 @@
 #   daemon | git | status | hooks | history | config | engine | cli | recipes |
 #   workspace | presets | hygiene | skills | cloud | auth | agents | sandbox | meta
 # Ephemeral names (1, A) are OK.
+- name: external-agent-harness-library-presets
+  task: >-
+    Where a vendor SDK can run that agent's local preset, use the SDK instead
+    of the hand-written argv in presets/commands, never a third-party CLI
+    unifier (@pivanov/agents-wire, coding-agent-runner) and not ACP. A preset
+    moves only if its SDK runs the same local job (headless, workspacePath,
+    the stored session id, the model rule, agentPermissions, output the
+    preset's presentOutput parses) and passes the extraArgs string list
+    through as raw argv tokens, including flags added later (Codex: before
+    `resume`). Checked 2026-11-24 (closed PR #430), none pass: @cursor/sdk
+    local mode is an in-process loop with typed options only (its only
+    string list is McpServerConfig.args); @github/copilot-sdk cliArgs are
+    server-startup argv and its session stream is another protocol;
+    @anthropic-ai/claude-agent-sdk extraArgs is a flag-name record, not a
+    token list; @opencode/sdk has no string-list field; the Codex SDK
+    configOverrides are --config key=value only. After 0.11.0 a move builds
+    on the command module createSession export and the sessionId CommandFn
+    input (backlog workflow-api-agent-sessions).
+  priority: 93
+  tags: [cli, presets]
+  blocked: >-
+    No vendor SDK passes extraArgs through as raw argv today. Revisit when one
+    does, on top of the 0.11.0 session API.
 - name: steps-on-workflow-adapter
   task: >-
     One execution path in @lumpcode/core: rebuild the step walk on top of the
