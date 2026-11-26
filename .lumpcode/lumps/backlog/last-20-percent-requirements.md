@@ -51,7 +51,7 @@ Lower priority runs sooner. The push has two phases: everything up to the **0.11
 
 | Wave | Priority | Work |
 | --- | --- | --- |
-| 0 | 0–9 | bugfixes (all three), qol command returns and `recipes-manual-req-default`, `desc-name-folder-mismatch-warn` |
+| 0 | 0–9 | bugfixes (all three), qol command returns and `recipes-manual-req-default` |
 | 1 | 10 | `repo-templates`: this repo's lumps use `.lumpcode/templates/main.ts` |
 | 2 | 11–15 | `workflow-api` (core, agent sessions, config and plan, kit, recipes) |
 | 3 | 16–17 | `repo-lumps-workflow` (every repo lump as a workflow); `workflow-first-docs-and-website` (backlog lump) |
