@@ -9,6 +9,7 @@ import type {
     CreateAgentInput,
     LumpVariables,
     PromptOptions,
+    SessionId,
     SessionOptions,
     StepVariables,
 } from '@lumpcode/core';
@@ -23,7 +24,7 @@ type PreparedCommand = {
     commandFn: CommandFn;
     commandName: string;
     createSession?: CommandModule['createSession'];
-    setupSessionId?: string;
+    setupSessionId?: SessionId;
 };
 
 function commandNameOf(commandFn: CommandFn): string {
@@ -77,11 +78,11 @@ export function createCliAgent(factoryInput: {
             runAgentCall,
         } = input;
 
-        const sessionOwners = new Map<string, string>();
+        const sessionOwners = new Map<SessionId, string>();
         const preparedByName = new Map<string, Promise<PreparedCommand>>();
         let defaultPromptSession: AgentSession | undefined;
 
-        function claim(sessionId: string, commandName: string): void {
+        function claim(sessionId: SessionId, commandName: string): void {
             const owner = sessionOwners.get(sessionId);
             if (owner !== undefined && owner !== commandName) {
                 throw new Error(`Session ${sessionId} belongs to command ${owner}, not ${commandName}.`);
@@ -116,7 +117,7 @@ export function createCliAgent(factoryInput: {
             return defaultPromptLabel(text);
         }
 
-        async function allocateSessionId(prepared: PreparedCommand, options: SessionOptions): Promise<string> {
+        async function allocateSessionId(prepared: PreparedCommand, options: SessionOptions): Promise<SessionId> {
             if (prepared.createSession === undefined) return randomUUID();
             const model = options.model ?? lumpModel();
             return prepared.createSession({
@@ -138,7 +139,7 @@ export function createCliAgent(factoryInput: {
                 const commandFn = mod.command;
                 commandFn.commandName = name;
 
-                let setupSessionId: string | undefined;
+                let setupSessionId: SessionId | undefined;
                 if (mod.setup) {
                     const result = await mod.setup({
                         contextList: [context],
@@ -183,7 +184,7 @@ export function createCliAgent(factoryInput: {
 
         function makeSession(
             prepared: PreparedCommand,
-            sessionId: string,
+            sessionId: SessionId,
             sessionOptions: PromptOptions,
         ): AgentSession {
             return {

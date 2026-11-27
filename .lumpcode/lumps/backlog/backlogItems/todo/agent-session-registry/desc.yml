@@ -1,0 +1,17 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: agent-session-registry
+workflow: [manualReq, testImpl, impl]
+manual: true
+task: >-
+  A worker-local registry of every agent session Lumpcode creates. Global
+  sessions get a friendly name or a generated id, are created or retrieved
+  with one command, and are deleted by name or id. Non-global sessions get a
+  Lumpcode id (lump, context, command, timestamp), cannot be named, and live
+  as long as a lump-level retention option says; Lumpcode deletes them through
+  a new deleteSession preset export. Commands list them, show the agent's
+  real session id, and reopen a session interactively. Dashboard chat with a
+  session comes later. Needs a grilled requirements.md before any ticket; see
+  memo.md for the idea and its open questions.
+priority: 55
+dependsOn:
+  - release-0-11-0

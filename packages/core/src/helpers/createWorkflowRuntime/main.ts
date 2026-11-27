@@ -15,6 +15,7 @@ import type {
     Logger,
     LumpVariables,
     PromptOptions,
+    SessionId,
     SessionOptions,
     Shell,
     ShellOptions,
@@ -147,7 +148,7 @@ export function createWorkflowRuntime<
 
     const liveCalls = new Set<LiveCall>();
     const promptsInFlight = new Set<string>();
-    const sessionOwners = new Map<string, string>();
+    const sessionOwners = new Map<SessionId, string>();
     let callOrdinal = 0;
     let defaultPromptSession: AgentSession | undefined;
 
@@ -323,7 +324,7 @@ export function createWorkflowRuntime<
         prompt: string;
         stepIndex: number[];
         outcome: ProcessOutcome;
-        sessionId?: string;
+        sessionId?: SessionId;
         stepVariables?: StepVariables;
     }): Promise<void> {
         if (!onHistoryEntry) return;
@@ -547,7 +548,7 @@ export function createWorkflowRuntime<
     function makeSession(
         commandFn: CommandFn<V, SV>,
         commandName: string,
-        sessionId: string,
+        sessionId: SessionId,
         sessionOptions: PromptOptions,
     ): AgentSession {
         return {

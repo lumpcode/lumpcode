@@ -1,3 +1,4 @@
+import type { SessionId } from "./SessionId";
 import { Context } from "./Context";
 import { LumpVariables } from "./LumpVariables";
 import { ContextRunState } from "./ContextRunState";
@@ -11,5 +12,5 @@ export type SetupFn<V extends LumpVariables = LumpVariables> = (params: {
 }) => MaybePromise<Maybe<Partial<{
     contextRunState: ContextRunState;
     /** Session created by setup. The default session for `agent.prompt()`. */
-    sessionId: string;
+    sessionId: SessionId;
 }>>>;

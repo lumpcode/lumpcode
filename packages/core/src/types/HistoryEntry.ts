@@ -1,3 +1,4 @@
+import type { SessionId } from './SessionId';
 import { Context } from './Context';
 import { ContextRunState } from './ContextRunState';
 import { LumpVariables } from './LumpVariables';
@@ -21,6 +22,6 @@ export type HistoryEntry<
     kind?: 'prompt' | 'command' | 'shell' | 'workflow';
     label?: string;
     command?: string;
-    sessionId?: string;
+    sessionId?: SessionId;
     workflowResult?: WorkflowResult<SV>;
 };
