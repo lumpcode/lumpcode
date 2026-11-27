@@ -1,3 +1,4 @@
+import type { SessionId } from './SessionId';
 import { ContextResult } from './ContextResult';
 import { LumpVariables } from './LumpVariables';
 import { StepVariables } from './StepVariables';
@@ -13,7 +14,7 @@ export type CommandOutputEvent =
         stepVariables?: StepVariables;
         callKind?: 'prompt' | 'shell';
         label?: string;
-        sessionId?: string;
+        sessionId?: SessionId;
     }
     | {
         kind: 'chunk';

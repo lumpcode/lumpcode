@@ -2,6 +2,7 @@ import type { CommandFn } from './CommandFn';
 import type { Context } from './Context';
 import type { ContextRunState } from './ContextRunState';
 import type { LumpVariables } from './LumpVariables';
+import type { SessionId } from './SessionId';
 import type { StepVariables } from './StepVariables';
 
 /** A preset tag ('claude-code', 'cursor', a custom preset), or a raw command function. */
@@ -25,7 +26,7 @@ export interface PromptOptions {
 
 export interface SessionOptions extends PromptOptions {
     /** The agent's real session id. Omitted: a new session. */
-    sessionId?: string;
+    sessionId?: SessionId;
 }
 
 export interface AgentResult {
@@ -38,7 +39,7 @@ export interface AgentResult {
 export interface AgentSession {
     /** Preset tag, or the CommandFn's commandName. */
     readonly command: string;
-    readonly sessionId: string;
+    readonly sessionId: SessionId;
     /** Options layer: lump → session → this call. */
     prompt(text: string, options?: PromptOptions): Promise<AgentResult>;
 }
@@ -63,7 +64,7 @@ export interface CreateAgentInput<V extends LumpVariables = LumpVariables> {
         commandFn: CommandFn<V>;
         commandName: string;
         prompt: string;
-        sessionId: string;
+        sessionId: SessionId;
         /** model, agentPermissions, extraArgs mapped from PromptOptions. */
         stepVariables: StepVariables;
         timeoutMillis?: number;

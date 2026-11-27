@@ -1,4 +1,4 @@
-import { CommandFn, LumpVariables, SetupFn, StepVariables, TeardownFn } from "@lumpcode/core";
+import { CommandFn, LumpVariables, SessionId, SetupFn, StepVariables, TeardownFn } from "@lumpcode/core";
 
 import type { PresentOutputFnFactory } from "./PresentOutputFn";
 
@@ -16,5 +16,5 @@ export interface CommandModule<
         lumpVariables: V;
         model?: string;
         workspacePath: string;
-    }) => Promise<string>;
+    }) => Promise<SessionId>;
 }

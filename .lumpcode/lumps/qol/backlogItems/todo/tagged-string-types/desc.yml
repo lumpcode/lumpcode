@@ -1,0 +1,22 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: tagged-string-types
+workflow: [manualReq, testImpl, impl]
+task: >-
+  Many values in @lumpcode/core and @lumpcode/cli are typed as plain string
+  although they are not interchangeable: an agent session id, a command name
+  (preset tag), a context name, a lump name, a branch name, a workspace path,
+  a project root. Nothing stops passing a context name where a session id is
+  expected, and Map<string, string> (e.g. the session-to-command owner map in
+  createWorkflowRuntime and createCliAgent) does not say what either side
+  holds. Replace these with tagged (branded) string types so a mix-up is a
+  type error. SessionId (packages/core/src/types/SessionId.ts) is the first
+  one, added as a plain alias with a TODO pointing here; find the other
+  string types that are not strings during the requirements. The human
+  requirements decide which types, where a raw string is converted (a
+  constructor or parse helper at the boundary: preset output, config, git),
+  and how public authoring types stay easy to use from plain JavaScript
+  presets and TypeScript lumps (a string literal must still be accepted
+  where users write one, e.g. agent.session({ sessionId: '...' })).
+priority: 60
+dependsOn:
+  - backlog/release-0-11-0

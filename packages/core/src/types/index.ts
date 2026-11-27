@@ -36,3 +36,4 @@ export * from './Agent';
 export * from './ContextResult';
 export * from './Shell';
 export * from './Workflow';
+export * from './SessionId';

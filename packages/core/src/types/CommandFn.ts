@@ -1,3 +1,4 @@
+import type { SessionId } from "./SessionId";
 import { StepVariables } from "./StepVariables";
 import { Context } from "./Context";
 import { ContextRunState } from "./ContextRunState";
@@ -23,7 +24,7 @@ export type CommandFn<
     projectRoot: string;
     workspacePath: string;
     /** Set by a workflow prompt. Absent for steps. */
-    sessionId?: string;
+    sessionId?: SessionId;
 }) => MaybePromise<CommandDescriptor | null | undefined | void>) & {
     commandName?: string;
 };
