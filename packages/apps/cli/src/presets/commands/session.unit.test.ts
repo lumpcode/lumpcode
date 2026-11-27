@@ -142,8 +142,7 @@ describe('preset command sessions', () => {
         expect(used).not.toBe(chatId);
     });
 
-    // Skipped until the preset sessionId exports land. Unskip this block; do not rewrite it.
-    describe.skip('workflow sessionId', () => {
+    describe('workflow sessionId', () => {
         it.each(presets)('$name uses the given sessionId as the chat id', async (preset) => {
             const result = await callCommand(preset, {
                 sessionId: givenSession,

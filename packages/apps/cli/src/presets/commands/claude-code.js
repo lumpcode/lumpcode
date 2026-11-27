@@ -12,8 +12,11 @@ import {
 import { createNdjsonPresenter } from './utils/presentNdjson.js';
 import { presentClaudeCodeEvent } from './utils/presentClaudeCodeLine.js';
 
+export const createSession = async () => randomUUID();
+
 export const command = (async ({
     prompt,
+    sessionId,
     stepVariables = {},
     contextRunState,
     stepIndex,
@@ -22,7 +25,7 @@ export const command = (async ({
     const model = stepVariables.model ?? lumpVariables.model;
 
     const trimmedPrompt = (prompt ?? '').trim();
-    const chatId = await resolvePresetChatSession({
+    const chatId = sessionId ?? await resolvePresetChatSession({
         prompt: trimmedPrompt,
         contextRunState,
         setupStateKey: 'claude-codeSetup',
@@ -53,7 +56,11 @@ export const command = (async ({
 });
 
 export const setup = (({}) => {
-    return initialPresetChatRunState(randomUUID());
+    const setupChatIdStr = randomUUID();
+    return {
+        ...initialPresetChatRunState(setupChatIdStr),
+        sessionId: setupChatIdStr,
+    };
 });
 
 export const teardown = ((() => {

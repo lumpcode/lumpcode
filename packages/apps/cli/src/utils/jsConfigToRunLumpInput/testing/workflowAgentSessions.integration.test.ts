@@ -37,8 +37,7 @@ function commandModuleSource(input: {
     ].join('\n');
 }
 
-// Skipped until the agent-sessions implementation. Unskip this block; do not rewrite it.
-describe.skip('workflow agent sessions', () => {
+describe('workflow agent sessions', () => {
     it('runs two fixture presets from one workflow without registerCommands', async () => {
         const dirs = await createTempTestDirs({ prefix: 'lump-agent-sessions-', remote: false });
         const { projectRoot, localConfigFolderPath, globalConfigFolderPath } = dirs;
@@ -124,8 +123,8 @@ describe.skip('workflow agent sessions', () => {
                 lumpName: 'agent-sessions',
                 contextName: 'ctx',
             }), 'utf8');
-            expect(history).toContain('command: alpha');
-            expect(history).toContain('command: beta');
+            expect(history).toContain('command: >-\n    alpha');
+            expect(history).toContain('command: >-\n    beta');
         } finally {
             await removeTempTestDirs(dirs);
         }

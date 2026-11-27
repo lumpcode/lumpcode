@@ -12,8 +12,11 @@ import { resolveCopilotToolArgs } from './utils/resolveCopilotToolArgs.js';
 import { createNdjsonPresenter } from './utils/presentNdjson.js';
 import { presentCopilotEvent } from './utils/presentCopilotLine.js';
 
+export const createSession = async () => randomUUID();
+
 export const command = (async ({ 
-    prompt, 
+    prompt,
+    sessionId,
     stepVariables = {}, 
     contextRunState, 
     stepIndex, 
@@ -22,7 +25,7 @@ export const command = (async ({
     const model = stepVariables.model ?? lumpVariables.model ?? 'auto';
 
     const trimmedPrompt = (prompt ?? '').trim();
-    const chatId = await resolvePresetChatSession({
+    const chatId = sessionId ?? await resolvePresetChatSession({
         prompt: trimmedPrompt,
         contextRunState,
         setupStateKey: 'copilotSetup',
@@ -55,7 +58,11 @@ export const command = (async ({
 });
 
 export const setup = (({}) => {
-    return initialPresetChatRunState(randomUUID());
+    const setupChatIdStr = randomUUID();
+    return {
+        ...initialPresetChatRunState(setupChatIdStr),
+        sessionId: setupChatIdStr,
+    };
 });
 
 export const teardown = ((() => {
