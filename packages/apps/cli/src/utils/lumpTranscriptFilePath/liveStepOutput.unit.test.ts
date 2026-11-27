@@ -125,3 +125,117 @@ describe('createLiveStepOutput', () => {
         expect(warn).toHaveBeenCalledWith(expect.stringContaining('bad frame'));
     });
 });
+
+describe.skip('workflow transcript headers', () => {
+    it('keeps the steps header when the event is not a workflow call', () => {
+        const { lines, onCommandOutput } = sink();
+        const event = { contextName: 'ctx', stepIndex: 0 as const, executable: 'npm' };
+        onCommandOutput({ kind: 'start', ...event });
+        onCommandOutput({ kind: 'chunk', ...event, stream: 'stdout', chunk: 'added 1 package\n' });
+        onCommandOutput({ kind: 'end', ...event, succeeded: true });
+        expect(lines.join('')).toBe('--- myLump ctx 0 npm\nadded 1 package\n');
+    });
+
+    it('labels a prompt with the command and the session, then presents the output', () => {
+        const { lines, onCommandOutput } = sink(presenterModule(() => (input) => `shown ${input.chunk}`));
+        const base = {
+            contextName: 'ctx',
+            stepIndex: [0, 4] as [number, number],
+            executable: 'cursor-agent',
+            commandName: 'cursor',
+        };
+        onCommandOutput({
+            kind: 'start',
+            ...base,
+            callKind: 'prompt',
+            label: 'Implement it',
+            sessionId: 'abcdef01-2345-6789-abcd-ef1234567890',
+        });
+        onCommandOutput({ kind: 'chunk', ...base, stream: 'stdout', chunk: 'hi' });
+        onCommandOutput({ kind: 'end', ...base, succeeded: true, exitCode: 0, timedOut: false });
+        expect(lines.join('')).toBe(
+            '── ctx · 0.4 prompt · Implement it (cursor, session abcdef01…) ──\nshown hi',
+        );
+        expect(lines.join('')).not.toContain('✗');
+        expect(lines.join('')).not.toContain('myLump');
+    });
+
+    it('labels a shell call and writes the raw output', () => {
+        const { lines, onCommandOutput } = sink(presenterModule(() => (input) => `shown ${input.chunk}`));
+        const base = {
+            contextName: 'ctx',
+            stepIndex: [0, 2] as [number, number],
+            executable: 'sh',
+            commandName: 'cursor',
+        };
+        onCommandOutput({
+            kind: 'start',
+            ...base,
+            callKind: 'shell',
+            label: 'echo ok',
+        });
+        onCommandOutput({ kind: 'chunk', ...base, stream: 'stdout', chunk: 'ok\n' });
+        onCommandOutput({ kind: 'end', ...base, succeeded: true, exitCode: 0, timedOut: false });
+        expect(lines.join('')).toBe('── ctx · 0.2 shell · echo ok ──\nok\n');
+        expect(lines.join('')).not.toContain('shown');
+    });
+
+    it('writes the exit line only when the call fails', () => {
+        const { lines, onCommandOutput } = sink();
+        const base = {
+            contextName: 'ctx',
+            stepIndex: [0, 2] as [number, number],
+            executable: 'sh',
+        };
+        onCommandOutput({ kind: 'start', ...base, callKind: 'shell', label: 'echo ok' });
+        onCommandOutput({ kind: 'chunk', ...base, stream: 'stdout', chunk: 'ok\n' });
+        onCommandOutput({ kind: 'end', ...base, succeeded: false, exitCode: 2, timedOut: false });
+        expect(lines.join('')).toBe('── ctx · 0.2 shell · echo ok ──\nok\n✗ exit 2\n');
+    });
+
+    it('writes the timeout line instead of an exit code', () => {
+        const { lines, onCommandOutput } = sink();
+        const base = {
+            contextName: 'ctx',
+            stepIndex: [0, 1] as [number, number],
+            executable: 'sh',
+        };
+        onCommandOutput({ kind: 'start', ...base, callKind: 'shell', label: 'sleep' });
+        onCommandOutput({ kind: 'end', ...base, succeeded: false, exitCode: null, timedOut: true });
+        expect(lines.join('')).toBe('── ctx · 0.1 shell · sleep ──\n✗ timed out\n');
+        expect(lines.join('')).not.toContain('✗ exit');
+    });
+
+    it('writes a log line', () => {
+        const { lines, onCommandOutput } = sink();
+        onCommandOutput({ kind: 'log', contextName: 'ctx', message: 'working' });
+        expect(lines.join('')).toBe('· log: working\n');
+    });
+
+    it('writes the workflow end line', () => {
+        const { lines, onCommandOutput } = sink();
+        onCommandOutput({
+            kind: 'workflowEnd',
+            contextName: 'ctx',
+            result: { succeeded: true, push: true, message: 'done' },
+        });
+        onCommandOutput({
+            kind: 'workflowEnd',
+            contextName: 'ctx',
+            result: { succeeded: false, push: true, message: 'tests still red' },
+        });
+        onCommandOutput({
+            kind: 'workflowEnd',
+            contextName: 'other',
+            result: { succeeded: true, push: false, message: 'hold' },
+        });
+        expect(lines.join('')).toBe(
+            [
+                '══ ctx · workflow: succeeded, pushed · "done" ══',
+                '══ ctx · workflow: failed, pushed · "tests still red" ══',
+                '══ other · workflow: succeeded, not pushed · "hold" ══',
+                '',
+            ].join('\n'),
+        );
+    });
+});
