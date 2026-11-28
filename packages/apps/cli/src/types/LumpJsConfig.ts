@@ -1,4 +1,4 @@
-import type { ContextList, LumpVariables, MaybePromise, RunLumpInput, StepVariables } from "@lumpcode/core";
+import type { ContextList, LumpVariables, MaybePromise, RunLumpInput, StepVariables, WorkflowFn } from "@lumpcode/core";
 
 import type { BaseBranchFn } from "./BaseBranchFn";
 import { LumpJsConfigStep } from "./LumpJsConfigStep";
@@ -67,8 +67,13 @@ export type LumpJsConfig<
     prompt?: LumpJsConfigSoloStep<V, SV>;
     steps?: LumpJsConfigSteps<V, SV> | LumpJsConfigStepsItem<V, SV>;
     /**
-     * Default agent/command timeout for steps that omit `timeoutMillis`.
-     * Engine default is 30 minutes when both are omitted.
+     * One function for the context. A module path loads that file's default export.
+     * TypeScript and JavaScript only. Not together with `steps` or `prompt`.
+     */
+    workflow?: FilePath | WorkflowFn<V, SV>;
+    /**
+     * Steps: default limit when a step omits its own. Omitted: 30 minutes.
+     * Workflow: limit for the whole function. Omitted: the engine default, 2 hours.
      */
     timeoutMillis?: number;
     /**

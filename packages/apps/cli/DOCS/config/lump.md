@@ -29,7 +29,7 @@ JSON Schema for editors: `https://lumpcode.com/schemas/lumpConfig.schema.json` (
 
 ## Required
 
-Exactly one [context source](../author/contexts.md) and exactly one [prompt definition](../author/prompts.md). Minimal shape is on [write a lump](../author/write-a-lump.md).
+Exactly one [context source](../author/contexts.md). The work is either `workflow` (TypeScript or JavaScript) or exactly one [prompt definition](../author/prompts.md) (`prompt` or `steps`). Minimal shape is on [write a lump](../author/write-a-lump.md).
 
 ## Field forms
 
@@ -71,7 +71,9 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 
 | Field | What it does |
 | --- | --- |
-| `command` | Default agent for steps that omit their own. |
+| `command` | Default agent for steps that omit their own. A workflow's `agent.session()` uses this when no command is passed. |
+| `workflow` | TypeScript or JavaScript only. One async function for the context: `({ context, agent, shell, log }) => { succeeded, push, message, variables }`. A string path loads a module whose default export is that function. Not together with `prompt` or `steps`. JSON rejects it. |
+| `timeoutMillis` | Steps: default limit when a step omits its own. Omitted: 30 minutes. Workflow: limit for the whole function. Omitted: 2 hours. |
 | `baseBranch` | Exact execution branch. Omit to use the concrete discovery / primary branch. JS/TS may use `({ effectiveDiscoveryBranch, contexts }) => string`. |
 | `discoveryBranch` / `discoveryBranches` | Where a dedicated worker finds this lump. Mutually exclusive. Globs allowed. Ignored for `run` in shared mode. |
 | `disabled` | Soft-skip on `run` and on the worker (exit 0). Boolean, function, or module path. |
@@ -85,8 +87,8 @@ command: ({ prompt }) => ({ executable: 'my-agent', args: ['-p', prompt] })
 | `registerCommands` | Extra command tags that appear only inside dynamic `steps`. |
 | `branchFn` | Custom work-branch name. Default `lump/<lumpName>/<contexts…>`. |
 | `setupFn` / `teardownFn` | Per-context hooks. Teardown always runs; failures are logged and do not block git. |
-| `postSetupWorkspaceFn` / `Command` | After generated git setup, in the branch workspace (`npm ci`). Not under the git lock; do not put git mutations here. Mutually exclusive pairs. |
-| `postTeardownWorkspaceFn` / `Command` | Before generated teardown. Same rules. `openPrPostTeardown` hooks in here. |
+| `postSetupWorkspaceFn` / `Command` | After generated git setup, in the branch workspace (`npm ci`). Not under the git lock; do not put git mutations here. Mutually exclusive pairs. The function receives `contextResults: []`. |
+| `postTeardownWorkspaceFn` / `Command` | Before generated teardown. Same rules. `openPrPostTeardown` hooks in here. The function receives `contextResults`, one per context run on this branch, in run order. The command string does not. |
 | `contextOptionsFn` | Only with a `contextListJson` path-template object: attach `priority` / `dependsOnContexts`. |
 
 There are **no** `setupWorkspaceFn` / `teardownWorkspaceFn` knobs. The CLI generates git setup from `local.json` and `baseBranch`. `lump-plan` skips post-setup / post-teardown commands.

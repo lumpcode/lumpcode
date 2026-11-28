@@ -5,6 +5,10 @@ import type { OutputDetail } from '../../types/OutputDetail';
 import type { PresentOutputFn } from '../../types/PresentOutputFn';
 import { resolveOutputDetail } from './resolveOutputDetail';
 
+function stepLabelOf(stepIndex: number | number[]): string {
+    return Array.isArray(stepIndex) ? stepIndex.join('.') : String(stepIndex);
+}
+
 export function formatLiveStepHeader({
     lumpName,
     contextName,
@@ -16,8 +20,25 @@ export function formatLiveStepHeader({
     stepIndex: number | number[];
     executable: string;
 }): string {
-    const stepLabel = Array.isArray(stepIndex) ? stepIndex.join('.') : String(stepIndex);
-    return `--- ${lumpName} ${contextName} ${stepLabel} ${executable}\n`;
+    return `--- ${lumpName} ${contextName} ${stepLabelOf(stepIndex)} ${executable}\n`;
+}
+
+function formatWorkflowCallHeader(event: Extract<CommandOutputEvent, { kind: 'start' }>): string {
+    const stepLabel = stepLabelOf(event.stepIndex);
+    const label = event.label ?? '';
+    if (event.callKind === 'shell') {
+        return `── ${event.contextName} · ${stepLabel} shell · ${label} ──\n`;
+    }
+    const command = event.commandName ?? event.executable;
+    const sessionPrefix = (event.sessionId ?? '').slice(0, 8);
+    return `── ${event.contextName} · ${stepLabel} prompt · ${label} (${command}, session ${sessionPrefix}…) ──\n`;
+}
+
+function formatWorkflowEnd(event: Extract<CommandOutputEvent, { kind: 'workflowEnd' }>): string {
+    const status = event.result.succeeded ? 'succeeded' : 'failed';
+    const pushed = event.result.push ? 'pushed' : 'not pushed';
+    const message = event.result.message ?? '';
+    return `══ ${event.contextName} · workflow: ${status}, ${pushed} · "${message}" ══\n`;
 }
 
 export function createLiveStepOutput({
@@ -35,6 +56,7 @@ export function createLiveStepOutput({
     let modules: ReadonlyMap<string, CommandModule> = new Map();
     let presenter: PresentOutputFn | undefined;
     let outputDetail: OutputDetail = 'loud';
+    let workflowCall = false;
 
     const safeWrite = (text: string) => {
         if (!text) return;
@@ -47,14 +69,28 @@ export function createLiveStepOutput({
     };
 
     const onCommandOutput = (event: CommandOutputEvent) => {
+        if (event.kind === 'log') {
+            safeWrite(`· log: ${event.message}\n`);
+            return;
+        }
+
+        if (event.kind === 'workflowEnd') {
+            safeWrite(formatWorkflowEnd(event));
+            return;
+        }
+
         if (event.kind === 'start') {
-            safeWrite(formatLiveStepHeader({
-                lumpName,
-                contextName: event.contextName,
-                stepIndex: event.stepIndex,
-                executable: event.executable,
-            }));
+            workflowCall = event.callKind === 'prompt' || event.callKind === 'shell';
+            safeWrite(workflowCall
+                ? formatWorkflowCallHeader(event)
+                : formatLiveStepHeader({
+                    lumpName,
+                    contextName: event.contextName,
+                    stepIndex: event.stepIndex,
+                    executable: event.executable,
+                }));
             presenter = undefined;
+            if (event.callKind === 'shell') return;
             const commandName = event.commandName;
             const factory = commandName ? modules.get(commandName)?.presentOutput : undefined;
             if (!factory) return;
@@ -80,7 +116,11 @@ export function createLiveStepOutput({
         }
 
         if (event.kind === 'end') {
+            if (workflowCall && event.succeeded === false) {
+                safeWrite(event.timedOut ? '✗ timed out\n' : `✗ exit ${event.exitCode}\n`);
+            }
             presenter = undefined;
+            workflowCall = false;
             return;
         }
 

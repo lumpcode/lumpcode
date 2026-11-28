@@ -1,4 +1,4 @@
-import type { LumpVariables, SetupWorkspaceFn, TeardownWorkspaceFn } from '@lumpcode/core';
+import type { ContextResult, LumpVariables, SetupWorkspaceFn, TeardownWorkspaceFn } from '@lumpcode/core';
 import { execAsync } from '@lumpcode/core';
 
 import type { PostSetupWorkspaceFn } from '../../types/PostSetupWorkspaceFn';
@@ -54,11 +54,17 @@ export function composeLumpWorkspaceFns<V extends LumpVariables = LumpVariables>
 
     const hookBag = (
         workspacePath: string,
-        base: { baseBranch: string; branchName: string; contextList: PostSetupWorkspaceFnInput['contextList'] },
+        base: {
+            baseBranch: string;
+            branchName: string;
+            contextList: PostSetupWorkspaceFnInput['contextList'];
+            contextResults?: ContextResult[];
+        },
     ): PostSetupWorkspaceFnInput<V> => ({
         baseBranch: base.baseBranch,
         branchName: base.branchName,
         contextList: base.contextList,
+        contextResults: base.contextResults ?? [],
         workspacePath,
         executionWorkspacePath,
         workspaceStrategy,

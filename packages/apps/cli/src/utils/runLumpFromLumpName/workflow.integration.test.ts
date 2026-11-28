@@ -13,7 +13,7 @@ import { writeJsonFile } from '../writeJsonFile';
 import { runLumpFromJsConfigFailureMessage } from '../runLumpFromJsConfig';
 import { runLumpFromLumpName } from './main';
 
-describe.skip('workflow config run', () => {
+describe('workflow config run', () => {
     it('pushes a branch and gives teardown one ContextResult per context', async () => {
         const dirs = await createTempTestDirs({ prefix: 'lump-workflow-run-' });
         const { projectRoot, remoteDir, localConfigFolderPath, globalConfigFolderPath } = dirs;

@@ -126,7 +126,7 @@ describe('createLiveStepOutput', () => {
     });
 });
 
-describe.skip('workflow transcript headers', () => {
+describe('workflow transcript headers', () => {
     it('keeps the steps header when the event is not a workflow call', () => {
         const { lines, onCommandOutput } = sink();
         const event = { contextName: 'ctx', stepIndex: 0 as const, executable: 'npm' };

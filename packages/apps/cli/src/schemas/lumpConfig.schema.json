@@ -78,7 +78,7 @@
     "timeoutMillis": {
       "type": "integer",
       "minimum": 1,
-      "description": "Default maximum time in milliseconds for agent/command steps that omit their own timeoutMillis. On expiry, Lumpcode terminates the command process tree (SIGTERM, then SIGKILL after a grace period) and the step fails. Per-step timeoutMillis overrides this value. When both are omitted, the engine default is 30 minutes (1800000).",
+      "description": "Default maximum time in milliseconds for agent/command steps that omit their own timeoutMillis. On expiry, Lumpcode terminates the command process tree (SIGTERM, then SIGKILL after a grace period) and the step fails. Per-step timeoutMillis overrides this value. When both are omitted, the engine default is 30 minutes (1800000). A TypeScript or JavaScript workflow uses this value as the limit for the whole function; when it is omitted, the engine default is 2 hours.",
       "examples": [600000, 1800000]
     },
     "contextListJson": {

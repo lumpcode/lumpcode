@@ -8,6 +8,7 @@ import {
     type Failure,
     getCodeBasePaths,
     getToDoContextList,
+    type Logger,
     success,
     type Success,
 } from '@lumpcode/core';
@@ -34,6 +35,10 @@ export type PlanLumpContextEntry = {
 export type PlanLumpOutput = {
     lumpName: string;
     valid: true;
+    /** `workflow` when the lump defines `workflow`; otherwise `steps`. */
+    run: 'workflow' | 'steps';
+    /** Config warnings, including `registerCommands` on a workflow lump. */
+    warnings?: string[];
     disabled: boolean;
     discoveryBranch: string;
     baseBranch: string;
@@ -83,6 +88,9 @@ export async function planLumpFromJsConfig(input: {
     if (!resolvedResult.success) return resolvedResult;
     const localConfig = resolvedResult.data;
 
+    const warnings: string[] = [];
+    const logger = planLogger(warnings);
+
     const jsConfResult = await getJsConfigFromLumpName({ lumpName, localConfigFolderPath });
     if (!jsConfResult.success) return jsConfResult;
     const jsConfig = applyLumpConfigDefaults({
@@ -128,6 +136,7 @@ export async function planLumpFromJsConfig(input: {
         localConfig,
         effectiveDiscoveryBranch: discoveryResult.data,
         skipPostWorkspaceHooks: true,
+        logger,
     });
     if (!runLumpInputResult.success) return runLumpInputResult;
 
@@ -137,6 +146,8 @@ export async function planLumpFromJsConfig(input: {
     const baseOutput: PlanLumpOutput = {
         lumpName,
         valid: true,
+        run: runLumpInput.workflow !== undefined ? 'workflow' : 'steps',
+        ...(warnings.length > 0 ? { warnings } : {}),
         disabled: disabledResult.data.disabled,
         discoveryBranch: discoveryResult.data,
         baseBranch,
@@ -211,25 +222,27 @@ export async function planLumpFromJsConfig(input: {
         return success(baseOutput);
     }
 
-    const workspacePathForPreview = runLumpInput.projectRoot;
-    const promptsByContext: Record<string, CollectedStep[]> = {};
+    if (runLumpInput.workflow === undefined) {
+        const workspacePathForPreview = runLumpInput.projectRoot;
+        const promptsByContext: Record<string, CollectedStep[]> = {};
 
-    for (let i = 0; i < contexts.length; i++) {
-        const context = contexts[i];
-        const steps = await collectStepsForContext({
-            context,
-            contextList: contexts,
-            currentContextIndex: i,
-            lumpVariables,
-            steps: runLumpInput.steps ?? [],
-            setupFn: runLumpInput.setupFn!,
-            projectRoot: runLumpInput.projectRoot,
-            workspacePath: workspacePathForPreview,
-        });
-        promptsByContext[context.name] = steps;
+        for (let i = 0; i < contexts.length; i++) {
+            const context = contexts[i];
+            const steps = await collectStepsForContext({
+                context,
+                contextList: contexts,
+                currentContextIndex: i,
+                lumpVariables,
+                steps: runLumpInput.steps ?? [],
+                setupFn: runLumpInput.setupFn!,
+                projectRoot: runLumpInput.projectRoot,
+                workspacePath: workspacePathForPreview,
+            });
+            promptsByContext[context.name] = steps;
+        }
+
+        baseOutput.promptsByContext = promptsByContext;
     }
-
-    baseOutput.promptsByContext = promptsByContext;
 
     if (depth === 'prompts') {
         return success(baseOutput);
@@ -302,4 +315,17 @@ export async function planLumpFromJsConfig(input: {
     };
 
     return success(baseOutput);
+}
+
+function planLogger(warnings: string[]): Logger {
+    const logger: Logger = {
+        error: () => {},
+        warn: (message) => {
+            warnings.push(message);
+        },
+        info: () => {},
+        verbose: () => {},
+        child: () => logger,
+    };
+    return logger;
 }
