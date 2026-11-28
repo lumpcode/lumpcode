@@ -28,7 +28,7 @@ function workflowConfigTs(lumpName: string): string {
 `;
 }
 
-describe.skip('E2E workflow lump', () => {
+describe('E2E workflow lump', () => {
     const { createProject } = useE2eProjects({ stopDaemonOnTeardown: true });
 
     function lump(name: string) {

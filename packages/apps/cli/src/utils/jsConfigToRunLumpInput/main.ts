@@ -19,6 +19,7 @@ import type {
     TeardownFn,
     Context,
     ContextList,
+    WorkflowFn,
 } from "@lumpcode/core";
 import { execAsync, success, failure, pathExists, getCodeBasePaths } from "@lumpcode/core";
 import { noopLogger } from '../noopLogger';
@@ -66,6 +67,10 @@ import { createLiveStepOutput } from '../lumpTranscriptFilePath';
 import type { LumpLine } from '../lumpLine';
 import { normalizeSteps } from './normalizeSteps';
 import { createCliAgent } from '../createCliAgent';
+
+const WORKFLOW_OR_STEPS = 'Use workflow or steps/prompt, not both.';
+const REGISTER_COMMANDS_WITH_WORKFLOW =
+    'registerCommands is not needed with workflow; presets load on first use.';
 
 /** CLI-only reporter: set / clear `contextName` on the active daemon lump line. */
 export type DaemonRunTelemetry = {
@@ -136,10 +141,9 @@ export async function jsConfigToRunLumpInput({
         postTeardownWorkspaceCommand,
         verbose: _configVerbose,
         skipCommitAndPush,
+        workflow: rawWorkflow,
         ...rest
     } = config;
-
-    const hasWorkflow = typeof (config as { workflow?: unknown }).workflow === 'function';
 
     if (postSetupWorkspaceFnField !== undefined && postSetupWorkspaceCommand !== undefined) {
         return failure('postSetupWorkspaceFn and postSetupWorkspaceCommand are mutually exclusive');
@@ -153,6 +157,17 @@ export async function jsConfigToRunLumpInput({
 
     const projectRoot = path.dirname(localConfigFolderPath);
     const fnImportOptions = { importBasePath: lumpImportBasePath({ localConfigFolderPath, lumpName }) };
+
+    const workflowResult = await resolveWorkflowField({
+        rawWorkflow,
+        prompt,
+        steps: jsSteps,
+        registerCommands,
+        fnImportOptions,
+        logger,
+    });
+    if (!workflowResult.success) return workflowResult;
+    const workflow = workflowResult.data;
 
     let concreteDiscovery: string;
     if (providedEffectiveDiscoveryBranch !== undefined) {
@@ -312,7 +327,7 @@ export async function jsConfigToRunLumpInput({
     }
 
     let steps: Steps | undefined;
-    if (!hasWorkflow) {
+    if (workflow === undefined) {
         const stepsResult = await resolveSteps({
             prompt,
             jsSteps,
@@ -343,7 +358,7 @@ export async function jsConfigToRunLumpInput({
         setupFn: composeSetupFn({
             userSetupFn: resolvedUserSetupFn,
             commandModules,
-            runCommandSetups: !hasWorkflow,
+            runCommandSetups: workflow === undefined,
         }),
         teardownFn: composeTeardownFn({ userTeardownFn: resolvedUserTeardownFn, commandModules }),
         daemonRunTelemetry,
@@ -366,7 +381,9 @@ export async function jsConfigToRunLumpInput({
         ...(gatedGitFns ?? {}),
         ...(refreshRemoteTrackingRefsFn ? { refreshRemoteTrackingRefsFn } : {}),
         ...(steps !== undefined ? { steps } : {}),
-        ...(hasWorkflow ? {
+        ...(workflow !== undefined ? {
+            workflow,
+            ...(configTimeoutMillis !== undefined ? { timeoutMillis: configTimeoutMillis } : {}),
             createAgent: createCliAgent({
                 commandModules,
                 defaultCommand,
@@ -389,6 +406,40 @@ export async function jsConfigToRunLumpInput({
     };
 
     return success(retConf);
+}
+
+async function resolveWorkflowField(input: {
+    rawWorkflow: unknown;
+    prompt: unknown;
+    steps: unknown;
+    registerCommands: unknown;
+    fnImportOptions: { importBasePath: string };
+    logger: Logger;
+}): Promise<Success<WorkflowFn | undefined> | Failure<string>> {
+    const { rawWorkflow, prompt, steps, registerCommands, fnImportOptions, logger } = input;
+    if (rawWorkflow === undefined) return success(undefined);
+
+    if (prompt !== undefined || steps !== undefined) {
+        return failure(WORKFLOW_OR_STEPS);
+    }
+
+    let workflowFn: unknown = rawWorkflow;
+    if (typeof rawWorkflow === 'string') {
+        const imported = await resolveFnOrDefaultImport<WorkflowFn>(rawWorkflow, fnImportOptions);
+        if (!imported.success) return imported;
+        workflowFn = imported.data;
+    }
+
+    if (typeof workflowFn !== 'function') {
+        const kind = workflowFn === null ? 'null' : typeof workflowFn;
+        return failure(`workflow must be a function (got ${kind}).`);
+    }
+
+    if (registerCommands !== undefined) {
+        logger.warn(REGISTER_COMMANDS_WITH_WORKFLOW);
+    }
+
+    return success(workflowFn as WorkflowFn);
 }
 
 async function resolveConcreteBaseBranch(input: {

@@ -33,9 +33,19 @@ function formatAjvErrors(errors: ErrorObject[] | null | undefined): string {
         .join('; ');
 }
 
+const WORKFLOW_NEEDS_CODE_CONFIG = 'workflow needs a TypeScript or JavaScript config.';
+
 export function validateLumpJsonConfig(
     jsonConfig: unknown,
 ): Success<void> | Failure<string> {
+    if (
+        jsonConfig !== null
+        && typeof jsonConfig === 'object'
+        && !Array.isArray(jsonConfig)
+        && Object.prototype.hasOwnProperty.call(jsonConfig, 'workflow')
+    ) {
+        return failure(WORKFLOW_NEEDS_CODE_CONFIG);
+    }
     const validate = getValidator();
     if (!validate(jsonConfig)) {
         return failure(formatAjvErrors(validate.errors));

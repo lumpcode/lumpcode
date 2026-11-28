@@ -64,6 +64,7 @@ describe('composeLumpWorkspaceFns', () => {
                 {
                     ...setupInput,
                     workspacePath: '/wk',
+                    contextResults: [],
                     ...extraHookFields,
                 },
             ]);
@@ -196,6 +197,7 @@ describe('composeLumpWorkspaceFns', () => {
                 {
                     ...setupInput,
                     workspacePath: '/wk',
+                    contextResults: [],
                     ...extraHookFields,
                 },
             ]);

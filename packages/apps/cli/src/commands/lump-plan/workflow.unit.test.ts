@@ -27,7 +27,7 @@ const WORKFLOW_CONFIG_JS = `export default {
 };
 `;
 
-describe.skip('lump-plan workflow', () => {
+describe('lump-plan workflow', () => {
     async function withProject(run: (input: {
         projectRoot: string;
         localConfigFolderPath: string;

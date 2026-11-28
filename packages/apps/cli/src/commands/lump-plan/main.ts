@@ -70,11 +70,19 @@ function resolveDepth(options: Input['options']): LumpPlanDepth {
 function formatHumanPlan(data: PlanLumpOutput, todoOnly?: boolean): string[] {
     const lines: string[] = [
         `Lump "${data.lumpName}" is valid.`,
+    ];
+    if (data.run === 'workflow') {
+        lines.push('run: workflow');
+    }
+    for (const warning of data.warnings ?? []) {
+        lines.push(warning);
+    }
+    lines.push(
         `discoveryBranch: ${data.discoveryBranch}`,
         `baseBranch: ${data.baseBranch}`,
         `executionWorkspacePath: ${data.executionWorkspacePath}`,
         `disabled: ${data.disabled}`,
-    ];
+    );
 
     if (data.contexts) {
         lines.push(`contexts (${data.contexts.length}):`);

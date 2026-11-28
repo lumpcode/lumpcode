@@ -21,6 +21,7 @@ function hookInput(overrides: Partial<PostSetupWorkspaceFnInput> = {}): PostSetu
         baseBranch: 'dev',
         branchName: 'lump/backlog/foo',
         contextList: [{ name: 'foo', variables: {} }],
+        contextResults: [],
         workspacePath: '/tmp/ws',
         executionWorkspacePath: '/tmp/exec',
         workspaceStrategy: 'checkout',
