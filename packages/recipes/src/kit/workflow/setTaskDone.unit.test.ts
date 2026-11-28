@@ -8,7 +8,7 @@ import type { Context } from '@lumpcode/core';
 import { setTaskDone } from './setTaskDone';
 
 // Skipped until the impl stage fills in the workflow helper. Unskip; do not rewrite.
-describe.skip('setTaskDone', () => {
+describe('setTaskDone', () => {
     let workspacePath: string;
     const itemsDirRelative = 'backlogItems';
 

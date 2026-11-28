@@ -21,7 +21,7 @@ import { defaultReqFixPrompt, defaultTestPlanFixPrompt } from './defaultPrompts'
 import { featureBacklog } from './workflowRecipe';
 
 // Skipped until the impl stage fills in the workflow recipe. Unskip; do not rewrite.
-describe.skip('featureBacklog workflow', () => {
+describe('featureBacklog workflow', () => {
     async function scaffold() {
         projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-workflow-'));
         workspacePath = projectRoot;

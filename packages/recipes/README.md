@@ -31,7 +31,7 @@ export default featureBacklog({
 name: export-csv
 task: Add a "Download CSV" button to the orders table.
 priority: 1
-workflow: [req, impl]
+stages: [req, impl]
 ```
 
 ## Kit: retry until green
@@ -73,7 +73,9 @@ export default defineConfig({
 | `openPrPostTeardown` | opens a GitHub PR with `gh` after push |
 | `folderBacklogContexts`, `folderSetTaskDoneStep`, `listTodoRelativeDirs` | building blocks of the folder backlog |
 | `ephemeralContextListFn` | fresh contexts every pass, for hunts and scans |
-| `defaultReqPrompt`, `defaultImplPrompt`, … | the `featureBacklog` prompts, to wrap with `promptFns` |
+| `defaultReqPrompt`, `defaultImplPrompt`, … | the `featureBacklog` prompts, to wrap from `prompts` |
+| `featureBacklogSteps`, `backlogSteps`, `abstractionFinderSteps`, `abstractionBacklogSteps` | the steps versions of the recipes |
+| `setTaskDone` | move a finished item to `completed/` |
 
 Recipe factories need `configUrl: import.meta.url`. Every factory and helper keeps the `<V, SV>` generics of `defineConfig`, so typed preset options flow through.
 

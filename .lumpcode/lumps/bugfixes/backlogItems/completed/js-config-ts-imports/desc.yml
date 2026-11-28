@@ -1,5 +1,5 @@
 name: js-config-ts-imports
-workflow:
+stages:
   - impl
 task: >-
   A lump config.js (or any .js module Lumpcode imports) that imports a relative

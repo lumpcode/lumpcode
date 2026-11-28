@@ -145,7 +145,7 @@ Rules:
 ```yaml
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: <kebab-name>
-workflow: [req, testPlan, testImpl, impl]
+stages: [req, testPlan, testImpl, impl]
 task: >-
   One or two sentences describing what this ticket makes work,
   from the user's or operator's perspective.
@@ -162,7 +162,7 @@ Field guidance:
 | `name` | yes | Same as the directory name. |
 | `task` | yes | End-to-end outcome, not a layer-by-layer implementation list. |
 | `priority` | yes | Lower number = sooner. Start the first ticket at `0`, then `1`, `2`, … |
-| `workflow` | no | Array of stages. Defaults to `[manualReq, testImpl, impl]` for `featureBacklog`. Use `req` when the agent should write requirements, `manualReq` for a human-gated requirements step, `directImpl` to skip requirements, `impl` only for pure implementation. Omit if the lump uses the generic `backlog` recipe (it ignores `workflow`). |
+| `stages` | no | Array of stages. Defaults to `[manualReq, testImpl, impl]` for `featureBacklog`. Use `req` when the agent should write requirements, `manualReq` for a human-gated requirements step, `directImpl` to skip requirements, `impl` only for pure implementation. Omit if the lump uses the generic `backlog` recipe (it ignores `stages`). `workflow` is a deprecated alias. |
 | `dependsOn` | no | Array of item names this ticket is blocked by. Same-lump items use bare names. Cross-lump dependencies use `<otherLumpName>/<contextName>`. |
 | `manual` | no | Set `true` if this ticket should not spawn implementation sub-contexts after its umbrella `completion` stage (umbrella parents only). |
 
@@ -215,7 +215,7 @@ Use the `write-requirements` skill to generate it. Keep `desc.yml` short; put th
 ```yaml
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: wire-rate-limit-to-api
-workflow: [req, testImpl, impl]
+stages: [req, testImpl, impl]
 task: >-
   Apply the new rate-limit helper to every public API endpoint so requests
   above the configured threshold return 429 with a Retry-After header.

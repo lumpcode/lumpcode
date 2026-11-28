@@ -1,5 +1,5 @@
 name: scaffold-lumpcode-project
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

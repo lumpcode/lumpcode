@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: worker-docker-image
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   An official worker image published from CI on release: Node 22, git, the
   CLI, and the agent CLI the operator picks (Claude Code, Codex, Cursor,

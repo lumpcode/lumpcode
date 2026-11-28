@@ -1,5 +1,5 @@
 name: retry-until-green-exhausted-passes
-workflow:
+stages:
   - impl
 task: >-
   getRecursiveSteps (behind retryUntilGreen) caps retries on stepIndex nesting

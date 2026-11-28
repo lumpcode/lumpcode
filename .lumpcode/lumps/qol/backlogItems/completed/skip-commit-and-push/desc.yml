@@ -1,5 +1,5 @@
 name: skip-commit-and-push
-workflow:
+stages:
   - directImpl
 task: >-
   A lump can set skipCommitAndPush so a dedicated run still does its work in the

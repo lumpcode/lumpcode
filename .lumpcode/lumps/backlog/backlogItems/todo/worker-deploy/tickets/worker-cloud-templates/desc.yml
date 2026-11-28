@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: worker-cloud-templates
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   Templates in the repo that boot the worker image on a fresh VM: cloud-init
   for Hetzner and DigitalOcean, an ARM template behind a Deploy to Azure link,

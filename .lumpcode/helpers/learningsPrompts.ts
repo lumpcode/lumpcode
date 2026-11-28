@@ -1,19 +1,15 @@
-import {
-    type Context,
-    type LumpVariables,
-    type PromptFn,
-    type StepVariables,
-} from '@lumpcode/cli-utils';
+import type { Context, LumpVariables, PromptFn } from '@lumpcode/cli-utils';
 import {
     defaultDirectImplPrompt,
     defaultImplPrompt,
     defaultReqPrompt,
     defaultTestImplPrompt,
     defaultTestPlanPrompt,
-    type FeatureBacklogStepsPromptFns,
+    type FeatureBacklogPromptInput,
+    type FeatureBacklogPrompts,
 } from '@lumpcode/recipes';
 
-type Stage = keyof FeatureBacklogStepsPromptFns;
+type Stage = keyof FeatureBacklogPrompts;
 
 function contextVariable(context: Context, key: string): string {
     const value = context.variables[key];
@@ -52,28 +48,39 @@ function learningsAddendum(context: Context): string {
     ].join('\n');
 }
 
+function asWorkflowPrompt<V extends LumpVariables>(
+    promptFn: PromptFn<V>,
+): (input: FeatureBacklogPromptInput<V>) => Promise<string> {
+    return (input) => Promise.resolve(promptFn({
+        context: input.context,
+        lumpVariables: input.lumpVariables,
+        stepIndex: 0,
+        contextRunState: {},
+    }));
+}
+
 /** Appends the capture-learnings instruction to a stage prompt. */
-export function withLearnings<V extends LumpVariables = LumpVariables, SV extends StepVariables = StepVariables>(
-    promptFn: PromptFn<V, SV>,
-): PromptFn<V, SV> {
+export function withLearnings<V extends LumpVariables = LumpVariables>(
+    prompt: NonNullable<FeatureBacklogPrompts<V>[Stage]>,
+): (input: FeatureBacklogPromptInput<V>) => Promise<string> {
     return async (input) => {
-        const body = await promptFn(input);
+        const body = typeof prompt === 'string' ? prompt : await prompt(input);
         return `${body}\n\n${learningsAddendum(input.context)}`;
     };
 }
 
 /**
- * `featureBacklog` `promptFns` where every stage also writes the item's learnings.md.
+ * `featureBacklog` `prompts` where every stage also writes the item's learnings.md.
  * `overrides` replace a stage's default prompt before the learnings instruction is appended.
  */
-export function learningsPromptFns<V extends LumpVariables = LumpVariables, SV extends StepVariables = StepVariables>(
-    overrides: Partial<Record<Stage, PromptFn<V, SV>>> = {},
-): FeatureBacklogStepsPromptFns<V, SV> {
+export function learningsPrompts<V extends LumpVariables = LumpVariables>(
+    overrides: Partial<{ [K in Stage]: NonNullable<FeatureBacklogPrompts<V>[K]> }> = {},
+): FeatureBacklogPrompts<V> {
     return {
-        req: withLearnings(overrides.req ?? defaultReqPrompt),
-        testPlan: withLearnings(overrides.testPlan ?? defaultTestPlanPrompt),
-        testImpl: withLearnings(overrides.testImpl ?? defaultTestImplPrompt),
-        impl: withLearnings(overrides.impl ?? defaultImplPrompt),
-        directImpl: withLearnings(overrides.directImpl ?? defaultDirectImplPrompt),
+        req: withLearnings(overrides.req ?? asWorkflowPrompt(defaultReqPrompt)),
+        testPlan: withLearnings(overrides.testPlan ?? asWorkflowPrompt(defaultTestPlanPrompt)),
+        testImpl: withLearnings(overrides.testImpl ?? asWorkflowPrompt(defaultTestImplPrompt)),
+        impl: withLearnings(overrides.impl ?? asWorkflowPrompt(defaultImplPrompt)),
+        directImpl: withLearnings(overrides.directImpl ?? asWorkflowPrompt(defaultDirectImplPrompt)),
     };
 }

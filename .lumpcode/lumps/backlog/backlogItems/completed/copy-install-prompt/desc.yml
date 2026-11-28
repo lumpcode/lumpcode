@@ -1,5 +1,5 @@
 name: copy-install-prompt
-workflow:
+stages:
   - manualReq
   - impl
 task: >-

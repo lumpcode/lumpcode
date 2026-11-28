@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: dashboard-lump-board
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   A board page on the worker dashboard: for each lump, its contexts as toDo,
   branchPushed or finished with counts, the same data as `lump-status` read

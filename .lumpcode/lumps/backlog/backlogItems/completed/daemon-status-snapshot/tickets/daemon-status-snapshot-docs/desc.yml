@@ -1,5 +1,5 @@
 name: daemon-status-snapshot-docs
-workflow:
+stages:
   - manualReq
   - impl
 task: >-

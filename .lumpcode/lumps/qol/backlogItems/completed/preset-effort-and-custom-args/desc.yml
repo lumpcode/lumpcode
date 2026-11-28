@@ -1,5 +1,5 @@
 name: preset-effort-and-custom-args
-workflow:
+stages:
   - impl
 task: >-
   Let every shipped agent preset take an extraArgs string list from

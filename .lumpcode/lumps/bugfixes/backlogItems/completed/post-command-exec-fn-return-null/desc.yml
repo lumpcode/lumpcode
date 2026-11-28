@@ -1,5 +1,5 @@
 name: post-command-exec-fn-return-null
-workflow:
+stages:
   - impl
 task: >-
   A postCommandExecFn that returns null fails to type-check (core

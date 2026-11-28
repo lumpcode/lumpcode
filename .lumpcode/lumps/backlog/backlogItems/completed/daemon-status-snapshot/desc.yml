@@ -1,6 +1,6 @@
 name: daemon-status-snapshot
 manual: true
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

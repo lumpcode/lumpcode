@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: history-and-transcripts
-workflow: [req, impl]
+stages: [req, impl]
 task: >-
   Keep keepHistory. Fix append so a bad file cannot drop the next entry.
   Today append reads the whole YAML file and writes it back, so one parse

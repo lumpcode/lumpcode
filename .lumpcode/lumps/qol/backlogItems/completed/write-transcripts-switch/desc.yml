@@ -1,5 +1,5 @@
 name: write-transcripts-switch
-workflow:
+stages:
   - manualReq
   - impl
 task: >-

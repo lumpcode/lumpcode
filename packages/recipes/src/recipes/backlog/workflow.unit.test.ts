@@ -9,7 +9,7 @@ import type { WorkflowFn } from '@lumpcode/core';
 import { backlog } from './workflowRecipe';
 
 // Skipped until the impl stage fills in the workflow recipe. Unskip; do not rewrite.
-describe.skip('backlog workflow', () => {
+describe('backlog workflow', () => {
     let projectRoot: string;
     let configPath: string;
 

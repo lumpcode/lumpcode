@@ -1,5 +1,5 @@
 name: dashboard-match-website-look
-workflow:
+stages:
   - directImpl
 task: >-
   Align the read-only worker dashboard (packages/apps/dashboard/src/page.ts)

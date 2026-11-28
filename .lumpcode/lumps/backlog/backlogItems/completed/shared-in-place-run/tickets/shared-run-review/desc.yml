@@ -1,5 +1,5 @@
 name: shared-run-review
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

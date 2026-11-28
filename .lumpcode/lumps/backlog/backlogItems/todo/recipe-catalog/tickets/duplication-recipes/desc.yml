@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: duplication-recipes
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   Rename `abstractionFinder` to `duplicationFinder` and `abstractionBacklog`
   to `duplicationRemover` (and their `…Steps` versions to

@@ -22,13 +22,13 @@ function warnManualReqDeprecated(): void {
     );
 }
 
-function warnReqAndManualReq(itemName: string): void {
+function warnReqAndManualReq(itemName: string, field: 'stages' | 'workflow'): void {
     if (warnedReqAndManualReq) {
         return;
     }
     warnedReqAndManualReq = true;
     console.warn(
-        `[lumpcode/recipes] featureBacklog: backlog item "${itemName}" field "workflow" contains both ` +
+        `[lumpcode/recipes] featureBacklog: backlog item "${itemName}" field "${field}" contains both ` +
             '"req" and "manualReq"; using "manualReq".',
     );
 }
@@ -67,38 +67,81 @@ function normalizeWorkflow(stages: FeatureBacklogWorkflowStage[]): FeatureBacklo
     return normalized;
 }
 
-export function parseFeatureWorkflow(itemName: string, raw: unknown): FeatureBacklogWorkflow | undefined {
+function asDescRecord(raw: unknown): Record<string, unknown> | undefined {
     if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
         return undefined;
     }
-    const record = raw as Record<string, unknown>;
+    return raw as Record<string, unknown>;
+}
+
+function parseStageList(
+    itemName: string,
+    field: 'stages' | 'workflow',
+    value: unknown,
+): FeatureBacklogWorkflow {
+    if (!Array.isArray(value)) {
+        throw new Error(
+            `Backlog item "${itemName}" field "${field}" must be an array of stages: ${FEATURE_BACKLOG_WORKFLOW_STAGES.join(', ')}`,
+        );
+    }
+    if (value.length !== new Set(value).size) {
+        throw new Error(`Backlog item "${itemName}" field "${field}" must not contain duplicate stages`);
+    }
+    const stages: FeatureBacklogWorkflowStage[] = [];
+    for (const entry of value) {
+        if (!isWorkflowStage(entry)) {
+            throw new Error(
+                `Backlog item "${itemName}" field "${field}" contains unknown stage ${JSON.stringify(entry)}`,
+            );
+        }
+        stages.push(entry);
+    }
+    if (stages.includes('req') && stages.includes('manualReq')) {
+        warnReqAndManualReq(itemName, field);
+    }
+    return normalizeWorkflow(stages);
+}
+
+/** Steps recipe: reads `desc.yml` `workflow` only. */
+export function parseFeatureWorkflow(itemName: string, raw: unknown): FeatureBacklogWorkflow | undefined {
+    const record = asDescRecord(raw);
+    if (record === undefined) {
+        return undefined;
+    }
     if ('manualReq' in record) {
         warnManualReqDeprecated();
     }
     if (record.workflow === undefined) {
         return undefined;
     }
-    if (!Array.isArray(record.workflow)) {
-        throw new Error(
-            `Backlog item "${itemName}" field "workflow" must be an array of stages: ${FEATURE_BACKLOG_WORKFLOW_STAGES.join(', ')}`,
-        );
+    return parseStageList(itemName, 'workflow', record.workflow);
+}
+
+/**
+ * Workflow recipe: reads `stages`. `workflow` is a deprecated alias.
+ * Warns once per call when only the alias is set. Both fields throw.
+ */
+export function parseFeatureStages(itemName: string, raw: unknown): FeatureBacklogWorkflow | undefined {
+    const record = asDescRecord(raw);
+    if (record === undefined) {
+        return undefined;
     }
-    if (record.workflow.length !== new Set(record.workflow).size) {
-        throw new Error(`Backlog item "${itemName}" field "workflow" must not contain duplicate stages`);
+    if ('manualReq' in record) {
+        warnManualReqDeprecated();
     }
-    const stages: FeatureBacklogWorkflowStage[] = [];
-    for (const entry of record.workflow) {
-        if (!isWorkflowStage(entry)) {
-            throw new Error(
-                `Backlog item "${itemName}" field "workflow" contains unknown stage ${JSON.stringify(entry)}`,
-            );
-        }
-        stages.push(entry);
+    const hasStages = record.stages !== undefined;
+    const hasWorkflow = record.workflow !== undefined;
+    if (hasStages && hasWorkflow) {
+        throw new Error(`${itemName}: use "stages" only ("workflow" is its deprecated name).`);
     }
-    if (stages.includes('req') && stages.includes('manualReq')) {
-        warnReqAndManualReq(itemName);
+    if (!hasStages && !hasWorkflow) {
+        return undefined;
     }
-    return normalizeWorkflow(stages);
+    if (hasWorkflow) {
+        console.warn(`${itemName}: "workflow" is deprecated in desc.yml; rename it to "stages".`);
+    }
+    const field = hasStages ? 'stages' : 'workflow';
+    return parseStageList(itemName, field, record[field]);
 }
 
 export function parseManual(itemName: string, raw: Record<string, unknown>): boolean | undefined {

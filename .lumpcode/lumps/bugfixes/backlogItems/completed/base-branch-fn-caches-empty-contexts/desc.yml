@@ -1,5 +1,5 @@
 name: base-branch-fn-caches-empty-contexts
-workflow:
+stages:
   - impl
 task: >-
   A function baseBranch is resolved by calling getContextListFn with

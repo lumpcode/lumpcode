@@ -1,5 +1,5 @@
 name: website-default-light
-workflow:
+stages:
   - directImpl
 task: >-
   A first visit with no stored choice renders the website in light mode, not

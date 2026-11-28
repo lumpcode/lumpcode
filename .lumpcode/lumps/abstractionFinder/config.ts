@@ -2,12 +2,12 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { abstractionFinderSteps, openPrPostTeardown } from '@lumpcode/recipes';
+import { abstractionFinder, openPrPostTeardown } from '@lumpcode/recipes';
 
 const scanDirectories = ['packages/apps/cli'];
 const backlogItemsDir = '.lumpcode/lumps/abstractionImplementer/backlogItems';
 
-export default abstractionFinderSteps<CursorPresetLumpVariables, CursorPresetStepVariables>({
+export default abstractionFinder<CursorPresetLumpVariables, CursorPresetStepVariables>({
     configUrl: import.meta.url,
     maxPendingAbstractions: 1,
     scanDirectories,
@@ -19,14 +19,12 @@ export default abstractionFinderSteps<CursorPresetLumpVariables, CursorPresetSte
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
     scanCommand:
         'npx fallow dupes -w @lumpcode/cli --mode semantic --format json > packages/apps/cli/cli.dupes.json < /dev/null',
-    steps: [
-        {
-            promptFn() {
-                return `
+    workflow: async ({ agent }) => {
+        const session = await agent.session();
+        await session.prompt(`
 /find-cli-abstractions in file mode, the backlogItemsDir is @${backlogItemsDir}
 You can use @packages/apps/cli/cli.dupes.json to help you find repetitions.
-                `.trim();
-            },
-        },
-    ],
+        `.trim());
+        return { succeeded: true };
+    },
 });

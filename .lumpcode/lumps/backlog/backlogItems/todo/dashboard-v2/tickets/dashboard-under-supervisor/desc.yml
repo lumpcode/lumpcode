@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: dashboard-under-supervisor
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   `lumpcode start --dashboard` (with the dashboard's port and bind options)
   has the supervisor keep the dashboard running like a daemon, `stop` stops

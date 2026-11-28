@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: command-fn-result-return
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   A step command may return a shell string or an in-process result, besides
   today's CommandDescriptor and the nullish skip. A shell string is spawned:

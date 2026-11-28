@@ -11,10 +11,11 @@ import {
     projectRootFromConfigUrl,
     resolveImplValidateCommand,
     retryUntilGreenSteps,
+    type BacklogPaths,
     type ValidationCommandFn,
 } from '../../kit';
 import { defineRecipe, type BaseBacklogItem } from '../../types';
-import { backlogSteps } from '../backlog';
+import { backlogSteps, type BacklogItemResolution } from '../backlog';
 
 export type AbstractionBacklogStepsOptions<
     V extends LumpVariables = LumpVariables,
@@ -37,6 +38,44 @@ type AbstractionBacklogContextVariables = {
     REQ_FILE?: string;
 };
 
+export function abstractionImplementationPrompt(context: { variables: unknown }): string {
+    const vars = context.variables as AbstractionBacklogContextVariables;
+    const { REQ_FILE, TASK_NAME, TASK } = vars;
+    return `
+                        Implement the abstraction described in @${REQ_FILE}.
+                        
+                        Backlog item: ${TASK_NAME}
+                        Task summary:
+                        ${TASK}
+                        
+                        Requirements:
+                        - Materialize the abstraction as a new util following existing conventions in the codebase.
+                        - Refactor all call sites to import the new util.
+                        - Net line count must go down after the refactor (removed duplication minus new util code, excluding the new unit test file). Do not extract one-off logic or move code without deleting repetition.
+                        - Include unit tests for the new util.
+                        `.trim();
+}
+
+export async function resolveAbstractionBacklogItem(input: {
+    item: BaseBacklogItem;
+    paths: BacklogPaths;
+    projectRoot: string;
+}): Promise<BacklogItemResolution<'implementation'>> {
+    const { item, paths, projectRoot } = input;
+    const itemReqPath = path.join(paths.backlogItemsDir, 'todo', item.name, 'requirements.md');
+    const hasReq = await pathExists(path.join(projectRoot, itemReqPath));
+    if (!hasReq) {
+        return { ignored: true };
+    }
+
+    return {
+        stage: 'implementation',
+        variables: {
+            REQ_FILE: itemReqPath,
+        },
+    };
+}
+
 export const abstractionBacklogSteps = defineRecipe(function abstractionBacklogSteps<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
@@ -56,41 +95,18 @@ export const abstractionBacklogSteps = defineRecipe(function abstractionBacklogS
 
     return backlogSteps<BaseBacklogItem, V, SV>({
         configUrl,
-        async resolveItem({ item, paths }) {
-            const itemReqPath = path.join(paths.backlogItemsDir, 'todo', item.name, 'requirements.md');
-            const hasReq = await pathExists(path.join(projectRoot, itemReqPath));
-            if (!hasReq) {
-                return { ignored: true };
-            }
-
-            return {
-                stage: 'implementation',
-                variables: {
-                    REQ_FILE: itemReqPath,
-                },
-            };
-        },
+        resolveItem: ({ item, paths }) => resolveAbstractionBacklogItem({
+            item,
+            paths,
+            projectRoot,
+        }),
         stages: {
             implementation: {
                 completion: 'moveToDone',
                 steps: retryUntilGreenSteps<V, SV>({
                     steps: implSteps ?? [{
                         promptFn({ context: ctx }) {
-                            const vars = ctx.variables as AbstractionBacklogContextVariables;
-                            const { REQ_FILE, TASK_NAME, TASK } = vars;
-                            return `
-                        Implement the abstraction described in @${REQ_FILE}.
-                        
-                        Backlog item: ${TASK_NAME}
-                        Task summary:
-                        ${TASK}
-                        
-                        Requirements:
-                        - Materialize the abstraction as a new util following existing conventions in the codebase.
-                        - Refactor all call sites to import the new util.
-                        - Net line count must go down after the refactor (removed duplication minus new util code, excluding the new unit test file). Do not extract one-off logic or move code without deleting repetition.
-                        - Include unit tests for the new util.
-                        `.trim();
+                            return abstractionImplementationPrompt(ctx);
                         },
                     }],
                     validationCommandFn: runImplValidation,

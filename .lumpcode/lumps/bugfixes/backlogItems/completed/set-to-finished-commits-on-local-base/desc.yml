@@ -1,5 +1,5 @@
 name: set-to-finished-commits-on-local-base
-workflow:
+stages:
   - impl
 task: >-
   context-status --setToFinished (setContextToFinishedStatus in the CLI)

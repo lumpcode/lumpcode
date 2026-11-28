@@ -10,7 +10,7 @@ description: >-
 
 Help me choose which entries in `IDEAS.yaml` to act on today, clarify them lightly, then apply file updates when I say we are done for today.
 
-The dedicated worker does not run this skill. The `autoTriage` lump (`.agents/skills/auto-triage/SKILL.md`) promotes ideas on its own and files `workflow: [impl]` items. Use this skill when a person is in the session and will say when the batch is done.
+The dedicated worker does not run this skill. The `autoTriage` lump (`.agents/skills/auto-triage/SKILL.md`) promotes ideas on its own and files `stages: [impl]` items. Use this skill when a person is in the session and will say when the batch is done.
 
 ## Intake contract
 

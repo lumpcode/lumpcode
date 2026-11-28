@@ -1,5 +1,5 @@
 name: shared-in-place-docs
-workflow:
+stages:
   - manualReq
   - impl
 dependsOn:

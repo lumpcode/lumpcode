@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: lump-create-from-recipe
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   `lumpcode lump-create <lumpName> --recipe <recipe>` writes a config that
   calls the recipe inside the template's defineLump (same --template and

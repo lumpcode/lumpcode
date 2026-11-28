@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: repo-lumps-workflow
-workflow: [req, impl]
+stages: [req, impl]
 task: >-
   This repo's own lumps are clean examples of the workflow API. Rewrite every
   hand-written lump in .lumpcode/lumps (autoTriage, polisher, writer, trimmer,

@@ -1,9 +1,9 @@
 import { LumpJsConfig } from '@lumpcode/cli-utils';
 import { CursorPresetLumpVariables, CursorPresetStepVariables } from '@lumpcode/cli-utils';
-import { abstractionBacklogSteps, openPrPostTeardown } from '@lumpcode/recipes';
+import { abstractionBacklog, openPrPostTeardown } from '@lumpcode/recipes';
 
 export default {
-    ...abstractionBacklogSteps<CursorPresetLumpVariables, CursorPresetStepVariables>({
+    ...abstractionBacklog<CursorPresetLumpVariables, CursorPresetStepVariables>({
         baseBranch: 'dev',
         command: 'cursor',
         configUrl: import.meta.url,

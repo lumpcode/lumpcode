@@ -52,16 +52,16 @@ Folder name and `name` match. `name` matches `^[a-zA-Z0-9_-]+$` and does not end
 ```yaml
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: kebab-name
-workflow:
+stages:
   - impl
 task: >-
   One sentence a reviewer can read without opening the requirements.
 priority: 20
 ```
 
-`docs` uses the same shape with schema `https://lumpcode.com/schemas/backlogDesc.schema.json` and the same `workflow: [impl]`.
+`docs` uses the same shape with schema `https://lumpcode.com/schemas/backlogDesc.schema.json` and the same `stages: [impl]`.
 
-`workflow` is exactly `[impl]`. That stage runs on the `dev` discovery branch once `requirements.md` exists. Omit `dependsOn` when nothing blocks the item. Copy `priority` from the idea when it is set. When you invent one, use 20 or higher so priority 0 items stay ahead. Later slices of a split get the previous slice's priority plus 1.
+`stages` is exactly `[impl]`. That stage runs on the `dev` discovery branch once `requirements.md` exists. Omit `dependsOn` when nothing blocks the item. Copy `priority` from the idea when it is set. When you invent one, use 20 or higher so priority 0 items stay ahead. Later slices of a split get the previous slice's priority plus 1.
 
 `requirements.md` uses the headings in `.agents/skills/write-requirements/SKILL.md`. Fill every heading that applies with a decision. Contracts, not code. No open-questions section. The file is the plan the implementing lump will follow, so name the owning module for any shared concern.
 

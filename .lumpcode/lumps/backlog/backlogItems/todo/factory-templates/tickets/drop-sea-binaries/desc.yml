@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: drop-sea-binaries
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   Lumpcode ships through npm only. Remove the SEA binaries: the CI build and
   release assets, the postinstall download (postinstall keeps reinstalling

@@ -2,12 +2,12 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { featureBacklogSteps } from '@lumpcode/recipes';
+import { featureBacklog } from '@lumpcode/recipes';
 
-import { learningsPromptFns } from '../../helpers/learningsPromptFns';
+import { learningsPrompts } from '../../helpers/learningsPrompts';
 import { defineLump } from '../../templates/main';
 
-export default defineLump(featureBacklogSteps<
+export default defineLump(featureBacklog<
     CursorPresetLumpVariables,
     CursorPresetStepVariables
 >({
@@ -21,5 +21,5 @@ export default defineLump(featureBacklogSteps<
         'npm run check-types',
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
-    promptFns: learningsPromptFns(),
+    prompts: learningsPrompts(),
 }));

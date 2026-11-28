@@ -1,5 +1,5 @@
 name: merged-lump-branches-count-as-open
-workflow:
+stages:
   - impl
 task: >-
   maximumNumberOfConcurrentBranches counts every lump/<lumpName>/* ref on

@@ -19,7 +19,7 @@ vi.mock('@lumpcode/cli-utils', async (importOriginal) => {
 });
 
 // Skipped until the impl stage reads `stages`. Unskip; do not rewrite.
-describe.skip('featureBacklog stages', () => {
+describe('featureBacklog stages', () => {
     let projectRoot: string;
     const roots: string[] = [];
 

@@ -1,5 +1,5 @@
 name: setup-first-pr-drive
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

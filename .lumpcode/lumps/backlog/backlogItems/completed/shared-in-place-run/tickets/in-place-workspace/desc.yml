@@ -1,5 +1,5 @@
 name: in-place-workspace
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

@@ -8,11 +8,12 @@ import {
 import {
     defaultImplPrompt,
     defaultTestImplPrompt,
-    featureBacklogSteps,
+    featureBacklog,
     projectRootFromConfigUrl,
+    type FeatureBacklogPromptInput,
 } from '@lumpcode/recipes';
 
-import { learningsPromptFns } from '../../helpers/learningsPromptFns';
+import { learningsPrompts } from '../../helpers/learningsPrompts';
 import { defineLump } from '../../templates/main';
 
 const projectRoot = projectRootFromConfigUrl(import.meta.url);
@@ -30,10 +31,19 @@ async function existingExpectPath(itemDir: string): Promise<string | undefined> 
     }
 }
 
-async function withExpectMatch(
-    base: typeof defaultTestImplPrompt,
-    input: Parameters<typeof defaultTestImplPrompt>[0],
-) {
+type BacklogPrompt = (
+    input: FeatureBacklogPromptInput<CursorPresetLumpVariables>,
+) => Promise<string>;
+
+function stagePrompt(promptFn: typeof defaultTestImplPrompt): BacklogPrompt {
+    return (input) => Promise.resolve(promptFn({
+        ...input,
+        stepIndex: 0,
+        contextRunState: {},
+    }));
+}
+
+async function withExpectMatch(base: BacklogPrompt, input: FeatureBacklogPromptInput<CursorPresetLumpVariables>) {
     const prompt = await base(input);
     const expectPath = await existingExpectPath(
         String(input.context.variables.BACKLOG_ITEM_DIR ?? ''),
@@ -46,7 +56,7 @@ async function withExpectMatch(
 Read @${expectPath} and try to match that expectation if possible: prefer the listed files and stay close to the line estimates.`;
 }
 
-export default defineLump(featureBacklogSteps<
+export default defineLump(featureBacklog<
     CursorPresetLumpVariables,
     CursorPresetStepVariables
 >({
@@ -60,9 +70,9 @@ export default defineLump(featureBacklogSteps<
         'npm run check-types',
         'npm run test -w=@lumpcode/cli',
     ].join(' && '),
-    promptFns: learningsPromptFns({
-        testImpl: (input) => withExpectMatch(defaultTestImplPrompt, input),
-        impl: (input) => withExpectMatch(defaultImplPrompt, input),
+    prompts: learningsPrompts({
+        testImpl: (input) => withExpectMatch(stagePrompt(defaultTestImplPrompt), input),
+        impl: (input) => withExpectMatch(stagePrompt(defaultImplPrompt), input),
     }),
     timeoutMillis: 1000 * 60 * 60 * 4, // 4 hours
 }));

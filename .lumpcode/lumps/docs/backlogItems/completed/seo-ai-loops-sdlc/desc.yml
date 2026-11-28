@@ -1,5 +1,5 @@
 name: seo-ai-loops-sdlc
-workflow:
+stages:
   - directImpl
 task: >-
   Website, docs, and meta pass so Lumpcode is findable as the easy-to-set-up

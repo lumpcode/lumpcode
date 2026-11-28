@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: project-local-config-field-layers
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   Single source of truth for where a config field may live: project.json,
   local.json, both with local winning, and whether the lump config may set it

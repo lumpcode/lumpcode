@@ -1,5 +1,5 @@
 name: recipes-manual-req-default
-workflow:
+stages:
   - directImpl
 task: >-
   If a featureBacklog item omits workflow, the default is [manualReq, testImpl,

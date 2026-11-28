@@ -3,7 +3,7 @@ import {
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
 import {
-    backlogSteps,
+    backlog,
     type BaseBacklogItem,
 } from '@lumpcode/recipes';
 
@@ -17,7 +17,7 @@ type DocsContextVariables = {
     BACKLOG_STAGE: 'implementation';
 };
 
-export default defineLump(backlogSteps<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetStepVariables>({
+export default defineLump(backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetStepVariables>({
     configUrl: import.meta.url,
     baseBranch: 'dev',
     discoveryBranch: 'dev',
@@ -31,13 +31,11 @@ export default defineLump(backlogSteps<BaseBacklogItem, CursorPresetLumpVariable
     stages: {
         implementation: {
             completion: 'moveToDone',
-            steps: [
-                {
-                    promptFn({ context: ctx }) {
-                        const vars = ctx.variables as DocsContextVariables;
-                        const { BACKLOG_ITEM_DIR, TASK_NAME, TASK } = vars;
-
-                        return `
+            async workflow({ agent, context }) {
+                const session = await agent.session();
+                const vars = context.variables as DocsContextVariables;
+                const { BACKLOG_ITEM_DIR, TASK_NAME, TASK } = vars;
+                await session.prompt(`
 Update the operator-facing docs, website, or naming for this docs backlog item.
 
 Backlog item: @${BACKLOG_ITEM_DIR}/desc.yml
@@ -52,10 +50,9 @@ Surfaces: packages/apps/website/ (landing, meta titles/descriptions), packages/a
 Follow the vocabulary and rules in @.agents/memory/writing/ (docs.md, website.md).
 Do not implement product/code features — documentation, copy, and meta only.
 Do not edit @${BACKLOG_ITEM_DIR}/desc.yml.
-                        `.trim();
-                    },
-                },
-            ],
+                `.trim());
+                return { succeeded: true };
+            },
         },
     },
 }));

@@ -1,5 +1,5 @@
 name: context-status-missing-base-branch
-workflow:
+stages:
   - impl
 task: >-
   lumpcode context-status (including --setToFinished) fails with 'Lump "<name>"

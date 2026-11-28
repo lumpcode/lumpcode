@@ -188,9 +188,9 @@ describe('lane configs', () => {
             expect(source, name).not.toContain('postTeardownWorkspaceFn');
             expect(source, name).toContain(`maximumNumberOfConcurrentBranches: ${expectLane.concurrency}`);
             if (expectLane.learnings) {
-                expect(source, name).toContain('learningsPromptFns');
+                expect(source, name).toContain('learningsPrompts');
             } else {
-                expect(source, name).not.toContain('learningsPromptFns');
+                expect(source, name).not.toContain('learningsPrompts');
             }
             if (expectLane.timeout) {
                 expect(source, name).toContain('timeoutMillis: 1000 * 60 * 60 * 4');
@@ -200,8 +200,8 @@ describe('lane configs', () => {
         }
 
         const backlog = readFileSync(join(repoRoot, '.lumpcode/lumps/backlog/config.ts'), 'utf8');
-        expect(backlog).toContain('withExpectMatch(defaultTestImplPrompt, input)');
-        expect(backlog).toContain('withExpectMatch(defaultImplPrompt, input)');
+        expect(backlog).toContain('withExpectMatch(stagePrompt(defaultTestImplPrompt), input)');
+        expect(backlog).toContain('withExpectMatch(stagePrompt(defaultImplPrompt), input)');
         expect(backlog).toContain("'npm run build'");
         expect(backlog).toContain("'npm run check-types'");
         expect(backlog).toContain("'npm run test -w=@lumpcode/cli'");

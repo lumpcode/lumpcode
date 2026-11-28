@@ -1,5 +1,5 @@
 name: run-lump-context-run-state-list-empty
-workflow:
+stages:
   - impl
 task: >-
   runLump always returns result.contextRunStateList as [] because core

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: ts-default-scaffolding
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   setup and lump-create propose the lump format from the repo (TypeScript,
   JavaScript, or JSON as experimental) and let the user change it. setup asks

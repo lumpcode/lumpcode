@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: command-descriptor-or-string-returns
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   Git and workspace hooks may return a CommandDescriptor or a shell string.
   gitAddCommitFn today returns success('git add . && git commit …') for the

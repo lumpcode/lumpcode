@@ -9,7 +9,7 @@ import type { Agent, Context, Shell, ShellResult, WorkflowInput } from '@lumpcod
 import { abstractionBacklog } from './workflowRecipe';
 
 // Skipped until the impl stage fills in the workflow recipe. Unskip; do not rewrite.
-describe.skip('abstractionBacklog workflow', () => {
+describe('abstractionBacklog workflow', () => {
     let projectRoot: string;
     let configPath: string;
     const lumpRelativePath = '.lumpcode/lumps/abstractionImplementer';

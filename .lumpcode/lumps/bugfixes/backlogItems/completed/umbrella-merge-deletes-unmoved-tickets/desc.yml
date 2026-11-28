@@ -1,5 +1,5 @@
 name: umbrella-merge-deletes-unmoved-tickets
-workflow:
+stages:
   - impl
 task: >-
   folderSetTaskDoneStep's umbrella merge skips a destination directory that

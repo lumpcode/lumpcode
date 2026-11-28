@@ -4,17 +4,20 @@ import {
     defineConfig,
     normalizeSteps,
     type Context,
+    type GetContextListFn,
     type LumpJsConfig,
     type LumpJsConfigSteps,
     type LumpVariables,
     type StepVariables,
 } from '@lumpcode/cli-utils';
+import type { MaybePromise } from '@lumpcode/core';
 
 import {
     folderBacklogContexts,
     folderSetTaskDoneStep,
     projectRootFromConfigUrl,
     resolveBacklogPaths,
+    type BacklogPaths,
 } from '../../kit';
 import { BaseBacklogItem, defineRecipe } from '../../types';
 
@@ -82,6 +85,82 @@ function buildStageSteps<
     return normalized;
 }
 
+export function backlogGetContextListFn<
+    Item extends BaseBacklogItem,
+    V extends LumpVariables = LumpVariables,
+    StageName extends string = string,
+>(options: {
+    projectRoot: string;
+    paths: BacklogPaths;
+    includeUmbrellaParents?: boolean;
+    parseItem?: (item: BaseBacklogItem, folderName: string, raw: unknown) => Item;
+    resolveItem(input: {
+        item: Item;
+        paths: BacklogPaths;
+        discoveryBranch: string;
+    }): MaybePromise<BacklogItemResolution<StageName>>;
+}): GetContextListFn<V> {
+    const { projectRoot, paths, includeUmbrellaParents, parseItem, resolveItem } = options;
+    const absoluteBacklogItemsDir = path.join(projectRoot, paths.backlogItemsDir);
+
+    return async (input) => {
+        const listFn = folderBacklogContexts<Item, V>({
+            backlogItemsDir: absoluteBacklogItemsDir,
+            includeUmbrellaParents,
+            parseItem,
+            async parseContext(item, folderName) {
+                const resolution = await resolveItem({
+                    item,
+                    paths,
+                    discoveryBranch: input.discoveryBranch,
+                });
+
+                if (isIgnoredResolution(resolution)) {
+                    return { ignored: true };
+                }
+
+                const {
+                    stage,
+                    contextName,
+                    variables,
+                    additionalDependsOnContexts,
+                } = resolution;
+
+                const dependsOnContexts = [
+                    ...(item.dependsOn ?? []),
+                    ...(additionalDependsOnContexts ?? []),
+                ];
+
+                const backlogItemDir = path.join(
+                    paths.backlogItemsDir,
+                    'todo',
+                    folderName,
+                );
+
+                return {
+                    parsed: {
+                        name: contextName ?? item.name,
+                        variables: {
+                            [BACKLOG_TASK_NAME_VAR]: item.name,
+                            [BACKLOG_TASK_VAR]: item.task,
+                            [BACKLOG_ITEMS_DIR_VAR]: paths.backlogItemsDir,
+                            [BACKLOG_ITEM_DIR_VAR]: backlogItemDir,
+                            [BACKLOG_STAGE_VAR]: stage,
+                            ...variables,
+                        },
+                        options: {
+                            priority: item.priority,
+                            dependsOnContexts:
+                                dependsOnContexts.length > 0 ? dependsOnContexts : undefined,
+                        },
+                    },
+                };
+            },
+        });
+        return listFn(input);
+    };
+}
+
 export function backlogSteps<
     Item extends BaseBacklogItem,
     V extends LumpVariables = LumpVariables,
@@ -104,67 +183,16 @@ export function backlogSteps<
     const paths = resolveBacklogPaths(configUrl, {
         backlogItemsDir: backlogItemsDirOverride,
     });
-
     const projectRoot = projectRootFromConfigUrl(configUrl);
-    const absoluteBacklogItemsDir = path.join(projectRoot, paths.backlogItemsDir);
 
     return defineConfig<V, SV>({
-        getContextListFn: async (input) => {
-            const listFn = folderBacklogContexts<Item, V>({
-                backlogItemsDir: absoluteBacklogItemsDir,
-                includeUmbrellaParents,
-                parseItem,
-                async parseContext(item, folderName) {
-                    const resolution = await resolveItem({
-                        item,
-                        paths,
-                        discoveryBranch: input.discoveryBranch,
-                    });
-
-                    if (isIgnoredResolution(resolution)) {
-                        return { ignored: true };
-                    }
-
-                    const {
-                        stage,
-                        contextName,
-                        variables,
-                        additionalDependsOnContexts,
-                    } = resolution;
-
-                    const dependsOnContexts = [
-                        ...(item.dependsOn ?? []),
-                        ...(additionalDependsOnContexts ?? []),
-                    ];
-
-                    const backlogItemDir = path.join(
-                        paths.backlogItemsDir,
-                        'todo',
-                        folderName,
-                    );
-
-                    return {
-                        parsed: {
-                            name: contextName ?? item.name,
-                            variables: {
-                                [BACKLOG_TASK_NAME_VAR]: item.name,
-                                [BACKLOG_TASK_VAR]: item.task,
-                                [BACKLOG_ITEMS_DIR_VAR]: paths.backlogItemsDir,
-                                [BACKLOG_ITEM_DIR_VAR]: backlogItemDir,
-                                [BACKLOG_STAGE_VAR]: stage,
-                                ...variables,
-                            },
-                            options: {
-                                priority: item.priority,
-                                dependsOnContexts:
-                                    dependsOnContexts.length > 0 ? dependsOnContexts : undefined,
-                            },
-                        },
-                    };
-                },
-            });
-            return listFn(input);
-        },
+        getContextListFn: backlogGetContextListFn<Item, V, Extract<keyof Stages, string>>({
+            projectRoot,
+            paths,
+            includeUmbrellaParents,
+            parseItem,
+            resolveItem,
+        }),
         steps: [
             ({ context }) => {
                 const ctx = context as Context;

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: recipe-catalog
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 manual: true
 task: >-
   Ready-made factories, written as workflow recipes on the workflow kit, for the jobs the docs examples describe, each one

@@ -1,5 +1,5 @@
 name: lump-create-stub-unknown-command
-workflow:
+stages:
   - impl
 task: >-
   lumpcode lump-create scaffolds config.json / .js / .ts with command "claude",

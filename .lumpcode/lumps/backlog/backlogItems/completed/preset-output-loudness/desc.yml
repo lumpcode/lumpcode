@@ -1,5 +1,5 @@
 name: preset-output-loudness
-workflow:
+stages:
   - manualReq
   - impl
 task: >-
