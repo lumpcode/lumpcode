@@ -6,10 +6,10 @@ import {
 import {
     ephemeralContextListFn,
     openPrPostTeardown,
-    retryUntilGreenSteps,
     shellCommand,
 } from '@lumpcode/recipes';
 
+import { retryUntilGreenSteps } from '../../helpers/recipesBridge';
 import { explanationPrBody } from '../../helpers/explanationPrBody';
 
 const EXPLANATION = '.lumpcode/lumps/polisher/explanation.md';

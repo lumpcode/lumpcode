@@ -2,8 +2,7 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { featureBacklogSteps } from '@lumpcode/recipes';
-
+import { featureBacklogSteps } from '../../helpers/recipesBridge';
 import { learningsPromptFns } from '../../helpers/learningsPromptFns';
 import { defineLump } from '../../templates/main';
 

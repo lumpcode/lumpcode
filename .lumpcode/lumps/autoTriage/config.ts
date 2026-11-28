@@ -6,10 +6,10 @@ import {
 import {
     openPrPostTeardown,
     projectRootFromConfigUrl,
-    retryUntilGreenSteps,
     shellCommand,
 } from '@lumpcode/recipes';
 
+import { retryUntilGreenSteps } from '../../helpers/recipesBridge';
 import { shouldRunAutoTriage, utcDateContextName } from '../../helpers/workerQueue';
 
 const projectRoot = projectRootFromConfigUrl(import.meta.url);

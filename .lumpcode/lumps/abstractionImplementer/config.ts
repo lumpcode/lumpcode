@@ -1,6 +1,8 @@
 import { LumpJsConfig } from '@lumpcode/cli-utils';
 import { CursorPresetLumpVariables, CursorPresetStepVariables } from '@lumpcode/cli-utils';
-import { abstractionBacklogSteps, openPrPostTeardown } from '@lumpcode/recipes';
+import { openPrPostTeardown } from '@lumpcode/recipes';
+
+import { abstractionBacklogSteps } from '../../helpers/recipesBridge';
 
 export default {
     ...abstractionBacklogSteps<CursorPresetLumpVariables, CursorPresetStepVariables>({

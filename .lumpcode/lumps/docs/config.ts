@@ -2,11 +2,9 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import {
-    backlogSteps,
-    type BaseBacklogItem,
-} from '@lumpcode/recipes';
+import { type BaseBacklogItem } from '@lumpcode/recipes';
 
+import { backlogSteps } from '../../helpers/recipesBridge';
 import { defineLump } from '../../templates/main';
 
 type DocsContextVariables = {

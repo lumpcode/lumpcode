@@ -2,7 +2,9 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { abstractionFinderSteps, openPrPostTeardown } from '@lumpcode/recipes';
+import { openPrPostTeardown } from '@lumpcode/recipes';
+
+import { abstractionFinderSteps } from '../../helpers/recipesBridge';
 
 const scanDirectories = ['packages/apps/cli'];
 const backlogItemsDir = '.lumpcode/lumps/abstractionImplementer/backlogItems';

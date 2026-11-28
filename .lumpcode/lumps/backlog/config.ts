@@ -8,10 +8,10 @@ import {
 import {
     defaultImplPrompt,
     defaultTestImplPrompt,
-    featureBacklogSteps,
     projectRootFromConfigUrl,
 } from '@lumpcode/recipes';
 
+import { featureBacklogSteps } from '../../helpers/recipesBridge';
 import { learningsPromptFns } from '../../helpers/learningsPromptFns';
 import { defineLump } from '../../templates/main';
 
