@@ -18,7 +18,7 @@ import { featureBacklog } from './workflowRecipe';
 const REQ_RELATIVE = '.lumpcode/lumps/ship/backlogItems/todo/alpha/requirements.md';
 
 // Skipped until the impl stage runs the workflow recipe. Unskip; do not rewrite.
-describe.skip('featureBacklog workflow run', () => {
+describe('featureBacklog workflow run', () => {
     let projectRoot: string;
     let remoteDir: string;
 

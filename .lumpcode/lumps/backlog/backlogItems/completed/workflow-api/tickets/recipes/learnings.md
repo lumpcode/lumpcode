@@ -1,12 +1,15 @@
 # Learnings
 
 ## Expected
-`desc.yml` (`workflow: [manualReq, testImpl, impl]`, depends on `kit`): `featureBacklog`, `backlog`, `abstractionFinder`, and `abstractionBacklog` become workflow recipes. Today's code stays as `featureBacklogSteps`, `backlogSteps`, `abstractionFinderSteps`, and `abstractionBacklogSteps`, with no aliases. `desc.yml` `workflow` becomes `stages` (deprecated alias) and the context variable `WORKFLOW` becomes `STAGES`. This repo's lumps and desc files move with them.
+`desc.yml` (`stages: [manualReq, testImpl, impl]`, depends on `kit`): `featureBacklog`, `backlog`, `abstractionFinder`, and `abstractionBacklog` become workflow recipes. Today's code stays as `featureBacklogSteps`, `backlogSteps`, `abstractionFinderSteps`, and `abstractionBacklogSteps`, with no aliases. `desc.yml` `workflow` becomes `stages` (deprecated alias) and the context variable `WORKFLOW` becomes `STAGES`. This repo's lumps and desc files move with them.
 
-`requirements.md`: workflow-typed options (`prompts`, `stages.<name>.workflow`, `maxAttempts`), artifact stages prompt then `requireArtifact`, check stages prompt then `retryUntilGreen`, completion calls `setTaskDone`. `stages` is used, `workflow` warns once per item per run, and both fields fail. `STAGES` and `WORKFLOW` are set to the same value. Tests: renamed steps suites, workflow tests with a fake `agent` and `shell`, parse tests, a `run` under `os.tmpdir()` (req then impl pushes; a red check pushes with `succeeded: false`), and `lump-plan` for the lumps under `.lumpcode/lumps/`. Packages are `@lumpcode/recipes`, the schema files, and this repo's `.lumpcode/`. No `testPlan.md` or `expect.yml` on this item. The parent `requirements.md` is the contract (decisions 13 and 14). This stage writes skipped tests and does not create `testPlan.md`.
+`requirements.md`: workflow-typed options (`prompts`, `stages.<name>.workflow`, `maxAttempts`), artifact stages prompt then `requireArtifact`, check stages prompt then `retryUntilGreen`, completion calls `setTaskDone`. `stages` is used, `workflow` warns once per item per run, and both fields fail. `STAGES` and `WORKFLOW` are set to the same value. Tests: renamed steps suites, workflow tests with a fake `agent` and `shell`, parse tests, a `run` under `os.tmpdir()` (req then impl pushes; a red check pushes with `succeeded: false`), and `lump-plan` for the lumps under `.lumpcode/lumps/`. Packages are `@lumpcode/recipes`, the schema files, and this repo's `.lumpcode/`. Docs: workflow recipes first, then the `…Steps` names; backlog docs and examples use `stages`; changelog records the break. No `testPlan.md` or `expect.yml` on this item. The parent `requirements.md` is the contract (decisions 13 and 14).
 
 ## Landed
 Working tree only. The marker commit for this stage does not exist yet.
+
+### Tests
+The test stage wrote skipped tests and did not create `testPlan.md`.
 
 Skipped tests:
 - `packages/recipes/src/recipes/featureBacklog/workflow.unit.test.ts`
@@ -32,6 +35,31 @@ So those suites import and the repo still typechecks, this stage also renames to
 - `.lumpcode/helpers/learningsPromptFns.ts` (`FeatureBacklogStepsPromptFns`)
 
 The workflow factories throw `not implemented`. `desc.yml` files still use `workflow:`. Schemas are unchanged.
+
+### Implementation
+Unskipped the ten suites above. They pass.
+
+Workflow recipes return `workflow` and no `steps`. `featureBacklog` reads `stages` (deprecated `workflow` alias), sets `STAGES` and `WORKFLOW`, and runs each stage as specified. `backlog` runs the stage workflow, then `setTaskDone` on `moveToDone`. `setTaskDone` moves the item and stamps `completedAt`. `abstractionFinder` scans then prompts, or runs a caller `workflow` after the scan. `abstractionBacklog`'s optional `workflow` replaces the default implement workflow. Steps recipes are unchanged.
+
+Also:
+- `packages/recipes/src/recipes/featureBacklog/item.ts` (new; shared desc parse)
+- `packages/recipes/src/recipes/featureBacklog/` (`main.ts`, `resolve.ts`, `workflow.ts`, `workflowRecipe.ts`)
+- `packages/recipes/src/recipes/backlog/` (`main.ts`, `workflowRecipe.ts`)
+- `packages/recipes/src/recipes/abstractionFinder/` (`main.ts`, `workflowRecipe.ts`)
+- `packages/recipes/src/recipes/abstractionBacklog/` (`main.ts`, `workflowRecipe.ts`)
+- `packages/recipes/src/kit/workflow/setTaskDone.ts`
+- `packages/recipes/schemas/featureBacklogDesc.schema.json`, `packages/recipes/schemas/backlogDesc.schema.json` (website `public/schemas/` is copied from these when the website config loads; no separate committed copy)
+- `.lumpcode/helpers/learningsPrompts.ts` (new); deleted `.lumpcode/helpers/learningsPromptFns.ts`
+- `.lumpcode/lumps/{backlog,qol,bugfixes,docs,abstractionFinder}/config.ts`, `.lumpcode/lumps/abstractionImplementer/config.ts`
+- 107 `desc.yml` files under `.lumpcode/lumps/*/backlogItems/**`: the `workflow:` key became `stages:`
+- `.lumpcode/helpers/manualReqTodo.mjs` reads `stages`, then the `workflow` alias
+- Docs: `packages/apps/cli/DOCS/author/recipes.md`, `packages/apps/cli/DOCS/author/backlog.md`, `packages/apps/cli/DOCS/examples/backlogs.md`, `packages/recipes/CHANGELOG.md`, `packages/recipes/README.md`
+- `.agents/memory/domain/repo-lumps.md`, `.agents/memory/domain/recipes.md`
+- Skills that file items: `.agents/skills/auto-triage/SKILL.md`, `.agents/skills/bug-hunter/SKILL.md`, `.agents/skills/ideas-to-backlog/SKILL.md`, `.agents/skills/write-tickets/SKILL.md`
+- `scripts/repo-template.unit.test.mjs` follows the `learningsPrompts` rename
+- `packages/apps/cli/src/commands/lump-plan/repoLocalJsonLock.ts` (new) holds `.lumpcode/local.json` for `recipeWorkflow.unit.test.ts` and `repoLumps.unit.test.ts` so one test cannot delete the file while the other is still planning
+
+`manualReqTodo.mjs`, the four skills, `domain/recipes.md`, the recipes README, and the lane-config test keep `manualReq` detection and new items on `stages` after that rename.
 
 ## Adjustments
 A workflow call opens one `agent.session()` with no arguments and returns `{ succeeded, message }` without setting `push`. A red check still pushes because the engine default for `push` is true.

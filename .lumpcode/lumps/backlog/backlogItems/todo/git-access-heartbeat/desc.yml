@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: git-access-heartbeat
-workflow: [req, testImpl, impl]
+stages: [req, testImpl, impl]
 task: >-
   On each daemon tick, before any lump runs, check read/write access to the git
   remote without updating a ref. Run

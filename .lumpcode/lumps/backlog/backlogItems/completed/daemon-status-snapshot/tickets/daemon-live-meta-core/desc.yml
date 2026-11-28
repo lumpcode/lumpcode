@@ -1,5 +1,5 @@
 name: daemon-live-meta-core
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

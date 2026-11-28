@@ -1,5 +1,5 @@
 name: kit
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: workflow-first-docs-and-website
-workflow: [req, impl]
+stages: [req, impl]
 task: >-
   Lumpcode reads as a library first: every public example writes a lump as
   `async workflow({ agent, shell })`. Add one canonical "Write a workflow" page

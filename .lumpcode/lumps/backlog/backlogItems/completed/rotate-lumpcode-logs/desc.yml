@@ -1,5 +1,5 @@
 name: rotate-lumpcode-logs
-workflow:
+stages:
   - manualReq
   - impl
 task: >-

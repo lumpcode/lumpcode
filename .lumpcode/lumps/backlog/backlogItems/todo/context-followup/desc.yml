@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: context-followup
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 manual: true
 task: >-
   An optional followup hook on a workflow lump that keeps working on a

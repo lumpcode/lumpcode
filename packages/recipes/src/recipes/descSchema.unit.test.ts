@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 // Skipped until the impl stage updates the schemas. Unskip; do not rewrite.
-describe.skip('desc.yml schemas', () => {
+describe('desc.yml schemas', () => {
     it('gives featureBacklog stages and a deprecated workflow alias', async () => {
         const schema = await readSchema('featureBacklogDesc.schema.json');
 

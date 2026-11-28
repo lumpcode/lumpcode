@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: daemon-orchestration
-workflow: [manualReq, impl]
+stages: [manualReq, impl]
 task: >-
   A daemon that runs many lumps needs two per-lump knobs: priority and weight.
   Priority is order. A lower number runs sooner, the same meaning as context

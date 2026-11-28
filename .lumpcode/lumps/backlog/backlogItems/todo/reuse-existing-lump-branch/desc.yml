@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: reuse-existing-lump-branch
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   A dedicated run may check out an existing branch and commit on it, instead
   of creating lump/<lumpName>/…. The branch is chosen from the context. It is

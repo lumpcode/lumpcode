@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: worker-dashboard-readonly
-workflow: [manualReq, impl]
+stages: [manualReq, impl]
 manual: true
 task: >-
   Read-only worker dashboard. Private package `@lumpcode/dashboard`

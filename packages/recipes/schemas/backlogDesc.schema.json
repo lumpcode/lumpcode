@@ -30,6 +30,23 @@
       },
       "description": "Other item names in this lump that must finish first. Tickets are prefixed with the parent name at runtime."
     },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Stage names for this item. The recipe's stage map decides what each name runs."
+    },
+    "workflow": {
+      "deprecated": true,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Deprecated alias of stages. Rename it to stages."
+    },
     "completedAt": {
       "type": "string",
       "description": "ISO timestamp stamped when the item is moved to completed/. Do not set this by hand on todo items."

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: drop-legacy-lock-json
-workflow: [directImpl]
+stages: [directImpl]
 manual: true
 task: >-
   Parked until the release after the one that ships per-acquisition lock files.

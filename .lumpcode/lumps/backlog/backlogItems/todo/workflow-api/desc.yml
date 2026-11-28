@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: workflow-api
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 manual: true
 task: >-
   Lumpcode becomes a library first: a lump can declare `workflow`, one async

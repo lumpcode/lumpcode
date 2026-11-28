@@ -1,5 +1,5 @@
 name: lump-plan-git-worktree
-workflow:
+stages:
   - directImpl
 task: >-
   lump-plan (and other commands that call validateCurrentLumpProjectRoot) fail

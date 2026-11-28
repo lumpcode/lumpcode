@@ -1,5 +1,5 @@
 name: daemon-snapshot-meta-schema
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

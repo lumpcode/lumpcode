@@ -28,7 +28,7 @@ That writes a stub `config.ts`. Replace it. JSON cannot hold the recipe factory.
 
 ## 3. Write the config
 
-One stage is enough. `resolveItem` picks that stage for every ticket. `completion: 'moveToDone'` moves the folder to `completed/` after a successful context.
+One stage is enough. `resolveItem` picks that stage for every ticket. `completion: 'moveToDone'` moves the folder to `completed/` after the stage workflow.
 
 ```ts .lumpcode/lumps/ticketBacklog/config.ts
 import { backlog } from '@lumpcode/recipes'
@@ -39,12 +39,14 @@ export default backlog({
   stages: {
     implement: {
       completion: 'moveToDone',
-      steps: [
-        {
-          promptTemplate:
-            'Implement this ticket.\n\n{TASK}\n\nRead @{BACKLOG_ITEM_DIR}/desc.yml. Stay close to that task.',
-        },
-      ],
+      async workflow({ agent, context }) {
+        const session = await agent.session()
+        const task = context.variables.TASK
+        const itemDir = context.variables.BACKLOG_ITEM_DIR
+        await session.prompt(
+          `Implement this ticket.\n\n${task}\n\nRead @${itemDir}/desc.yml. Stay close to that task.`,
+        )
+      },
     },
   },
   resolveItem() {
@@ -55,7 +57,7 @@ export default backlog({
 
 `configUrl: import.meta.url` is required so the recipe can find the lump folder. Do not `path.join(import.meta.url, …)`. Swap `command` to `'copilot'` if that is the binary on `PATH`.
 
-The recipe fills these context variables (usable in `{VAR}` / `@{VAR}`):
+The recipe sets these context variables. Read them on `context.variables`:
 
 | Variable | From |
 | --- | --- |
@@ -103,4 +105,4 @@ On success the recipe moves the folder to `backlogItems/completed/add-health-rou
 
 Commit `.lumpcode/` (and the new npm deps) before a worker clone needs them.
 
-Need `workflow` stages, tickets under a parent, or a requirements gate? That is `featureBacklog` on [Recipes](recipes.md), not this page.
+Need `stages`, tickets under a parent, or a requirements gate? That is `featureBacklog` on [Recipes](recipes.md), not this page.

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: dashboard-password-login
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   One shared password for the worker dashboard, from an environment variable
   or `.lumpcode/local.json`, with a login page in the site look, a session

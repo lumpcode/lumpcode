@@ -1,5 +1,5 @@
 name: clean-reports-failed-deletes
-workflow:
+stages:
   - impl
 task: >-
   lumpcode clean (commands/clean/main.ts) ignores the result of `git push

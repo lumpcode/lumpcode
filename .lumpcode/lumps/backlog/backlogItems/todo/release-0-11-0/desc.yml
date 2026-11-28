@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: release-0-11-0
-workflow: [req, impl]
+stages: [req, impl]
 task: >-
   Prepare the 0.11.0 release (breaking). Set every published package to
   0.11.0 with scripts/set-npm-versions.mjs (minor bump, all packages, internal

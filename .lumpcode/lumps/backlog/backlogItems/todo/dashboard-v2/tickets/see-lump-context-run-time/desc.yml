@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: see-lump-context-run-time
-workflow: [req, testImpl, impl]
+stages: [req, testImpl, impl]
 task: >-
   Show how long the context that is running right now has been running. On the
   worker dashboard, and on lumpcode daemon-status: human lines read

@@ -1,5 +1,5 @@
 name: daemon-status-read-snapshot
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

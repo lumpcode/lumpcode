@@ -1,5 +1,5 @@
 name: shared-copy-dirty-tree
-workflow:
+stages:
   - directImpl
 task: >-
   Shared-mode pre-flight copies the source checkout with fs.cp when

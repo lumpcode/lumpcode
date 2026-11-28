@@ -1,5 +1,5 @@
 name: setup-js-ts-stubs
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

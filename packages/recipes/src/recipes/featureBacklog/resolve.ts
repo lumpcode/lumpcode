@@ -19,7 +19,7 @@ import {
     type FeatureBacklogWorkflow,
     type FeatureBacklogWorkflowStage,
 } from './types';
-import { parseFeatureWorkflow, resolveTerminal } from './workflow';
+import { parseFeatureStages, parseFeatureWorkflow, resolveTerminal } from './workflow';
 
 function featureItemContextBaseName(item: Pick<FeatureBacklogItem, 'name' | 'parentName'>): string {
     return item.parentName ? `${item.parentName}-${item.name}` : item.name;
@@ -48,8 +48,10 @@ async function resolveItemWorkflow(input: {
     item: FeatureBacklogItem;
     paths: BacklogPaths;
     projectRoot: string;
+    /** Workflow recipe reads `stages` (and the deprecated `workflow` alias). */
+    stagesField: boolean;
 }): Promise<FeatureBacklogWorkflow> {
-    const { item, paths, projectRoot } = input;
+    const { item, paths, projectRoot, stagesField } = input;
     if (item.workflow !== undefined) {
         return item.workflow;
     }
@@ -75,7 +77,10 @@ async function resolveItemWorkflow(input: {
         throw error;
     }
 
-    return parseFeatureWorkflow(item.parentName, loadYaml(rawText)) ?? DEFAULT_FEATURE_BACKLOG_WORKFLOW;
+    const parsed = stagesField
+        ? parseFeatureStages(item.parentName, loadYaml(rawText))
+        : parseFeatureWorkflow(item.parentName, loadYaml(rawText));
+    return parsed ?? DEFAULT_FEATURE_BACKLOG_WORKFLOW;
 }
 
 function artifactVariables(input: {
@@ -85,10 +90,15 @@ function artifactVariables(input: {
     testPlanFilePath: string;
     hasReq: boolean;
     hasTestPlan: boolean;
+    stagesField: boolean;
 }): Record<string, string> {
+    const joined = input.workflow.join(',');
     const variables: Record<string, string> = {
-        WORKFLOW: input.workflow.join(','),
+        WORKFLOW: joined,
     };
+    if (input.stagesField) {
+        variables.STAGES = joined;
+    }
     if (input.hasReq || input.stage === 'req') {
         variables.REQ_FILE = input.reqFilePath;
     }
@@ -105,6 +115,8 @@ export async function resolveFeatureBacklogItem(input: {
     discoveryBranch: string;
     primaryDiscoveryBranch: string;
     itemDiscoveryBranchPrefix: string;
+    /** When true, read `stages` from parent desc.yml and set the `STAGES` variable. */
+    stagesField?: boolean;
 }): Promise<BacklogItemResolution<FeatureBacklogStage>> {
     const {
         item,
@@ -113,6 +125,7 @@ export async function resolveFeatureBacklogItem(input: {
         discoveryBranch,
         primaryDiscoveryBranch,
         itemDiscoveryBranchPrefix,
+        stagesField = false,
     } = input;
 
     if (item.parentName === undefined) {
@@ -146,7 +159,7 @@ export async function resolveFeatureBacklogItem(input: {
     }
 
     const contextBaseName = featureItemContextBaseName(item);
-    const workflow = await resolveItemWorkflow({ item, paths, projectRoot });
+    const workflow = await resolveItemWorkflow({ item, paths, projectRoot, stagesField });
 
     if (
         item.manual === true ||
@@ -181,6 +194,7 @@ export async function resolveFeatureBacklogItem(input: {
             testPlanFilePath,
             hasReq,
             hasTestPlan,
+            stagesField,
         }),
     });
 

@@ -4,6 +4,7 @@ import {
     defineConfig,
     normalizeSteps,
     type CommandFn,
+    type GetContextListFn,
     type LumpJsConfig,
     type LumpJsConfigSteps,
     type LumpVariables,
@@ -73,12 +74,9 @@ export const abstractionFinderSteps = defineRecipe(function abstractionFinderSte
         ...rest
     } = options;
 
-    if (path.isAbsolute(backlogItemsDir)) {
-        throw new Error(`backlogItemsDir must be project-root-relative, not absolute: ${backlogItemsDir}`);
-    }
+    assertProjectRelativeBacklogItemsDir(backlogItemsDir);
 
     const projectRoot = projectRootFromConfigUrl(configUrl);
-    const todoDir = path.join(projectRoot, backlogItemsDir, 'todo');
 
     const agentSteps = stepsOverride ?? buildFinderPrompt({
         backlogItemsDir,
@@ -97,20 +95,39 @@ export const abstractionFinderSteps = defineRecipe(function abstractionFinderSte
 
     return defineConfig<V, SV>({
         ...rest,
-        getContextListFn: ephemeralContextListFn<V>({
-            async contextCount() {
-                const pending = (await listTodoRelativeDirs(todoDir)).length;
-                return pending >= maxPendingAbstractions ? 0 : 1;
-            },
-            variables: {
-                BACKLOG_ITEMS_DIR: backlogItemsDir,
-            },
+        getContextListFn: abstractionFinderContextList<V>({
+            projectRoot,
+            backlogItemsDir,
+            maxPendingAbstractions,
         }),
         steps,
     });
 });
 
-function buildFinderPrompt({
+export function assertProjectRelativeBacklogItemsDir(backlogItemsDir: string): void {
+    if (path.isAbsolute(backlogItemsDir)) {
+        throw new Error(`backlogItemsDir must be project-root-relative, not absolute: ${backlogItemsDir}`);
+    }
+}
+
+export function abstractionFinderContextList<V extends LumpVariables = LumpVariables>(input: {
+    projectRoot: string;
+    backlogItemsDir: string;
+    maxPendingAbstractions: number;
+}): GetContextListFn<V> {
+    const todoDir = path.join(input.projectRoot, input.backlogItemsDir, 'todo');
+    return ephemeralContextListFn<V>({
+        async contextCount() {
+            const pending = (await listTodoRelativeDirs(todoDir)).length;
+            return pending >= input.maxPendingAbstractions ? 0 : 1;
+        },
+        variables: {
+            BACKLOG_ITEMS_DIR: input.backlogItemsDir,
+        },
+    });
+}
+
+export function buildFinderPrompt({
     backlogItemsDir,
     scanDirectories,
     utilDir,

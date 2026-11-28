@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: cli-bundled-authoring-packages
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   A lump that imports @lumpcode/recipes, cli-utils, cli-types or core runs and
   type-checks with only the global CLI installed, in any repo: the CLI depends

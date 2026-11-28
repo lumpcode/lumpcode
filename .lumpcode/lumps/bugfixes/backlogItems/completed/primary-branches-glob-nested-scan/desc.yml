@@ -1,5 +1,5 @@
 name: primary-branches-glob-nested-scan
-workflow:
+stages:
   - impl
 task: >-
   expandPrimaryBranches trusts git ls-remote glob matching, where * also crosses

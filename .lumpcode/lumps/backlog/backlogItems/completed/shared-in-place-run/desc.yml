@@ -1,5 +1,5 @@
 name: shared-in-place-run
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

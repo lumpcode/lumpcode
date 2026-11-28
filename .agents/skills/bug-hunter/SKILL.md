@@ -29,7 +29,7 @@ Each item:
 ```yaml
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: kebab-name
-workflow:
+stages:
   - impl
 task: >-
   One sentence: what is wrong and where.
@@ -40,7 +40,7 @@ priority: 20
 
 `requirements.md` uses the headings in `.agents/skills/write-requirements/SKILL.md`. Include the repro, the expected behavior, and the actual behavior. Name the owning module. Do not paste a patch. Priority 20 or higher, unless you are filing something that blocks the worker from running at all, in which case use 5.
 
-`workflow` is exactly `[impl]`. Top-level folders only, no `tickets/` children, so the bugfixes lump picks the item up on `dev` after this pull request merges.
+`stages` is exactly `[impl]`. Top-level folders only, no `tickets/` children, so the bugfixes lump picks the item up on `dev` after this pull request merges.
 
 ## Bounds
 

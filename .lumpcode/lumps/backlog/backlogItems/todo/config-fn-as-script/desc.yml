@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: config-fn-as-script
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 manual: true
 task: >-
   Parked: TypeScript first; JSON is experimental. Not for autoTriage. A human will grill this before requirements.md

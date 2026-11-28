@@ -1,5 +1,5 @@
 name: core
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

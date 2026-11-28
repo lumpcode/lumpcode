@@ -1,5 +1,5 @@
 name: add-transcripts-to-gitignore-by-default
-workflow:
+stages:
   - directImpl
 task: >-
   setup and project-setup write .lumpcode/.gitignore once, through

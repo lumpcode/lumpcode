@@ -1,5 +1,5 @@
 name: repo-templates
-workflow:
+stages:
   - req
   - impl
 task: >-

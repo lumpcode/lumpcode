@@ -1,5 +1,5 @@
 name: transcript-command
-workflow:
+stages:
   - manualReq
   - impl
 task: >-

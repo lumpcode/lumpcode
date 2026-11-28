@@ -16,7 +16,7 @@ import {
 } from './index';
 
 // Skipped until the impl stage. The assertions are still typechecked. Unskip; do not rewrite.
-describe.skip('workflow recipe types', () => {
+describe('workflow recipe types', () => {
     it('workflow recipes take workflow options and steps recipes keep today\'s options', () => {
         const configUrl = import.meta.url;
 

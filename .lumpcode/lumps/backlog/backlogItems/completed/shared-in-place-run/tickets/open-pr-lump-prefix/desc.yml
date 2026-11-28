@@ -1,5 +1,5 @@
 name: open-pr-lump-prefix
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

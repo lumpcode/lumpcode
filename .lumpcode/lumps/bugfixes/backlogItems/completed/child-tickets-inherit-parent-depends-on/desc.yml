@@ -1,5 +1,5 @@
 name: child-tickets-inherit-parent-depends-on
-workflow:
+stages:
   - impl
 task: >-
   featureBacklog gives a ticket under todo/<parent>/tickets/ only its own

@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: in-process-lock-queue
-workflow: [req, testPlan, testImpl, impl]
+stages: [req, testPlan, testImpl, impl]
 task: >-
   Put an in-process FIFO queue in front of the workspace file lock
   (packages/apps/cli/src/utils/workspaceFileLock/main.ts), keyed by lock kind

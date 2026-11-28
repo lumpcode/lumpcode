@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "featureBacklogDesc.schema.json",
   "title": "Lumpcode featureBacklog item (desc.yml)",
-  "description": "Schema for backlogItems/todo|completed/<name>/desc.yml used by the `featureBacklog` recipe. `workflow` lists stages. `manualReq` in workflow is a gate (wait for requirements.md), not an agent context. If both `req` and `manualReq` are listed, `manualReq` wins (runtime warns). The boolean field `manualReq` is deprecated and ignored.",
+  "description": "Schema for backlogItems/todo|completed/<name>/desc.yml used by the `featureBacklog` recipe. `stages` lists stages. `workflow` is a deprecated alias of `stages`. `manualReq` in stages is a gate (wait for requirements.md), not an agent context. If both `req` and `manualReq` are listed, `manualReq` wins (runtime warns). The boolean field `manualReq` is deprecated and ignored.",
   "type": "object",
   "required": ["name", "task", "priority"],
   "additionalProperties": true,
@@ -30,7 +30,7 @@
       },
       "description": "Other item names in this lump that must finish first. Tickets are prefixed with the parent name at runtime."
     },
-    "workflow": {
+    "stages": {
       "type": "array",
       "uniqueItems": true,
       "items": {
@@ -38,6 +38,21 @@
         "enum": ["req", "manualReq", "testPlan", "testImpl", "impl", "directImpl"]
       },
       "description": "Stages for this item. Omit ≡ [manualReq, testImpl, impl]. req: lump writes requirements.md. manualReq: wait for a human requirements.md (no agent context). If both are listed, manualReq wins. testPlan / testImpl run on feature/<name>. impl is the default terminal if neither impl nor directImpl is listed. directImpl may implement without requirements.md.",
+      "examples": [
+        ["manualReq", "testImpl", "impl"],
+        ["req", "testPlan", "testImpl"],
+        ["directImpl"]
+      ]
+    },
+    "workflow": {
+      "deprecated": true,
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": ["req", "manualReq", "testPlan", "testImpl", "impl", "directImpl"]
+      },
+      "description": "Deprecated alias of stages. Rename it to stages. Omit ≡ [manualReq, testImpl, impl]. Do not set stages and workflow together.",
       "examples": [
         ["manualReq", "testImpl", "impl"],
         ["req", "testPlan", "testImpl"],

@@ -1,5 +1,5 @@
 name: sparse-cron-tick-catch-up
-workflow:
+stages:
   - impl
 task: >-
   A daemon on a sparse cron (for example daily) loses that day's run when the

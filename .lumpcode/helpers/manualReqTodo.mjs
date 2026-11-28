@@ -11,7 +11,7 @@ const execFileAsync = promisify(execFile);
 
 const LANES = ['backlog', 'docs', 'qol', 'bugfixes'];
 
-/** True when desc.yml `workflow` contains the `manualReq` stage. A boolean field does not count. */
+/** True when desc.yml `stages` (or its deprecated `workflow` alias) contains `manualReq`. A boolean field does not count. */
 export function descYamlHasManualReq(raw) {
     let doc;
     try {
@@ -22,7 +22,8 @@ export function descYamlHasManualReq(raw) {
     if (typeof doc !== 'object' || doc === null || Array.isArray(doc)) {
         return false;
     }
-    return Array.isArray(doc.workflow) && doc.workflow.includes('manualReq');
+    const stages = Array.isArray(doc.stages) ? doc.stages : doc.workflow;
+    return Array.isArray(stages) && stages.includes('manualReq');
 }
 
 export async function readDescYamlHasManualReq(descPath) {
@@ -34,7 +35,7 @@ export async function readDescYamlHasManualReq(descPath) {
     }
 }
 
-/** A desc-only todo still needs auto-triage unless its workflow contains `manualReq`. */
+/** A desc-only todo still needs auto-triage unless its stages contain `manualReq`. */
 export async function itemNeedsAutoTriageRequirements(itemDir) {
     try {
         await readFile(path.join(itemDir, 'requirements.md'));
@@ -77,7 +78,7 @@ function pathsFromStatus(porcelain) {
 }
 
 /**
- * Todo items changed in the working tree whose HEAD `desc.yml` workflow contains `manualReq`.
+ * Todo items changed in the working tree whose HEAD `desc.yml` stages contain `manualReq`.
  * A folder that does not exist at HEAD is a new item, not one of these.
  */
 export async function findTouchedManualReqTodos(projectRoot) {

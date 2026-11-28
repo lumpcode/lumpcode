@@ -1,8 +1,4 @@
-import fs from 'node:fs';
-import path from 'node:path';
-
 import type { LumpJsConfig, LumpVariables, StepVariables } from '@lumpcode/cli-utils';
-import { load as loadYaml } from 'js-yaml';
 
 import {
     projectRootFromConfigUrl,
@@ -10,11 +6,11 @@ import {
     resolveBacklogPaths,
     resolveImplValidateCommand,
     retryUntilGreenSteps,
-    validateBaseBacklogItem,
 } from '../../kit';
 import type { BaseBacklogItem } from '../../types';
 import { defineRecipe } from '../../types';
 import { backlogSteps } from '../backlog';
+import { parseFeatureBacklogFolderItem } from './item';
 import {
     defaultDirectImplPrompt,
     defaultImplPrompt,
@@ -27,12 +23,6 @@ import {
 import { resolveFeatureBacklogDiscoveryOptions } from './discovery';
 import { resolveFeatureBacklogItem } from './resolve';
 import type { FeatureBacklogItem, FeatureBacklogStepsOptions } from './types';
-import {
-    assertValidFeatureItemName,
-    parentNameFromTodoRelativeDir,
-    parseFeatureWorkflow,
-    parseManual,
-} from './workflow';
 
 export {
     resolveFeatureBacklogDiscoveryOptions,
@@ -69,56 +59,6 @@ export {
     defaultTestPlanPrompt,
 } from './defaultPrompts';
 
-function mergeUniqueDependsOn(...lists: (string[] | undefined)[]): string[] | undefined {
-    const merged = [...new Set(lists.flatMap((l) => l ?? []))];
-    return merged.length > 0 ? merged : undefined;
-}
-
-function parentDependsOnFromDesc(input: {
-    projectRoot: string;
-    backlogItemsDir: string;
-    parentName: string;
-}): string[] {
-    const descPath = path.join(
-        input.projectRoot,
-        input.backlogItemsDir,
-        'todo',
-        input.parentName,
-        'desc.yml',
-    );
-    let rawText: string;
-    try {
-        rawText = fs.readFileSync(descPath, 'utf-8');
-    } catch (error) {
-        const err = error as NodeJS.ErrnoException;
-        if (err.code === 'ENOENT') {
-            return [];
-        }
-        throw error;
-    }
-    const raw = loadYaml(rawText);
-    const baseItem = validateBaseBacklogItem(raw, `in folder "${input.parentName}"`);
-    if (baseItem.name !== input.parentName) {
-        throw new Error(
-            `Backlog item folder "${input.parentName}" desc.yml name "${baseItem.name}" must match folder name`,
-        );
-    }
-    return baseItem.dependsOn ?? [];
-}
-
-function ticketDependsOn(input: {
-    projectRoot: string;
-    backlogItemsDir: string;
-    parentName: string;
-    ownDependsOn: string[] | undefined;
-}): string[] | undefined {
-    const siblingContexts = input.ownDependsOn?.map((dep) => `${input.parentName}-${dep}`);
-    return mergeUniqueDependsOn(
-        parentDependsOnFromDesc(input),
-        siblingContexts,
-    );
-}
-
 export const featureBacklogSteps = defineRecipe(function featureBacklogSteps<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
@@ -154,24 +94,14 @@ export const featureBacklogSteps = defineRecipe(function featureBacklogSteps<
             `${discovery.itemDiscoveryBranchPrefix}/*`,
         ],
         parseItem(baseItem: BaseBacklogItem, folderName, raw) {
-            assertValidFeatureItemName(baseItem.name);
-            const record = raw as Record<string, unknown>;
-            const parentName = parentNameFromTodoRelativeDir(folderName);
-            return {
-                ...baseItem,
-                todoRelativeDir: folderName,
-                parentName,
-                dependsOn: parentName
-                    ? ticketDependsOn({
-                          projectRoot,
-                          backlogItemsDir: backlogPaths.backlogItemsDir,
-                          parentName,
-                          ownDependsOn: baseItem.dependsOn,
-                      })
-                    : baseItem.dependsOn,
-                manual: parseManual(baseItem.name, record),
-                workflow: parseFeatureWorkflow(baseItem.name, raw),
-            };
+            return parseFeatureBacklogFolderItem({
+                baseItem,
+                folderName,
+                raw,
+                projectRoot,
+                backlogItemsDir: backlogPaths.backlogItemsDir,
+                field: 'workflow',
+            });
         },
         async resolveItem({ item, paths, discoveryBranch }) {
             return resolveFeatureBacklogItem({

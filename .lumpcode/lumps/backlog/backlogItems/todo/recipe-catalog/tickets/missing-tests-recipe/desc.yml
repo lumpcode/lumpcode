@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: missing-tests-recipe
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   `missingTests({…})`, built on sweep: each source file without a matching test
   file (configurable naming rule) gets one, checked by the project's test

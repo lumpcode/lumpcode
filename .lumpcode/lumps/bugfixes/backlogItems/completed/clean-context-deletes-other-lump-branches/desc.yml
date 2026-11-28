@@ -1,5 +1,5 @@
 name: clean-context-deletes-other-lump-branches
-workflow:
+stages:
   - impl
 task: >-
   lumpcode clean --lumpName <L> --contextName <X> deletes, locally and on the

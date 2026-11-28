@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: locks-command
-workflow: [req, testPlan, testImpl, impl]
+stages: [req, testPlan, testImpl, impl]
 task: >-
   New `lumpcode locks` command to see and safely prune workspace path and git
   common dir locks. Today an operator only learns who holds a lock from a busy

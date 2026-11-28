@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: issue-queue-recipe
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   `issueQueue({…})`: open issues with a given label on GitHub (`gh`), GitLab
   (`glab`) or Azure DevOps (`az`) become contexts, one issue each, with its

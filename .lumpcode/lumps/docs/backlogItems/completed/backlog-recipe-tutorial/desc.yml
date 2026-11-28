@@ -1,5 +1,5 @@
 name: backlog-recipe-tutorial
-workflow:
+stages:
   - manualReq
   - directImpl
 task: >-

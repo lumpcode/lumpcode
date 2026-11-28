@@ -1,5 +1,5 @@
 name: accept-json-schema-key
-workflow:
+stages:
   - directImpl
 task: >-
   Operator JSON configs that docs/website show with a $schema key are rejected

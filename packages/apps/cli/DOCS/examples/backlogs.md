@@ -42,7 +42,7 @@ task: >-
   Add a "Download CSV" button to the orders table. Export the rows that match the
   current filters, with the visible columns, in the table's sort order.
 priority: 2
-workflow: [req, testImpl, impl]
+stages: [req, testImpl, impl]
 ```
 
 An item with a test stage runs on its own feature branch, so half-done work never sits on `main`. Start it by pushing that branch:
@@ -61,7 +61,7 @@ Then, one PR at a time, each targeting `feature/export-csv`:
 
 Each stage waits until the previous one is **merged**, so you can fix the requirements in their PR and the implementation follows your version. After `impl`, the folder moves to `backlogItems/completed/export-csv/` and you merge `feature/export-csv` into `main`.
 
-`workflow` picks the stages. Omitted, it is `[manualReq, testImpl, impl]`: you write `requirements.md`, then the agent adds skipped tests and implements them. Use `req` when the agent should write the requirements. Items without a test stage, like `[req, impl]` or a small `[directImpl]` fix, skip the feature branch and run straight from `main`. Big features get tickets under the parent (`todo/export-csv/tickets/<ticket>/desc.yml`); the parent closes when every ticket is done. Every option: [Recipes](../author/recipes.md#recipe-factories).
+`stages` picks the stages. Omitted, it is `[manualReq, testImpl, impl]`: you write `requirements.md`, then the agent adds skipped tests and implements them. Use `req` when the agent should write the requirements. Items without a test stage, like `[req, impl]` or a small `[directImpl]` fix, skip the feature branch and run straight from `main`. Big features get tickets under the parent (`todo/export-csv/tickets/<ticket>/desc.yml`); the parent closes when every ticket is done. Every option: [Recipes](../author/recipes.md#recipe-factories).
 
 ## Lanes that share one factory
 
@@ -86,10 +86,17 @@ export function teamBacklog(configUrl: string, options: { maxOpen?: number } = {
     primaryDiscoveryBranch: 'main',
     implValidateCommand: 'npm run build && npm test',
     maximumNumberOfConcurrentBranches: options.maxOpen ?? 2,
-    promptFns: {
-      impl: async (input) =>
-        `${await defaultImplPrompt(input)}\n\nWhen done, follow @.agents/skills/capture-learnings/SKILL.md ` +
-        `and write what you learned to @${input.context.variables.BACKLOG_ITEM_DIR}/learnings.md.`,
+    prompts: {
+      impl: async ({ context, lumpVariables }) => {
+        const body = await defaultImplPrompt({
+          context,
+          lumpVariables,
+          stepIndex: 0,
+          contextRunState: {},
+        })
+        return `${body}\n\nWhen done, follow @.agents/skills/capture-learnings/SKILL.md ` +
+          `and write what you learned to @${context.variables.BACKLOG_ITEM_DIR}/learnings.md.`
+      },
     },
     postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' }),
   })
@@ -102,9 +109,9 @@ import { teamBacklog } from '../../helpers/teamBacklog'
 export default teamBacklog(import.meta.url, { maxOpen: 3 })
 ```
 
-- `promptFns` wraps the recipe's default prompt for one stage instead of replacing it. Here every implementation also leaves a `learnings.md` for the reviewer.
+- `prompts` replaces the recipe's default prompt for one stage. Here every implementation also leaves a `learnings.md` for the reviewer. The exported defaults are the steps prompt functions; pass `stepIndex: 0` and `contextRunState: {}` when you call one from a workflow prompt.
 - Change the helper once and every lane follows on the next pass.
-- Lanes differ mostly through their tickets' `workflow`: features take the full `[req, testPlan, testImpl]` path, bug tickets are often `[manualReq, directImpl]` (you write the diagnosis, the agent fixes it) or just `[directImpl]`.
+- Lanes differ mostly through their tickets' `stages`: features take the full `[req, testPlan, testImpl]` path, bug tickets are often `[manualReq, directImpl]` (you write the diagnosis, the agent fixes it) or just `[directImpl]`.
 - Pair this with a [triage lump](pipelines.md#triage-an-inbox-into-lanes) that files new tickets into the right lane.
 
 ## One stage, your own prompt
@@ -120,7 +127,12 @@ export default backlog({
   stages: {
     implement: {
       completion: 'moveToDone',
-      steps: [{ promptTemplate: 'Do this docs task:\n\n{TASK}\n\nFollow the style of the existing pages.' }],
+      async workflow({ agent, context }) {
+        const session = await agent.session()
+        await session.prompt(
+          `Do this docs task:\n\n${context.variables.TASK}\n\nFollow the style of the existing pages.`,
+        )
+      },
     },
   },
   resolveItem: () => ({ stage: 'implement' }),

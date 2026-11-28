@@ -1,5 +1,5 @@
 name: lumpcode-setup
-workflow:
+stages:
   - manualReq
   - testImpl
   - impl

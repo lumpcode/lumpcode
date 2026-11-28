@@ -25,10 +25,11 @@ Each one returns a full lump config, so a lump can be a single call. Pass `confi
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `implValidateCommand` | none | Shell command the `impl` stage loops on until it passes. |
+| `implValidateCommand` | none | Shell command the `impl`, `directImpl`, and `testImpl` stages loop on until it passes. Omit it and the stage only prompts. |
+| `maxAttempts` | `3` | Fix prompts after the first red check. Passed to `retryUntilGreen`. |
 | `primaryDiscoveryBranch` | `dev` | Your integration branch. Items without a test stage run from here. |
 | `itemDiscoveryBranchPrefix` | `feature` | Items with a test stage, and tickets, run on `feature/<item>`. List `feature/*` in `primaryBranches`. |
-| `promptFns` | built-in | Replace or wrap the prompt of one stage (`req`, `testPlan`, `testImpl`, `impl`, `directImpl`). Defaults are exported (`defaultImplPrompt`, …). |
+| `prompts` | built-in | Replace the prompt of one stage (`req`, `testPlan`, `testImpl`, `impl`, `directImpl`). A string, or `({ context, lumpVariables }) => string`. Defaults are exported (`defaultImplPrompt`, …). |
 
 Per item, in `desc.yml`:
 
@@ -37,12 +38,18 @@ Per item, in `desc.yml`:
 | `name`, `task` | Required. `name` matches the folder. |
 | `priority` | Lower runs sooner. |
 | `dependsOn` | Other item names that must be finished first. |
-| `workflow` | Stages, any of `req` or `manualReq`, `testPlan`, `testImpl`, `impl` or `directImpl`. Omitted: `[manualReq, testImpl, impl]`. `manualReq` waits for a `requirements.md` you write. `req` has the agent write that file. `directImpl` implements from `desc.yml` alone. |
+| `stages` | Stages, any of `req` or `manualReq`, `testPlan`, `testImpl`, `impl` or `directImpl`. Omitted: `[manualReq, testImpl, impl]`. `manualReq` waits for a `requirements.md` you write. `req` has the agent write that file. `directImpl` implements from `desc.yml` alone. `workflow` is a deprecated alias: it still runs, and warns once per item each time the list is read. Setting both fails. |
 | `manual` | `true` keeps the agent away from this item. |
 
 Big features: put tickets in `todo/<parent>/tickets/<ticket>/desc.yml`. The parent never runs a stage itself; when every ticket is done, it moves to `completed/`. A ticket waits for its parent's `dependsOn` as well as its own. Its own `dependsOn` names sibling tickets.
 
 Editors autocomplete `desc.yml` with `# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json` on the first line. Generic `backlog` and `abstractionBacklog` items use `https://lumpcode.com/schemas/backlogDesc.schema.json`.
+
+`backlog` stages take a `workflow` function and `completion: 'keepPending' | 'moveToDone'`. `moveToDone` calls `setTaskDone` after that workflow, including when it returns `succeeded: false`. `abstractionFinder` takes an optional `workflow` that replaces the default prompt; `scanCommand` still runs first. `abstractionBacklog` takes an optional `workflow` that replaces the default implement workflow.
+
+## Steps recipes
+
+`featureBacklogSteps`, `backlogSteps`, `abstractionFinderSteps`, and `abstractionBacklogSteps` are the same recipes as steps. Behavior and options match the workflow recipes, except the step-typed fields keep their old names: `promptFns`, `stages.<name>.steps`, `steps`, and `implSteps`. `featureBacklogSteps` still reads `workflow` from `desc.yml` and does not read `stages`.
 
 ## Kit you will actually reach for
 
@@ -55,7 +62,8 @@ Workflow helpers are async functions you call from [`workflow`](../config/lump.m
 | `mustSucceed` | Return a succeeded shell or agent result, or throw with that result as `cause`. |
 | `openPrPostTeardown` | After push, open a GitHub PR with `gh` on `PATH`. Opt-in, not built into the CLI. |
 | `folderBacklogContexts` | Context list from `backlogItems/todo/`. |
-| `folderSetTaskDoneStep` | Move a finished item to `completed/` after the context succeeds. |
+| `setTaskDone` | Move a finished item from `todo/` to the same path under `completed/` and stamp `completedAt`. |
+| `folderSetTaskDoneStep` | The steps version of `setTaskDone`. |
 | `ephemeralContextListFn` | N fresh synthetic contexts per run (hunts, one-off scans). |
 
 ```ts config.ts

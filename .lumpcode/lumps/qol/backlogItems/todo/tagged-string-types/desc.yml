@@ -1,6 +1,6 @@
 # yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
 name: tagged-string-types
-workflow: [manualReq, testImpl, impl]
+stages: [manualReq, testImpl, impl]
 task: >-
   Many values in @lumpcode/core and @lumpcode/cli are typed as plain string
   although they are not interchangeable: an agent session id, a command name
