@@ -1,0 +1,23 @@
+name: daemon-stale-lumpcode-packages
+workflow: [req, impl]
+task: >-
+  A dedicated daemon keeps the first @lumpcode/* modules (and any other npm
+  package a lump config imports) that it loaded, for its whole life, across
+  ticks and scan branches. Lump configs are transpiled to cached .mjs files,
+  but their bare imports resolve to the project's node_modules and Node's ESM
+  cache never reloads them. refreshCommand rebuilds those packages per scan
+  branch in one shared checkout, so a scan branch whose packages export
+  different names fails every tick ("The requested module '@lumpcode/recipes'
+  does not provide an export named 'featureBacklogSteps'"), and a branch with
+  the same names silently runs another branch's recipe code. Seen on a worker
+  whose daemon started before a rename landed on feature/workflow-api:
+  restarting only moves the failure to dev. Each scan branch's lumps must load
+  with that branch's packages as built by its refreshCommand, and a rebuild
+  between ticks must take effect without restarting the daemon (for example
+  loading and running each scan branch in a child process, or one checkout
+  per scan branch). Requirements pick the approach, say what it costs per
+  tick, and keep shared mode and manual run unchanged. Code:
+  utils/discoverDedicatedLumpsForScanBranch, utils/launchStartDaemon/
+  runForeground.ts, utils/transpileTypeScriptToCachedMjs. Add an E2E test
+  with two scan branches whose local package exports differ.
+priority: 3
