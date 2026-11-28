@@ -1,0 +1,24 @@
+# yaml-language-server: $schema=https://lumpcode.com/schemas/featureBacklogDesc.schema.json
+name: context-followup
+workflow: [manualReq, testImpl, impl]
+manual: true
+task: >-
+  An optional followup hook on a workflow lump that keeps working on a
+  context after its branch is pushed, until the context is finished. It
+  receives the context, agent, shell and the serializable result the
+  workflow returned (workflowRes: plain data only, no functions), starts a
+  listener (first use: review comments on the pushed branch, polled by a
+  recipe kit helper, never a CLI feature) and returns a stop function. The
+  daemon hosts follow-ups and persists each one's inputs in a worker-local
+  record next to the agent session registry, so a restart loads the lump
+  config again and calls followup with the same inputs. Git stays the source
+  of truth: records whose context is finished or whose branch is gone are
+  dropped. Each event runs in a workspace on the pushed branch, one at a time
+  per context, and is never handled twice. Resuming the workflow's session
+  needs agent.resume(id) from agent-session-registry, with a new session as
+  the fallback. Needs a grilled requirements.md before any ticket; see
+  memo.md for the idea and its open questions.
+priority: 60
+dependsOn:
+  - workflow-api
+  - agent-session-registry
