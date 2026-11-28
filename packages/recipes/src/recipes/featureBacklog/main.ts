@@ -14,7 +14,7 @@ import {
 } from '../../kit';
 import type { BaseBacklogItem } from '../../types';
 import { defineRecipe } from '../../types';
-import { backlog } from '../backlog';
+import { backlogSteps } from '../backlog';
 import {
     defaultDirectImplPrompt,
     defaultImplPrompt,
@@ -26,7 +26,7 @@ import {
 } from './defaultPrompts';
 import { resolveFeatureBacklogDiscoveryOptions } from './discovery';
 import { resolveFeatureBacklogItem } from './resolve';
-import type { FeatureBacklogItem, FeatureBacklogOptions } from './types';
+import type { FeatureBacklogItem, FeatureBacklogStepsOptions } from './types';
 import {
     assertValidFeatureItemName,
     parentNameFromTodoRelativeDir,
@@ -47,7 +47,11 @@ export {
     type FeatureBacklogContextVariables,
     type FeatureBacklogItem,
     type FeatureBacklogOptions,
-    type FeatureBacklogPromptFns,
+    type FeatureBacklogPromptInput,
+    type FeatureBacklogPrompts,
+    type FeatureBacklogStepsOptions,
+    type FeatureBacklogStepsPromptFns,
+    type FeatureBacklogValidateCommand,
     type FeatureBacklogPromptStage,
     type FeatureBacklogStage,
     type FeatureBacklogTerminalStage,
@@ -115,10 +119,10 @@ function ticketDependsOn(input: {
     );
 }
 
-export const featureBacklog = defineRecipe(function featureBacklog<
+export const featureBacklogSteps = defineRecipe(function featureBacklogSteps<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
->(options: FeatureBacklogOptions<V, SV>): LumpJsConfig<V, SV> {
+>(options: FeatureBacklogStepsOptions<V, SV>): LumpJsConfig<V, SV> {
     const {
         configUrl,
         implValidateCommand,
@@ -140,7 +144,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
             'echo "No implementation validation command provided. I say, trust but verify, but well..."',
     );
 
-    return backlog<FeatureBacklogItem, V, SV>({
+    return backlogSteps<FeatureBacklogItem, V, SV>({
         configUrl,
         backlogItemsDir,
         includeUmbrellaParents: true,

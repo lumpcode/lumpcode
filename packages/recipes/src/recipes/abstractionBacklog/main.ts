@@ -14,9 +14,9 @@ import {
     type ValidationCommandFn,
 } from '../../kit';
 import { defineRecipe, type BaseBacklogItem } from '../../types';
-import { backlog } from '../backlog';
+import { backlogSteps } from '../backlog';
 
-export type AbstractionBacklogOptions<
+export type AbstractionBacklogStepsOptions<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 > = {
@@ -26,7 +26,7 @@ export type AbstractionBacklogOptions<
     implSteps?: LumpJsConfig<V, SV>['steps'];
 } & Omit<
     LumpJsConfig<V, SV>,
-    'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps'
+    'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'steps' | 'workflow'
 >;
 
 type AbstractionBacklogContextVariables = {
@@ -37,10 +37,10 @@ type AbstractionBacklogContextVariables = {
     REQ_FILE?: string;
 };
 
-export const abstractionBacklog = defineRecipe(function abstractionBacklog<
+export const abstractionBacklogSteps = defineRecipe(function abstractionBacklogSteps<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
->(options: AbstractionBacklogOptions<V, SV>): LumpJsConfig<V, SV> {
+>(options: AbstractionBacklogStepsOptions<V, SV>): LumpJsConfig<V, SV> {
     const {
         implValidateCommand,
         configUrl,
@@ -54,7 +54,7 @@ export const abstractionBacklog = defineRecipe(function abstractionBacklog<
             'echo "No implementation validation command provided. I say, trust but verify, but well..."',
     );
 
-    return backlog<BaseBacklogItem, V, SV>({
+    return backlogSteps<BaseBacklogItem, V, SV>({
         configUrl,
         async resolveItem({ item, paths }) {
             const itemReqPath = path.join(paths.backlogItemsDir, 'todo', item.name, 'requirements.md');

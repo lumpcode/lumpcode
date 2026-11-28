@@ -8,7 +8,7 @@ import {
 import {
     defaultImplPrompt,
     defaultTestImplPrompt,
-    featureBacklog,
+    featureBacklogSteps,
     projectRootFromConfigUrl,
 } from '@lumpcode/recipes';
 
@@ -46,7 +46,7 @@ async function withExpectMatch(
 Read @${expectPath} and try to match that expectation if possible: prefer the listed files and stay close to the line estimates.`;
 }
 
-export default defineLump(featureBacklog<
+export default defineLump(featureBacklogSteps<
     CursorPresetLumpVariables,
     CursorPresetStepVariables
 >({

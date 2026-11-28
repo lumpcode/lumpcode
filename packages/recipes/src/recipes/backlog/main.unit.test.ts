@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { GetContextListFn, LumpJsConfigSteps } from '@lumpcode/cli-utils';
 import { normalizeSteps } from '@lumpcode/cli-utils';
 
-import { backlog } from './main';
+import { backlogSteps } from './main';
 
 async function writeTodoItem(
     projectRoot: string,
@@ -52,7 +52,7 @@ function asDynamicStep(step: LumpJsConfigSteps[number]) {
     return step;
 }
 
-describe('backlog recipe', () => {
+describe('backlogSteps', () => {
     let projectRoot: string;
     let configPath: string;
     let lumpRelativePath: string;
@@ -73,7 +73,7 @@ describe('backlog recipe', () => {
         });
 
         let seenDiscoveryBranch: string | undefined;
-        const config = backlog({
+        const config = backlogSteps({
             configUrl: pathToFileURL(configPath),
             stages: {
                 draft: {
@@ -136,7 +136,7 @@ describe('backlog recipe', () => {
             priority: 1,
         });
 
-        const config = backlog({
+        const config = backlogSteps({
             configUrl: pathToFileURL(configPath),
             stages: {
                 ship: {
@@ -181,7 +181,7 @@ describe('backlog recipe', () => {
             'name: bad/name\ntask: x\npriority: 1\n',
         );
 
-        const config = backlog({
+        const config = backlogSteps({
             configUrl: pathToFileURL(configPath),
             stages: {
                 ship: { completion: 'moveToDone', steps: [] },
@@ -205,7 +205,7 @@ describe('backlog recipe', () => {
             'name: custom\ntask: Custom\npriority: 1\n',
         );
 
-        const config = backlog({
+        const config = backlogSteps({
             configUrl: pathToFileURL(configPath),
             backlogItemsDir: customItemsDir,
             stages: {
@@ -244,7 +244,7 @@ describe('backlog recipe', () => {
             'name: t1\ntask: Ticket one\npriority: 1\ndependsOn:\n  - other\n',
         );
 
-        const config = backlog({
+        const config = backlogSteps({
             configUrl: pathToFileURL(configPath),
             stages: {
                 draft: {
@@ -287,7 +287,7 @@ describe('backlog recipe', () => {
 
     it('rejects absolute backlogItemsDir overrides', () => {
         expect(() =>
-            backlog({
+            backlogSteps({
                 configUrl: pathToFileURL(configPath),
                 backlogItemsDir: '/tmp/backlogItems',
                 stages: {
@@ -301,7 +301,7 @@ describe('backlog recipe', () => {
     });
 });
 
-describe('abstractionBacklog compatibility', () => {
+describe('abstractionBacklogSteps', () => {
     let projectRoot: string;
     let configPath: string;
     let lumpRelativePath: string;
@@ -333,8 +333,8 @@ describe('abstractionBacklog compatibility', () => {
             '# Requirements',
         );
 
-        const { abstractionBacklog } = await import('../abstractionBacklog/main');
-        const config = abstractionBacklog({
+        const { abstractionBacklogSteps } = await import('../abstractionBacklog/main');
+        const config = abstractionBacklogSteps({
             configUrl: pathToFileURL(configPath),
             command: 'cursor',
         });

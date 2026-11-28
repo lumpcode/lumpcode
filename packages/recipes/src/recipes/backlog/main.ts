@@ -20,8 +20,8 @@ import { BaseBacklogItem, defineRecipe } from '../../types';
 
 import type {
     BacklogItemResolution,
-    BacklogOptions,
-    BacklogStageDefinition,
+    BacklogStageStepsDefinition,
+    BacklogStepsOptions,
 } from './types';
 import {
     BACKLOG_ITEM_DIR_VAR,
@@ -31,7 +31,13 @@ import {
     BACKLOG_TASK_VAR,
 } from './types';
 
-export type { BacklogOptions, BacklogStageDefinition, BacklogItemResolution } from './types';
+export type {
+    BacklogItemResolution,
+    BacklogOptions,
+    BacklogStageDefinition,
+    BacklogStageStepsDefinition,
+    BacklogStepsOptions,
+} from './types';
 export {
     BACKLOG_ITEM_DIR_VAR,
     BACKLOG_ITEMS_DIR_VAR,
@@ -49,7 +55,7 @@ function isIgnoredResolution<StageName extends string>(
 function buildStageSteps<
     V extends LumpVariables,
     SV extends StepVariables,
-    Stages extends Record<string, BacklogStageDefinition<V, SV>>,
+    Stages extends Record<string, BacklogStageStepsDefinition<V, SV>>,
 >(
     stages: Stages,
     stageName: Extract<keyof Stages, string>,
@@ -76,15 +82,15 @@ function buildStageSteps<
     return normalized;
 }
 
-export function backlog<
+export function backlogSteps<
     Item extends BaseBacklogItem,
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
-    Stages extends Record<string, BacklogStageDefinition<V, SV>> = Record<
+    Stages extends Record<string, BacklogStageStepsDefinition<V, SV>> = Record<
         string,
-        BacklogStageDefinition<V, SV>
+        BacklogStageStepsDefinition<V, SV>
     >,
->(options: BacklogOptions<Item, V, SV, Stages>): LumpJsConfig<V, SV> {
+>(options: BacklogStepsOptions<Item, V, SV, Stages>): LumpJsConfig<V, SV> {
     const {
         configUrl,
         backlogItemsDir: backlogItemsDirOverride,
@@ -176,4 +182,4 @@ export function backlog<
     });
 }
 
-export const backlogRecipe = defineRecipe(backlog);
+export const backlogRecipe = defineRecipe(backlogSteps);
