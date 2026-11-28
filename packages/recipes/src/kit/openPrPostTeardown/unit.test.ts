@@ -244,7 +244,7 @@ describe('openPrPostTeardown', () => {
 });
 
 // Skipped until the impl stage fills in the body and draft. Unskip; do not rewrite.
-describe.skip('openPrPostTeardown context results', () => {
+describe('openPrPostTeardown context results', () => {
     beforeEach(() => {
         execBinaryMock.mockReset();
     });

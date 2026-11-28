@@ -5,7 +5,7 @@ import type { AgentResult, ShellResult } from '@lumpcode/core';
 import { mustSucceed } from './mustSucceed';
 
 // Skipped until the impl stage fills in the workflow helper. Unskip; do not rewrite.
-describe.skip('mustSucceed', () => {
+describe('mustSucceed', () => {
     it('returns a succeeded shell result unchanged', () => {
         const result: ShellResult = { output: 'ok', succeeded: true, exitCode: 0, timedOut: false };
         expect(mustSucceed(result)).toBe(result);

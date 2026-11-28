@@ -1,5 +1,7 @@
 import type { AgentSession, CommandDescriptor, Shell, ShellResult } from '@lumpcode/core';
 
+import { defaultFixPromptText, formatCheckCommand } from '../defaultFixPrompt';
+
 export interface RetryUntilGreenInput {
     session: AgentSession;
     shell: Shell;
@@ -15,6 +17,30 @@ export interface RetryUntilGreenInput {
 export async function retryUntilGreen(
     input: RetryUntilGreenInput,
 ): Promise<{ succeeded: boolean; attempts: number; lastCheck: ShellResult }> {
-    void input;
-    throw new Error('not implemented');
+    const {
+        session,
+        shell,
+        check,
+        prompt,
+        maxAttempts = 3,
+        fixPrompt,
+    } = input;
+    const commandText = formatCheckCommand(check);
+    const checkLabel = `retry: ${commandText}`;
+
+    if (prompt !== undefined) {
+        await session.prompt(prompt);
+    }
+
+    let lastCheck: ShellResult;
+    for (let attempts = 1; ; attempts += 1) {
+        lastCheck = await shell(check, { label: checkLabel });
+        if (lastCheck.succeeded || attempts > maxAttempts) {
+            return { succeeded: lastCheck.succeeded, attempts, lastCheck };
+        }
+        const fixText = fixPrompt
+            ? fixPrompt(lastCheck, attempts)
+            : defaultFixPromptText(commandText, lastCheck.output);
+        await session.prompt(fixText, { label: `retry fix ${attempts}/${maxAttempts}` });
+    }
 }

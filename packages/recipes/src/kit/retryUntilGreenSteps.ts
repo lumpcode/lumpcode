@@ -4,9 +4,8 @@ import type {
     LumpVariables,
     StepVariables,
 } from '@lumpcode/cli-utils';
-import type { CommandDescriptor } from '@lumpcode/core';
-import { shellSingleQuote } from '@lumpcode/core';
 
+import { defaultFixPromptText, formatVerificationCommand } from './defaultFixPrompt';
 import {
     getValidationLoopSteps,
     type GetFirstStepsInput,
@@ -15,38 +14,11 @@ import {
     type ValidationCommandFn,
 } from './getValidationLoopSteps';
 
-function formatVerificationCommand(descriptor: CommandDescriptor | null): string {
-    if (!descriptor) {
-        return '(no verification command recorded)';
-    }
-
-    if (descriptor.executable === 'sh' && descriptor.args[0] === '-c' && descriptor.args.length === 2) {
-        return descriptor.args[1];
-    }
-
-    const command = [descriptor.executable, ...descriptor.args.map(shellSingleQuote)].join(' ');
-    if (!descriptor.env || Object.keys(descriptor.env).length === 0) {
-        return command;
-    }
-
-    const envPrefix = Object.entries(descriptor.env)
-        .map(([key, value]) => `${key}=${shellSingleQuote(value)}`)
-        .join(' ');
-    return `${envPrefix} ${command}`;
-}
-
 function defaultFixPrompt({ prevValidateCommandResult, prevValidateCommandDescriptor }: GetFirstStepsInput): string {
-    return [
-        'The verification step failed. Fix the issues and try again.',
-        '',
-        'Verification command:',
-        '',
+    return defaultFixPromptText(
         formatVerificationCommand(prevValidateCommandDescriptor),
-        '',
-        'Verification output:',
-        '',
         prevValidateCommandResult ?? '(no output captured)',
-    ].join('\n');
+    );
 }
 
 function defaultFixSteps<

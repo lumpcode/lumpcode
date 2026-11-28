@@ -13,7 +13,7 @@ import { shellSingleQuote } from '@lumpcode/core';
 import { retryUntilGreen } from './retryUntilGreen';
 
 // Skipped until the impl stage fills in the workflow helper. Unskip; do not rewrite.
-describe.skip('retryUntilGreen', () => {
+describe('retryUntilGreen', () => {
     it('returns succeeded on the first green check and does not prompt', async () => {
         const green = checkResult({ succeeded: true, output: 'ok' });
         const sequence: string[] = [];
