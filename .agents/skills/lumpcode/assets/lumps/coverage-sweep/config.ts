@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 
 import { defineConfig } from '@lumpcode/cli-utils';
-import { retryUntilGreen, shellCommand } from '@lumpcode/recipes';
+import { retryUntilGreenSteps, shellCommand } from '@lumpcode/recipes';
 
 export default defineConfig({
     command: 'cursor',
@@ -20,7 +20,7 @@ export default defineConfig({
             filePathVariableName: 'SOURCE',
         };
     },
-    steps: retryUntilGreen({
+    steps: retryUntilGreenSteps({
         steps: [
             {
                 promptTemplate:

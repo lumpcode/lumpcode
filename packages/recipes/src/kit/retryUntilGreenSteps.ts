@@ -62,7 +62,7 @@ function defaultFixSteps<
     ];
 }
 
-export interface RetryUntilGreenInput<
+export interface RetryUntilGreenStepsInput<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 > {
@@ -76,7 +76,7 @@ export interface RetryUntilGreenInput<
 }
 
 /** Work steps, validation command, and optional fix steps — retried until checks pass or `maxIterations`. */
-export function retryUntilGreen<
+export function retryUntilGreenSteps<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 >({
@@ -87,7 +87,7 @@ export function retryUntilGreen<
     maxIterations,
     pushOnValidationFailure,
     validationFailedVariableName,
-}: RetryUntilGreenInput<V, SV>): LumpJsConfigSteps<V, SV> {
+}: RetryUntilGreenStepsInput<V, SV>): LumpJsConfigSteps<V, SV> {
     return getValidationLoopSteps<V, SV>({
         maxIterations,
         validationCommandFn,

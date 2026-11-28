@@ -6,7 +6,7 @@ import {
 import {
     ephemeralContextListFn,
     openPrPostTeardown,
-    retryUntilGreen,
+    retryUntilGreenSteps,
     shellCommand,
 } from '@lumpcode/recipes';
 
@@ -31,7 +31,7 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
         provider: 'github',
         body: explanationPrBody(EXPLANATION),
     }),
-    steps: retryUntilGreen({
+    steps: retryUntilGreenSteps({
         maxIterations: 2,
         steps: [
             {

@@ -19,6 +19,8 @@ export type OpenPrPostTeardownOptions<V extends LumpVariables = LumpVariables> =
     lumpName?: string;
     title?: (input: PostSetupWorkspaceFnInput<V>) => string;
     body?: (input: PostSetupWorkspaceFnInput<V>) => string;
+    /** Draft when a pushed context has `succeeded: false`. Default `true`. */
+    draftOnFailure?: boolean;
 };
 
 export function openPrPostTeardown<

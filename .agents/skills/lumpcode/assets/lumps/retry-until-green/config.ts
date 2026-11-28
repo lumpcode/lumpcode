@@ -1,12 +1,12 @@
 import { defineConfig } from '@lumpcode/cli-utils';
-import { retryUntilGreen, shellCommand } from '@lumpcode/recipes';
+import { retryUntilGreenSteps, shellCommand } from '@lumpcode/recipes';
 
 export default defineConfig({
     command: 'cursor',
     contextListJson: {
         FILE: 'src/{NAME}.ts',
     },
-    steps: retryUntilGreen({
+    steps: retryUntilGreenSteps({
         steps: [
             {
                 promptTemplate:
