@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { planLumpFromJsConfig } from '../../utils/planLumpFromJsConfig';
 
 // Skipped until the impl stage. Unskip; do not rewrite.
-describe.skip('lump-plan for every repo lump', () => {
+describe('lump-plan for every repo lump', () => {
     it('validates each lump under .lumpcode/lumps', async () => {
         const repoRoot = findRepoRoot(path.dirname(fileURLToPath(import.meta.url)));
         const localConfigFolderPath = path.join(repoRoot, '.lumpcode');

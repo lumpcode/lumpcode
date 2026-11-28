@@ -12,7 +12,7 @@ import {
 } from '../index';
 
 // Skipped until the impl stage. The assertions are still typechecked. Unskip; do not rewrite.
-describe.skip('kit workflow types', () => {
+describe('kit workflow types', () => {
     it('retryUntilGreen takes session, shell, and check; the steps input is a type error', () => {
         const session = null as unknown as AgentSession;
         const shell = null as unknown as Shell;

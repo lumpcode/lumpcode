@@ -8,7 +8,7 @@ import type { AgentResult, AgentSession, PromptOptions } from '@lumpcode/core';
 import { requireArtifact } from './requireArtifact';
 
 // Skipped until the impl stage fills in the workflow helper. Unskip; do not rewrite.
-describe.skip('requireArtifact', () => {
+describe('requireArtifact', () => {
     const roots: string[] = [];
 
     afterEach(async () => {

@@ -8,8 +8,9 @@ export async function openGithubPr(input: {
     branchName: string;
     title: string;
     body: string;
+    draft?: boolean;
 }): Promise<void> {
-    const { workspacePath, baseBranch, branchName, title, body } = input;
+    const { workspacePath, baseBranch, branchName, title, body, draft = false } = input;
     const cwd = workspacePath;
 
     const listed = await execBinary({
@@ -26,6 +27,7 @@ export async function openGithubPr(input: {
         args: [
             'pr',
             'create',
+            ...(draft ? ['--draft'] : []),
             '--base',
             baseBranch,
             '--head',

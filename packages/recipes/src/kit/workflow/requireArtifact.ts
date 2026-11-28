@@ -1,3 +1,6 @@
+import { access } from 'node:fs/promises';
+import path from 'node:path';
+
 import type { AgentSession } from '@lumpcode/core';
 
 export interface RequireArtifactInput {
@@ -15,6 +18,34 @@ export interface RequireArtifactInput {
 export async function requireArtifact(
     input: RequireArtifactInput,
 ): Promise<{ succeeded: boolean; path: string }> {
-    void input;
-    throw new Error('not implemented');
+    const {
+        session,
+        workspacePath,
+        path: relativePath,
+        prompt,
+        maxAttempts = 2,
+    } = input;
+    const text = prompt ?? `Write ${relativePath}. It is missing.`;
+
+    if (await artifactExists(workspacePath, relativePath)) {
+        return { succeeded: true, path: relativePath };
+    }
+
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        await session.prompt(text);
+        if (await artifactExists(workspacePath, relativePath)) {
+            return { succeeded: true, path: relativePath };
+        }
+    }
+
+    return { succeeded: false, path: relativePath };
+}
+
+async function artifactExists(workspacePath: string, relativePath: string): Promise<boolean> {
+    try {
+        await access(path.join(workspacePath, relativePath));
+        return true;
+    } catch {
+        return false;
+    }
 }

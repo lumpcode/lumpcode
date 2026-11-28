@@ -4,7 +4,7 @@ import {
     type PostSetupWorkspaceFnInput,
     type PostTeardownWorkspaceFn,
 } from '@lumpcode/cli-utils';
-import { execBinary } from '@lumpcode/core';
+import { execBinary, type ContextResult } from '@lumpcode/core';
 
 import { openGithubPr } from './github';
 
@@ -26,10 +26,10 @@ export type OpenPrPostTeardownOptions<V extends LumpVariables = LumpVariables> =
 export function openPrPostTeardown<
     V extends LumpVariables = LumpVariables,
 >(options: OpenPrPostTeardownOptions<V>): PostTeardownWorkspaceFn<V> {
-    const { provider, lumpName: lumpNameOption, title, body } = options;
+    const { provider, lumpName: lumpNameOption, title, body, draftOnFailure = true } = options;
 
     return async (input) => {
-        const { baseBranch, branchName, contextList, workspacePath } = input;
+        const { baseBranch, branchName, contextList, contextResults, workspacePath } = input;
         if (!branchName || branchName === baseBranch) {
             return;
         }
@@ -50,7 +50,10 @@ export function openPrPostTeardown<
         const label = names.length > 0 ? names.join(', ') : branchName;
         const lumpName = lumpNameOption ?? lumpNameFromBranch(branchName);
         const resolvedTitle = title?.(input) ?? defaultPrTitle({ lumpName, label });
-        const resolvedBody = body?.(input) ?? `LUMP contexts: ${label}`;
+        const resolvedBody = body?.(input) ?? defaultPrBody({ label, contextResults });
+        const draft = draftOnFailure && contextResults.some(
+            (entry) => entry.outcome === 'pushed' && entry.result.succeeded === false,
+        );
 
         await openPrWithProvider({
             provider,
@@ -59,8 +62,27 @@ export function openPrPostTeardown<
             branchName,
             title: resolvedTitle,
             body: resolvedBody,
+            draft,
         });
     };
+}
+
+function defaultPrBody(input: { label: string; contextResults: ContextResult[] }): string {
+    const { label, contextResults } = input;
+    const sections = contextResults.flatMap((entry) => {
+        if (entry.outcome !== 'pushed') {
+            return [];
+        }
+        const message = entry.result.message;
+        if (message === undefined || message.length === 0) {
+            return [];
+        }
+        return [`### ${entry.context.name}\n${message}`];
+    });
+    if (sections.length === 0) {
+        return `LUMP contexts: ${label}`;
+    }
+    return sections.join('\n\n');
 }
 
 function defaultPrTitle(input: { lumpName: string | undefined; label: string }): string {
@@ -90,6 +112,7 @@ async function openPrWithProvider(input: {
     branchName: string;
     title: string;
     body: string;
+    draft: boolean;
 }): Promise<void> {
     const { provider, ...prInput } = input;
     switch (provider) {

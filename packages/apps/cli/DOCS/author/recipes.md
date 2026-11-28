@@ -46,27 +46,62 @@ Editors autocomplete `desc.yml` with `# yaml-language-server: $schema=https://lu
 
 ## Kit you will actually reach for
 
+Workflow helpers are async functions you call from [`workflow`](../config/lump.md). The steps versions are in [Steps kit](#steps-kit).
+
 | Helper | Use when |
 | --- | --- |
-| `retryUntilGreen` | Agent edits, then your test/build command, retry with the failure output. |
-| `getValidationLoopSteps` | Same loop with more control over the fix steps. |
-| `requireArtifactStep` | Exit 1 when a file is missing (requirements.md, and so on). The retry loop decides whether the context fails. |
+| `retryUntilGreen` | Run a check. On failure, prompt the agent with the output and try again. |
+| `requireArtifact` | Prompt until a file exists in the workspace. |
+| `mustSucceed` | Return a succeeded shell or agent result, or throw with that result as `cause`. |
 | `openPrPostTeardown` | After push, open a GitHub PR with `gh` on `PATH`. Opt-in, not built into the CLI. |
 | `folderBacklogContexts` | Context list from `backlogItems/todo/`. |
 | `folderSetTaskDoneStep` | Move a finished item to `completed/` after the context succeeds. |
 | `ephemeralContextListFn` | N fresh synthetic contexts per run (hunts, one-off scans). |
-| `shellCommand` | `{ executable, args }` for `sh -c`. |
-
-`retryUntilGreen` is the usual wrapper: iteration 0 runs your steps, retries call `fixSteps` or a default “here is the command output, fix it” prompt, until `validationCommandFn` exits 0 or the cap is hit. Hitting the cap still pushes the branch, and sets `lumpVariables.__VALIDATION_FAILED__` (`true` when the last check stayed red, `false` when a check passed). Pass `validationFailedVariableName` to write the flag under another name, for example when two loops run in one context. Pass `pushOnValidationFailure: false` to fail the context instead of pushing. `requireArtifactStep` still exits 1 when the file is missing. The loop, not that helper, decides whether the context fails.
 
 ```ts config.ts
 import { defineConfig } from '@lumpcode/cli-utils'
-import { retryUntilGreen, requireArtifactStep, shellCommand } from '@lumpcode/recipes'
+import { retryUntilGreen } from '@lumpcode/recipes'
+
+export default defineConfig({
+  command: 'cursor',
+  async workflow({ agent, shell }) {
+    const session = await agent.session()
+    const green = await retryUntilGreen({
+      session,
+      shell,
+      check: 'npm test',
+      prompt: 'Implement the ticket.',
+    })
+    return {
+      succeeded: green.succeeded,
+      push: true,
+      message: green.succeeded ? 'Tests passed.' : 'Tests still failing.',
+    }
+  },
+})
+```
+
+`maxAttempts` is how many fix prompts follow a red check (default 3). A check that stays red returns `{ succeeded: false }` and does not throw. `requireArtifact` prompts at most twice by default (`Write <path>. It is missing.`).
+
+## Steps kit
+
+| Helper | Use when |
+| --- | --- |
+| `retryUntilGreenSteps` | Agent edits, then your test/build command, retry with the failure output. |
+| `getValidationLoopSteps` | Same loop with more control over the fix steps. |
+| `requireArtifactStep` | Exit 1 when a file is missing (requirements.md, and so on). The retry loop decides whether the context fails. |
+| `shellCommand` | `{ executable, args }` for `sh -c`. |
+
+`retryUntilGreenSteps` is the usual wrapper: iteration 0 runs your steps, retries call `fixSteps` or a default “here is the command output, fix it” prompt, until `validationCommandFn` exits 0 or the cap is hit. Hitting the cap still pushes the branch, and sets `lumpVariables.__VALIDATION_FAILED__` (`true` when the last check stayed red, `false` when a check passed). Pass `validationFailedVariableName` to write the flag under another name, for example when two loops run in one context. Pass `pushOnValidationFailure: false` to fail the context instead of pushing. `requireArtifactStep` still exits 1 when the file is missing. The loop, not that helper, decides whether the context fails.
+
+```ts config.ts
+import { defineConfig } from '@lumpcode/cli-utils'
+import { retryUntilGreenSteps, requireArtifactStep, shellCommand } from '@lumpcode/recipes'
 
 export default defineConfig({
   command: 'cursor',
   contextListJson: { FILE: 'src/{NAME}.ts', REQ: 'docs/{NAME}.md' },
-  steps: retryUntilGreen({
+  steps: retryUntilGreenSteps({
     steps: [{ promptTemplate: 'Write @{REQ} for @{FILE}.' }],
     validationCommandFn: requireArtifactStep('REQ'),
   }),
@@ -93,6 +128,8 @@ export default featureBacklog({
 ```
 
 It needs `gh` on `PATH`, logged in. It skips when the branch never reached `origin` or a PR already exists, and only logs if creating the PR fails. Works with plain `defineConfig` too: `postTeardownWorkspaceFn: openPrPostTeardown({ provider: 'github' })`.
+
+The default body is `LUMP contexts: <names>`. When a pushed context returned a message, the body is one `### <name>` section per message instead. A pushed context that did not succeed opens the PR as a draft. Pass `draftOnFailure: false` to leave it ready for review. `title` and `body` may be functions of the teardown input, which includes `contextResults`.
 
 ## `defineConfig` generics
 

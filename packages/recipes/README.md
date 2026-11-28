@@ -36,17 +36,19 @@ workflow: [req, impl]
 
 ## Kit: retry until green
 
-Run your checks after the agent; on failure, hand it the output and try again. A still-red last attempt is still committed and pushed. Pass `pushOnValidationFailure: false` to withhold that push. The `lumpVariables.__VALIDATION_FAILED__` flag can be renamed with `validationFailedVariableName`.
+From a `workflow`, call `retryUntilGreen({ session, shell, check })`. It runs the check, and on failure prompts the agent with the output and tries again. A still-red check returns `{ succeeded: false }` and does not throw.
+
+A steps lump uses `retryUntilGreenSteps`. A still-red last attempt is still committed and pushed. Pass `pushOnValidationFailure: false` to withhold that push. The `lumpVariables.__VALIDATION_FAILED__` flag can be renamed with `validationFailedVariableName`.
 
 ```ts
 // .lumpcode/lumps/typedExports/config.ts
 import { defineConfig } from '@lumpcode/cli-utils'
-import { retryUntilGreen, shellCommand } from '@lumpcode/recipes'
+import { retryUntilGreenSteps, shellCommand } from '@lumpcode/recipes'
 
 export default defineConfig({
   command: 'cursor',
   contextListJson: { FILE: 'src/utils/{NAME}.ts' },
-  steps: retryUntilGreen({
+  steps: retryUntilGreenSteps({
     steps: [{ promptTemplate: 'Add an explicit return type to every export in @{FILE}.' }],
     validationCommandFn: () => shellCommand('npm run typecheck && npm test'),
   }),
@@ -64,7 +66,8 @@ export default defineConfig({
 
 | Helper | Does |
 | --- | --- |
-| `retryUntilGreen`, `getValidationLoopSteps` | validation loops with retries (`getRecursiveSteps` is a deprecated alias) |
+| `retryUntilGreen`, `requireArtifact`, `mustSucceed` | workflow checks, missing files, and throwing on a red result |
+| `retryUntilGreenSteps`, `getValidationLoopSteps` | the same validation loop as steps (`getRecursiveSteps` is a deprecated alias) |
 | `requireArtifactStep` | fails a step until a file exists |
 | `shellCommand` | `sh -c` command for validation steps |
 | `openPrPostTeardown` | opens a GitHub PR with `gh` after push |
