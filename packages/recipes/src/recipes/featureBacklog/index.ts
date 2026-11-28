@@ -1,5 +1,6 @@
+export { featureBacklog } from './workflowRecipe';
 export {
-    featureBacklog,
+    featureBacklogSteps,
     resolveFeatureBacklogItem,
     parseFeatureWorkflow,
     resolveFeatureBacklogDiscoveryOptions,
@@ -16,10 +17,14 @@ export {
     DEFAULT_PRIMARY_DISCOVERY_BRANCH,
     DEFAULT_ITEM_DISCOVERY_BRANCH_PREFIX,
     type FeatureBacklogOptions,
+    type FeatureBacklogPromptInput,
+    type FeatureBacklogPrompts,
+    type FeatureBacklogStepsOptions,
+    type FeatureBacklogStepsPromptFns,
+    type FeatureBacklogValidateCommand,
     type FeatureBacklogItem,
     type FeatureBacklogStage,
     type FeatureBacklogPromptStage,
-    type FeatureBacklogPromptFns,
     type FeatureBacklogContextVariables,
     type FeatureBacklogWorkflow,
     type FeatureBacklogWorkflowStage,

@@ -3,7 +3,7 @@ import {
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
 import {
-    backlog,
+    backlogSteps,
     type BaseBacklogItem,
 } from '@lumpcode/recipes';
 
@@ -17,7 +17,7 @@ type DocsContextVariables = {
     BACKLOG_STAGE: 'implementation';
 };
 
-export default defineLump(backlog<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetStepVariables>({
+export default defineLump(backlogSteps<BaseBacklogItem, CursorPresetLumpVariables, CursorPresetStepVariables>({
     configUrl: import.meta.url,
     baseBranch: 'dev',
     discoveryBranch: 'dev',

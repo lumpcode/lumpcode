@@ -26,6 +26,7 @@ export {
     type RetryUntilGreenStepsInput,
 } from './retryUntilGreenSteps';
 export { mustSucceed } from './workflow/mustSucceed';
+export { setTaskDone, type SetTaskDoneInput } from './workflow/setTaskDone';
 export {
     requireArtifact,
     type RequireArtifactInput,

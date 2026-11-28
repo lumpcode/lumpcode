@@ -10,10 +10,10 @@ import {
     defaultReqPrompt,
     defaultTestImplPrompt,
     defaultTestPlanPrompt,
-    type FeatureBacklogPromptFns,
+    type FeatureBacklogStepsPromptFns,
 } from '@lumpcode/recipes';
 
-type Stage = keyof FeatureBacklogPromptFns;
+type Stage = keyof FeatureBacklogStepsPromptFns;
 
 function contextVariable(context: Context, key: string): string {
     const value = context.variables[key];
@@ -68,7 +68,7 @@ export function withLearnings<V extends LumpVariables = LumpVariables, SV extend
  */
 export function learningsPromptFns<V extends LumpVariables = LumpVariables, SV extends StepVariables = StepVariables>(
     overrides: Partial<Record<Stage, PromptFn<V, SV>>> = {},
-): FeatureBacklogPromptFns<V, SV> {
+): FeatureBacklogStepsPromptFns<V, SV> {
     return {
         req: withLearnings(overrides.req ?? defaultReqPrompt),
         testPlan: withLearnings(overrides.testPlan ?? defaultTestPlanPrompt),

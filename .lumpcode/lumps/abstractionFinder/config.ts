@@ -2,12 +2,12 @@ import {
     type CursorPresetLumpVariables,
     type CursorPresetStepVariables,
 } from '@lumpcode/cli-utils';
-import { abstractionFinder, openPrPostTeardown } from '@lumpcode/recipes';
+import { abstractionFinderSteps, openPrPostTeardown } from '@lumpcode/recipes';
 
 const scanDirectories = ['packages/apps/cli'];
 const backlogItemsDir = '.lumpcode/lumps/abstractionImplementer/backlogItems';
 
-export default abstractionFinder<CursorPresetLumpVariables, CursorPresetStepVariables>({
+export default abstractionFinderSteps<CursorPresetLumpVariables, CursorPresetStepVariables>({
     configUrl: import.meta.url,
     maxPendingAbstractions: 1,
     scanDirectories,

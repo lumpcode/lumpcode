@@ -10,7 +10,7 @@ import { getContextStatus, normalizeSteps } from '@lumpcode/cli-utils';
 import {
     DEFAULT_ITEM_DISCOVERY_BRANCH_PREFIX,
     DEFAULT_PRIMARY_DISCOVERY_BRANCH,
-    featureBacklog,
+    featureBacklogSteps,
     parseFeatureWorkflow,
     resolveFeatureBacklogDiscoveryOptions,
     resolveFeatureBacklogItem,
@@ -608,7 +608,7 @@ describe('resolveFeatureBacklogItem', () => {
     });
 });
 
-describe('featureBacklog parseItem', () => {
+describe('featureBacklogSteps parseItem', () => {
     it('rejects item names ending in reserved suffixes via featureBacklog config', async () => {
         const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-config-'));
         const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
@@ -620,7 +620,7 @@ describe('featureBacklog parseItem', () => {
             'name: bad_req\ntask: x\npriority: 1\n',
         );
 
-        const config = featureBacklog({
+        const config = featureBacklogSteps({
             configUrl: pathToFileURL(configPath),
             implValidateCommand: 'npm test',
         });
@@ -647,7 +647,7 @@ describe('featureBacklog parseItem', () => {
             'name: alpha\ntask: x\npriority: 1\nworkflow: nope\n',
         );
 
-        const config = featureBacklog({
+        const config = featureBacklogSteps({
             configUrl: pathToFileURL(configPath),
             implValidateCommand: 'npm test',
         });
@@ -680,7 +680,7 @@ describe('featureBacklog parseItem', () => {
         await writeFeatureArtifact(lumpPath, 'umbrella/tickets/t1', { requirements: true });
         mockedGetContextStatus.mockResolvedValue('toDo');
 
-        const config = featureBacklog({
+        const config = featureBacklogSteps({
             configUrl: pathToFileURL(configPath),
             implValidateCommand: 'npm test',
         });
@@ -755,7 +755,7 @@ describe('featureBacklog parseItem', () => {
             testPlan: true,
         });
 
-        const config = featureBacklog({
+        const config = featureBacklogSteps({
             configUrl: pathToFileURL(configPath),
             implValidateCommand: 'npm test',
         });
@@ -806,7 +806,7 @@ describe('featureBacklog parseItem', () => {
         );
         await writeFile(configPath, 'export default {};\n');
 
-        const config = featureBacklog({
+        const config = featureBacklogSteps({
             configUrl: pathToFileURL(configPath),
             implValidateCommand: 'npm test',
         });
@@ -835,7 +835,7 @@ describe('featureBacklog parseItem', () => {
     });
 });
 
-describe('featureBacklog promptFns', () => {
+describe('featureBacklogSteps promptFns', () => {
     it('uses an override promptFn for the matching stage', async () => {
         const projectRoot = await mkdtemp(path.join(tmpdir(), 'feature-backlog-prompts-'));
         const lumpPath = path.join(projectRoot, '.lumpcode', 'lumps', 'backlog');
@@ -849,7 +849,7 @@ describe('featureBacklog promptFns', () => {
         await writeFile(configPath, 'export default {};\n');
         mockedGetContextStatus.mockResolvedValue('toDo');
 
-        const config = featureBacklog({
+        const config = featureBacklogSteps({
             configUrl: pathToFileURL(configPath),
             implValidateCommand: 'npm test',
             promptFns: {

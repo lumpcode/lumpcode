@@ -1,4 +1,11 @@
-import type { LumpJsConfig, LumpVariables, PromptFn, StepVariables } from '@lumpcode/cli-utils';
+import type {
+    Context,
+    LumpJsConfig,
+    LumpVariables,
+    PromptFn,
+    StepVariables,
+} from '@lumpcode/cli-utils';
+import type { CommandDescriptor, MaybePromise } from '@lumpcode/core';
 
 import type { ValidationCommandFn } from '../../kit';
 import type { BaseBacklogItem } from '../../types';
@@ -61,21 +68,24 @@ export type FeatureBacklogContextVariables = {
     BACKLOG_ITEMS_DIR: string;
     BACKLOG_ITEM_DIR: string;
     BACKLOG_STAGE: FeatureBacklogStage;
+    /** Same comma-joined stage list as `STAGES`. Still set while the desc.yml alias exists. */
     WORKFLOW?: string;
+    /** Comma-joined stage list from `desc.yml` `stages` (or its deprecated `workflow` alias). */
+    STAGES?: string;
     REQ_FILE?: string;
     TEST_PLAN_FILE?: string;
 };
 
 export type FeatureBacklogPromptStage = Exclude<FeatureBacklogStage, 'completion'>;
 
-export type FeatureBacklogPromptFns<
+export type FeatureBacklogStepsPromptFns<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 > = {
     [K in FeatureBacklogPromptStage]?: PromptFn<V, SV>;
 };
 
-export type FeatureBacklogOptions<
+export type FeatureBacklogStepsOptions<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 > = {
@@ -84,7 +94,7 @@ export type FeatureBacklogOptions<
     backlogItemsDir?: string;
     primaryDiscoveryBranch?: string;
     itemDiscoveryBranchPrefix?: string;
-    promptFns?: FeatureBacklogPromptFns<V, SV>;
+    promptFns?: FeatureBacklogStepsPromptFns<V, SV>;
 } & Omit<
     LumpJsConfig<V, SV>,
     | 'contextListJson'
@@ -92,6 +102,46 @@ export type FeatureBacklogOptions<
     | 'getContextListFn'
     | 'prompt'
     | 'steps'
+    | 'discoveryBranch'
+    | 'discoveryBranches'
+>;
+
+export type FeatureBacklogPromptInput<V extends LumpVariables = LumpVariables> = {
+    context: Context;
+    lumpVariables: V;
+};
+
+export type FeatureBacklogPrompts<V extends LumpVariables = LumpVariables> = {
+    [K in FeatureBacklogPromptStage]?:
+        | string
+        | ((input: FeatureBacklogPromptInput<V>) => MaybePromise<string>);
+};
+
+export type FeatureBacklogValidateCommand<V extends LumpVariables = LumpVariables> =
+    | string
+    | CommandDescriptor
+    | ((input: FeatureBacklogPromptInput<V>) => MaybePromise<string | CommandDescriptor | null>);
+
+export type FeatureBacklogOptions<
+    V extends LumpVariables = LumpVariables,
+    SV extends StepVariables = StepVariables,
+> = {
+    configUrl: string | URL;
+    implValidateCommand?: FeatureBacklogValidateCommand<V>;
+    /** Passed to `retryUntilGreen`. Fix attempts after the first check. Default 3. */
+    maxAttempts?: number;
+    backlogItemsDir?: string;
+    primaryDiscoveryBranch?: string;
+    itemDiscoveryBranchPrefix?: string;
+    prompts?: FeatureBacklogPrompts<V>;
+} & Omit<
+    LumpJsConfig<V, SV>,
+    | 'contextListJson'
+    | 'contextMatchFn'
+    | 'getContextListFn'
+    | 'prompt'
+    | 'steps'
+    | 'workflow'
     | 'discoveryBranch'
     | 'discoveryBranches'
 >;

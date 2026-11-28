@@ -24,7 +24,7 @@ export type AbstractionFinderScanCommand<
     SV extends StepVariables = StepVariables,
 > = string | CommandDescriptor | CommandFn<V, SV>;
 
-export type AbstractionFinderOptions<
+export type AbstractionFinderStepsOptions<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
 > = {
@@ -41,7 +41,7 @@ export type AbstractionFinderOptions<
     scanCommand?: AbstractionFinderScanCommand<V, SV>;
 } & Omit<
     LumpJsConfig<V, SV>,
-    'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt'
+    'contextListJson' | 'contextMatchFn' | 'getContextListFn' | 'prompt' | 'workflow'
 >;
 
 function scanCommandStep<
@@ -57,10 +57,10 @@ function scanCommandStep<
     return { commandFn: () => scanCommand };
 }
 
-export const abstractionFinder = defineRecipe(function abstractionFinder<
+export const abstractionFinderSteps = defineRecipe(function abstractionFinderSteps<
     V extends LumpVariables = LumpVariables,
     SV extends StepVariables = StepVariables,
->(options: AbstractionFinderOptions<V, SV>): LumpJsConfig<V, SV> {
+>(options: AbstractionFinderStepsOptions<V, SV>): LumpJsConfig<V, SV> {
     const {
         configUrl,
         maxPendingAbstractions = 5,

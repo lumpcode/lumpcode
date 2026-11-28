@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { GetContextListFn } from '@lumpcode/cli-utils';
 import { normalizeSteps } from '@lumpcode/cli-utils';
 
-import { abstractionFinder, type AbstractionFinderOptions } from './main';
+import { abstractionFinderSteps, type AbstractionFinderStepsOptions } from './main';
 
 function asGetContextListFn(fn: unknown): GetContextListFn {
     if (typeof fn !== 'function') {
@@ -20,7 +20,7 @@ async function writeTodoItem(backlogItemsDir: string, name: string) {
     await mkdir(path.join(backlogItemsDir, 'todo', name), { recursive: true });
 }
 
-describe('abstractionFinder', () => {
+describe('abstractionFinderSteps', () => {
     let projectRoot: string;
     let configPath: string;
     let backlogItemsDir: string;
@@ -38,8 +38,8 @@ describe('abstractionFinder', () => {
         await rm(projectRoot, { recursive: true, force: true });
     });
 
-    function makeConfig(extra: Partial<AbstractionFinderOptions> = {}) {
-        return abstractionFinder({
+    function makeConfig(extra: Partial<AbstractionFinderStepsOptions> = {}) {
+        return abstractionFinderSteps({
             configUrl: pathToFileURL(configPath),
             backlogItemsDir,
             ...extra,
@@ -48,7 +48,7 @@ describe('abstractionFinder', () => {
 
     it('rejects an absolute backlogItemsDir', () => {
         expect(() =>
-            abstractionFinder({
+            abstractionFinderSteps({
                 configUrl: pathToFileURL(configPath),
                 backlogItemsDir: '/tmp/backlogItems',
             }),
