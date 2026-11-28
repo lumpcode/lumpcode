@@ -115,11 +115,11 @@ beforeAll(async () => {
   write(
     join(projectRoot, '.lumpcode/lumps/noteHello/config.ts'),
     `import { defineLump } from '../../templates/main'
-import { retryUntilGreen, shellCommand } from '@lumpcode/recipes'
+import { retryUntilGreenSteps, shellCommand } from '@lumpcode/recipes'
 
 export default defineLump({
   contextListJson: { FILE: 'src/{NAME}.ts' },
-  steps: retryUntilGreen({
+  steps: retryUntilGreenSteps({
     steps: [{ promptTemplate: 'Add a one-line comment to the top of @{FILE}. Change nothing else.' }],
     validationCommandFn: () => shellCommand('npm test'),
   }),
@@ -294,7 +294,7 @@ describe('lump-plan dry run', () => {
   it('plans the real lump with its validation command', async () => {
     const realSource = readFileSync(join(projectRoot, '.lumpcode/lumps/noteHello/config.ts'), 'utf8')
     expect(realSource).toContain("shellCommand('npm test')")
-    expect(realSource).toContain('retryUntilGreen')
+    expect(realSource).toContain('retryUntilGreenSteps')
 
     const { planLumpFromJsConfig } = await import(
       '../../cli/src/utils/planLumpFromJsConfig/main.ts'

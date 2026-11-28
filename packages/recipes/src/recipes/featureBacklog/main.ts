@@ -9,7 +9,7 @@ import {
     requireArtifactStep,
     resolveBacklogPaths,
     resolveImplValidateCommand,
-    retryUntilGreen,
+    retryUntilGreenSteps,
     validateBaseBacklogItem,
 } from '../../kit';
 import type { BaseBacklogItem } from '../../types';
@@ -182,7 +182,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
         stages: {
             req: {
                 completion: 'keepPending',
-                steps: retryUntilGreen<V, SV>({
+                steps: retryUntilGreenSteps<V, SV>({
                     steps: [{ promptFn: promptFns?.req ?? defaultReqPrompt }],
                     validationCommandFn: requireArtifactStep<V, SV>('REQ_FILE'),
                     fixSteps: ({ prevValidateCommandResult }) => [
@@ -192,7 +192,7 @@ export const featureBacklog = defineRecipe(function featureBacklog<
             },
             testPlan: {
                 completion: 'keepPending',
-                steps: retryUntilGreen<V, SV>({
+                steps: retryUntilGreenSteps<V, SV>({
                     steps: [{ promptFn: promptFns?.testPlan ?? defaultTestPlanPrompt }],
                     validationCommandFn: requireArtifactStep<V, SV>('TEST_PLAN_FILE'),
                     fixSteps: ({ prevValidateCommandResult }) => [
@@ -206,14 +206,14 @@ export const featureBacklog = defineRecipe(function featureBacklog<
             },
             impl: {
                 completion: 'moveToDone',
-                steps: retryUntilGreen<V, SV>({
+                steps: retryUntilGreenSteps<V, SV>({
                     steps: [{ promptFn: promptFns?.impl ?? defaultImplPrompt }],
                     validationCommandFn: runImplValidation,
                 }),
             },
             directImpl: {
                 completion: 'moveToDone',
-                steps: retryUntilGreen<V, SV>({
+                steps: retryUntilGreenSteps<V, SV>({
                     steps: [{ promptFn: promptFns?.directImpl ?? defaultDirectImplPrompt }],
                     validationCommandFn: runImplValidation,
                 }),

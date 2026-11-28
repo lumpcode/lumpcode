@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
 import type { PostSetupWorkspaceFnInput } from '@lumpcode/cli-utils';
 import * as core from '@lumpcode/core';
-import { failure, success } from '@lumpcode/core';
+import { failure, success, type ContextResult, type ContextResultOutcome } from '@lumpcode/core';
 
 import { openPrPostTeardown } from './main';
 
@@ -242,3 +242,229 @@ describe('openPrPostTeardown', () => {
         });
     });
 });
+
+// Skipped until the impl stage fills in the body and draft. Unskip; do not rewrite.
+describe.skip('openPrPostTeardown context results', () => {
+    beforeEach(() => {
+        execBinaryMock.mockReset();
+    });
+
+    afterEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it('keeps today\'s body when no pushed context has a message', async () => {
+        primeCreate();
+        const hook = openPrPostTeardown({ provider: 'github' });
+        await hook(hookInput({
+            contextList: [
+                { name: 'beta', variables: {} },
+                { name: 'alpha', variables: {} },
+            ],
+            contextResults: [
+                contextResult({ name: 'alpha', outcome: 'pushed', succeeded: true }),
+                contextResult({ name: 'beta', outcome: 'failed', succeeded: false, message: 'not pushed' }),
+            ],
+        }));
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: prCreateArgs({
+                title: 'LUMP: backlog - beta, alpha',
+                body: 'LUMP contexts: beta, alpha',
+                draft: false,
+            }),
+            cwd: '/tmp/ws',
+        });
+    });
+
+    it('builds the body from pushed contexts that have a message, in result order', async () => {
+        primeCreate();
+        const hook = openPrPostTeardown({ provider: 'github' });
+        await hook(hookInput({
+            contextList: [
+                { name: 'beta', variables: {} },
+                { name: 'alpha', variables: {} },
+            ],
+            contextResults: [
+                contextResult({
+                    name: 'alpha',
+                    outcome: 'pushed',
+                    succeeded: true,
+                    message: 'Alpha done.\nStill reviewing.',
+                }),
+                contextResult({
+                    name: 'skipped',
+                    outcome: 'notPushed',
+                    succeeded: false,
+                    message: 'left out',
+                }),
+                contextResult({ name: 'beta', outcome: 'pushed', succeeded: true, message: '' }),
+                contextResult({
+                    name: 'gamma',
+                    outcome: 'pushed',
+                    succeeded: false,
+                    message: 'Gamma still red.',
+                }),
+            ],
+        }));
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: prCreateArgs({
+                title: 'LUMP: backlog - beta, alpha',
+                body: [
+                    '### alpha',
+                    'Alpha done.',
+                    'Still reviewing.',
+                    '',
+                    '### gamma',
+                    'Gamma still red.',
+                ].join('\n'),
+                draft: true,
+            }),
+            cwd: '/tmp/ws',
+        });
+    });
+
+    it('opens a draft when a pushed context did not succeed, even with no message', async () => {
+        primeCreate();
+        const hook = openPrPostTeardown({ provider: 'github' });
+        await hook(hookInput({
+            contextList: [{ name: 'alpha', variables: {} }],
+            contextResults: [
+                contextResult({ name: 'alpha', outcome: 'pushed', succeeded: false }),
+            ],
+        }));
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: prCreateArgs({
+                title: 'LUMP: backlog - alpha',
+                body: 'LUMP contexts: alpha',
+                draft: true,
+            }),
+            cwd: '/tmp/ws',
+        });
+    });
+
+    it('does not draft when draftOnFailure is false', async () => {
+        primeCreate();
+        const hook = openPrPostTeardown({ provider: 'github', draftOnFailure: false });
+        await hook(hookInput({
+            contextList: [{ name: 'alpha', variables: {} }],
+            contextResults: [
+                contextResult({
+                    name: 'alpha',
+                    outcome: 'pushed',
+                    succeeded: false,
+                    message: 'Still red.',
+                }),
+            ],
+        }));
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: prCreateArgs({
+                title: 'LUMP: backlog - alpha',
+                body: '### alpha\nStill red.',
+                draft: false,
+            }),
+            cwd: '/tmp/ws',
+        });
+    });
+
+    it('does not draft for a context that was not pushed', async () => {
+        primeCreate();
+        const hook = openPrPostTeardown({ provider: 'github' });
+        await hook(hookInput({
+            contextList: [{ name: 'alpha', variables: {} }],
+            contextResults: [
+                contextResult({ name: 'alpha', outcome: 'failed', succeeded: false, message: 'crashed' }),
+                contextResult({ name: 'beta', outcome: 'aborted', succeeded: false, message: 'stopped' }),
+                contextResult({ name: 'gamma', outcome: 'pushed', succeeded: true, message: 'Gamma done.' }),
+            ],
+        }));
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: prCreateArgs({
+                title: 'LUMP: backlog - alpha',
+                body: '### gamma\nGamma done.',
+                draft: false,
+            }),
+            cwd: '/tmp/ws',
+        });
+    });
+
+    it('passes contextResults to title and body overrides', async () => {
+        primeCreate();
+        const hook = openPrPostTeardown({
+            provider: 'github',
+            title: ({ contextResults }) => contextResults.map((entry) => entry.context.name).join('+'),
+            body: ({ contextResults }) => String(contextResults.length),
+        });
+        await hook(hookInput({
+            contextList: [{ name: 'alpha', variables: {} }],
+            contextResults: [
+                contextResult({ name: 'alpha', outcome: 'pushed', succeeded: false, message: 'red' }),
+                contextResult({ name: 'beta', outcome: 'pushed', succeeded: true, message: 'green' }),
+            ],
+        }));
+
+        expect(execBinaryMock).toHaveBeenNthCalledWith(3, {
+            binaryPath: 'gh',
+            args: prCreateArgs({
+                title: 'alpha+beta',
+                body: '2',
+                draft: true,
+            }),
+            cwd: '/tmp/ws',
+        });
+    });
+});
+
+function contextResult({
+    name,
+    outcome,
+    succeeded,
+    message,
+}: {
+    name: string;
+    outcome: ContextResultOutcome;
+    succeeded: boolean;
+    message?: string;
+}): ContextResult {
+    return {
+        context: { name, variables: {} },
+        outcome,
+        result: {
+            succeeded,
+            push: outcome === 'pushed',
+            ...(message === undefined ? {} : { message }),
+        },
+    };
+}
+
+function prCreateArgs({ title, body, draft }: { title: string; body: string; draft: boolean }): string[] {
+    return [
+        'pr',
+        'create',
+        ...(draft ? ['--draft'] : []),
+        '--base',
+        'dev',
+        '--head',
+        'lump/backlog/foo',
+        '--title',
+        title,
+        '--body',
+        body,
+    ];
+}
+
+function primeCreate(): void {
+    execBinaryMock
+        .mockResolvedValueOnce(execOk('abc123\trefs/heads/lump/backlog/foo\n'))
+        .mockResolvedValueOnce(execOk('[]'))
+        .mockResolvedValueOnce(execOk('https://github.com/org/repo/pull/1\n'));
+}

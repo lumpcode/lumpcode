@@ -10,7 +10,7 @@ import { pathExists } from '@lumpcode/core';
 import {
     projectRootFromConfigUrl,
     resolveImplValidateCommand,
-    retryUntilGreen,
+    retryUntilGreenSteps,
     type ValidationCommandFn,
 } from '../../kit';
 import { defineRecipe, type BaseBacklogItem } from '../../types';
@@ -73,7 +73,7 @@ export const abstractionBacklog = defineRecipe(function abstractionBacklog<
         stages: {
             implementation: {
                 completion: 'moveToDone',
-                steps: retryUntilGreen<V, SV>({
+                steps: retryUntilGreenSteps<V, SV>({
                     steps: implSteps ?? [{
                         promptFn({ context: ctx }) {
                             const vars = ctx.variables as AbstractionBacklogContextVariables;

@@ -22,9 +22,18 @@ export {
     type StepIndex,
 } from './getValidationLoopSteps';
 export {
+    retryUntilGreenSteps,
+    type RetryUntilGreenStepsInput,
+} from './retryUntilGreenSteps';
+export { mustSucceed } from './workflow/mustSucceed';
+export {
+    requireArtifact,
+    type RequireArtifactInput,
+} from './workflow/requireArtifact';
+export {
     retryUntilGreen,
     type RetryUntilGreenInput,
-} from './retryUntilGreen';
+} from './workflow/retryUntilGreen';
 export { lumpPathAndName } from './lumpPathAndName';
 export { projectRootFromConfigUrl } from './projectRootFromConfigUrl';
 export { requireArtifactStep } from './requireArtifactStep';

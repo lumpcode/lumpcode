@@ -14,7 +14,7 @@ import {
 } from '@lumpcode/core';
 
 import type { ValidationCommandFn } from './getValidationLoopSteps';
-import { retryUntilGreen } from './retryUntilGreen';
+import { retryUntilGreenSteps } from './retryUntilGreenSteps';
 import { shellCommand } from './shellCommand';
 
 const silentLogger: Logger = {
@@ -47,7 +47,7 @@ function initTestGitRepo(projectRoot: string): void {
 const redCheck = () => shellCommand('echo red; exit 1');
 const greenCheck = () => ({ executable: 'true', args: [] });
 
-describe('retryUntilGreen through executeStepsForContextList', () => {
+describe('retryUntilGreenSteps through executeStepsForContextList', () => {
     const roots: string[] = [];
 
     afterEach(async () => {
@@ -78,7 +78,7 @@ describe('retryUntilGreen through executeStepsForContextList', () => {
         let checks = 0;
         let afterRan = false;
 
-        const loop = retryUntilGreen({
+        const loop = retryUntilGreenSteps({
             steps: [{ commandFn: () => ({ executable: 'true', args: [] }) }],
             validationCommandFn(input) {
                 checks += 1;

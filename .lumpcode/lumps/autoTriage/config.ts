@@ -6,7 +6,7 @@ import {
 import {
     openPrPostTeardown,
     projectRootFromConfigUrl,
-    retryUntilGreen,
+    retryUntilGreenSteps,
     shellCommand,
 } from '@lumpcode/recipes';
 
@@ -39,7 +39,7 @@ export default defineConfig<CursorPresetLumpVariables, CursorPresetStepVariables
             },
         ];
     },
-    steps: retryUntilGreen({
+    steps: retryUntilGreenSteps({
         maxIterations: 2,
         pushOnValidationFailure: false,
         steps: [
